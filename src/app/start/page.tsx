@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { prefectures as staticPrefectures } from '@/data/prefectures';
+import { MapPin, Users, Calendar, ArrowRight, AlertTriangle } from 'lucide-react';
 
-// Supabase 未設定時のフォールバック市区町村（MVP: 東京都渋谷区のみ）
 const FALLBACK_MUNICIPALITIES: Record<string, { code: string; name: string }[]> = {
   '13': [{ code: '13113', name: '渋谷区' }],
 };
@@ -29,7 +29,6 @@ export default function StartPage() {
   const [loadingMunis, setLoadingMunis] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm', string>>>({});
 
-  // 都道府県リスト取得
   useEffect(() => {
     async function load() {
       if (!supabase) {
@@ -47,7 +46,6 @@ export default function StartPage() {
     load();
   }, []);
 
-  // 市区町村リスト取得（都道府県変更時）
   useEffect(() => {
     if (!prefCode) {
       setMuniList([]);
@@ -118,39 +116,50 @@ export default function StartPage() {
     <div className="mx-auto max-w-xl px-4 py-12">
       {/* ページヘッダー */}
       <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold text-gray-900">会社情報を入力</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">会社情報を入力</h1>
         <p className="mt-2 text-sm text-gray-500">
           3項目を入力するだけで、提出書類・期限・提出先を一覧表示します
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
 
         {/* ① 所在地 */}
         <div className="card space-y-4">
           <div className="flex items-center gap-3">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-navy text-sm font-bold text-white">
-              ①
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
+              1
             </span>
-            <h2 className="font-semibold text-gray-800">会社の所在地</h2>
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-gray-400" />
+              <h2 className="font-semibold text-gray-800">会社の所在地</h2>
+            </div>
           </div>
 
           <div>
             <label className="form-label">都道府県</label>
-            <select
-              className="form-select"
-              value={prefCode}
-              onChange={(e) => setPrefCode(e.target.value)}
-            >
-              <option value="">選択してください</option>
-              {prefList.map((p) => (
-                <option key={p.code} value={p.code}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                className="form-select pr-9"
+                value={prefCode}
+                onChange={(e) => setPrefCode(e.target.value)}
+              >
+                <option value="">選択してください</option>
+                {prefList.map((p) => (
+                  <option key={p.code} value={p.code}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                ▾
+              </span>
+            </div>
             {errors.pref && (
-              <p className="mt-1 text-xs text-red-500">{errors.pref}</p>
+              <p className="mt-1.5 flex items-center gap-1 text-xs text-red-500">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                {errors.pref}
+              </p>
             )}
           </div>
 
@@ -160,8 +169,8 @@ export default function StartPage() {
               {loadingMunis ? (
                 <p className="py-2 text-sm text-gray-400">読み込み中...</p>
               ) : muniList.length === 0 ? (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-                  <p className="text-sm text-amber-700">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-sm font-medium text-amber-700">
                     このエリアは現在未対応です（順次拡大予定）
                   </p>
                   <p className="mt-0.5 text-xs text-amber-600">
@@ -169,33 +178,44 @@ export default function StartPage() {
                   </p>
                 </div>
               ) : (
-                <select
-                  className="form-select"
-                  value={muniCode}
-                  onChange={(e) => setMuniCode(e.target.value)}
-                >
-                  <option value="">選択してください</option>
-                  {muniList.map((m) => (
-                    <option key={m.code} value={m.code}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    className="form-select pr-9"
+                    value={muniCode}
+                    onChange={(e) => setMuniCode(e.target.value)}
+                  >
+                    <option value="">選択してください</option>
+                    {muniList.map((m) => (
+                      <option key={m.code} value={m.code}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    ▾
+                  </span>
+                </div>
               )}
               {errors.muni && (
-                <p className="mt-1 text-xs text-red-500">{errors.muni}</p>
+                <p className="mt-1.5 flex items-center gap-1 text-xs text-red-500">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  {errors.muni}
+                </p>
               )}
             </div>
           )}
         </div>
 
         {/* ② 従業員 */}
-        <div className="card space-y-3">
+        <div className="card space-y-4">
           <div className="flex items-center gap-3">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-navy text-sm font-bold text-white">
-              ②
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
+              2
             </span>
-            <h2 className="font-semibold text-gray-800">従業員はいますか？</h2>
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-gray-400" />
+              <h2 className="font-semibold text-gray-800">従業員はいますか？</h2>
+            </div>
           </div>
           <div className="flex gap-3">
             {([true, false] as const).map((val) => (
@@ -203,10 +223,10 @@ export default function StartPage() {
                 key={String(val)}
                 type="button"
                 onClick={() => setHasEmployees(val)}
-                className={`flex-1 rounded-lg border-2 px-4 py-3 text-sm font-semibold transition-colors ${
+                className={`flex-1 rounded-xl border-2 px-4 py-3 text-sm font-semibold transition-all ${
                   hasEmployees === val
-                    ? 'border-brand-navy bg-brand-navy text-white'
-                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400'
+                    ? 'border-blue-600 bg-blue-600 text-white shadow-sm'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-blue-200 hover:bg-blue-50'
                 }`}
               >
                 {val ? 'あり' : 'なし'}
@@ -214,34 +234,48 @@ export default function StartPage() {
             ))}
           </div>
           {errors.emp && (
-            <p className="text-xs text-red-500">{errors.emp}</p>
+            <p className="flex items-center gap-1 text-xs text-red-500">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {errors.emp}
+            </p>
           )}
         </div>
 
         {/* ③ 決算月 */}
-        <div className="card space-y-3">
+        <div className="card space-y-4">
           <div className="flex items-center gap-3">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-navy text-sm font-bold text-white">
-              ③
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
+              3
             </span>
-            <h2 className="font-semibold text-gray-800">決算月</h2>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-gray-400" />
+              <h2 className="font-semibold text-gray-800">決算月</h2>
+            </div>
           </div>
-          <select
-            className="form-select"
-            value={fiscalMonth ?? ''}
-            onChange={(e) =>
-              setFiscalMonth(e.target.value ? Number(e.target.value) : null)
-            }
-          >
-            <option value="">選択してください</option>
-            {FISCAL_MONTHS.map((m) => (
-              <option key={m} value={m}>
-                {m}月
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              className="form-select pr-9"
+              value={fiscalMonth ?? ''}
+              onChange={(e) =>
+                setFiscalMonth(e.target.value ? Number(e.target.value) : null)
+              }
+            >
+              <option value="">選択してください</option>
+              {FISCAL_MONTHS.map((m) => (
+                <option key={m} value={m}>
+                  {m}月
+                </option>
+              ))}
+            </select>
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+              ▾
+            </span>
+          </div>
           {errors.fm && (
-            <p className="text-xs text-red-500">{errors.fm}</p>
+            <p className="flex items-center gap-1 text-xs text-red-500">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {errors.fm}
+            </p>
           )}
         </div>
 
@@ -250,7 +284,8 @@ export default function StartPage() {
           type="submit"
           className="btn-primary w-full justify-center py-4 text-base"
         >
-          診断結果を見る →
+          診断結果を見る
+          <ArrowRight className="h-5 w-5" />
         </button>
       </form>
 

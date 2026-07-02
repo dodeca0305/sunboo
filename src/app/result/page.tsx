@@ -3,8 +3,8 @@ import { supabase } from '@/lib/supabase';
 import { runDiagnosis } from '@/lib/diagnosis';
 import { prefectures as staticPrefectures } from '@/data/prefectures';
 import type { ProcedureCategory } from '@/lib/types';
+import { Building2, MapPin, Phone, ExternalLink, Clock, ChevronLeft } from 'lucide-react';
 
-// Supabase 未接続時のフォールバック市区町村名（MVPシード済みデータと一致させる）
 const FALLBACK_MUNI_NAMES: Record<string, string> = {
   '13113': '渋谷区',
 };
@@ -14,10 +14,10 @@ const CATEGORY_CONFIG: Record<
   { label: string; borderColor: string; badgeClass: string }
 > = {
   tax:          { label: '税務',   borderColor: 'border-blue-500',   badgeClass: 'bg-blue-100 text-blue-700' },
-  labor:        { label: '労務',   borderColor: 'border-orange-500', badgeClass: 'bg-orange-100 text-orange-700' },
-  insurance:    { label: '社保',   borderColor: 'border-green-500',  badgeClass: 'bg-green-100 text-green-700' },
-  registration: { label: '登録',   borderColor: 'border-purple-500', badgeClass: 'bg-purple-100 text-purple-700' },
-  other:        { label: 'その他', borderColor: 'border-gray-400',   badgeClass: 'bg-gray-100 text-gray-700' },
+  labor:        { label: '労務',   borderColor: 'border-orange-400', badgeClass: 'bg-orange-100 text-orange-700' },
+  insurance:    { label: '社保',   borderColor: 'border-emerald-500', badgeClass: 'bg-emerald-100 text-emerald-700' },
+  registration: { label: '登録',   borderColor: 'border-violet-500', badgeClass: 'bg-violet-100 text-violet-700' },
+  other:        { label: 'その他', borderColor: 'border-gray-300',   badgeClass: 'bg-gray-100 text-gray-600' },
 };
 
 export default async function ResultPage({
@@ -32,7 +32,6 @@ export default async function ResultPage({
   const hasEmployees = sp.emp === 'true';
   const fiscalMonth = Number(sp.fm) || 0;
 
-  // 必須パラメータが不足している場合
   if (!prefCode || !muniCode || fiscalMonth < 1 || fiscalMonth > 12) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
@@ -42,15 +41,14 @@ export default async function ResultPage({
           <p className="text-sm text-gray-500">
             会社情報を入力してから診断してください。
           </p>
-          <Link href="/start" className="btn-primary inline-block">
-            入力画面へ →
+          <Link href="/start" className="btn-primary inline-flex justify-center">
+            入力画面へ
           </Link>
         </div>
       </div>
     );
   }
 
-  // 診断実行
   const result = await runDiagnosis(supabase, {
     prefectureCode: prefCode,
     municipalityCode: muniCode,
@@ -58,11 +56,9 @@ export default async function ResultPage({
     fiscalMonth,
   });
 
-  // 都道府県名: 静的データから取得
   const prefName =
     staticPrefectures.find((p) => p.code === prefCode)?.name ?? prefCode;
 
-  // 市区町村名: Supabase から取得（未設定時はフォールバック名またはコード表示）
   let muniName = FALLBACK_MUNI_NAMES[muniCode] ?? muniCode;
   if (supabase) {
     const { data } = await supabase
@@ -82,17 +78,18 @@ export default async function ResultPage({
       {/* 戻るリンク */}
       <Link
         href="/start"
-        className="mb-6 inline-flex items-center gap-1 text-sm text-brand-navy hover:underline"
+        className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700"
       >
-        ← 条件を変更する
+        <ChevronLeft className="h-4 w-4" />
+        条件を変更する
       </Link>
 
       {/* 診断条件サマリー */}
-      <div className="mb-8 rounded-xl bg-brand-navy p-6 text-white">
-        <p className="mb-2 text-xs font-semibold tracking-widest text-blue-200 uppercase">
+      <div className="mb-8 rounded-2xl border border-blue-100 bg-blue-50 p-6">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-500">
           診断結果
         </p>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-blue-900">
           <span>{prefName} {muniName}</span>
           <span className="text-blue-300">·</span>
           <span>従業員{hasEmployees ? 'あり' : 'なし'}</span>
@@ -103,55 +100,55 @@ export default async function ResultPage({
 
       {/* Supabase 未設定・データなし */}
       {noData && (
-        <div className="card py-12 text-center space-y-4">
+        <div className="card space-y-4 py-12 text-center">
           <p className="text-4xl">🔧</p>
           <p className="font-semibold text-gray-700">データベース未接続</p>
           <p className="text-sm text-gray-500">
             Supabase の環境変数を設定すると、管轄機関・手続き情報が表示されます。
           </p>
-          <div className="pt-2">
-            <Link href="/start" className="btn-secondary text-sm">
-              ← 入力画面に戻る
-            </Link>
-          </div>
+          <Link href="/start" className="btn-secondary text-sm">
+            ← 入力画面に戻る
+          </Link>
         </div>
       )}
 
-      {/* ── 管轄機関 ────────────────────────────────────────── */}
+      {/* ── 管轄機関 ── */}
       {result.offices.length > 0 && (
         <section className="mb-10">
           <h2 className="mb-4 text-lg font-bold text-gray-900">
             管轄機関
-            <span className="ml-2 text-sm font-normal text-gray-500">
-              （{result.offices.length}件）
+            <span className="ml-2 text-sm font-normal text-gray-400">
+              {result.offices.length}件
             </span>
           </h2>
 
           <div className="grid gap-4 sm:grid-cols-2">
             {result.offices.map((office) => (
-              <div key={office.id} className="card flex gap-3">
-                <span className="shrink-0 text-2xl">🏛</span>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-900">
-                    {office.name}
-                  </p>
+              <div key={office.id} className="card flex gap-4">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100">
+                  <Building2 className="h-5 w-5 text-gray-500" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-gray-900">{office.name}</p>
                   {office.address && (
-                    <p className="mt-0.5 truncate text-xs text-gray-500">
+                    <p className="mt-1 flex items-start gap-1 truncate text-xs text-gray-500">
+                      <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
                       {office.address}
                     </p>
                   )}
                   {office.phone && (
-                    <p className="mt-0.5 text-xs text-gray-500">
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
+                      <Phone className="h-3 w-3 shrink-0" />
                       {office.phone}
                     </p>
                   )}
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     {office.map_url && (
                       <a
                         href={office.map_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="btn-secondary px-2 py-1 text-xs"
+                        className="btn-secondary px-3 py-1 text-xs"
                       >
                         地図
                       </a>
@@ -161,7 +158,7 @@ export default async function ResultPage({
                         href={office.website_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="btn-secondary px-2 py-1 text-xs"
+                        className="btn-secondary px-3 py-1 text-xs"
                       >
                         公式サイト
                       </a>
@@ -174,13 +171,13 @@ export default async function ResultPage({
         </section>
       )}
 
-      {/* ── 必要手続き ──────────────────────────────────────── */}
+      {/* ── 必要手続き ── */}
       {result.procedures.length > 0 && (
         <section>
           <h2 className="mb-4 text-lg font-bold text-gray-900">
             必要手続き
-            <span className="ml-2 text-sm font-normal text-gray-500">
-              （{result.procedures.length}件）
+            <span className="ml-2 text-sm font-normal text-gray-400">
+              {result.procedures.length}件
             </span>
           </h2>
 
@@ -195,23 +192,21 @@ export default async function ResultPage({
                   className={`card border-l-4 ${cat.borderColor}`}
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-bold text-gray-900">
-                      {proc.name}
-                    </h3>
-                    <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${cat.badgeClass}`}
-                    >
+                    <h3 className="font-bold text-gray-900">{proc.name}</h3>
+                    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${cat.badgeClass}`}>
                       {cat.label}
                     </span>
                   </div>
 
-                  <div className="mt-1 space-y-0.5">
+                  <div className="mt-2 space-y-1">
                     {proc.office && (
-                      <p className="text-xs text-gray-500">
-                        提出先: {proc.office.name}
+                      <p className="flex items-center gap-1.5 text-xs text-gray-500">
+                        <Building2 className="h-3.5 w-3.5 shrink-0" />
+                        {proc.office.name}
                       </p>
                     )}
-                    <p className="text-xs text-gray-600">
+                    <p className="flex items-center gap-1.5 text-xs text-gray-600">
+                      <Clock className="h-3.5 w-3.5 shrink-0 text-gray-400" />
                       <span className="font-medium">期限:</span> {deadline}
                     </p>
                   </div>
@@ -224,9 +219,10 @@ export default async function ResultPage({
                           href={link.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="btn-secondary px-3 py-1 text-xs"
+                          className="btn-secondary inline-flex items-center gap-1 px-3 py-1 text-xs"
                         >
-                          {link.label} →
+                          {link.label}
+                          <ExternalLink className="h-3 w-3" />
                         </a>
                       ))}
                     </div>
@@ -238,7 +234,7 @@ export default async function ResultPage({
         </section>
       )}
 
-      {/* ページ下部: 再診断リンク */}
+      {/* 再診断リンク */}
       {!noData && (
         <div className="mt-12 text-center">
           <Link href="/start" className="btn-secondary text-sm">
@@ -247,9 +243,9 @@ export default async function ResultPage({
         </div>
       )}
 
-      {/* 注意書き（データ表示時のみ） */}
+      {/* 注意書き */}
       {!noData && (
-        <div className="mt-10 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700">
+        <div className="mt-8 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs text-amber-700">
           ⚠️ 本サイトの情報は一般的な参考情報です。実際の手続き・期限・提出先は必ず各公式機関の最新情報をご確認ください。法改正等により内容が変更されている場合があります。
         </div>
       )}
