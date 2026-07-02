@@ -1,0 +1,262 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import { prefectures as staticPrefectures } from '@/data/prefectures';
+
+// Supabase 未設定時のフォールバック市区町村（MVP: 東京都渋谷区のみ）
+const FALLBACK_MUNICIPALITIES: Record<string, { code: string; name: string }[]> = {
+  '13': [{ code: '13113', name: '渋谷区' }],
+};
+
+const FISCAL_MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
+
+type PrefItem = { code: string; name: string };
+type MuniItem = { code: string; name: string };
+
+export default function StartPage() {
+  const router = useRouter();
+
+  const [prefList, setPrefList] = useState<PrefItem[]>([]);
+  const [muniList, setMuniList] = useState<MuniItem[]>([]);
+
+  const [prefCode, setPrefCode] = useState('');
+  const [muniCode, setMuniCode] = useState('');
+  const [hasEmployees, setHasEmployees] = useState<boolean | null>(null);
+  const [fiscalMonth, setFiscalMonth] = useState<number | null>(null);
+
+  const [loadingMunis, setLoadingMunis] = useState(false);
+  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm', string>>>({});
+
+  // 都道府県リスト取得
+  useEffect(() => {
+    async function load() {
+      if (!supabase) {
+        setPrefList(staticPrefectures.map((p) => ({ code: p.code, name: p.name })));
+        return;
+      }
+      const { data } = await supabase.from('prefectures').select('code, name').order('code');
+      const list = (data as PrefItem[] | null) ?? [];
+      setPrefList(
+        list.length > 0
+          ? list
+          : staticPrefectures.map((p) => ({ code: p.code, name: p.name })),
+      );
+    }
+    load();
+  }, []);
+
+  // 市区町村リスト取得（都道府県変更時）
+  useEffect(() => {
+    if (!prefCode) {
+      setMuniList([]);
+      setMuniCode('');
+      return;
+    }
+
+    async function load() {
+      setLoadingMunis(true);
+      setMuniCode('');
+
+      if (!supabase) {
+        setMuniList(FALLBACK_MUNICIPALITIES[prefCode] ?? []);
+        setLoadingMunis(false);
+        return;
+      }
+
+      const { data: prefData } = await supabase
+        .from('prefectures')
+        .select('id')
+        .eq('code', prefCode)
+        .single();
+
+      const pref = prefData as { id: number } | null;
+      if (!pref) {
+        setMuniList([]);
+        setLoadingMunis(false);
+        return;
+      }
+
+      const { data } = await supabase
+        .from('municipalities')
+        .select('code, name')
+        .eq('prefecture_id', pref.id)
+        .order('code');
+
+      setMuniList((data as MuniItem[] | null) ?? []);
+      setLoadingMunis(false);
+    }
+
+    load();
+  }, [prefCode]);
+
+  function validate(): boolean {
+    const errs: typeof errors = {};
+    if (!prefCode) errs.pref = '都道府県を選択してください';
+    if (prefCode && muniList.length === 0) errs.muni = '現在未対応のエリアです';
+    else if (!muniCode) errs.muni = '市区町村を選択してください';
+    if (hasEmployees === null) errs.emp = '従業員の有無を選択してください';
+    if (!fiscalMonth) errs.fm = '決算月を選択してください';
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validate()) return;
+    const params = new URLSearchParams({
+      pref: prefCode,
+      muni: muniCode,
+      emp: String(hasEmployees),
+      fm: String(fiscalMonth),
+    });
+    router.push(`/result?${params.toString()}`);
+  }
+
+  return (
+    <div className="mx-auto max-w-xl px-4 py-12">
+      {/* ページヘッダー */}
+      <div className="mb-8 text-center">
+        <h1 className="text-2xl font-bold text-gray-900">会社情報を入力</h1>
+        <p className="mt-2 text-sm text-gray-500">
+          3項目を入力するだけで、提出書類・期限・提出先を一覧表示します
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+
+        {/* ① 所在地 */}
+        <div className="card space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-navy text-sm font-bold text-white">
+              ①
+            </span>
+            <h2 className="font-semibold text-gray-800">会社の所在地</h2>
+          </div>
+
+          <div>
+            <label className="form-label">都道府県</label>
+            <select
+              className="form-select"
+              value={prefCode}
+              onChange={(e) => setPrefCode(e.target.value)}
+            >
+              <option value="">選択してください</option>
+              {prefList.map((p) => (
+                <option key={p.code} value={p.code}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            {errors.pref && (
+              <p className="mt-1 text-xs text-red-500">{errors.pref}</p>
+            )}
+          </div>
+
+          {prefCode && (
+            <div>
+              <label className="form-label">市区町村</label>
+              {loadingMunis ? (
+                <p className="py-2 text-sm text-gray-400">読み込み中...</p>
+              ) : muniList.length === 0 ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                  <p className="text-sm text-amber-700">
+                    このエリアは現在未対応です（順次拡大予定）
+                  </p>
+                  <p className="mt-0.5 text-xs text-amber-600">
+                    現在は東京都渋谷区のみ対応しています
+                  </p>
+                </div>
+              ) : (
+                <select
+                  className="form-select"
+                  value={muniCode}
+                  onChange={(e) => setMuniCode(e.target.value)}
+                >
+                  <option value="">選択してください</option>
+                  {muniList.map((m) => (
+                    <option key={m.code} value={m.code}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {errors.muni && (
+                <p className="mt-1 text-xs text-red-500">{errors.muni}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ② 従業員 */}
+        <div className="card space-y-3">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-navy text-sm font-bold text-white">
+              ②
+            </span>
+            <h2 className="font-semibold text-gray-800">従業員はいますか？</h2>
+          </div>
+          <div className="flex gap-3">
+            {([true, false] as const).map((val) => (
+              <button
+                key={String(val)}
+                type="button"
+                onClick={() => setHasEmployees(val)}
+                className={`flex-1 rounded-lg border-2 px-4 py-3 text-sm font-semibold transition-colors ${
+                  hasEmployees === val
+                    ? 'border-brand-navy bg-brand-navy text-white'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400'
+                }`}
+              >
+                {val ? 'あり' : 'なし'}
+              </button>
+            ))}
+          </div>
+          {errors.emp && (
+            <p className="text-xs text-red-500">{errors.emp}</p>
+          )}
+        </div>
+
+        {/* ③ 決算月 */}
+        <div className="card space-y-3">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-navy text-sm font-bold text-white">
+              ③
+            </span>
+            <h2 className="font-semibold text-gray-800">決算月</h2>
+          </div>
+          <select
+            className="form-select"
+            value={fiscalMonth ?? ''}
+            onChange={(e) =>
+              setFiscalMonth(e.target.value ? Number(e.target.value) : null)
+            }
+          >
+            <option value="">選択してください</option>
+            {FISCAL_MONTHS.map((m) => (
+              <option key={m} value={m}>
+                {m}月
+              </option>
+            ))}
+          </select>
+          {errors.fm && (
+            <p className="text-xs text-red-500">{errors.fm}</p>
+          )}
+        </div>
+
+        {/* 送信ボタン */}
+        <button
+          type="submit"
+          className="btn-primary w-full justify-center py-4 text-base"
+        >
+          診断結果を見る →
+        </button>
+      </form>
+
+      <p className="mt-4 text-center text-xs text-gray-400">
+        入力した情報はサーバーに保存されません
+      </p>
+    </div>
+  );
+}

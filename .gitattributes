@@ -1,0 +1,9 @@
+# 改行コードを LF に統一（Windows/Mac 混在環境対応）
+* text=auto eol=lf
+*.sql text eol=lf
+*.ts  text eol=lf
+*.tsx text eol=lf
+*.css text eol=lf
+*.md  text eol=lf
+*.json text eol=lf
+*.mjs text eol=lf
