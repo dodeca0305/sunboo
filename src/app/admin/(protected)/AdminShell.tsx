@@ -15,6 +15,7 @@ import {
   LogOut,
   ExternalLink,
   Tags,
+  Workflow,
 } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { href: '/admin/offices', label: '管轄機関', icon: Building2 },
   { href: '/admin/organization-types', label: '機関種別', icon: Tags },
   { href: '/admin/procedures', label: '手続き', icon: ClipboardList },
+  { href: '/admin/rules', label: 'ルール', icon: Workflow },
   { href: '/admin/links', label: 'リンクチェック', icon: Link2 },
   { href: '/admin/import', label: 'CSVインポート', icon: Upload },
   { href: '/admin/export', label: 'CSVエクスポート', icon: Download },

@@ -47,3 +47,39 @@ export function officeTypeLabel(value: string): string {
 export function linkStatusLabel(value: string | null | undefined): string {
   return LINK_STATUSES.find((s) => s.value === (value ?? 'unchecked'))?.label ?? '未確認';
 }
+
+// ── ルールエンジン（Phase 2.5）─────────────────────────────────
+// field はここに無い値も自由に入力できる（ルール追加だけで新しい条件を使えるようにするため）。
+// これらは入力補助のための「よく使う候補」に過ぎない。
+export const RULE_CONDITION_FIELDS: { value: string; label: string }[] = [
+  { value: 'event_type_code', label: 'イベント種別（company_establishment / employee_hired / officer_change）' },
+  { value: 'corporate_type', label: '法人種別（kabushiki / godo）' },
+  { value: 'has_employees', label: '従業員の有無（true / false）' },
+  { value: 'prefecture_code', label: '都道府県コード（例: 40 = 福岡県、13 = 東京都）' },
+];
+
+export const RULE_OPERATORS: { value: string; label: string }[] = [
+  { value: 'eq', label: '等しい（eq）' },
+  { value: 'neq', label: '等しくない（neq）' },
+  { value: 'in', label: 'いずれかに含まれる（in、値は配列）' },
+  { value: 'not_in', label: 'いずれにも含まれない（not_in、値は配列）' },
+  { value: 'gt', label: 'より大きい（gt）' },
+  { value: 'gte', label: '以上（gte）' },
+  { value: 'lt', label: 'より小さい（lt）' },
+  { value: 'lte', label: '以下（lte）' },
+];
+
+export const RULE_ACTION_TYPES: { value: string; label: string; hint: string }[] = [
+  { value: 'add_procedure', label: '必要手続きを追加', hint: '対象手続きを選択してください（実行内容データは不要）' },
+  { value: 'show_warning', label: '警告を表示', hint: '実行内容データ（JSON）例: {"message": "文言", "severity": "info"}（severityはinfoかwarning）' },
+  { value: 'change_office', label: '提出先を変更', hint: '対象手続きを選択し、実行内容データ（JSON）例: {"office_type": "prefectural_tax"}' },
+  { value: 'change_deadline', label: '期限を変更', hint: '対象手続きを選択し、実行内容データ（JSON）例: {"days_from_event": 30}' },
+];
+
+export function ruleOperatorLabel(value: string): string {
+  return RULE_OPERATORS.find((o) => o.value === value)?.label ?? value;
+}
+
+export function ruleActionTypeLabel(value: string): string {
+  return RULE_ACTION_TYPES.find((a) => a.value === value)?.label ?? value;
+}
