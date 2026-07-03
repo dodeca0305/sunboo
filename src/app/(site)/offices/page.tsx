@@ -3,18 +3,21 @@ import { supabase } from '@/lib/supabase';
 import OfficeList from './OfficeList';
 import type { OfficeItem } from './OfficeList';
 
-// Supabase の JOIN 結果型（municipalities は REFERENCES から自動 JOIN）
 type RawOffice = {
   id: number;
-  office_type: string;
   name: string;
   address: string | null;
   phone: string | null;
   website_url: string | null;
   map_url: string | null;
-  official_url?: string | null;
-  official_url_status?: string;
-  fallback_url?: string | null;
+  official_url: string | null;
+  official_url_status: string | null;
+  fallback_url: string | null;
+  organizations: { organization_types: { code: string } | null } | null;
+};
+
+type RawJurisdiction = {
+  organization_office_id: number;
   municipalities: { name: string } | null;
 };
 
@@ -22,22 +25,37 @@ export default async function OfficesPage() {
   let offices: OfficeItem[] = [];
 
   if (supabase) {
-    const { data } = await supabase
-      .from('jurisdiction_offices')
-      .select('*, municipalities(name)')
-      .order('id');
+    const [{ data: officeData }, { data: jurisdictionData }] = await Promise.all([
+      supabase
+        .from('organization_offices')
+        .select(
+          'id, name, address, phone, website_url, map_url, official_url, official_url_status, fallback_url, ' +
+            'organizations(organization_types(code))',
+        )
+        .order('id'),
+      supabase.from('jurisdictions').select('organization_office_id, municipalities(name)'),
+    ]);
 
-    offices = ((data as RawOffice[] | null) ?? []).map((o) => ({
+    const municipalityNamesByOffice = new Map<number, string[]>();
+    for (const j of (jurisdictionData as unknown as RawJurisdiction[] | null) ?? []) {
+      const name = j.municipalities?.name;
+      if (!name) continue;
+      const list = municipalityNamesByOffice.get(j.organization_office_id) ?? [];
+      list.push(name);
+      municipalityNamesByOffice.set(j.organization_office_id, list);
+    }
+
+    offices = ((officeData as unknown as RawOffice[] | null) ?? []).map((o) => ({
       id: o.id,
-      office_type: o.office_type,
+      office_type: o.organizations?.organization_types?.code ?? 'other',
       name: o.name,
       address: o.address,
       phone: o.phone,
       website_url: o.website_url,
       map_url: o.map_url,
-      municipality_name: o.municipalities?.name ?? null,
+      municipality_names: municipalityNamesByOffice.get(o.id) ?? [],
       official_url: o.official_url,
-      official_url_status: o.official_url_status,
+      official_url_status: o.official_url_status ?? undefined,
       fallback_url: o.fallback_url,
     }));
   }
@@ -52,7 +70,7 @@ export default async function OfficesPage() {
             各種手続きの提出先となる行政機関の一覧です
           </p>
         </div>
-        <Link href="/start" className="btn-primary shrink-0 py-2 px-4 text-xs">
+        <Link href="/start" className="btn-primary shrink-0 px-4 py-2 text-xs">
           診断する →
         </Link>
       </div>

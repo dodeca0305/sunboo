@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { ProcedureCategory } from '@/lib/types';
 import { Building2, Clock, ExternalLink, Settings, AlertTriangle } from 'lucide-react';
+import ProcedureDetailExtra, { type ProcedureDocumentItem } from '@/components/ProcedureDetailExtra';
 
 type ProcedureItem = {
   id: number;
@@ -12,17 +13,21 @@ type ProcedureItem = {
   office_type: string;
   timing_label: string;
   official_links: { label: string; url: string; status?: string; fallback_url?: string | null }[];
+  procedure_documents?: ProcedureDocumentItem[];
+  target_note?: string | null;
+  submission_method?: string | null;
+  e_filing_system_name?: string | null;
+  e_filing_system_url?: string | null;
+  caution_note?: string | null;
 };
 
-const CATEGORY_CONFIG: Record<
-  ProcedureCategory,
-  { label: string; borderColor: string; badgeClass: string }
-> = {
-  tax:          { label: '税務',   borderColor: 'border-blue-500',    badgeClass: 'bg-blue-100 text-blue-700' },
-  labor:        { label: '労務',   borderColor: 'border-orange-400',  badgeClass: 'bg-orange-100 text-orange-700' },
-  insurance:    { label: '社保',   borderColor: 'border-emerald-500', badgeClass: 'bg-emerald-100 text-emerald-700' },
-  registration: { label: '登録',   borderColor: 'border-violet-500',  badgeClass: 'bg-violet-100 text-violet-700' },
-  other:        { label: 'その他', borderColor: 'border-gray-300',    badgeClass: 'bg-gray-100 text-gray-600' },
+const CATEGORY_LABEL: Record<ProcedureCategory, string> = {
+  tax: '税務',
+  labor: '労務',
+  insurance: '社保',
+  registration: '登録',
+  legal: '法務・登記',
+  other: 'その他',
 };
 
 const OFFICE_TYPE_LABELS: Record<string, string> = {
@@ -32,6 +37,7 @@ const OFFICE_TYPE_LABELS: Record<string, string> = {
   pension_office:  '年金事務所',
   labor_standards: '労働基準監督署',
   hello_work:      'ハローワーク',
+  legal_affairs_bureau: '法務局',
 };
 
 export default function ProcedureList({ procedures }: { procedures: ProcedureItem[] }) {
@@ -62,9 +68,9 @@ export default function ProcedureList({ procedures }: { procedures: ProcedureIte
       <div className="mb-6 flex flex-wrap gap-2">
         <button
           onClick={() => setActiveCategory('all')}
-          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
+          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
             activeCategory === 'all'
-              ? 'bg-blue-600 text-white shadow-sm'
+              ? 'bg-blue-600 text-white'
               : 'border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
           }`}
         >
@@ -72,19 +78,18 @@ export default function ProcedureList({ procedures }: { procedures: ProcedureIte
         </button>
 
         {availableCategories.map((cat) => {
-          const config = CATEGORY_CONFIG[cat] ?? CATEGORY_CONFIG.other;
           const count = procedures.filter((p) => p.category === cat).length;
           return (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
                 activeCategory === cat
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-blue-600 text-white'
                   : 'border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
               }`}
             >
-              {config.label}（{count}）
+              {CATEGORY_LABEL[cat] ?? 'その他'}（{count}）
             </button>
           );
         })}
@@ -93,15 +98,11 @@ export default function ProcedureList({ procedures }: { procedures: ProcedureIte
       {/* 手続きカード */}
       <div className="space-y-4">
         {filtered.map((proc) => {
-          const cat = CATEGORY_CONFIG[proc.category] ?? CATEGORY_CONFIG.other;
-
           return (
-            <div key={proc.id} className={`card border-l-4 ${cat.borderColor}`}>
+            <div key={proc.id} className="card">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="font-bold text-gray-900">{proc.name}</h2>
-                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${cat.badgeClass}`}>
-                  {cat.label}
-                </span>
+                <h2 className="font-semibold text-gray-900">{proc.name}</h2>
+                <span className="tag">{CATEGORY_LABEL[proc.category] ?? 'その他'}</span>
               </div>
 
               <div className="mt-2 space-y-1">
@@ -137,7 +138,7 @@ export default function ProcedureList({ procedures }: { procedures: ProcedureIte
                         className="btn-secondary inline-flex items-center gap-1 px-3 py-1 text-xs"
                       >
                         {s === 'broken' && (
-                          <AlertTriangle className="h-3 w-3 text-amber-500" />
+                          <AlertTriangle className="h-3 w-3 text-red-600" />
                         )}
                         {link.label}
                         {s !== 'broken' && <ExternalLink className="h-3 w-3" />}
@@ -149,6 +150,15 @@ export default function ProcedureList({ procedures }: { procedures: ProcedureIte
                   })}
                 </div>
               )}
+
+              <ProcedureDetailExtra
+                targetNote={proc.target_note}
+                submissionMethod={proc.submission_method}
+                documents={proc.procedure_documents}
+                eFilingSystemName={proc.e_filing_system_name}
+                eFilingSystemUrl={proc.e_filing_system_url}
+                cautionNote={proc.caution_note}
+              />
             </div>
           );
         })}

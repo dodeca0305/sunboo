@@ -51,7 +51,7 @@ function LoginForm() {
         </div>
 
         {notAdmin && (
-          <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-700">
+          <div className="mb-4 flex items-start gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-600">
             <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             このアカウントには管理画面へのアクセス権限がありません。
           </div>
@@ -94,7 +94,7 @@ function LoginForm() {
               placeholder="••••••••"
             />
           </div>
-          <button type="submit" disabled={loading} className="btn-primary w-full justify-center disabled:opacity-60">
+          <button type="submit" disabled={loading} className="btn-primary btn-primary-lg w-full disabled:opacity-60">
             {loading ? 'ログイン中…' : 'ログイン'}
           </button>
         </form>

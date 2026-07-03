@@ -5,6 +5,7 @@ export const OFFICE_TYPES: { value: string; label: string }[] = [
   { value: 'pension_office', label: '年金事務所' },
   { value: 'labor_standards', label: '労基署' },
   { value: 'hello_work', label: 'ハローワーク' },
+  { value: 'legal_affairs_bureau', label: '法務局' },
 ];
 
 export const LINK_STATUSES: { value: string; label: string }[] = [
@@ -19,16 +20,24 @@ export const PROCEDURE_CATEGORIES: { value: string; label: string }[] = [
   { value: 'labor', label: '労務' },
   { value: 'insurance', label: '社保' },
   { value: 'registration', label: '登録' },
+  { value: 'legal', label: '法務・登記' },
   { value: 'other', label: 'その他' },
 ];
 
 export const TIMING_TYPES: { value: string; label: string }[] = [
   { value: 'at_establishment', label: '設立時イベント起算（期限自動計算なし）' },
   { value: 'hiring_event', label: '雇用時イベント起算（期限自動計算なし）' },
+  { value: 'event_based', label: '任意イベント起算（期限自動計算なし）' },
   { value: 'fiscal_offset', label: '決算月からのオフセット（{"months": 数値}）' },
   { value: 'fixed_date', label: '毎年固定日（{"month": 月, "day": 日}）' },
   { value: 'period', label: '毎年期間（{"startMonth","startDay","endMonth","endDay"}）' },
   { value: 'monthly_10th', label: '毎月10日' },
+];
+
+export const CORPORATE_TYPES: { value: string; label: string }[] = [
+  { value: '', label: '未指定（両方に適用）' },
+  { value: 'kabushiki', label: '株式会社のみ' },
+  { value: 'godo', label: '合同会社のみ' },
 ];
 
 export function officeTypeLabel(value: string): string {

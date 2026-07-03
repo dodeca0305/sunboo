@@ -5,11 +5,15 @@ import OfficesTable, { type OfficeRow } from './OfficesTable';
 
 type RawOffice = {
   id: number;
-  office_type: string;
   name: string;
   address: string | null;
   phone: string | null;
   official_url_status: string | null;
+  organizations: { name: string; organization_types: { code: string; name: string } | null } | null;
+};
+
+type RawJurisdiction = {
+  organization_office_id: number;
   municipalities: { name: string; prefectures: { name: string } | null } | null;
 };
 
@@ -18,20 +22,37 @@ export default async function AdminOfficesPage() {
 
   let offices: OfficeRow[] = [];
   if (supabase) {
-    const { data } = await supabase
-      .from('jurisdiction_offices')
-      .select('id, office_type, name, address, phone, official_url_status, municipalities(name, prefectures(name))')
-      .order('id');
+    const [{ data }, { data: jurisdictionData }] = await Promise.all([
+      supabase
+        .from('organization_offices')
+        .select('id, name, address, phone, official_url_status, organizations(name, organization_types(code, name))')
+        .order('id'),
+      supabase.from('jurisdictions').select('organization_office_id, municipalities(name, prefectures(name))'),
+    ]);
+
+    const municipalitiesByOffice = new Map<number, string[]>();
+    let prefectureByOffice = new Map<number, string>();
+    for (const j of (jurisdictionData as unknown as RawJurisdiction[] | null) ?? []) {
+      const name = j.municipalities?.name;
+      if (!name) continue;
+      const list = municipalitiesByOffice.get(j.organization_office_id) ?? [];
+      list.push(name);
+      municipalitiesByOffice.set(j.organization_office_id, list);
+      const prefName = j.municipalities?.prefectures?.name;
+      if (prefName) prefectureByOffice.set(j.organization_office_id, prefName);
+    }
 
     offices = ((data as unknown as RawOffice[] | null) ?? []).map((o) => ({
       id: o.id,
-      office_type: o.office_type,
+      office_type: o.organizations?.organization_types?.code ?? 'other',
+      office_type_name: o.organizations?.organization_types?.name ?? 'その他',
+      organization_name: o.organizations?.name ?? '',
       name: o.name,
       address: o.address,
       phone: o.phone,
       official_url_status: o.official_url_status,
-      municipality_name: o.municipalities?.name ?? null,
-      prefecture_name: o.municipalities?.prefectures?.name ?? null,
+      municipality_names: municipalitiesByOffice.get(o.id) ?? [],
+      prefecture_name: prefectureByOffice.get(o.id) ?? null,
     }));
   }
 

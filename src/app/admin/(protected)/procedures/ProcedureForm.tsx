@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
-import { OFFICE_TYPES, PROCEDURE_CATEGORIES, TIMING_TYPES } from '@/lib/adminConstants';
+import { CORPORATE_TYPES, OFFICE_TYPES, PROCEDURE_CATEGORIES, TIMING_TYPES } from '@/lib/adminConstants';
 
 export type ProcedureFormValues = {
   id?: number;
@@ -20,6 +20,14 @@ export type ProcedureFormValues = {
   timing_data: string; // JSON テキストとして編集
   priority: number;
   is_active: boolean;
+  corporate_type: string; // '' | 'kabushiki' | 'godo'
+  requires_officer_term: boolean;
+  include_in_diagnosis: boolean;
+  target_note: string;
+  submission_method: string;
+  e_filing_system_name: string;
+  e_filing_system_url: string;
+  caution_note: string;
 };
 
 const EMPTY_VALUES: ProcedureFormValues = {
@@ -36,6 +44,14 @@ const EMPTY_VALUES: ProcedureFormValues = {
   timing_data: '',
   priority: 0,
   is_active: true,
+  corporate_type: '',
+  requires_officer_term: false,
+  include_in_diagnosis: true,
+  target_note: '',
+  submission_method: '',
+  e_filing_system_name: '',
+  e_filing_system_url: '',
+  caution_note: '',
 };
 
 export default function ProcedureForm({ initialValues }: { initialValues?: ProcedureFormValues }) {
@@ -91,6 +107,14 @@ export default function ProcedureForm({ initialValues }: { initialValues?: Proce
       timing_data: timingData,
       priority: values.priority,
       is_active: values.is_active,
+      corporate_type: values.corporate_type || null,
+      requires_officer_term: values.requires_officer_term,
+      include_in_diagnosis: values.include_in_diagnosis,
+      target_note: values.target_note || null,
+      submission_method: values.submission_method || null,
+      e_filing_system_name: values.e_filing_system_name || null,
+      e_filing_system_url: values.e_filing_system_url || null,
+      caution_note: values.caution_note || null,
     };
 
     const { error: saveError } = isEdit
@@ -271,6 +295,98 @@ export default function ProcedureForm({ initialValues }: { initialValues?: Proce
             />
             有効（診断結果に表示する）
           </label>
+        </div>
+      </div>
+
+      <div className="border-t border-gray-100 pt-5">
+        <p className="mb-3 text-xs font-semibold text-gray-500">法務・登記オプション（任意）</p>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="form-label">対象の法人形態</label>
+            <select
+              value={values.corporate_type}
+              onChange={(e) => set('corporate_type', e.target.value)}
+              className="form-select"
+            >
+              {CORPORATE_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="form-label">電子申請システム名</label>
+            <input
+              value={values.e_filing_system_name}
+              onChange={(e) => set('e_filing_system_name', e.target.value)}
+              className="form-input"
+              placeholder="例：登記・供託オンライン申請システム"
+            />
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <label className="form-label">電子申請システムURL</label>
+          <input
+            value={values.e_filing_system_url}
+            onChange={(e) => set('e_filing_system_url', e.target.value)}
+            className="form-input"
+            placeholder="https://..."
+          />
+        </div>
+
+        <div className="mt-4 flex flex-col gap-2">
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={values.requires_officer_term}
+              onChange={(e) => set('requires_officer_term', e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            役員任期の定めがある場合のみ対象
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={values.include_in_diagnosis}
+              onChange={(e) => set('include_in_diagnosis', e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            診断結果（スケジュール）に自動表示する（オフの場合は一覧・検索にのみ表示）
+          </label>
+        </div>
+
+        <div className="mt-4">
+          <label className="form-label">対象</label>
+          <input
+            value={values.target_note}
+            onChange={(e) => set('target_note', e.target.value)}
+            className="form-input"
+            placeholder="例：株式会社を新規設立する場合"
+          />
+        </div>
+
+        <div className="mt-4">
+          <label className="form-label">提出方法</label>
+          <input
+            value={values.submission_method}
+            onChange={(e) => set('submission_method', e.target.value)}
+            className="form-input"
+            placeholder="例：管轄法務局の窓口へ持参、郵送、またはオンライン申請"
+          />
+        </div>
+
+        <div className="mt-4">
+          <label className="form-label">注意点</label>
+          <textarea
+            value={values.caution_note}
+            onChange={(e) => set('caution_note', e.target.value)}
+            className="form-input"
+            rows={2}
+            placeholder="例：本情報は一般的な参考情報です。詳細は司法書士等の専門家にご確認ください。"
+          />
         </div>
       </div>
 

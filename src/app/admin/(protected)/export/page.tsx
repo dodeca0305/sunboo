@@ -7,19 +7,26 @@ import { createBrowserSupabase } from '@/lib/supabase/browser';
 
 type RawMunicipality = { code: string; name: string; prefectures: { code: string; name: string } | null };
 type RawOffice = {
-  office_type: string;
+  id: number;
   name: string;
+  postal_code: string | null;
   address: string | null;
   phone: string | null;
+  fax: string | null;
+  email: string | null;
   website_url: string | null;
-  map_url: string | null;
-  municipalities: { code: string } | null;
-};
-type RawOfficeLink = {
-  office_type: string;
   official_url: string | null;
   official_url_status: string | null;
   fallback_url: string | null;
+  e_filing_url: string | null;
+  download_page_url: string | null;
+  map_url: string | null;
+  business_hours: string | null;
+  notes: string | null;
+  organizations: { name: string; organization_types: { code: string } | null } | null;
+};
+type RawJurisdiction = {
+  organization_office_id: number;
   municipalities: { code: string } | null;
 };
 type RawProcedure = {
@@ -65,22 +72,48 @@ const EXPORTS = [
     },
   },
   {
-    key: 'jurisdiction_offices',
+    key: 'organization_offices',
     title: '管轄機関の基本情報',
-    filename: 'jurisdiction_offices_export.csv',
+    filename: 'organization_offices_export.csv',
     run: async (supabase: NonNullable<ReturnType<typeof createBrowserSupabase>>) => {
-      const { data } = await supabase
-        .from('jurisdiction_offices')
-        .select('office_type, name, address, phone, website_url, map_url, municipalities(code)')
-        .order('id');
+      const [{ data }, { data: jurisdictionData }] = await Promise.all([
+        supabase
+          .from('organization_offices')
+          .select(
+            'id, name, postal_code, address, phone, fax, email, website_url, official_url, official_url_status, ' +
+              'fallback_url, e_filing_url, download_page_url, map_url, business_hours, notes, ' +
+              'organizations(name, organization_types(code))',
+          )
+          .order('id'),
+        supabase.from('jurisdictions').select('organization_office_id, municipalities(code)'),
+      ]);
+
+      const muniCodesByOffice = new Map<number, string[]>();
+      for (const j of (jurisdictionData as unknown as RawJurisdiction[] | null) ?? []) {
+        const code = j.municipalities?.code;
+        if (!code) continue;
+        const list = muniCodesByOffice.get(j.organization_office_id) ?? [];
+        list.push(code);
+        muniCodesByOffice.set(j.organization_office_id, list);
+      }
+
       return ((data as unknown as RawOffice[] | null) ?? []).map((o) => ({
-        muni_code: o.municipalities?.code ?? '',
-        office_type: o.office_type,
-        name: o.name,
+        org_type_code: o.organizations?.organization_types?.code ?? '',
+        org_name: o.organizations?.name ?? '',
+        office_name: o.name,
+        muni_codes: (muniCodesByOffice.get(o.id) ?? []).join('|'),
+        postal_code: o.postal_code ?? '',
         address: o.address ?? '',
         phone: o.phone ?? '',
+        fax: o.fax ?? '',
+        email: o.email ?? '',
         website_url: o.website_url ?? '',
+        official_url: o.official_url ?? '',
+        e_filing_url: o.e_filing_url ?? '',
+        download_page_url: o.download_page_url ?? '',
         map_url: o.map_url ?? '',
+        business_hours: o.business_hours ?? '',
+        notes: o.notes ?? '',
       }));
     },
   },
@@ -90,12 +123,12 @@ const EXPORTS = [
     filename: 'official_links_export.csv',
     run: async (supabase: NonNullable<ReturnType<typeof createBrowserSupabase>>) => {
       const { data } = await supabase
-        .from('jurisdiction_offices')
-        .select('office_type, official_url, official_url_status, fallback_url, municipalities(code)')
+        .from('organization_offices')
+        .select('name, official_url, official_url_status, fallback_url, organizations(organization_types(code))')
         .order('id');
-      return ((data as unknown as RawOfficeLink[] | null) ?? []).map((o) => ({
-        muni_code: o.municipalities?.code ?? '',
-        office_type: o.office_type,
+      return ((data as unknown as RawOffice[] | null) ?? []).map((o) => ({
+        org_type_code: o.organizations?.organization_types?.code ?? '',
+        office_name: o.name,
         official_url: o.official_url ?? '',
         official_url_status: o.official_url_status ?? 'unchecked',
         fallback_url: o.fallback_url ?? '',
@@ -156,7 +189,7 @@ export default function AdminExportPage() {
         <div>
           <h1 className="text-xl font-bold text-gray-900">CSVエクスポート</h1>
           <p className="mt-1 text-sm text-gray-500">
-            現在のデータをCSVでダウンロードします。municipalities / jurisdiction_offices / official_links は
+            現在のデータをCSVでダウンロードします。municipalities / organization_offices / official_links は
             CSVインポートの形式と同じなので、そのまま編集して再インポートできます。
           </p>
         </div>

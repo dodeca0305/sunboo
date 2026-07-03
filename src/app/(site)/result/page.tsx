@@ -2,9 +2,14 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { runDiagnosis } from '@/lib/diagnosis';
 import { prefectures as staticPrefectures } from '@/data/prefectures';
-import type { ProcedureCategory } from '@/lib/types';
-import { Building2, MapPin, Phone, ExternalLink, Clock, ChevronLeft, AlertTriangle } from 'lucide-react';
-import type { LinkStatus } from '@/lib/types';
+import { Building2, MapPin, Phone, ExternalLink, ChevronLeft, AlertTriangle, DatabaseZap } from 'lucide-react';
+import type { CorporateType, LinkStatus } from '@/lib/types';
+import ScheduleList from './ScheduleList';
+
+const CORPORATE_TYPE_LABEL: Record<CorporateType, string> = {
+  kabushiki: '株式会社',
+  godo: '合同会社',
+};
 
 function OfficialSiteLink({
   websiteUrl, officialUrl, status, fallbackUrl,
@@ -20,7 +25,7 @@ function OfficialSiteLink({
   return (
     <a href={href} target="_blank" rel="noopener noreferrer"
        className="btn-secondary inline-flex items-center gap-1 px-3 py-1 text-xs">
-      {s === 'broken' && <AlertTriangle className="h-3 w-3 text-amber-500" />}
+      {s === 'broken' && <AlertTriangle className="h-3 w-3 text-red-600" />}
       {s === 'broken' ? '公式一覧で確認' : '公式サイト'}
       {s !== 'broken' && <ExternalLink className="h-3 w-3" />}
       {s === 'unchecked' && (
@@ -34,21 +39,17 @@ const FALLBACK_MUNI_NAMES: Record<string, string> = {
   '13113': '渋谷区',
 };
 
-const CATEGORY_CONFIG: Record<
-  ProcedureCategory,
-  { label: string; borderColor: string; badgeClass: string }
-> = {
-  tax:          { label: '税務',   borderColor: 'border-blue-500',   badgeClass: 'bg-blue-100 text-blue-700' },
-  labor:        { label: '労務',   borderColor: 'border-orange-400', badgeClass: 'bg-orange-100 text-orange-700' },
-  insurance:    { label: '社保',   borderColor: 'border-emerald-500', badgeClass: 'bg-emerald-100 text-emerald-700' },
-  registration: { label: '登録',   borderColor: 'border-violet-500', badgeClass: 'bg-violet-100 text-violet-700' },
-  other:        { label: 'その他', borderColor: 'border-gray-300',   badgeClass: 'bg-gray-100 text-gray-600' },
-};
-
 export default async function ResultPage({
   searchParams,
 }: {
-  searchParams: Promise<{ pref?: string; muni?: string; emp?: string; fm?: string }>;
+  searchParams: Promise<{
+    pref?: string;
+    muni?: string;
+    emp?: string;
+    fm?: string;
+    corp?: string;
+    officerTerm?: string;
+  }>;
 }) {
   const sp = await searchParams;
 
@@ -56,12 +57,14 @@ export default async function ResultPage({
   const muniCode = sp.muni ?? '';
   const hasEmployees = sp.emp === 'true';
   const fiscalMonth = Number(sp.fm) || 0;
+  const corporateType: CorporateType = sp.corp === 'godo' ? 'godo' : 'kabushiki';
+  const hasOfficerTerm = sp.officerTerm === 'true';
 
   if (!prefCode || !muniCode || fiscalMonth < 1 || fiscalMonth > 12) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
         <div className="card space-y-4">
-          <p className="text-4xl">⚠️</p>
+          <AlertTriangle className="mx-auto h-8 w-8 text-gray-300" />
           <h1 className="text-xl font-bold text-gray-900">入力情報が不足しています</h1>
           <p className="text-sm text-gray-500">
             会社情報を入力してから診断してください。
@@ -79,6 +82,8 @@ export default async function ResultPage({
     municipalityCode: muniCode,
     hasEmployees,
     fiscalMonth,
+    corporateType,
+    hasOfficerTerm,
   });
 
   const prefName =
@@ -110,12 +115,14 @@ export default async function ResultPage({
       </Link>
 
       {/* 診断条件サマリー */}
-      <div className="mb-8 rounded-2xl border border-blue-100 bg-blue-50 p-6">
+      <div className="mb-8 rounded-xl border border-blue-100 bg-blue-50 p-6">
         <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-500">
           診断結果
         </p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-blue-900">
           <span>{prefName} {muniName}</span>
+          <span className="text-blue-300">·</span>
+          <span>{CORPORATE_TYPE_LABEL[corporateType]}</span>
           <span className="text-blue-300">·</span>
           <span>従業員{hasEmployees ? 'あり' : 'なし'}</span>
           <span className="text-blue-300">·</span>
@@ -126,7 +133,7 @@ export default async function ResultPage({
       {/* Supabase 未設定・データなし */}
       {noData && (
         <div className="card space-y-4 py-12 text-center">
-          <p className="text-4xl">🔧</p>
+          <DatabaseZap className="mx-auto h-8 w-8 text-gray-300" />
           <p className="font-semibold text-gray-700">データベース未接続</p>
           <p className="text-sm text-gray-500">
             Supabase の環境変数を設定すると、管轄機関・手続き情報が表示されます。
@@ -150,7 +157,7 @@ export default async function ResultPage({
           <div className="grid gap-4 sm:grid-cols-2">
             {result.offices.map((office) => (
               <div key={office.id} className="card flex gap-4">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-50">
                   <Building2 className="h-5 w-5 text-gray-500" />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -192,7 +199,7 @@ export default async function ResultPage({
         </section>
       )}
 
-      {/* ── 必要手続き ── */}
+      {/* ── 必要手続き（スケジュール） ── */}
       {result.procedures.length > 0 && (
         <section>
           <h2 className="mb-4 text-lg font-bold text-gray-900">
@@ -202,68 +209,25 @@ export default async function ResultPage({
             </span>
           </h2>
 
-          <div className="space-y-4">
-            {result.procedures.map((proc) => {
-              const cat = CATEGORY_CONFIG[proc.category] ?? CATEGORY_CONFIG.other;
-              const deadline = proc.next_deadline ?? proc.timing_label;
-
-              return (
-                <div
-                  key={proc.id}
-                  className={`card border-l-4 ${cat.borderColor}`}
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-bold text-gray-900">{proc.name}</h3>
-                    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${cat.badgeClass}`}>
-                      {cat.label}
-                    </span>
-                  </div>
-
-                  <div className="mt-2 space-y-1">
-                    {proc.office && (
-                      <p className="flex items-center gap-1.5 text-xs text-gray-500">
-                        <Building2 className="h-3.5 w-3.5 shrink-0" />
-                        {proc.office.name}
-                      </p>
-                    )}
-                    <p className="flex items-center gap-1.5 text-xs text-gray-600">
-                      <Clock className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                      <span className="font-medium">期限:</span> {deadline}
-                    </p>
-                  </div>
-
-                  {proc.official_links.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {proc.official_links.map((link, idx) => {
-                        const s = link.status ?? 'unchecked';
-                        const href = s === 'broken'
-                          ? (link.fallback_url ?? link.url)
-                          : link.url;
-                        return (
-                          <a
-                            key={idx}
-                            href={href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn-secondary inline-flex items-center gap-1 px-3 py-1 text-xs"
-                          >
-                            {s === 'broken' && (
-                              <AlertTriangle className="h-3 w-3 text-amber-500" />
-                            )}
-                            {link.label}
-                            {s !== 'broken' && <ExternalLink className="h-3 w-3" />}
-                            {s === 'unchecked' && (
-                              <span className="ml-0.5 text-[10px] text-gray-400">（未確認）</span>
-                            )}
-                          </a>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <ScheduleList
+            procedures={result.procedures.map((proc) => ({
+              id: proc.id,
+              name: proc.name,
+              description: proc.description,
+              category: proc.category,
+              timing_label: proc.timing_label,
+              next_deadline: proc.next_deadline,
+              next_deadline_date: proc.next_deadline_date,
+              office: proc.office ? { name: proc.office.name } : null,
+              official_links: proc.official_links,
+              procedure_documents: proc.procedure_documents,
+              target_note: proc.target_note,
+              submission_method: proc.submission_method,
+              e_filing_system_name: proc.e_filing_system_name,
+              e_filing_system_url: proc.e_filing_system_url,
+              caution_note: proc.caution_note,
+            }))}
+          />
         </section>
       )}
 
@@ -278,9 +242,10 @@ export default async function ResultPage({
 
       {/* 注意書き */}
       {!noData && (
-        <div className="mt-8 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs text-amber-700">
-          ⚠️ 本サイトの情報は一般的な参考情報です。実際の手続き・期限・提出先は必ず各公式機関の最新情報をご確認ください。法改正等により内容が変更されている場合があります。
-        </div>
+        <p className="mt-8 flex items-start gap-2 text-xs text-gray-400">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          本サイトの情報は一般的な参考情報です。実際の手続き・期限・提出先は必ず各公式機関の最新情報をご確認ください。法改正等により内容が変更されている場合があります。
+        </p>
       )}
     </div>
   );

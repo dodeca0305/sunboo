@@ -11,12 +11,20 @@ type ProcedureItem = {
   office_type: string;
   timing_label: string;
   official_links: { label: string; url: string; status?: string; fallback_url?: string | null }[];
+  procedure_documents: { name: string; form_number: string | null; is_required: boolean; notes: string | null }[];
+  target_note: string | null;
+  submission_method: string | null;
+  e_filing_system_name: string | null;
+  e_filing_system_url: string | null;
+  caution_note: string | null;
 };
 
 // Supabase の JOIN 結果（公式リンクは配列で返る）
 type RawOfficialLink = { label: string; url: string; status?: string | null; fallback_url?: string | null };
-type RawProcedure = Omit<ProcedureItem, 'official_links'> & {
+type RawDocument = { name: string; form_number: string | null; is_required: boolean; notes: string | null };
+type RawProcedure = Omit<ProcedureItem, 'official_links' | 'procedure_documents'> & {
   official_links: RawOfficialLink[] | null;
+  procedure_documents: RawDocument[] | null;
 };
 
 export default async function ProceduresPage() {
@@ -25,7 +33,11 @@ export default async function ProceduresPage() {
   if (supabase) {
     const { data } = await supabase
       .from('procedures')
-      .select('id, name, description, category, office_type, timing_label, official_links(label, url, status, fallback_url)')
+      .select(
+        'id, name, description, category, office_type, timing_label, ' +
+          'official_links(label, url, status, fallback_url), procedure_documents(name, form_number, is_required, notes), ' +
+          'target_note, submission_method, e_filing_system_name, e_filing_system_url, caution_note',
+      )
       .eq('is_active', true)
       .order('priority');
 
@@ -35,6 +47,7 @@ export default async function ProceduresPage() {
         ...link,
         status: link.status ?? undefined,
       })),
+      procedure_documents: p.procedure_documents ?? [],
     }));
   }
 
@@ -48,7 +61,7 @@ export default async function ProceduresPage() {
             法人設立・運営に必要な行政手続きの一覧です
           </p>
         </div>
-        <Link href="/start" className="btn-primary shrink-0 py-2 px-4 text-xs">
+        <Link href="/start" className="btn-primary shrink-0 px-4 py-2 text-xs">
           診断する →
         </Link>
       </div>

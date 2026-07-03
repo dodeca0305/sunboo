@@ -14,12 +14,14 @@ import {
   X,
   LogOut,
   ExternalLink,
+  Tags,
 } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 
 const NAV_ITEMS = [
   { href: '/admin', label: 'ダッシュボード', icon: LayoutDashboard, exact: true },
   { href: '/admin/offices', label: '管轄機関', icon: Building2 },
+  { href: '/admin/organization-types', label: '機関種別', icon: Tags },
   { href: '/admin/procedures', label: '手続き', icon: ClipboardList },
   { href: '/admin/links', label: 'リンクチェック', icon: Link2 },
   { href: '/admin/import', label: 'CSVインポート', icon: Upload },
@@ -95,7 +97,7 @@ export default function AdminShell({
       {menuOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-gray-900/40" onClick={() => setMenuOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 flex w-64 flex-col bg-white shadow-xl">
+          <aside className="absolute inset-y-0 left-0 flex w-64 flex-col border-r border-gray-100 bg-white">
             <div className="flex h-16 items-center justify-between border-b border-gray-100 px-4">
               <span className="text-sm font-bold text-gray-900">SUNBOO 管理画面</span>
               <button onClick={() => setMenuOpen(false)} className="rounded-lg p-1.5 hover:bg-gray-50">
@@ -119,7 +121,7 @@ export default function AdminShell({
 
       {/* ── メイン ── */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-gray-100 bg-white/90 px-4 backdrop-blur-md sm:px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-gray-100 bg-white px-4 sm:px-6">
           <button
             onClick={() => setMenuOpen(true)}
             className="rounded-lg p-2 text-gray-500 hover:bg-gray-50 lg:hidden"

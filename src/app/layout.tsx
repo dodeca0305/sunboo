@@ -1,5 +1,19 @@
 import type { Metadata } from 'next';
+import { Inter, Noto_Sans_JP } from 'next/font/google';
 import './globals.css';
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
+const notoSansJP = Noto_Sans_JP({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-noto-jp',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'SUNBOO経営ナビ | 法人設立・行政手続きガイド',
@@ -13,16 +27,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ja">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className="flex min-h-screen flex-col bg-gray-50">{children}</body>
+    <html lang="ja" className={`${inter.variable} ${notoSansJP.variable}`}>
+      <body className="flex min-h-screen flex-col bg-white">{children}</body>
     </html>
   );
 }

@@ -30,6 +30,14 @@ export default async function EditProcedurePage({ params }: { params: Promise<{ 
     timing_data: Record<string, unknown> | null;
     priority: number;
     is_active: boolean;
+    corporate_type: string | null;
+    requires_officer_term: boolean;
+    include_in_diagnosis: boolean;
+    target_note: string | null;
+    submission_method: string | null;
+    e_filing_system_name: string | null;
+    e_filing_system_url: string | null;
+    caution_note: string | null;
   };
 
   const initialValues: ProcedureFormValues = {
@@ -47,6 +55,14 @@ export default async function EditProcedurePage({ params }: { params: Promise<{ 
     timing_data: proc.timing_data ? JSON.stringify(proc.timing_data) : '',
     priority: proc.priority,
     is_active: proc.is_active,
+    corporate_type: proc.corporate_type ?? '',
+    requires_officer_term: proc.requires_officer_term,
+    include_in_diagnosis: proc.include_in_diagnosis,
+    target_note: proc.target_note ?? '',
+    submission_method: proc.submission_method ?? '',
+    e_filing_system_name: proc.e_filing_system_name ?? '',
+    e_filing_system_url: proc.e_filing_system_url ?? '',
+    caution_note: proc.caution_note ?? '',
   };
 
   return (

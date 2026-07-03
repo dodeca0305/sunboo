@@ -7,20 +7,51 @@ import {
 } from './types';
 import type { SupabaseClient } from './supabase';
 
+type RawJurisdictionRow = {
+  organization_types: { code: string } | null;
+  organization_offices: {
+    id: number;
+    name: string;
+    postal_code: string | null;
+    address: string | null;
+    phone: string | null;
+    fax: string | null;
+    email: string | null;
+    website_url: string | null;
+    official_url: string | null;
+    e_filing_url: string | null;
+    download_page_url: string | null;
+    map_url: string | null;
+    business_hours: string | null;
+    notes: string | null;
+    official_url_status: string | null;
+    official_url_checked_at: string | null;
+    fallback_url: string | null;
+  } | null;
+};
+
 // ── 期限計算 ───────────────────────────────────────────────────
+
+function toIsoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 export function calculateNextDeadline(
   timingType: string,
   timingData: Record<string, unknown> | null,
   fiscalMonth: number,
-): string | null {
+): { label: string | null; date: string | null } {
   const today = new Date();
   const year = today.getFullYear();
 
   switch (timingType) {
     case 'at_establishment':
     case 'hiring_event':
-      return null; // イベント起算は計算不可
+    case 'event_based':
+      return { label: null, date: null }; // イベント起算は計算不可
 
     case 'fiscal_offset': {
       const months = (timingData?.months as number) ?? 2;
@@ -31,7 +62,11 @@ export function calculateNextDeadline(
       const d = new Date(year, monthIndex + 1, 0); // その月の末日
       if (d < today) deadlineYear = year + 1;
       const lastDay = new Date(deadlineYear, monthIndex + 1, 0).getDate();
-      return `${deadlineYear}年${deadlineMonth}月${lastDay}日`;
+      const deadlineDate = new Date(deadlineYear, monthIndex, lastDay);
+      return {
+        label: `${deadlineYear}年${deadlineMonth}月${lastDay}日`,
+        date: toIsoDate(deadlineDate),
+      };
     }
 
     case 'fixed_date': {
@@ -39,7 +74,7 @@ export function calculateNextDeadline(
       const day = timingData?.day as number;
       let d = new Date(year, m - 1, day);
       if (d < today) d = new Date(year + 1, m - 1, day);
-      return `${d.getFullYear()}年${m}月${day}日`;
+      return { label: `${d.getFullYear()}年${m}月${day}日`, date: toIsoDate(d) };
     }
 
     case 'period': {
@@ -49,18 +84,22 @@ export function calculateNextDeadline(
       const ed = timingData?.endDay as number;
       const endDate = new Date(year, em - 1, ed);
       const targetYear = endDate < today ? year + 1 : year;
-      return `${targetYear}年${sm}月${sd}日〜${em}月${ed}日`;
+      const resolvedEndDate = new Date(targetYear, em - 1, ed);
+      return {
+        label: `${targetYear}年${sm}月${sd}日〜${em}月${ed}日`,
+        date: toIsoDate(resolvedEndDate),
+      };
     }
 
     case 'monthly_10th': {
       const nextM = today.getMonth() + 2; // 来月（1-indexed）
       const m = nextM > 12 ? 1 : nextM;
       const y = nextM > 12 ? year + 1 : year;
-      return `${y}年${m}月10日`;
+      return { label: `${y}年${m}月10日`, date: toIsoDate(new Date(y, m - 1, 10)) };
     }
 
     default:
-      return null;
+      return { label: null, date: null };
   }
 }
 
@@ -83,20 +122,56 @@ export async function runDiagnosis(
   const muni = muniRaw as { id: number } | null;
   if (!muni) return { offices: [], procedures: [] };
 
-  // 2. 管轄機関を取得
-  const { data: officesRaw } = await client
-    .from('jurisdiction_offices')
-    .select('*')
+  // 2. 管轄機関を取得（jurisdictions 経由で organization_offices を解決）
+  const { data: jurisRaw } = await client
+    .from('jurisdictions')
+    .select(
+      `organization_types(code),
+       organization_offices(id, name, postal_code, address, phone, fax, email, website_url, official_url,
+         e_filing_url, download_page_url, map_url, business_hours, notes,
+         official_url_status, official_url_checked_at, fallback_url)`,
+    )
     .eq('municipality_id', muni.id)
     .order('id');
 
-  const offices: JurisdictionOffice[] = (officesRaw as JurisdictionOffice[] | null) ?? [];
+  const offices: JurisdictionOffice[] = ((jurisRaw as RawJurisdictionRow[] | null) ?? [])
+    .filter(
+      (j): j is RawJurisdictionRow & { organization_types: { code: string }; organization_offices: NonNullable<RawJurisdictionRow['organization_offices']> } =>
+        Boolean(j.organization_types && j.organization_offices),
+    )
+    .map((j) => {
+      const o = j.organization_offices;
+      return {
+        id: o.id,
+        municipality_id: muni.id,
+        office_type: j.organization_types.code,
+        name: o.name,
+        address: o.address,
+        phone: o.phone,
+        website_url: o.website_url,
+        map_url: o.map_url,
+        official_url: o.official_url,
+        official_url_status: o.official_url_status as LinkStatus,
+        official_url_checked_at: o.official_url_checked_at,
+        fallback_url: o.fallback_url,
+        postal_code: o.postal_code,
+        fax: o.fax,
+        email: o.email,
+        e_filing_url: o.e_filing_url,
+        download_page_url: o.download_page_url,
+        business_hours: o.business_hours,
+        notes: o.notes,
+      };
+    });
 
   // 3. 手続きを取得・フィルタ
   let query = client
     .from('procedures')
-    .select('*, official_links(label, url, status, fallback_url)')
+    .select(
+      '*, official_links(label, url, status, fallback_url), procedure_documents(name, form_number, is_required, notes)',
+    )
     .eq('is_active', true)
+    .eq('include_in_diagnosis', true)
     .order('priority');
 
   // 従業員なしの場合は requires_employees=false の手続きのみ
@@ -111,19 +186,32 @@ export async function runDiagnosis(
     offices.map((o) => [o.office_type, o]),
   );
 
-  const procedures: ProcedureResult[] = ((procsRaw as Record<string, unknown>[] | null) ?? []).map(
-    (p: Record<string, unknown>) => ({
-      ...(p as ProcedureResult),
-      next_deadline: calculateNextDeadline(
+  const procedures: ProcedureResult[] = ((procsRaw as Record<string, unknown>[] | null) ?? [])
+    .filter((p) => {
+      // 法人形態が指定された手続きは一致するものだけ表示
+      const corporateType = p.corporate_type as string | null;
+      if (corporateType && corporateType !== input.corporateType) return false;
+      // 役員任期を前提とする手続きは、役員任期ありと回答した場合のみ表示
+      if (p.requires_officer_term && !input.hasOfficerTerm) return false;
+      return true;
+    })
+    .map((p: Record<string, unknown>) => {
+      const deadline = calculateNextDeadline(
         p.timing_type as string,
         p.timing_data as Record<string, unknown> | null,
         input.fiscalMonth,
-      ),
-      office: officeMap.get(p.office_type as string) ?? null,
-      official_links:
-        (p.official_links as { label: string; url: string; status?: LinkStatus; fallback_url?: string | null }[]) ?? [],
-    }),
-  );
+      );
+      return {
+        ...(p as ProcedureResult),
+        next_deadline: deadline.label,
+        next_deadline_date: deadline.date,
+        office: officeMap.get(p.office_type as string) ?? null,
+        official_links:
+          (p.official_links as { label: string; url: string; status?: LinkStatus; fallback_url?: string | null }[]) ?? [],
+        procedure_documents:
+          (p.procedure_documents as { name: string; form_number: string | null; is_required: boolean; notes: string | null }[]) ?? [],
+      };
+    });
 
   return { offices, procedures };
 }

@@ -11,7 +11,7 @@ export type OfficeItem = {
   phone: string | null;
   website_url: string | null;
   map_url: string | null;
-  municipality_name: string | null;
+  municipality_names: string[];
   official_url?: string | null;
   official_url_status?: string;
   fallback_url?: string | null;
@@ -36,7 +36,7 @@ function OfficialSiteLink({
       rel="noopener noreferrer"
       className="btn-secondary inline-flex items-center gap-1 px-3 py-1 text-xs"
     >
-      {s === 'broken' && <AlertTriangle className="h-3 w-3 text-amber-500" />}
+      {s === 'broken' && <AlertTriangle className="h-3 w-3 text-red-600" />}
       {s === 'broken' ? '公式一覧で確認' : '公式サイト'}
       {s !== 'broken' && <ExternalLink className="h-3 w-3" />}
       {s === 'unchecked' && (
@@ -46,39 +46,34 @@ function OfficialSiteLink({
   );
 }
 
-const OFFICE_TYPE_CONFIG: Record<
-  string,
-  { label: string; badgeClass: string; duties: string }
-> = {
+const OFFICE_TYPE_CONFIG: Record<string, { label: string; duties: string }> = {
   tax_office: {
     label: '税務署',
-    badgeClass: 'bg-blue-100 text-blue-700',
     duties: '法人税・源泉所得税・法人設立届出・青色申告承認申請',
   },
   prefectural_tax: {
     label: '都道府県税',
-    badgeClass: 'bg-violet-100 text-violet-700',
     duties: '法人都民税・法人事業税',
   },
   municipal_tax: {
     label: '市区町村税',
-    badgeClass: 'bg-emerald-100 text-emerald-700',
     duties: '法人住民税',
   },
   pension_office: {
     label: '年金事務所',
-    badgeClass: 'bg-teal-100 text-teal-700',
     duties: '健康保険・厚生年金保険の新規適用・算定基礎届',
   },
   labor_standards: {
     label: '労基署',
-    badgeClass: 'bg-orange-100 text-orange-700',
     duties: '労災保険・労働保険成立届・年度更新',
   },
   hello_work: {
     label: 'ハローワーク',
-    badgeClass: 'bg-yellow-100 text-yellow-700',
     duties: '雇用保険・雇用保険適用事業所設置届',
+  },
+  legal_affairs_bureau: {
+    label: '法務局',
+    duties: '商業・法人登記（設立・役員変更・本店移転等）、登記事項証明書・印鑑証明書の交付',
   },
 };
 
@@ -110,9 +105,9 @@ export default function OfficeList({ offices }: { offices: OfficeItem[] }) {
       <div className="mb-6 flex flex-wrap gap-2">
         <button
           onClick={() => setActiveType('all')}
-          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
+          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
             activeType === 'all'
-              ? 'bg-blue-600 text-white shadow-sm'
+              ? 'bg-blue-600 text-white'
               : 'border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
           }`}
         >
@@ -127,9 +122,9 @@ export default function OfficeList({ offices }: { offices: OfficeItem[] }) {
             <button
               key={type}
               onClick={() => setActiveType(type)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
                 activeType === type
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-blue-600 text-white'
                   : 'border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
               }`}
             >
@@ -146,23 +141,21 @@ export default function OfficeList({ offices }: { offices: OfficeItem[] }) {
 
           return (
             <div key={office.id} className="card flex gap-4">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-50">
                 <Building2 className="h-5 w-5 text-gray-500" />
               </span>
 
               <div className="min-w-0 flex-1">
                 {/* 機関名 + バッジ */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="font-bold text-gray-900">{office.name}</h2>
-                  {config && (
-                    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${config.badgeClass}`}>
-                      {config.label}
-                    </span>
-                  )}
+                  <h2 className="font-semibold text-gray-900">{office.name}</h2>
+                  {config && <span className="tag">{config.label}</span>}
                 </div>
 
-                {office.municipality_name && (
-                  <p className="mt-0.5 text-xs text-gray-400">{office.municipality_name}</p>
+                {office.municipality_names.length > 0 && (
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    対応エリア：{office.municipality_names.join('、')}
+                  </p>
                 )}
 
                 {office.address && (

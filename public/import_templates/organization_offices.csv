@@ -1,0 +1,4 @@
+org_type_code,org_name,office_name,muni_codes,postal_code,address,phone,fax,email,website_url,official_url,e_filing_url,download_page_url,map_url,business_hours,notes
+tax_office,渋谷税務署,渋谷税務署,13113,150-8930,東京都渋谷区神山町10番地,03-3461-5511,,,https://www.nta.go.jp/about/organization/tokyo/shokatsu/shibuya/index.htm,https://www.nta.go.jp/about/organization/tokyo/shokatsu/shibuya/index.htm,,,https://maps.google.com/?q=渋谷税務署,,
+legal_affairs_bureau,東京法務局,東京法務局渋谷出張所,13113,150-8301,東京都渋谷区宇田川町1番10号（渋谷地方合同庁舎）,03-3463-7671,,,https://houmukyoku.moj.go.jp/tokyo/table/shikyokutou/all/shibuya.html,https://houmukyoku.moj.go.jp/tokyo/table/shikyokutou/all/shibuya.html,https://www.touki-kyoutaku-online.moj.go.jp/,,https://maps.google.com/?q=東京法務局渋谷出張所,,
+tax_office,新宿税務署,新宿税務署,13104,,,,,,,,,,https://maps.google.com/?q=新宿税務署,,

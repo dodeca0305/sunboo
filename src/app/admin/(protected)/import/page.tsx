@@ -4,9 +4,9 @@ import { useState } from 'react';
 import Papa from 'papaparse';
 import { Upload, FileUp, CheckCircle2, AlertTriangle, Download } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
-import { importMunicipalities, importJurisdictionOffices, importOfficialLinks, type ImportSummary } from '@/lib/adminCsv';
+import { importMunicipalities, importOrganizationOffices, importOfficialLinks, type ImportSummary } from '@/lib/adminCsv';
 
-type CsvKind = 'municipalities' | 'jurisdiction_offices' | 'official_links';
+type CsvKind = 'municipalities' | 'organization_offices' | 'official_links';
 
 const PANELS: { kind: CsvKind; title: string; description: string; templateFile: string; columns: string[] }[] = [
   {
@@ -17,18 +17,21 @@ const PANELS: { kind: CsvKind; title: string; description: string; templateFile:
     columns: ['pref_code', 'pref_name', 'muni_code', 'muni_name'],
   },
   {
-    kind: 'jurisdiction_offices',
+    kind: 'organization_offices',
     title: '② 管轄機関の基本情報',
-    description: '税務署・年金事務所などの名称・住所・電話番号を登録します。①を先に取り込んでください。',
-    templateFile: 'jurisdiction_offices.csv',
-    columns: ['muni_code', 'office_type', 'name', 'address', 'phone', 'website_url', 'map_url'],
+    description: '税務署・年金事務所などの名称・住所・連絡先・対応市区町村を登録します。①を先に取り込んでください。1行＝1窓口（対応市区町村は | 区切りで複数指定可）。',
+    templateFile: 'organization_offices.csv',
+    columns: [
+      'org_type_code', 'org_name', 'office_name', 'muni_codes', 'postal_code', 'address', 'phone', 'fax',
+      'email', 'website_url', 'official_url', 'e_filing_url', 'download_page_url', 'map_url', 'business_hours', 'notes',
+    ],
   },
   {
     kind: 'official_links',
     title: '③ 公式リンクの生存状況',
     description: '管轄機関の公式URL・リンク状態・フォールバックURLを更新します。②を先に取り込んでください。',
     templateFile: 'official_links.csv',
-    columns: ['muni_code', 'office_type', 'official_url', 'official_url_status', 'fallback_url'],
+    columns: ['org_type_code', 'office_name', 'official_url', 'official_url_status', 'fallback_url'],
   },
 ];
 
@@ -79,8 +82,8 @@ function ImportPanel({ panel }: { panel: (typeof PANELS)[number] }) {
       case 'municipalities':
         result = await importMunicipalities(supabase, rows as never);
         break;
-      case 'jurisdiction_offices':
-        result = await importJurisdictionOffices(supabase, rows as never);
+      case 'organization_offices':
+        result = await importOrganizationOffices(supabase, rows as never);
         break;
       case 'official_links':
         result = await importOfficialLinks(supabase, rows as never);
@@ -135,9 +138,9 @@ function ImportPanel({ panel }: { panel: (typeof PANELS)[number] }) {
         <div className="space-y-2 rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs">
           <div className="flex items-center gap-2 font-medium text-gray-700">
             {summary.failed === 0 ? (
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              <CheckCircle2 className="h-4 w-4 text-gray-500" />
             ) : (
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <AlertTriangle className="h-4 w-4 text-red-600" />
             )}
             {summary.succeeded} / {summary.total} 件を反映しました
           </div>

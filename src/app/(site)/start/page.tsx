@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { prefectures as staticPrefectures } from '@/data/prefectures';
-import { MapPin, Users, Calendar, ArrowRight, AlertTriangle } from 'lucide-react';
+import { MapPin, Users, Calendar, ArrowRight, AlertTriangle, Building2, UserCog } from 'lucide-react';
+import type { CorporateType } from '@/lib/types';
 
 const FALLBACK_MUNICIPALITIES: Record<string, { code: string; name: string }[]> = {
   '13': [{ code: '13113', name: '渋谷区' }],
@@ -25,9 +26,11 @@ export default function StartPage() {
   const [muniCode, setMuniCode] = useState('');
   const [hasEmployees, setHasEmployees] = useState<boolean | null>(null);
   const [fiscalMonth, setFiscalMonth] = useState<number | null>(null);
+  const [corporateType, setCorporateType] = useState<CorporateType | null>(null);
+  const [hasOfficerTerm, setHasOfficerTerm] = useState<boolean | null>(null);
 
   const [loadingMunis, setLoadingMunis] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm', string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm', string>>>({});
 
   useEffect(() => {
     async function load() {
@@ -96,6 +99,10 @@ export default function StartPage() {
     else if (!muniCode) errs.muni = '市区町村を選択してください';
     if (hasEmployees === null) errs.emp = '従業員の有無を選択してください';
     if (!fiscalMonth) errs.fm = '決算月を選択してください';
+    if (!corporateType) errs.corp = '法人の種類を選択してください';
+    if (corporateType === 'kabushiki' && hasOfficerTerm === null) {
+      errs.officerTerm = '役員任期の有無を選択してください';
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -108,7 +115,11 @@ export default function StartPage() {
       muni: muniCode,
       emp: String(hasEmployees),
       fm: String(fiscalMonth),
+      corp: String(corporateType),
     });
+    if (corporateType === 'kabushiki') {
+      params.set('officerTerm', String(hasOfficerTerm));
+    }
     router.push(`/result?${params.toString()}`);
   }
 
@@ -169,11 +180,11 @@ export default function StartPage() {
               {loadingMunis ? (
                 <p className="py-2 text-sm text-gray-400">読み込み中...</p>
               ) : muniList.length === 0 ? (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                  <p className="text-sm font-medium text-amber-700">
+                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                  <p className="text-sm font-medium text-gray-700">
                     このエリアは現在未対応です（順次拡大予定）
                   </p>
-                  <p className="mt-0.5 text-xs text-amber-600">
+                  <p className="mt-0.5 text-xs text-gray-500">
                     現在は東京都渋谷区のみ対応しています
                   </p>
                 </div>
@@ -223,10 +234,10 @@ export default function StartPage() {
                 key={String(val)}
                 type="button"
                 onClick={() => setHasEmployees(val)}
-                className={`flex-1 rounded-xl border-2 px-4 py-3 text-sm font-semibold transition-all ${
+                className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
                   hasEmployees === val
-                    ? 'border-blue-600 bg-blue-600 text-white shadow-sm'
-                    : 'border-gray-200 bg-white text-gray-700 hover:border-blue-200 hover:bg-blue-50'
+                    ? 'border-blue-600 bg-blue-600 text-white'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
                 {val ? 'あり' : 'なし'}
@@ -279,10 +290,88 @@ export default function StartPage() {
           )}
         </div>
 
+        {/* ④ 法人の種類 */}
+        <div className="card space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
+              4
+            </span>
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-gray-400" />
+              <h2 className="font-semibold text-gray-800">法人の種類</h2>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            {([
+              { value: 'kabushiki', label: '株式会社' },
+              { value: 'godo', label: '合同会社' },
+            ] as const).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  setCorporateType(opt.value);
+                  if (opt.value === 'godo') setHasOfficerTerm(null);
+                }}
+                className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
+                  corporateType === opt.value
+                    ? 'border-blue-600 bg-blue-600 text-white'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          {errors.corp && (
+            <p className="flex items-center gap-1 text-xs text-red-500">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {errors.corp}
+            </p>
+          )}
+        </div>
+
+        {/* ⑤ 役員任期（株式会社のみ） */}
+        {corporateType === 'kabushiki' && (
+          <div className="card space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
+                5
+              </span>
+              <div className="flex items-center gap-2">
+                <UserCog className="h-4 w-4 text-gray-400" />
+                <h2 className="font-semibold text-gray-800">役員に任期の定めがありますか？</h2>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              {([true, false] as const).map((val) => (
+                <button
+                  key={String(val)}
+                  type="button"
+                  onClick={() => setHasOfficerTerm(val)}
+                  className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
+                    hasOfficerTerm === val
+                      ? 'border-blue-600 bg-blue-600 text-white'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {val ? 'あり' : 'なし'}
+                </button>
+              ))}
+            </div>
+            {errors.officerTerm && (
+              <p className="flex items-center gap-1 text-xs text-red-500">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                {errors.officerTerm}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* 送信ボタン */}
         <button
           type="submit"
-          className="btn-primary w-full justify-center py-4 text-base"
+          className="btn-primary btn-primary-lg w-full text-base"
         >
           診断結果を見る
           <ArrowRight className="h-5 w-5" />

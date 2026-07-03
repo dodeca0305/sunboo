@@ -17,9 +17,9 @@ export type LinkRow = {
 };
 
 const STATUS_BADGE: Record<string, string> = {
-  ok: 'bg-emerald-100 text-emerald-700',
-  broken: 'bg-red-100 text-red-700',
-  redirected: 'bg-amber-100 text-amber-700',
+  ok: 'bg-gray-100 text-gray-600',
+  broken: 'bg-red-50 text-red-600',
+  redirected: 'bg-gray-100 text-gray-600',
   unchecked: 'bg-gray-100 text-gray-600',
 };
 
@@ -50,7 +50,7 @@ export default function LinksTable({ rows: initialRows }: { rows: LinkRow[] }) {
     const key = `${row.kind}-${row.id}`;
     setUpdatingKey(key);
 
-    const table = row.kind === 'office' ? 'jurisdiction_offices' : 'official_links';
+    const table = row.kind === 'office' ? 'organization_offices' : 'official_links';
     const statusColumn = row.kind === 'office' ? 'official_url_status' : 'status';
     const checkedAtColumn = row.kind === 'office' ? 'official_url_checked_at' : 'checked_at';
 

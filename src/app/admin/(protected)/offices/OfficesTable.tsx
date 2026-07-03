@@ -5,23 +5,25 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, Pencil, Trash2, Building2 } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
-import { officeTypeLabel, linkStatusLabel } from '@/lib/adminConstants';
+import { linkStatusLabel } from '@/lib/adminConstants';
 
 export type OfficeRow = {
   id: number;
   office_type: string;
+  office_type_name: string;
+  organization_name: string;
   name: string;
   address: string | null;
   phone: string | null;
   official_url_status: string | null;
-  municipality_name: string | null;
+  municipality_names: string[];
   prefecture_name: string | null;
 };
 
 const STATUS_BADGE: Record<string, string> = {
-  ok: 'bg-emerald-100 text-emerald-700',
-  broken: 'bg-red-100 text-red-700',
-  redirected: 'bg-amber-100 text-amber-700',
+  ok: 'bg-gray-100 text-gray-600',
+  broken: 'bg-red-50 text-red-600',
+  redirected: 'bg-gray-100 text-gray-600',
   unchecked: 'bg-gray-100 text-gray-600',
 };
 
@@ -34,20 +36,20 @@ export default function OfficesTable({ offices }: { offices: OfficeRow[] }) {
     const q = query.trim().toLowerCase();
     if (!q) return offices;
     return offices.filter((o) =>
-      [o.name, o.address, o.phone, o.municipality_name, o.prefecture_name, officeTypeLabel(o.office_type)]
+      [o.name, o.organization_name, o.address, o.phone, o.prefecture_name, o.office_type_name, ...o.municipality_names]
         .filter(Boolean)
         .some((v) => (v as string).toLowerCase().includes(q)),
     );
   }, [offices, query]);
 
   async function handleDelete(id: number, name: string) {
-    if (!confirm(`「${name}」を削除しますか？この操作は取り消せません。`)) return;
+    if (!confirm(`「${name}」を削除しますか？対応する市区町村の管轄設定も削除されます。この操作は取り消せません。`)) return;
 
     const supabase = createBrowserSupabase();
     if (!supabase) return;
 
     setDeletingId(id);
-    const { error } = await supabase.from('jurisdiction_offices').delete().eq('id', id);
+    const { error } = await supabase.from('organization_offices').delete().eq('id', id);
     setDeletingId(null);
 
     if (error) {
@@ -79,12 +81,13 @@ export default function OfficesTable({ offices }: { offices: OfficeRow[] }) {
       </div>
 
       <div className="card overflow-x-auto p-0">
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="w-full min-w-[800px] text-sm">
           <thead>
             <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-500">
-              <th className="px-4 py-3">機関名</th>
+              <th className="px-4 py-3">窓口名</th>
               <th className="px-4 py-3">種別</th>
               <th className="px-4 py-3">所在地</th>
+              <th className="px-4 py-3">対応市区町村</th>
               <th className="px-4 py-3">リンク状態</th>
               <th className="px-4 py-3 text-right">操作</th>
             </tr>
@@ -94,16 +97,21 @@ export default function OfficesTable({ offices }: { offices: OfficeRow[] }) {
               <tr key={o.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60">
                 <td className="px-4 py-3">
                   <p className="font-medium text-gray-900">{o.name}</p>
-                  {(o.prefecture_name || o.municipality_name) && (
-                    <p className="text-xs text-gray-400">
-                      {o.prefecture_name} {o.municipality_name}
-                    </p>
+                  {o.organization_name !== o.name && (
+                    <p className="text-xs text-gray-400">{o.organization_name}</p>
                   )}
                 </td>
-                <td className="px-4 py-3 text-xs text-gray-600">{officeTypeLabel(o.office_type)}</td>
+                <td className="px-4 py-3 text-xs text-gray-600">{o.office_type_name}</td>
                 <td className="px-4 py-3 text-xs text-gray-500">
                   <p>{o.address ?? '—'}</p>
                   <p className="text-gray-400">{o.phone ?? ''}</p>
+                </td>
+                <td className="px-4 py-3 max-w-[220px] text-xs text-gray-500">
+                  {o.municipality_names.length > 0 ? (
+                    <span className="line-clamp-2">{o.municipality_names.join('、')}</span>
+                  ) : (
+                    <span className="text-gray-300">未設定</span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <span

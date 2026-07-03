@@ -100,7 +100,7 @@ export default function ProceduresTable({ procedures }: { procedures: ProcedureR
                 <td className="px-4 py-3">
                   <span
                     className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                      p.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                      p.is_active ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500'
                     }`}
                   >
                     {p.is_active ? '有効' : '無効'}

@@ -39,17 +39,17 @@ async function getStatusBreakdown(
 const STAT_CARDS = [
   { table: 'prefectures', label: '都道府県', icon: Landmark },
   { table: 'municipalities', label: '市区町村', icon: MapPin },
-  { table: 'jurisdiction_offices', label: '管轄機関', icon: Building2 },
+  { table: 'organization_offices', label: '管轄機関', icon: Building2 },
   { table: 'procedures', label: '手続き', icon: ClipboardList },
   { table: 'procedure_documents', label: '必要書類', icon: FileText },
   { table: 'official_links', label: '公式リンク（手続き）', icon: Link2 },
 ] as const;
 
 const STATUS_CONFIG = {
-  ok: { label: '正常', icon: CheckCircle2, className: 'text-emerald-600 bg-emerald-50' },
+  ok: { label: '正常', icon: CheckCircle2, className: 'text-gray-600 bg-gray-50' },
   broken: { label: 'リンク切れ', icon: AlertTriangle, className: 'text-red-600 bg-red-50' },
-  redirected: { label: 'リダイレクト', icon: RefreshCw, className: 'text-amber-600 bg-amber-50' },
-  unchecked: { label: '未確認', icon: HelpCircle, className: 'text-gray-500 bg-gray-100' },
+  redirected: { label: 'リダイレクト', icon: RefreshCw, className: 'text-gray-600 bg-gray-50' },
+  unchecked: { label: '未確認', icon: HelpCircle, className: 'text-gray-500 bg-gray-50' },
 } as const;
 
 export default async function AdminDashboardPage() {
@@ -66,7 +66,7 @@ export default async function AdminDashboardPage() {
 
   const [counts, officeStatus, linkStatus] = await Promise.all([
     Promise.all(STAT_CARDS.map((c) => getCount(supabase, c.table))),
-    getStatusBreakdown(supabase, 'jurisdiction_offices', 'official_url_status'),
+    getStatusBreakdown(supabase, 'organization_offices', 'official_url_status'),
     getStatusBreakdown(supabase, 'official_links', 'status'),
   ]);
 

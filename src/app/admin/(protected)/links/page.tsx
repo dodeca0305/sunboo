@@ -4,12 +4,11 @@ import LinksTable, { type LinkRow } from './LinksTable';
 type RawOffice = {
   id: number;
   name: string;
-  office_type: string;
   official_url: string | null;
   official_url_status: string | null;
   official_url_checked_at: string | null;
   fallback_url: string | null;
-  municipalities: { name: string } | null;
+  organizations: { name: string } | null;
 };
 
 type RawOfficialLink = {
@@ -30,8 +29,8 @@ export default async function AdminLinksPage() {
   if (supabase) {
     const [{ data: officesRaw }, { data: linksRaw }] = await Promise.all([
       supabase
-        .from('jurisdiction_offices')
-        .select('id, name, office_type, official_url, official_url_status, official_url_checked_at, fallback_url, municipalities(name)')
+        .from('organization_offices')
+        .select('id, name, official_url, official_url_status, official_url_checked_at, fallback_url, organizations(name)')
         .order('id'),
       supabase
         .from('official_links')
@@ -45,7 +44,7 @@ export default async function AdminLinksPage() {
         kind: 'office',
         id: o.id,
         title: o.name,
-        subtitle: o.municipalities?.name ?? '',
+        subtitle: o.organizations?.name ?? '',
         url: o.official_url as string,
         status: o.official_url_status ?? 'unchecked',
         checked_at: o.official_url_checked_at,
