@@ -1,6 +1,9 @@
 import { supabase } from '@/lib/supabase';
 import SearchClient, { type SearchOffice, type SearchProcedure } from './SearchClient';
 
+// 手続き・機関データはSupabase側で随時更新されるため、ビルド時に静的化せず常に最新状態を取得する。
+export const dynamic = 'force-dynamic';
+
 type RawProcedure = {
   id: number;
   name: string;

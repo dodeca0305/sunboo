@@ -3,6 +3,10 @@ import { supabase } from '@/lib/supabase';
 import type { ProcedureCategory } from '@/lib/types';
 import ProcedureList from './ProcedureList';
 
+// 手続きデータはSupabase側（管理画面・マイグレーション）で随時更新されるため、
+// ビルド時に静的化せず常に最新状態を取得する。
+export const dynamic = 'force-dynamic';
+
 type ProcedureItem = {
   id: number;
   name: string;
