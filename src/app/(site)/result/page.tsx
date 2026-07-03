@@ -4,7 +4,7 @@ import { runDiagnosis } from '@/lib/diagnosis';
 import { prefectures as staticPrefectures } from '@/data/prefectures';
 import { Building2, MapPin, Phone, ExternalLink, ChevronLeft, AlertTriangle, DatabaseZap } from 'lucide-react';
 import type { CorporateType, LinkStatus } from '@/lib/types';
-import ScheduleList from './ScheduleList';
+import ScheduleList, { toScheduleProcedure } from './ScheduleList';
 
 const CORPORATE_TYPE_LABEL: Record<CorporateType, string> = {
   kabushiki: '株式会社',
@@ -209,25 +209,7 @@ export default async function ResultPage({
             </span>
           </h2>
 
-          <ScheduleList
-            procedures={result.procedures.map((proc) => ({
-              id: proc.id,
-              name: proc.name,
-              description: proc.description,
-              category: proc.category,
-              timing_label: proc.timing_label,
-              next_deadline: proc.next_deadline,
-              next_deadline_date: proc.next_deadline_date,
-              office: proc.office ? { name: proc.office.name } : null,
-              official_links: proc.official_links,
-              procedure_documents: proc.procedure_documents,
-              target_note: proc.target_note,
-              submission_method: proc.submission_method,
-              e_filing_system_name: proc.e_filing_system_name,
-              e_filing_system_url: proc.e_filing_system_url,
-              caution_note: proc.caution_note,
-            }))}
-          />
+          <ScheduleList procedures={result.procedures.map(toScheduleProcedure)} />
         </section>
       )}
 
