@@ -5,18 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, Pencil, Trash2, Workflow } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
+import type { RuleWithDetails } from './RulesView';
 
-export type RuleRow = {
-  id: number;
-  name: string;
-  description: string | null;
-  priority: number;
-  is_active: boolean;
-  condition_count: number;
-  action_count: number;
-};
-
-export default function RulesTable({ rules }: { rules: RuleRow[] }) {
+export default function RulesTable({ rules }: { rules: RuleWithDetails[] }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -85,8 +76,8 @@ export default function RulesTable({ rules }: { rules: RuleRow[] }) {
                   {r.description && <p className="text-xs text-gray-400">{r.description}</p>}
                 </td>
                 <td className="px-4 py-3 text-xs text-gray-600">{r.priority}</td>
-                <td className="px-4 py-3 text-xs text-gray-600">{r.condition_count}件</td>
-                <td className="px-4 py-3 text-xs text-gray-600">{r.action_count}件</td>
+                <td className="px-4 py-3 text-xs text-gray-600">{r.rule_conditions.length}件</td>
+                <td className="px-4 py-3 text-xs text-gray-600">{r.rule_actions.length}件</td>
                 <td className="px-4 py-3">
                   <span
                     className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${

@@ -1,35 +1,28 @@
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
-import RulesTable, { type RuleRow } from './RulesTable';
+import RulesView, { type RuleWithDetails } from './RulesView';
 
 export default async function AdminRulesPage() {
   const supabase = await createServerSupabase();
 
-  let rules: RuleRow[] = [];
+  let rules: RuleWithDetails[] = [];
+  let procedures: { id: number; name: string }[] = [];
+
   if (supabase) {
-    const [{ data: rulesRaw }, { data: conditionsRaw }, { data: actionsRaw }] = await Promise.all([
-      supabase.from('rules').select('id, name, description, priority, is_active').order('priority'),
-      supabase.from('rule_conditions').select('rule_id'),
-      supabase.from('rule_actions').select('rule_id'),
+    const [{ data: rulesRaw }, { data: proceduresRaw }] = await Promise.all([
+      supabase
+        .from('rules')
+        .select(
+          `id, name, description, priority, is_active,
+           rule_conditions(id, field, operator, value, sort_order),
+           rule_actions(id, action_type, procedure_id, payload, sort_order)`,
+        )
+        .order('priority'),
+      supabase.from('procedures').select('id, name').order('name'),
     ]);
-
-    const conditionCounts = new Map<number, number>();
-    for (const row of (conditionsRaw as { rule_id: number }[] | null) ?? []) {
-      conditionCounts.set(row.rule_id, (conditionCounts.get(row.rule_id) ?? 0) + 1);
-    }
-    const actionCounts = new Map<number, number>();
-    for (const row of (actionsRaw as { rule_id: number }[] | null) ?? []) {
-      actionCounts.set(row.rule_id, (actionCounts.get(row.rule_id) ?? 0) + 1);
-    }
-
-    rules = (
-      (rulesRaw as Omit<RuleRow, 'condition_count' | 'action_count'>[] | null) ?? []
-    ).map((r) => ({
-      ...r,
-      condition_count: conditionCounts.get(r.id) ?? 0,
-      action_count: actionCounts.get(r.id) ?? 0,
-    }));
+    rules = (rulesRaw as RuleWithDetails[] | null) ?? [];
+    procedures = (proceduresRaw as { id: number; name: string }[] | null) ?? [];
   }
 
   return (
@@ -47,7 +40,7 @@ export default async function AdminRulesPage() {
         </Link>
       </div>
 
-      <RulesTable rules={rules} />
+      <RulesView rules={rules} procedures={procedures} />
     </div>
   );
 }
