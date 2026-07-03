@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Search } from 'lucide-react';
+import { Search, Zap } from 'lucide-react';
 
 export default function SiteLayout({
   children,
@@ -32,6 +32,13 @@ export default function SiteLayout({
               className="hidden sm:inline-flex rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
             >
               機関一覧
+            </Link>
+            <Link
+              href="/events"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+            >
+              <Zap className="h-4 w-4" />
+              イベント
             </Link>
             <Link
               href="/search"
@@ -69,6 +76,9 @@ export default function SiteLayout({
               </Link>
               <Link href="/offices" className="text-gray-500 transition-colors hover:text-gray-900">
                 機関一覧
+              </Link>
+              <Link href="/events" className="text-gray-500 transition-colors hover:text-gray-900">
+                イベント
               </Link>
               <Link href="/start" className="text-gray-500 transition-colors hover:text-gray-900">
                 診断する

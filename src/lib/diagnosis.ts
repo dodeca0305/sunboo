@@ -43,6 +43,10 @@ export function calculateNextDeadline(
   timingType: string,
   timingData: Record<string, unknown> | null,
   fiscalMonth: number,
+  // 実際のイベント発生日（ISO）。経営イベントエンジン（company_events.event_date）からのみ渡される。
+  // 通常の診断フロー（/start → /result）には起算日が存在しないため未指定のままとなり、
+  // 従来通り label/date とも null を返す（後方互換）。
+  eventDate?: string,
 ): { label: string | null; date: string | null } {
   const today = new Date();
   const year = today.getFullYear();
@@ -50,8 +54,17 @@ export function calculateNextDeadline(
   switch (timingType) {
     case 'at_establishment':
     case 'hiring_event':
-    case 'event_based':
-      return { label: null, date: null }; // イベント起算は計算不可
+    case 'event_based': {
+      if (!eventDate) return { label: null, date: null }; // 起算日不明の場合は計算不可
+      const daysFromEvent = timingData?.days_from_event as number | undefined;
+      if (daysFromEvent === undefined) return { label: null, date: null };
+      const base = new Date(`${eventDate}T00:00:00`);
+      const deadline = new Date(base.getTime() + daysFromEvent * 86400000);
+      return {
+        label: `${deadline.getFullYear()}年${deadline.getMonth() + 1}月${deadline.getDate()}日`,
+        date: toIsoDate(deadline),
+      };
+    }
 
     case 'fiscal_offset': {
       const months = (timingData?.months as number) ?? 2;
@@ -103,6 +116,54 @@ export function calculateNextDeadline(
   }
 }
 
+// ── 管轄機関の解決（診断エンジン・経営イベントエンジン共通） ────
+
+export async function resolveOffices(
+  client: SupabaseClient,
+  municipalityId: number,
+): Promise<JurisdictionOffice[]> {
+  const { data: jurisRaw } = await client
+    .from('jurisdictions')
+    .select(
+      `organization_types(code),
+       organization_offices(id, name, postal_code, address, phone, fax, email, website_url, official_url,
+         e_filing_url, download_page_url, map_url, business_hours, notes,
+         official_url_status, official_url_checked_at, fallback_url)`,
+    )
+    .eq('municipality_id', municipalityId)
+    .order('id');
+
+  return ((jurisRaw as RawJurisdictionRow[] | null) ?? [])
+    .filter(
+      (j): j is RawJurisdictionRow & { organization_types: { code: string }; organization_offices: NonNullable<RawJurisdictionRow['organization_offices']> } =>
+        Boolean(j.organization_types && j.organization_offices),
+    )
+    .map((j) => {
+      const o = j.organization_offices;
+      return {
+        id: o.id,
+        municipality_id: municipalityId,
+        office_type: j.organization_types.code,
+        name: o.name,
+        address: o.address,
+        phone: o.phone,
+        website_url: o.website_url,
+        map_url: o.map_url,
+        official_url: o.official_url,
+        official_url_status: o.official_url_status as LinkStatus,
+        official_url_checked_at: o.official_url_checked_at,
+        fallback_url: o.fallback_url,
+        postal_code: o.postal_code,
+        fax: o.fax,
+        email: o.email,
+        e_filing_url: o.e_filing_url,
+        download_page_url: o.download_page_url,
+        business_hours: o.business_hours,
+        notes: o.notes,
+      };
+    });
+}
+
 // ── メイン診断関数 ────────────────────────────────────────────
 
 export async function runDiagnosis(
@@ -123,46 +184,7 @@ export async function runDiagnosis(
   if (!muni) return { offices: [], procedures: [] };
 
   // 2. 管轄機関を取得（jurisdictions 経由で organization_offices を解決）
-  const { data: jurisRaw } = await client
-    .from('jurisdictions')
-    .select(
-      `organization_types(code),
-       organization_offices(id, name, postal_code, address, phone, fax, email, website_url, official_url,
-         e_filing_url, download_page_url, map_url, business_hours, notes,
-         official_url_status, official_url_checked_at, fallback_url)`,
-    )
-    .eq('municipality_id', muni.id)
-    .order('id');
-
-  const offices: JurisdictionOffice[] = ((jurisRaw as RawJurisdictionRow[] | null) ?? [])
-    .filter(
-      (j): j is RawJurisdictionRow & { organization_types: { code: string }; organization_offices: NonNullable<RawJurisdictionRow['organization_offices']> } =>
-        Boolean(j.organization_types && j.organization_offices),
-    )
-    .map((j) => {
-      const o = j.organization_offices;
-      return {
-        id: o.id,
-        municipality_id: muni.id,
-        office_type: j.organization_types.code,
-        name: o.name,
-        address: o.address,
-        phone: o.phone,
-        website_url: o.website_url,
-        map_url: o.map_url,
-        official_url: o.official_url,
-        official_url_status: o.official_url_status as LinkStatus,
-        official_url_checked_at: o.official_url_checked_at,
-        fallback_url: o.fallback_url,
-        postal_code: o.postal_code,
-        fax: o.fax,
-        email: o.email,
-        e_filing_url: o.e_filing_url,
-        download_page_url: o.download_page_url,
-        business_hours: o.business_hours,
-        notes: o.notes,
-      };
-    });
+  const offices = await resolveOffices(client, muni.id);
 
   // 3. 手続きを取得・フィルタ
   let query = client

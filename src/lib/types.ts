@@ -183,6 +183,34 @@ export type DiagnosisResult = {
   procedures: ProcedureResult[];
 };
 
+// ── 経営イベントエンジン（Phase 2）─────────────────────────────
+// event_types.code。procedures.timing_type とは別の値体系（イベントの種類そのもの）。
+export type EventTypeCode = 'company_establishment' | 'employee_hired' | 'officer_change';
+
+export type EventType = {
+  id: number;
+  code: EventTypeCode;
+  name: string;
+  description: string | null;
+  sort_order: number;
+  is_active: boolean;
+};
+
+export type CompanyEventInput = {
+  eventTypeCode: EventTypeCode;
+  eventDate: string; // ISO (YYYY-MM-DD)
+  municipalityCode: string;
+  corporateType: CorporateType;
+  hasEmployees: boolean;
+};
+
+export type EventRegistrationResult = {
+  eventId: number;
+  eventType: EventType;
+  procedures: ProcedureResult[];
+  warnings: { message: string; severity: 'info' | 'warning' }[];
+};
+
 // ── 旧静的データとの互換型（src/data/ で使用）────────────────
 
 export type Industry = {
