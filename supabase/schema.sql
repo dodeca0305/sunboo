@@ -23,15 +23,19 @@ CREATE TABLE IF NOT EXISTS municipalities (
 
 -- 管轄機関マスタ
 CREATE TABLE IF NOT EXISTS jurisdiction_offices (
-  id              SERIAL      PRIMARY KEY,
-  municipality_id INT         NOT NULL REFERENCES municipalities(id),
-  office_type     TEXT        NOT NULL,
-  name            TEXT        NOT NULL,
-  address         TEXT,
-  phone           TEXT,
-  website_url     TEXT,
-  map_url         TEXT,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  id                      SERIAL      PRIMARY KEY,
+  municipality_id         INT         NOT NULL REFERENCES municipalities(id),
+  office_type             TEXT        NOT NULL,
+  name                    TEXT        NOT NULL,
+  address                 TEXT,
+  phone                   TEXT,
+  website_url             TEXT,
+  map_url                 TEXT,
+  official_url            TEXT,
+  official_url_status     TEXT        NOT NULL DEFAULT 'unchecked',
+  official_url_checked_at TIMESTAMPTZ,
+  fallback_url            TEXT,
+  created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (municipality_id, office_type)
 );
 
@@ -74,6 +78,9 @@ CREATE TABLE IF NOT EXISTS official_links (
   label        TEXT        NOT NULL,
   url          TEXT        NOT NULL,
   sort_order   INT         NOT NULL DEFAULT 0,
+  status       TEXT        NOT NULL DEFAULT 'unchecked',
+  checked_at   TIMESTAMPTZ,
+  fallback_url TEXT,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (procedure_id, url)
 );

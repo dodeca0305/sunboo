@@ -3,7 +3,32 @@ import { supabase } from '@/lib/supabase';
 import { runDiagnosis } from '@/lib/diagnosis';
 import { prefectures as staticPrefectures } from '@/data/prefectures';
 import type { ProcedureCategory } from '@/lib/types';
-import { Building2, MapPin, Phone, ExternalLink, Clock, ChevronLeft } from 'lucide-react';
+import { Building2, MapPin, Phone, ExternalLink, Clock, ChevronLeft, AlertTriangle } from 'lucide-react';
+import type { LinkStatus } from '@/lib/types';
+
+function OfficialSiteLink({
+  websiteUrl, officialUrl, status, fallbackUrl,
+}: {
+  websiteUrl: string | null;
+  officialUrl?: string | null;
+  status?: LinkStatus;
+  fallbackUrl?: string | null;
+}) {
+  const s = status ?? 'unchecked';
+  const href = s === 'broken' ? fallbackUrl : (officialUrl ?? websiteUrl);
+  if (!href) return null;
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer"
+       className="btn-secondary inline-flex items-center gap-1 px-3 py-1 text-xs">
+      {s === 'broken' && <AlertTriangle className="h-3 w-3 text-amber-500" />}
+      {s === 'broken' ? '公式一覧で確認' : '公式サイト'}
+      {s !== 'broken' && <ExternalLink className="h-3 w-3" />}
+      {s === 'unchecked' && (
+        <span className="ml-0.5 text-[10px] text-gray-400">（未確認）</span>
+      )}
+    </a>
+  );
+}
 
 const FALLBACK_MUNI_NAMES: Record<string, string> = {
   '13113': '渋谷区',
@@ -153,16 +178,12 @@ export default async function ResultPage({
                         地図
                       </a>
                     )}
-                    {office.website_url && (
-                      <a
-                        href={office.website_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn-secondary px-3 py-1 text-xs"
-                      >
-                        公式サイト
-                      </a>
-                    )}
+                    <OfficialSiteLink
+                      websiteUrl={office.website_url}
+                      officialUrl={office.official_url}
+                      status={office.official_url_status}
+                      fallbackUrl={office.fallback_url}
+                    />
                   </div>
                 </div>
               </div>
@@ -213,18 +234,30 @@ export default async function ResultPage({
 
                   {proc.official_links.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {proc.official_links.map((link, idx) => (
-                        <a
-                          key={idx}
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn-secondary inline-flex items-center gap-1 px-3 py-1 text-xs"
-                        >
-                          {link.label}
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      ))}
+                      {proc.official_links.map((link, idx) => {
+                        const s = link.status ?? 'unchecked';
+                        const href = s === 'broken'
+                          ? (link.fallback_url ?? link.url)
+                          : link.url;
+                        return (
+                          <a
+                            key={idx}
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-secondary inline-flex items-center gap-1 px-3 py-1 text-xs"
+                          >
+                            {s === 'broken' && (
+                              <AlertTriangle className="h-3 w-3 text-amber-500" />
+                            )}
+                            {link.label}
+                            {s !== 'broken' && <ExternalLink className="h-3 w-3" />}
+                            {s === 'unchecked' && (
+                              <span className="ml-0.5 text-[10px] text-gray-400">（未確認）</span>
+                            )}
+                          </a>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

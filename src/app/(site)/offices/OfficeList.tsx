@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Building2, MapPin, Phone, ExternalLink, Map, Settings } from 'lucide-react';
+import { Building2, MapPin, Phone, ExternalLink, Map, Settings, AlertTriangle } from 'lucide-react';
 
 export type OfficeItem = {
   id: number;
@@ -12,7 +12,39 @@ export type OfficeItem = {
   website_url: string | null;
   map_url: string | null;
   municipality_name: string | null;
+  official_url?: string | null;
+  official_url_status?: string;
+  fallback_url?: string | null;
 };
+
+function OfficialSiteLink({
+  websiteUrl, officialUrl, status, fallbackUrl,
+}: {
+  websiteUrl: string | null;
+  officialUrl?: string | null;
+  status?: string;
+  fallbackUrl?: string | null;
+}) {
+  const s = status ?? 'unchecked';
+  const href = s === 'broken' ? fallbackUrl : (officialUrl ?? websiteUrl);
+  if (!href) return null;
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="btn-secondary inline-flex items-center gap-1 px-3 py-1 text-xs"
+    >
+      {s === 'broken' && <AlertTriangle className="h-3 w-3 text-amber-500" />}
+      {s === 'broken' ? '公式一覧で確認' : '公式サイト'}
+      {s !== 'broken' && <ExternalLink className="h-3 w-3" />}
+      {s === 'unchecked' && (
+        <span className="ml-0.5 text-[10px] text-gray-400">（未確認）</span>
+      )}
+    </a>
+  );
+}
 
 const OFFICE_TYPE_CONFIG: Record<
   string,
@@ -165,17 +197,12 @@ export default function OfficeList({ offices }: { offices: OfficeItem[] }) {
                       地図
                     </a>
                   )}
-                  {office.website_url && (
-                    <a
-                      href={office.website_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-secondary inline-flex items-center gap-1 px-3 py-1 text-xs"
-                    >
-                      公式サイト
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  )}
+                  <OfficialSiteLink
+                    websiteUrl={office.website_url}
+                    officialUrl={office.official_url}
+                    status={office.official_url_status}
+                    fallbackUrl={office.fallback_url}
+                  />
                 </div>
               </div>
             </div>

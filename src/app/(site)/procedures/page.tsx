@@ -10,12 +10,13 @@ type ProcedureItem = {
   category: ProcedureCategory;
   office_type: string;
   timing_label: string;
-  official_links: { label: string; url: string }[];
+  official_links: { label: string; url: string; status?: string; fallback_url?: string | null }[];
 };
 
 // Supabase の JOIN 結果（公式リンクは配列で返る）
+type RawOfficialLink = { label: string; url: string; status?: string | null; fallback_url?: string | null };
 type RawProcedure = Omit<ProcedureItem, 'official_links'> & {
-  official_links: { label: string; url: string }[] | null;
+  official_links: RawOfficialLink[] | null;
 };
 
 export default async function ProceduresPage() {
@@ -24,13 +25,16 @@ export default async function ProceduresPage() {
   if (supabase) {
     const { data } = await supabase
       .from('procedures')
-      .select('id, name, description, category, office_type, timing_label, official_links(label, url)')
+      .select('id, name, description, category, office_type, timing_label, official_links(label, url, status, fallback_url)')
       .eq('is_active', true)
       .order('priority');
 
     procedures = ((data as RawProcedure[] | null) ?? []).map((p) => ({
       ...p,
-      official_links: p.official_links ?? [],
+      official_links: (p.official_links ?? []).map((link) => ({
+        ...link,
+        status: link.status ?? undefined,
+      })),
     }));
   }
 

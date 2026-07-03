@@ -2,7 +2,7 @@
 -- SUNBOO経営ナビ 初期データ (MVP: 東京都渋谷区)
 -- ============================================================
 -- schema.sql を実行した後に実行してください。
--- 何度実行しても重複しません（ON CONFLICT DO NOTHING）。
+-- 何度実行しても安全（ON CONFLICT で既存行を安全にマージ）。
 -- ============================================================
 
 -- 都道府県（東京都）
@@ -16,10 +16,17 @@ ON CONFLICT (code) DO NOTHING;
 
 -- ============================================================
 -- 管轄機関（渋谷区の6機関）
--- ON CONFLICT (municipality_id, office_type) DO NOTHING で重複防止
+-- official_url_status: ok / broken / redirected / unchecked
+-- fallback_url: リンク切れ時に誘導する安定した公式一覧ページ
 -- ============================================================
-INSERT INTO jurisdiction_offices (municipality_id, office_type, name, address, phone, website_url, map_url)
-SELECT m.id, v.office_type, v.name, v.address, v.phone, v.website_url, v.map_url
+INSERT INTO jurisdiction_offices (
+  municipality_id, office_type, name, address, phone,
+  website_url, map_url,
+  official_url, official_url_status, fallback_url
+)
+SELECT m.id, v.office_type, v.name, v.address, v.phone,
+       v.website_url, v.map_url,
+       v.official_url, v.official_url_status, v.fallback_url
 FROM municipalities m,
 (VALUES
   ('tax_office',
@@ -27,44 +34,75 @@ FROM municipalities m,
    '東京都渋谷区神山町10番地',
    '03-3461-5511',
    'https://www.nta.go.jp/about/organization/tokyo/shokatsu/shibuya/index.htm',
-   'https://maps.google.com/?q=渋谷税務署'),
+   'https://maps.google.com/?q=渋谷税務署',
+   'https://www.nta.go.jp/about/organization/tokyo/shokatsu/shibuya/index.htm',
+   'ok',
+   'https://www.nta.go.jp/about/organization/index.htm'),
+
   ('prefectural_tax',
    '東京都渋谷都税事務所',
    '東京都渋谷区宇田川町1番18号',
    '03-3464-1311',
    'https://www.tax.metro.tokyo.lg.jp/about/jimusho/shibuya.html',
-   'https://maps.google.com/?q=東京都渋谷都税事務所'),
+   'https://maps.google.com/?q=東京都渋谷都税事務所',
+   'https://www.tax.metro.tokyo.lg.jp/about/jimusho/shibuya.html',
+   'ok',
+   'https://www.tax.metro.tokyo.lg.jp/about/jimusho/'),
+
   ('municipal_tax',
    '渋谷区役所（税務課）',
    '東京都渋谷区宇田川町1番1号',
    '03-3463-1211',
    'https://www.city.shibuya.tokyo.jp/kurashi/zeikin/hojin/',
-   'https://maps.google.com/?q=渋谷区役所'),
+   'https://maps.google.com/?q=渋谷区役所',
+   'https://www.city.shibuya.tokyo.jp/kurashi/zeikin/hojin/',
+   'ok',
+   'https://www.city.shibuya.tokyo.jp/kurashi/zeikin/'),
+
   ('pension_office',
    '渋谷年金事務所',
    '東京都渋谷区渋谷1丁目17番1号',
    '03-3462-1723',
    'https://www.nenkin.go.jp/section/soudan/tokyo/shibuya.html',
-   'https://maps.google.com/?q=渋谷年金事務所'),
+   'https://maps.google.com/?q=渋谷年金事務所',
+   'https://www.nenkin.go.jp/section/soudan/tokyo/shibuya.html',
+   'ok',
+   'https://www.nenkin.go.jp/section/soudan/index.html'),
+
   ('labor_standards',
    '渋谷労働基準監督署',
    '東京都渋谷区神南1丁目3番5号',
    '03-3780-6811',
    'https://jsite.mhlw.go.jp/tokyo-roudoukyoku/kanren_kikan/kanri_kantoku/shibuya.html',
-   'https://maps.google.com/?q=渋谷労働基準監督署'),
+   'https://maps.google.com/?q=渋谷労働基準監督署',
+   'https://jsite.mhlw.go.jp/tokyo-roudoukyoku/kanren_kikan/kanri_kantoku/shibuya.html',
+   'ok',
+   'https://jsite.mhlw.go.jp/tokyo-roudoukyoku/kanren_kikan/kanri_kantoku/'),
+
   ('hello_work',
    'ハローワーク渋谷',
    '東京都渋谷区神南1丁目3番5号',
    '03-3476-8609',
    'https://jsite.mhlw.go.jp/tokyo-hellowork/hw/shibuya/',
-   'https://maps.google.com/?q=ハローワーク渋谷')
-) AS v(office_type, name, address, phone, website_url, map_url)
+   'https://maps.google.com/?q=ハローワーク渋谷',
+   'https://jsite.mhlw.go.jp/tokyo-hellowork/hw/shibuya/',
+   'ok',
+   'https://jsite.mhlw.go.jp/tokyo-hellowork/hw/')
+
+) AS v(office_type, name, address, phone, website_url, map_url,
+       official_url, official_url_status, fallback_url)
 WHERE m.code = '13113'
-ON CONFLICT (municipality_id, office_type) DO NOTHING;
+ON CONFLICT (municipality_id, office_type) DO UPDATE SET
+  official_url        = COALESCE(jurisdiction_offices.official_url, EXCLUDED.official_url),
+  fallback_url        = COALESCE(jurisdiction_offices.fallback_url, EXCLUDED.fallback_url),
+  official_url_status = CASE
+    WHEN jurisdiction_offices.official_url_status = 'unchecked'
+    THEN EXCLUDED.official_url_status
+    ELSE jurisdiction_offices.official_url_status
+  END;
 
 -- ============================================================
 -- 手続きマスタ（10手続き）
--- ON CONFLICT (code) DO NOTHING で重複防止
 -- ============================================================
 INSERT INTO procedures (
   code, name, description, category, requires_employees,
@@ -134,7 +172,6 @@ ON CONFLICT (code) DO NOTHING;
 
 -- ============================================================
 -- 手続き必要書類
--- ON CONFLICT (procedure_id, name) DO NOTHING で重複防止
 -- ============================================================
 INSERT INTO procedure_documents (procedure_id, name, form_number, is_required, notes, sort_order)
 SELECT p.id, v.name, v.form_number, v.is_required, v.notes, v.sort_order
@@ -153,21 +190,77 @@ ON CONFLICT (procedure_id, name) DO NOTHING;
 
 -- ============================================================
 -- 公式リンク
--- ON CONFLICT (procedure_id, url) DO NOTHING で重複防止
+-- status: ok / broken / redirected / unchecked
+-- fallback_url: リンク切れ時に誘導する安定した公式一覧ページ
 -- ============================================================
-INSERT INTO official_links (procedure_id, label, url, sort_order)
-SELECT p.id, v.label, v.url, v.sort_order
+INSERT INTO official_links (procedure_id, label, url, sort_order, status, fallback_url)
+SELECT p.id, v.label, v.url, v.sort_order, v.status, v.fallback_url
 FROM procedures p
 JOIN (VALUES
-  ('CORP_ESTABLISH_TAX',    '法人設立届出書（国税庁）',               'https://www.nta.go.jp/taxes/tetsuzuki/shinsei/annai/hojin/annai/1554_2.htm',                                                                             1),
-  ('BLUE_RETURN_APPROVAL',  '青色申告承認申請書（国税庁）',           'https://www.nta.go.jp/taxes/tetsuzuki/shinsei/annai/hojin/annai/1554_20.htm',                                                                            1),
-  ('PAYROLL_OFFICE_OPEN',   '給与支払事務所等の開設届（国税庁）',     'https://www.nta.go.jp/taxes/tetsuzuki/shinsei/annai/gensen/annai/1648_11.htm',                                                                           1),
-  ('SOCIAL_INS_NEW',        '新規適用の手続き（日本年金機構）',       'https://www.nenkin.go.jp/service/kounen/kenpo-todoke/jigyo/20150518.html',                                                                                1),
-  ('LABOR_INS_ESTABLISH',   '労働保険成立手続き（厚生労働省）',       'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/roudoukijun/hoken/roudouhoken20/index.html',                                              1),
-  ('EMPLOY_INS_OFFICE',     '雇用保険適用事業所設置届（ハローワーク）', 'https://www.hellowork.mhlw.go.jp/insurance/insurance_guide.html',                                                                                       1),
-  ('WITHHOLDING_TAX',       '源泉所得税の納付（国税庁）',             'https://www.nta.go.jp/taxes/shiraberu/taxanswer/gensen/2505.htm',                                                                                        1),
-  ('SOCIAL_INS_SANTEIKISO', '算定基礎届の手続き（日本年金機構）',     'https://www.nenkin.go.jp/service/kounen/kenpo-todoke/hihokensha/20141205.html',                                                                          1),
-  ('LABOR_INS_RENEWAL',     '労働保険年度更新（厚生労働省）',         'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/roudoukijun/hoken/roudouhoken20/index.html',                                              1),
-  ('YEAR_END_ADJUSTMENT',   '法定調書の提出（国税庁）',               'https://www.nta.go.jp/taxes/tetsuzuki/shinsei/annai/hotei/annai/23100051.htm',                                                                           1)
-) AS v(code, label, url, sort_order) ON p.code = v.code
-ON CONFLICT (procedure_id, url) DO NOTHING;
+  ('CORP_ESTABLISH_TAX',
+   '法人設立届出書（国税庁）',
+   'https://www.nta.go.jp/taxes/tetsuzuki/shinsei/annai/hojin/annai/1554_2.htm',
+   1, 'ok',
+   'https://www.nta.go.jp/taxes/tetsuzuki/shinsei/annai/hojin/'),
+
+  ('BLUE_RETURN_APPROVAL',
+   '青色申告承認申請書（国税庁）',
+   'https://www.nta.go.jp/taxes/tetsuzuki/shinsei/annai/hojin/annai/1554_20.htm',
+   1, 'ok',
+   'https://www.nta.go.jp/taxes/tetsuzuki/shinsei/annai/hojin/'),
+
+  ('PAYROLL_OFFICE_OPEN',
+   '給与支払事務所等の開設届（国税庁）',
+   'https://www.nta.go.jp/taxes/tetsuzuki/shinsei/annai/gensen/annai/1648_11.htm',
+   1, 'ok',
+   'https://www.nta.go.jp/taxes/tetsuzuki/shinsei/annai/gensen/'),
+
+  ('SOCIAL_INS_NEW',
+   '新規適用の手続き（日本年金機構）',
+   'https://www.nenkin.go.jp/service/kounen/kenpo-todoke/jigyo/20150518.html',
+   1, 'ok',
+   'https://www.nenkin.go.jp/service/kounen/kenpo-todoke/jigyo/'),
+
+  ('LABOR_INS_ESTABLISH',
+   '労働保険成立手続き（厚生労働省）',
+   'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/roudoukijun/hoken/roudouhoken20/index.html',
+   1, 'ok',
+   'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/roudoukijun/hoken/'),
+
+  ('EMPLOY_INS_OFFICE',
+   '雇用保険適用事業所設置届（ハローワーク）',
+   'https://www.hellowork.mhlw.go.jp/insurance/insurance_guide.html',
+   1, 'ok',
+   'https://www.hellowork.mhlw.go.jp/insurance/'),
+
+  ('WITHHOLDING_TAX',
+   '源泉所得税の納付（国税庁）',
+   'https://www.nta.go.jp/taxes/shiraberu/taxanswer/gensen/2505.htm',
+   1, 'ok',
+   'https://www.nta.go.jp/taxes/shiraberu/taxanswer/gensen/'),
+
+  ('SOCIAL_INS_SANTEIKISO',
+   '算定基礎届の手続き（日本年金機構）',
+   'https://www.nenkin.go.jp/service/kounen/kenpo-todoke/hihokensha/20141205.html',
+   1, 'ok',
+   'https://www.nenkin.go.jp/service/kounen/kenpo-todoke/hihokensha/'),
+
+  ('LABOR_INS_RENEWAL',
+   '労働保険年度更新（厚生労働省）',
+   'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/roudoukijun/hoken/roudouhoken20/index.html',
+   1, 'ok',
+   'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/roudoukijun/hoken/'),
+
+  ('YEAR_END_ADJUSTMENT',
+   '法定調書の提出（国税庁）',
+   'https://www.nta.go.jp/taxes/tetsuzuki/shinsei/annai/hotei/annai/23100051.htm',
+   1, 'ok',
+   'https://www.nta.go.jp/taxes/tetsuzuki/shinsei/annai/hotei/')
+
+) AS v(code, label, url, sort_order, status, fallback_url) ON p.code = v.code
+ON CONFLICT (procedure_id, url) DO UPDATE SET
+  status       = CASE
+    WHEN official_links.status = 'unchecked' THEN EXCLUDED.status
+    ELSE official_links.status
+  END,
+  fallback_url = COALESCE(official_links.fallback_url, EXCLUDED.fallback_url);

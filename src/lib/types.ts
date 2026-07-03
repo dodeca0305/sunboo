@@ -23,10 +23,16 @@ export type JurisdictionOffice = {
   phone: string | null;
   website_url: string | null;
   map_url: string | null;
+  official_url?: string | null;
+  official_url_status?: LinkStatus;
+  official_url_checked_at?: string | null;
+  fallback_url?: string | null;
   created_at?: string;
 };
 
 export type ProcedureCategory = 'tax' | 'labor' | 'insurance' | 'registration' | 'other';
+
+export type LinkStatus = 'ok' | 'broken' | 'redirected' | 'unchecked';
 
 export type Procedure = {
   id: number;
@@ -63,6 +69,9 @@ export type OfficialLink = {
   label: string;
   url: string;
   sort_order: number;
+  status?: LinkStatus;
+  checked_at?: string | null;
+  fallback_url?: string | null;
   created_at?: string;
 };
 
@@ -91,7 +100,7 @@ export type DiagnosisInput = {
 export type ProcedureResult = Procedure & {
   next_deadline: string | null;
   office: JurisdictionOffice | null;
-  official_links: { label: string; url: string }[];
+  official_links: { label: string; url: string; status?: LinkStatus; fallback_url?: string | null }[];
 };
 
 export type DiagnosisResult = {

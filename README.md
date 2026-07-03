@@ -17,6 +17,7 @@
 | `/result` | 診断結果（管轄機関・手続き一覧） |
 | `/procedures` | 手続きマスタ一覧（カテゴリフィルター付き） |
 | `/offices` | 管轄機関一覧（機関タイプフィルター付き） |
+| `/admin` | 管理画面（要ログイン。詳細は [管理画面（Admin）](#管理画面admin) を参照） |
 
 ---
 
@@ -27,7 +28,8 @@
 | フレームワーク | Next.js 16 (App Router) |
 | 言語 | TypeScript |
 | スタイル | Tailwind CSS v4 |
-| データベース・認証 | Supabase (PostgreSQL) |
+| データベース・認証 | Supabase (PostgreSQL + Auth) |
+| CSV解析 | Papa Parse |
 | ホスティング | Vercel |
 
 ---
@@ -87,19 +89,15 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Supabase ダッシュボードの「SQL Editor」で以下を順番に実行:
 
 ```
-1. supabase/schema.sql   → テーブル・インデックスの作成
-2. supabase/seed.sql     → MVP初期データの投入（東京都渋谷区）
+1. supabase/schema.sql          → テーブル・インデックスの作成
+2. supabase/seed.sql            → MVP初期データの投入（東京都渋谷区）
+3. supabase/grant_public_read.sql → RLS有効化 + 公開読み取りポリシー
+4. supabase/admin_schema.sql    → 管理画面（Admin）用のテーブル・書き込みポリシー
 ```
 
-### 4. Row Level Security（RLS）の設定
+### 4. Row Level Security（RLS）
 
-現在のMVPはRLS未設定で動作します。本番リリース前に以下を検討してください:
-
-```sql
--- 例: jurisdiction_offices を全員に読み取り許可
-ALTER TABLE jurisdiction_offices ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "public read" ON jurisdiction_offices FOR SELECT USING (true);
-```
+`grant_public_read.sql` により、全テーブルで RLS が有効化され、`SELECT` は全員に許可されています。書き込み（`INSERT`/`UPDATE`/`DELETE`）は `admin_schema.sql` のポリシーにより、`admin_users` テーブルに登録されたメールアドレスでログインしたユーザーのみ許可されます。詳しくは [管理画面（Admin）](#管理画面admin) を参照してください。
 
 ---
 
@@ -184,13 +182,63 @@ http://localhost:3000/offices
 
 ---
 
+## 管理画面（Admin）
+
+`/admin` は管理者専用の画面です。一般ユーザー向けページ（`/`, `/start`, `/result`, `/procedures`, `/offices`）とは完全に分離されており、これらの画面・URLは変更していません。
+
+### できること
+
+| 機能 | URL |
+|---|---|
+| ダッシュボード（データ件数・リンク健全性の概況） | `/admin` |
+| 管轄機関の一覧・検索・追加・編集・削除 | `/admin/offices` |
+| 手続きの一覧・検索・追加・編集・削除 | `/admin/procedures` |
+| リンクチェック一覧（公式リンクの状態を確認・更新） | `/admin/links` |
+| CSVインポート（municipalities / jurisdiction_offices / official_links） | `/admin/import` |
+| CSVエクスポート | `/admin/export` |
+
+CSVインポート・エクスポートの列構成は [docs/全国対応データ整備ガイド.md](docs/全国対応データ整備ガイド.md) の CSV テンプレートと同じです。Phase 1 で用意した SQL Editor 経由のインポート手順（`supabase/import_from_csv.sql`）は残していますが、`/admin/import` からブラウザ上で直接インポートする方法が今後の標準です。
+
+### セットアップ
+
+1. Supabase ダッシュボード → SQL Editor で `supabase/admin_schema.sql` を実行する
+   （`admin_users` テーブルの作成 + 管理者による書き込み用RLSポリシーの設定）
+2. Supabase ダッシュボード → **Authentication → Users → Add user** で管理者のメールアドレス・パスワードを登録する
+3. SQL Editor で管理者を許可リストに追加する:
+   ```sql
+   INSERT INTO admin_users (email, name) VALUES ('you@example.com', '担当者名')
+   ON CONFLICT (email) DO NOTHING;
+   ```
+4. `/admin/login` にアクセスし、2で登録したメールアドレス・パスワードでログインする
+
+### 認証・認可の仕組み
+
+- ログインには Supabase Auth（メール・パスワード）を使用します（`@supabase/ssr` によるCookieベースのセッション管理）
+- `src/proxy.ts`（Next.js の Proxy、旧 Middleware）が `/admin/*` へのアクセスをチェックし、未ログイン、または `admin_users` に登録されていないユーザーは `/admin/login` にリダイレクトされます
+- データベース側でも RLS ポリシーにより、`admin_users` に登録されたメールアドレスでログインしたユーザーのみが `INSERT`/`UPDATE`/`DELETE` を実行できます（アプリ側のチェックとDB側のポリシーの二重防御）
+
+### 管理者を追加・削除する
+
+管理者の追加・削除は Supabase SQL Editor から `admin_users` テーブルを直接操作します（管理画面上からの管理者管理機能はセキュリティ上あえて設けていません）。
+
+```sql
+-- 追加
+INSERT INTO admin_users (email, name) VALUES ('new-admin@example.com', '氏名')
+ON CONFLICT (email) DO NOTHING;
+
+-- 削除（Supabase Authのユーザー自体は Authentication → Users から別途削除）
+DELETE FROM admin_users WHERE email = 'former-admin@example.com';
+```
+
+---
+
 ## Vercel デプロイ手順
 
 ### 前提条件
 
 - GitHub アカウントがあること
 - このリポジトリが GitHub に push 済みであること
-- Supabase のセットアップが完了していること（schema.sql + seed.sql 実行済み）
+- Supabase のセットアップが完了していること（schema.sql + seed.sql + grant_public_read.sql + admin_schema.sql 実行済み）
 
 ### ステップ 1: GitHub にプッシュ
 
@@ -275,6 +323,15 @@ Vercel の「Environment Variables」セクションに以下を追加:
 
 ### 新しいエリア（市区町村）を追加する場合
 
+CSVファイルからまとめて取り込む仕組みを用意しています。手順は [docs/全国対応データ整備ガイド.md](docs/全国対応データ整備ガイド.md) を参照してください。
+
+```
+supabase/import_templates/*.csv   ← 追加したい市区町村・機関をCSVに記入
+supabase/import_from_csv.sql      ← staging作成 → Table Editorでインポート → 本番へマージ
+```
+
+少量のデータをその場で追加する場合は、従来どおりSQLを直接実行することもできます:
+
 ```sql
 -- 1. 市区町村を追加
 INSERT INTO municipalities (prefecture_id, code, name)
@@ -309,34 +366,54 @@ UPDATE procedures SET is_active = false WHERE code = 'PROCEDURE_CODE';
 ```
 sunboo/
 ├── src/
+│   ├── proxy.ts                    # /admin へのアクセス制御（Next.js Proxy、旧Middleware）
 │   ├── app/
-│   │   ├── layout.tsx              # ヘッダー・フッター共通レイアウト
-│   │   ├── page.tsx                # トップページ
+│   │   ├── layout.tsx              # ルートレイアウト（html/body・フォントのみ）
 │   │   ├── globals.css             # Tailwind v4 テーマ・コンポーネント定義
-│   │   ├── start/
-│   │   │   └── page.tsx            # 会社情報入力フォーム（クライアントコンポーネント）
-│   │   ├── result/
-│   │   │   └── page.tsx            # 診断結果（サーバーコンポーネント・Dynamic）
-│   │   ├── procedures/
-│   │   │   ├── page.tsx            # 手続き一覧（サーバーコンポーネント）
-│   │   │   └── ProcedureList.tsx   # カテゴリフィルターUI（クライアントコンポーネント）
-│   │   └── offices/
-│   │       ├── page.tsx            # 管轄機関一覧（サーバーコンポーネント）
-│   │       └── OfficeList.tsx      # タイプフィルターUI（クライアントコンポーネント）
+│   │   ├── (site)/                 # 一般ユーザー向けページ（route group、URLには影響しない）
+│   │   │   ├── layout.tsx          # ヘッダー・フッター共通レイアウト
+│   │   │   ├── page.tsx            # トップページ
+│   │   │   ├── start/page.tsx      # 会社情報入力フォーム（クライアントコンポーネント）
+│   │   │   ├── result/page.tsx     # 診断結果（サーバーコンポーネント・Dynamic）
+│   │   │   ├── procedures/         # 手続き一覧（page.tsx + ProcedureList.tsx）
+│   │   │   └── offices/            # 管轄機関一覧（page.tsx + OfficeList.tsx）
+│   │   └── admin/                  # 管理画面
+│   │       ├── login/page.tsx      # ログイン画面（未保護）
+│   │       └── (protected)/        # ログイン必須の管理画面本体
+│   │           ├── layout.tsx      # セッション確認 + AdminShell 呼び出し
+│   │           ├── AdminShell.tsx  # サイドバー・トップバー（レスポンシブ対応）
+│   │           ├── page.tsx        # ダッシュボード（データ件数・リンク健全性）
+│   │           ├── offices/        # 管轄機関CRUD（一覧・検索・new・[id]）
+│   │           ├── procedures/     # 手続きCRUD（一覧・検索・new・[id]）
+│   │           ├── links/          # リンクチェック一覧
+│   │           ├── import/         # CSVインポート（ブラウザから直接取り込み）
+│   │           └── export/         # CSVエクスポート
 │   ├── data/
 │   │   ├── industries.ts           # 業種マスタ（静的）
 │   │   └── prefectures.ts          # 都道府県マスタ 47件（静的・Supabase未設定時のフォールバック）
 │   └── lib/
 │       ├── types.ts                # TypeScript 型定義
 │       ├── diagnosis.ts            # 診断エンジン（DB クエリ・期限計算）
-│       └── supabase.ts             # Supabase クライアント（env未設定時は null）
+│       ├── supabase.ts             # 一般ユーザー向け Supabase クライアント（env未設定時は null）
+│       ├── admin.ts                # 管理者セッション確認（admin_users 照合）
+│       ├── adminConstants.ts       # 管理画面の選択肢定義（機関種別・カテゴリ等）
+│       ├── adminCsv.ts             # CSVインポートのアップサートロジック
+│       └── supabase/
+│           ├── browser.ts          # 管理画面用ブラウザクライアント（Cookieセッション）
+│           └── server.ts           # 管理画面用サーバークライアント（Server Components用）
+├── public/
+│   └── import_templates/           # /admin/import の「テンプレート」ダウンロード用CSV
 ├── supabase/
 │   ├── schema.sql                  # DB スキーマ（テーブル・インデックス・UNIQUE制約）
 │   ├── seed.sql                    # MVP 初期データ（冪等: 何度実行しても重複しない）
 │   ├── fix_duplicates.sql          # 重複データ削除 & UNIQUE制約追加（初回のみ）
-│   └── grant_public_read.sql       # anon ロールへの SELECT 権限付与
+│   ├── grant_public_read.sql       # anon ロールへの SELECT 権限付与
+│   ├── admin_schema.sql            # admin_users テーブル + 管理者書き込みRLSポリシー
+│   ├── import_from_csv.sql         # 全国対応データのCSV取り込み（staging→本番マージ／SQL版）
+│   └── import_templates/           # CSVテンプレート（municipalities / offices / links）
 ├── docs/
-│   └── 開発指示書_v1.md            # 設計・実装ドキュメント
+│   ├── 開発指示書_v1.md            # 設計・実装ドキュメント
+│   └── 全国対応データ整備ガイド.md  # 市区町村・管轄機関データの追加手順
 ├── .env.local.example              # 環境変数のテンプレート（APIキーなし）
 ├── .gitignore                      # .env.local 等を除外
 ├── .gitattributes                  # 改行コード統一（LF）

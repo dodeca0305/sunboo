@@ -2,6 +2,7 @@ import {
   DiagnosisInput,
   DiagnosisResult,
   JurisdictionOffice,
+  LinkStatus,
   ProcedureResult,
 } from './types';
 import type { SupabaseClient } from './supabase';
@@ -94,7 +95,7 @@ export async function runDiagnosis(
   // 3. 手続きを取得・フィルタ
   let query = client
     .from('procedures')
-    .select('*, official_links(label, url)')
+    .select('*, official_links(label, url, status, fallback_url)')
     .eq('is_active', true)
     .order('priority');
 
@@ -120,7 +121,7 @@ export async function runDiagnosis(
       ),
       office: officeMap.get(p.office_type as string) ?? null,
       official_links:
-        (p.official_links as { label: string; url: string }[]) ?? [],
+        (p.official_links as { label: string; url: string; status?: LinkStatus; fallback_url?: string | null }[]) ?? [],
     }),
   );
 

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { ProcedureCategory } from '@/lib/types';
-import { Building2, Clock, ExternalLink, Settings } from 'lucide-react';
+import { Building2, Clock, ExternalLink, Settings, AlertTriangle } from 'lucide-react';
 
 type ProcedureItem = {
   id: number;
@@ -11,7 +11,7 @@ type ProcedureItem = {
   category: ProcedureCategory;
   office_type: string;
   timing_label: string;
-  official_links: { label: string; url: string }[];
+  official_links: { label: string; url: string; status?: string; fallback_url?: string | null }[];
 };
 
 const CATEGORY_CONFIG: Record<
@@ -123,18 +123,30 @@ export default function ProcedureList({ procedures }: { procedures: ProcedureIte
 
               {proc.official_links.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {proc.official_links.map((link, idx) => (
-                    <a
-                      key={idx}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-secondary inline-flex items-center gap-1 px-3 py-1 text-xs"
-                    >
-                      {link.label}
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  ))}
+                  {proc.official_links.map((link, idx) => {
+                    const s = link.status ?? 'unchecked';
+                    const href = s === 'broken'
+                      ? (link.fallback_url ?? link.url)
+                      : link.url;
+                    return (
+                      <a
+                        key={idx}
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-secondary inline-flex items-center gap-1 px-3 py-1 text-xs"
+                      >
+                        {s === 'broken' && (
+                          <AlertTriangle className="h-3 w-3 text-amber-500" />
+                        )}
+                        {link.label}
+                        {s !== 'broken' && <ExternalLink className="h-3 w-3" />}
+                        {s === 'unchecked' && (
+                          <span className="ml-0.5 text-[10px] text-gray-400">（未確認）</span>
+                        )}
+                      </a>
+                    );
+                  })}
                 </div>
               )}
             </div>

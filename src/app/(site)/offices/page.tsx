@@ -12,6 +12,9 @@ type RawOffice = {
   phone: string | null;
   website_url: string | null;
   map_url: string | null;
+  official_url?: string | null;
+  official_url_status?: string;
+  fallback_url?: string | null;
   municipalities: { name: string } | null;
 };
 
@@ -21,7 +24,7 @@ export default async function OfficesPage() {
   if (supabase) {
     const { data } = await supabase
       .from('jurisdiction_offices')
-      .select('id, office_type, name, address, phone, website_url, map_url, municipalities(name)')
+      .select('*, municipalities(name)')
       .order('id');
 
     offices = ((data as RawOffice[] | null) ?? []).map((o) => ({
@@ -33,6 +36,9 @@ export default async function OfficesPage() {
       website_url: o.website_url,
       map_url: o.map_url,
       municipality_name: o.municipalities?.name ?? null,
+      official_url: o.official_url,
+      official_url_status: o.official_url_status,
+      fallback_url: o.fallback_url,
     }));
   }
 
