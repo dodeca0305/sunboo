@@ -22,7 +22,7 @@ export function bucketOf(days: number | null): UrgencyBucket {
   return 'later';
 }
 
-// procedures.timing_type のうち、経営イベントエンジン（company_events.event_date）から
+// procedures.timing_type のうち、経営イベントエンジン（anonymous_company_events.event_date）から
 // 実際の起算日が供給されて初めて期限計算が成立する種別。診断エンジン単体では null になる
 // （src/lib/diagnosis.ts の calculateNextDeadline 参照）ため、値が入っている＝イベント由来の証跡になる。
 const EVENT_ORIGIN_TIMING_TYPES = new Set(['at_establishment', 'hiring_event', 'event_based']);

@@ -43,7 +43,7 @@ export function calculateNextDeadline(
   timingType: string,
   timingData: Record<string, unknown> | null,
   fiscalMonth: number,
-  // 実際のイベント発生日（ISO）。経営イベントエンジン（company_events.event_date）からのみ渡される。
+  // 実際のイベント発生日（ISO）。経営イベントエンジン（anonymous_company_events.event_date）からのみ渡される。
   // 通常の診断フロー（/start → /result）には起算日が存在しないため未指定のままとなり、
   // 従来通り label/date とも null を返す（後方互換）。
   eventDate?: string,

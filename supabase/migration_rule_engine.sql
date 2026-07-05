@@ -6,7 +6,7 @@
 -- 前提：migration_event_engine.sql が実行済みであること。
 --
 -- 設計メモ：
--- これまで company_events → 手続き の対応は event_procedures（固定の中間テーブル）＋
+-- これまで anonymous_company_events → 手続き の対応は event_procedures（固定の中間テーブル）＋
 -- TypeScript側のハードコードされたcorporate_typeフィルタで実現していた。
 -- 本マイグレーションはこれを「rules × rule_conditions × rule_actions」による
 -- 汎用ルール評価に置き換える。event_procedures テーブル自体は削除しない

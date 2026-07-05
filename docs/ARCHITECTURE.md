@@ -34,7 +34,7 @@ Supabase-js経由でSupabase（PostgreSQL + Auth）に対して直接行う。Se
 ### Supabase（PostgreSQL + Auth）
 - 全データの永続化先。RLS（Row Level Security）でテーブルごとのアクセス制御を行う
 - 読み取り: `anon`ロールに対して原則すべての参照系テーブルに`GRANT SELECT`＋`public_read`ポリシー
-- 書き込み: 一般ユーザーが書けるのは`company_events`（経営イベント登録）のみ。それ以外の書き込みは
+- 書き込み: 一般ユーザーが書けるのは`anonymous_company_events`（経営イベント登録）のみ。それ以外の書き込みは
   `authenticated`ロール＋`admin_users`テーブルとの照合ポリシーで管理者のみに制限
 - 認証: Supabase Auth（メール・パスワード）は管理画面専用。一般ユーザー側には認証機構が無い
   （完了ステータス等はブラウザの`localStorage`で管理する「認証なし・ブラウザ単位」の信頼モデル）

@@ -10,7 +10,7 @@ import { calculateNextDeadline, resolveOffices } from './diagnosis';
 import { evaluateRules, type RuleContext } from './ruleEngine';
 import type { SupabaseClient } from './supabase';
 
-// company_events.browser_id はアカウント機能が無いため、ブラウザ単位で
+// anonymous_company_events.browser_id はアカウント機能が無いため、ブラウザ単位で
 // 「自分が登録したイベント」を束ねるためだけの識別子（他機能のlocalStorage方式と同じ信頼モデル）。
 const BROWSER_ID_KEY = 'sunboo:browser-id';
 
@@ -69,7 +69,7 @@ export async function registerCompanyEvent(
 
   // 3. イベントを登録
   const { data: eventRowRaw, error } = await client
-    .from('company_events')
+    .from('anonymous_company_events')
     .insert({
       browser_id: browserId,
       event_type_id: eventType.id,

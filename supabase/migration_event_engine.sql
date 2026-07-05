@@ -9,10 +9,19 @@
 -- procedures.timing_type = 'at_establishment' / 'event_based' の手続きは、
 -- timing_data に {"days_from_event": N} が既に用意されているが、従来の診断フロー
 -- （/start → /result）には「起算日」が存在しないため next_deadline は常に null だった。
--- 経営イベントエンジンは company_events.event_date という実際の起算日を初めて提供する。
+-- 経営イベントエンジンは anonymous_company_events.event_date という実際の起算日を初めて提供する。
 -- event_procedures は「どのイベント種別にどの手続きが該当するか」を紐づけるだけの
 -- 中間テーブルとし、期限の日数オフセットは procedures.timing_data を単一の情報源として
 -- 再利用する（このテーブルに日数を重複して持たせない）。
+--
+-- テーブル名について：
+-- 本来 company_events という名前を想定していたが、本番DBには同名の別テーブル（company_id/
+-- auth_user_id ベースの認証必須マルチテナント設計、companies テーブルとRLSで連動）が既に
+-- 存在することが判明した（CREATE TABLE IF NOT EXISTS のため無言でスキップされ、このアプリの
+-- 匿名イベントテーブルは一度も本番に作成されていなかった）。アプリコードからは companies /
+-- auth_user_id / company_id への参照は一切無く、素性不明のテンプレート的残骸と判断したため、
+-- 触らずそのまま残置し、本エンジンは衝突しない anonymous_company_events という名前を使う
+-- （詳細: docs/DATABASE.md 参照）。
 -- ============================================================
 
 -- ============================================================
@@ -43,7 +52,7 @@ CREATE TABLE IF NOT EXISTS event_procedures (
 
 -- 登録された経営イベント（会社アカウントが存在しないため、ブラウザ単位のUUIDで束ねる。
 -- 他機能のlocalStorage方式と同じ「認証なし・ブラウザ単位」の信頼モデル）
-CREATE TABLE IF NOT EXISTS company_events (
+CREATE TABLE IF NOT EXISTS anonymous_company_events (
   id              SERIAL      PRIMARY KEY,
   browser_id      UUID        NOT NULL,
   event_type_id   INT         NOT NULL REFERENCES event_types(id),
@@ -56,8 +65,8 @@ CREATE TABLE IF NOT EXISTS company_events (
 
 CREATE INDEX IF NOT EXISTS idx_event_procedures_event_type ON event_procedures(event_type_id);
 CREATE INDEX IF NOT EXISTS idx_event_procedures_procedure   ON event_procedures(procedure_id);
-CREATE INDEX IF NOT EXISTS idx_company_events_browser       ON company_events(browser_id);
-CREATE INDEX IF NOT EXISTS idx_company_events_municipality  ON company_events(municipality_id);
+CREATE INDEX IF NOT EXISTS idx_anonymous_company_events_browser       ON anonymous_company_events(browser_id);
+CREATE INDEX IF NOT EXISTS idx_anonymous_company_events_municipality  ON anonymous_company_events(municipality_id);
 
 -- ============================================================
 -- 2. イベント種別マスタ投入（MVP: 3種）
@@ -113,28 +122,28 @@ ON CONFLICT (event_type_id, procedure_id) DO NOTHING;
 -- 4. 権限設定（GRANT + RLS）
 -- ============================================================
 -- 参考: event_types / event_procedures は organization_types と同じ「参照専用マスタ」。
--- company_events はユーザー入力データのため、anon に INSERT と SELECT のみ許可する
+-- anonymous_company_events はユーザー入力データのため、anon に INSERT と SELECT のみ許可する
 -- （UPDATE/DELETEはMVPでは提供しない。個人情報は含まず、所在地区分・法人種別・日付のみ）。
 
 GRANT SELECT ON event_types      TO anon;
 GRANT SELECT ON event_procedures TO anon;
-GRANT SELECT, INSERT ON company_events TO anon;
+GRANT SELECT, INSERT ON anonymous_company_events TO anon;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon;
 
 ALTER TABLE event_types      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE event_procedures ENABLE ROW LEVEL SECURITY;
-ALTER TABLE company_events   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE anonymous_company_events   ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "public_read" ON event_types;
 DROP POLICY IF EXISTS "public_read" ON event_procedures;
 CREATE POLICY "public_read" ON event_types      FOR SELECT USING (true);
 CREATE POLICY "public_read" ON event_procedures FOR SELECT USING (true);
 
-DROP POLICY IF EXISTS "anon_insert" ON company_events;
-CREATE POLICY "anon_insert" ON company_events FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "anon_insert" ON anonymous_company_events;
+CREATE POLICY "anon_insert" ON anonymous_company_events FOR INSERT WITH CHECK (true);
 
-DROP POLICY IF EXISTS "anon_read" ON company_events;
-CREATE POLICY "anon_read" ON company_events FOR SELECT USING (true);
+DROP POLICY IF EXISTS "anon_read" ON anonymous_company_events;
+CREATE POLICY "anon_read" ON anonymous_company_events FOR SELECT USING (true);
 
 -- 管理画面からの書き込み権限（admin_users 登録者のみ。admin_schema.sql 未実行なら安全にスキップ）
 DO $$
@@ -143,7 +152,7 @@ BEGIN
 
     GRANT INSERT, UPDATE, DELETE ON event_types      TO authenticated;
     GRANT INSERT, UPDATE, DELETE ON event_procedures TO authenticated;
-    GRANT SELECT ON company_events TO authenticated;
+    GRANT SELECT ON anonymous_company_events TO authenticated;
     GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 
     DECLARE
@@ -172,8 +181,8 @@ BEGIN
       END LOOP;
     END;
 
-    DROP POLICY IF EXISTS "admin_read" ON company_events;
-    CREATE POLICY "admin_read" ON company_events FOR SELECT
+    DROP POLICY IF EXISTS "admin_read" ON anonymous_company_events;
+    CREATE POLICY "admin_read" ON anonymous_company_events FOR SELECT
       USING (auth.email() IN (SELECT email FROM admin_users));
 
     RAISE NOTICE '経営イベントエンジンの管理者書き込みポリシーを設定しました。';
@@ -195,4 +204,4 @@ ORDER BY et.sort_order, ep.sort_order;
 SELECT tablename, rowsecurity
 FROM pg_tables
 WHERE schemaname = 'public'
-  AND tablename IN ('event_types', 'event_procedures', 'company_events');
+  AND tablename IN ('event_types', 'event_procedures', 'anonymous_company_events');
