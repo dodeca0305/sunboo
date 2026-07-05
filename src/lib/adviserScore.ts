@@ -1,3 +1,4 @@
+import type { ProcedureCategory } from '@/lib/types';
 import type { ProcedureStatus, ScheduleProcedure } from './scheduleProcedure';
 
 // ── AI参謀（Phase 3.1 MVP）───────────────────────────────────
@@ -180,24 +181,41 @@ function reasonPhrase(s: ScoredProcedure): string {
   return officeReason ? `${officeReason}。` : '';
 }
 
+type PrimaryPick = { target: ScoredProcedure; isOverdue: boolean };
+
+// buildAdviserComment・buildLookaheadComment 共通の「今、最優先で伝えるべき対象」選定ロジック。
+// ⑤ 期限超過は他の要因に関わらず最優先で警告する。⑥ それが無ければ期限が最も近いものを選ぶ。
+function pickPrimaryTarget(scored: ScoredProcedure[]): PrimaryPick | null {
+  if (scored.length === 0) return null;
+
+  const overdue = scored
+    .filter((s) => s.days !== null && (s.days as number) < 0)
+    .sort((a, b) => (a.days as number) - (b.days as number)); // 超過日数が大きい順
+  if (overdue.length > 0) {
+    return { target: overdue[0], isOverdue: true };
+  }
+
+  const withDeadline = [...scored]
+    .filter((s) => s.days !== null)
+    .sort((a, b) => (a.days as number) - (b.days as number));
+
+  return { target: withDeadline.length > 0 ? withDeadline[0] : scored[0], isOverdue: false };
+}
+
 export function buildAdviserComment(
   procedures: ScheduleProcedure[],
   statusMap: Record<number, ProcedureStatus>,
 ): string {
   const scored = scoreProcedures(procedures, statusMap);
+  const pick = pickPrimaryTarget(scored);
 
   // ⑦ すべて完了している場合
-  if (scored.length === 0) {
+  if (!pick) {
     return 'すべての手続きが完了しています。お疲れさまでした。';
   }
 
-  // ⑤ 期限超過は他の要因に関わらず最優先で警告する
-  const overdue = scored
-    .filter((s) => s.days !== null && (s.days as number) < 0)
-    .sort((a, b) => (a.days as number) - (b.days as number)); // 超過日数が大きい順
-
-  if (overdue.length > 0) {
-    const s = overdue[0];
+  if (pick.isOverdue) {
+    const s = pick.target;
     const overdueDays = Math.abs(s.days as number);
     return [
       `【要注意】${s.procedure.name}の期限を${overdueDays}日超過しています。`,
@@ -208,12 +226,7 @@ export function buildAdviserComment(
       .join('');
   }
 
-  // ⑥ 今日やること（期限が近いもの）が無ければ、次に期限が近い手続きを案内する
-  const withDeadline = [...scored]
-    .filter((s) => s.days !== null)
-    .sort((a, b) => (a.days as number) - (b.days as number));
-
-  const target = withDeadline.length > 0 ? withDeadline[0] : scored[0];
+  const target = pick.target;
   const status = target.status;
 
   const actionPhrase =
@@ -267,6 +280,72 @@ export function buildAdviserComment(
     officePhrase(target),
     actionPhrase,
   ]
+    .filter(Boolean)
+    .join('');
+}
+
+// ── 先読み参謀（Phase 3.2 MVP）───────────────────────────────
+// buildAdviserComment が伝える「今の最優先」の次に来る予定を案内する。
+// 「今やっておくべき準備」はカテゴリ別の一般的な準備内容（決定的ロジック、DB追加なし）。
+const PREP_PHRASE: Record<ProcedureCategory, string> = {
+  tax: '必要書類・金額を整理しておきましょう。',
+  labor: '賃金・勤怠関係の資料を整理しておきましょう。',
+  insurance: '対象者・保険料の情報を確認しておきましょう。',
+  registration: '必要な証明書・書類を準備しておきましょう。',
+  legal: '登記に必要な書類を準備しておきましょう。',
+  other: '関連資料を確認しておきましょう。',
+};
+
+type DeadlineCandidate = { procedure: ScheduleProcedure; days: number };
+
+function toDeadlineCandidate(p: ScheduleProcedure): DeadlineCandidate | null {
+  const days = daysRemaining(p.next_deadline_date);
+  return days === null ? null : { procedure: p, days };
+}
+
+export function buildLookaheadComment(
+  procedures: ScheduleProcedure[],
+  statusMap: Record<number, ProcedureStatus>,
+): string | null {
+  const scored = scoreProcedures(procedures, statusMap);
+  const mainId = pickPrimaryTarget(scored)?.target.procedure.id ?? null;
+
+  // ① まず未完了の中から、今の最優先（mainId）以外で次に期限が近いものを探す
+  const pendingCandidates = scored
+    .filter((s) => s.procedure.id !== mainId && s.days !== null)
+    .map((s) => ({ procedure: s.procedure, days: s.days as number }))
+    .sort((a, b) => a.days - b.days);
+
+  // ② 見つからない場合（全件完了時など）は、完了済みも含めた全件から探す
+  //    （要件: すべて完了していても次回発生予定があれば案内する）
+  const candidates =
+    pendingCandidates.length > 0
+      ? pendingCandidates
+      : procedures
+          .filter((p) => p.id !== mainId)
+          .map(toDeadlineCandidate)
+          .filter((c): c is DeadlineCandidate => c !== null)
+          .sort((a, b) => a.days - b.days);
+
+  if (candidates.length === 0) return null;
+
+  const next = candidates[0];
+  const office = next.procedure.office ? `${next.procedure.office.name}への提出が必要です。` : '';
+  const prep = `今のうちに${PREP_PHRASE[next.procedure.category] ?? PREP_PHRASE.other}`;
+
+  if (next.days < 0) {
+    return [
+      `続けて${next.procedure.name}も期限を${Math.abs(next.days)}日超過しています。`,
+      office,
+      '至急あわせてご確認ください。',
+    ]
+      .filter(Boolean)
+      .join('');
+  }
+  if (next.days === 0) {
+    return [`続いて本日、${next.procedure.name}の期限も来ます。`, office, prep].filter(Boolean).join('');
+  }
+  return [`次は${next.days}日後に${next.procedure.name}があります。`, office, prep]
     .filter(Boolean)
     .join('');
 }

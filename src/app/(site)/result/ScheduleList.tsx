@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ProcedureCategory } from '@/lib/types';
 import type { ProcedureStatus, ScheduleProcedure } from '@/lib/scheduleProcedure';
-import { buildAdviserComment, buildAdviserSummary, bucketOf, daysRemaining, type AdviserRecommendation } from '@/lib/adviserScore';
+import { buildAdviserComment, buildAdviserSummary, buildLookaheadComment, bucketOf, daysRemaining, type AdviserRecommendation } from '@/lib/adviserScore';
 import {
   Building2, ChevronDown, ExternalLink, AlertTriangle, Check,
-  MapPin, Send, Sun, CalendarDays, CalendarRange, Calendar, Star, Sparkles, MessageSquareText,
+  MapPin, Send, Sun, CalendarDays, CalendarRange, Calendar, Star, Sparkles, MessageSquareText, CalendarClock,
 } from 'lucide-react';
 import ProcedureDetailExtra from '@/components/ProcedureDetailExtra';
 
@@ -280,12 +280,14 @@ function AdviserCard({
   recommendations,
   incompleteCount,
   comment,
+  lookahead,
 }: {
   recommendations: AdviserRecommendation[];
   incompleteCount: number;
   comment: string;
+  lookahead: string | null;
 }) {
-  if (recommendations.length === 0 && !comment) return null;
+  if (recommendations.length === 0 && !comment && !lookahead) return null;
 
   return (
     <div className="card border-blue-100 bg-blue-50/40">
@@ -300,6 +302,16 @@ function AdviserCard({
         <div className="mt-3 flex items-start gap-2 rounded-lg border border-blue-100 bg-white px-4 py-3">
           <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
           <p className="text-sm font-medium leading-relaxed text-gray-900">{comment}</p>
+        </div>
+      )}
+
+      {lookahead && (
+        <div className="mt-2 flex items-start gap-2 rounded-lg border border-gray-100 bg-white px-4 py-3">
+          <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">次に来る予定</p>
+            <p className="mt-0.5 text-sm leading-relaxed text-gray-700">{lookahead}</p>
+          </div>
         </div>
       )}
 
@@ -367,6 +379,10 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
     () => buildAdviserComment(procedures, statusMap),
     [procedures, statusMap],
   );
+  const lookaheadComment = useMemo(
+    () => buildLookaheadComment(procedures, statusMap),
+    [procedures, statusMap],
+  );
 
   return (
     <div className="space-y-8">
@@ -374,6 +390,7 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
         recommendations={adviser.recommendations}
         incompleteCount={adviser.incompleteCount}
         comment={adviserComment}
+        lookahead={lookaheadComment}
       />
 
       <div className="card">
