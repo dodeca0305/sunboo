@@ -6,7 +6,8 @@ import { supabase } from '@/lib/supabase';
 import { prefectures as staticPrefectures } from '@/data/prefectures';
 import { registerCompanyEvent, getBrowserId, fetchEventTypes } from '@/lib/events';
 import type { CorporateType, EventType, EventTypeCode, EventRegistrationResult } from '@/lib/types';
-import ScheduleList, { toScheduleProcedure } from '../result/ScheduleList';
+import ScheduleList from '../result/ScheduleList';
+import { toScheduleProcedure } from '@/lib/scheduleProcedure';
 import {
   MapPin, Users, Building2, PartyPopper, UserPlus, UserCog,
   ArrowRight, AlertTriangle, CheckCircle2, DatabaseZap, RotateCcw, Pencil, Info,

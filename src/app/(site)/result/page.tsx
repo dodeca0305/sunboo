@@ -4,7 +4,8 @@ import { runDiagnosis } from '@/lib/diagnosis';
 import { prefectures as staticPrefectures } from '@/data/prefectures';
 import { Building2, MapPin, Phone, ExternalLink, ChevronLeft, AlertTriangle, DatabaseZap } from 'lucide-react';
 import type { CorporateType, LinkStatus } from '@/lib/types';
-import ScheduleList, { toScheduleProcedure } from './ScheduleList';
+import ScheduleList from './ScheduleList';
+import { toScheduleProcedure } from '@/lib/scheduleProcedure';
 
 const CORPORATE_TYPE_LABEL: Record<CorporateType, string> = {
   kabushiki: '株式会社',
