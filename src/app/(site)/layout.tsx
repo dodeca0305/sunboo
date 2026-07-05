@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Search, Zap } from 'lucide-react';
+import FeedbackLink from '@/components/FeedbackLink';
 
 export default function SiteLayout({
   children,
@@ -15,9 +16,10 @@ export default function SiteLayout({
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white select-none">
               S
             </span>
-            <span className="text-base font-bold tracking-tight text-gray-900">
+            <span className="whitespace-nowrap text-base font-bold tracking-tight text-gray-900">
               SUNBOO<span className="text-blue-600">経営ナビ</span>
             </span>
+            <span className="tag hidden shrink-0 border-blue-200 text-blue-600 sm:inline-flex">β版</span>
           </Link>
 
           <nav className="flex items-center gap-1">
@@ -32,6 +34,12 @@ export default function SiteLayout({
               className="hidden sm:inline-flex rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
             >
               機関一覧
+            </Link>
+            <Link
+              href="/help"
+              className="hidden sm:inline-flex rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+            >
+              ヘルプ
             </Link>
             <Link
               href="/events"
@@ -83,11 +91,16 @@ export default function SiteLayout({
               <Link href="/start" className="text-gray-500 transition-colors hover:text-gray-900">
                 診断する
               </Link>
+              <Link href="/help" className="text-gray-500 transition-colors hover:text-gray-900">
+                ヘルプ
+              </Link>
+              <FeedbackLink className="inline-flex items-center gap-1 text-gray-500 transition-colors hover:text-gray-900" />
             </nav>
           </div>
           <div className="mt-8 border-t border-gray-100 pt-6 text-xs text-gray-400">
             <p>
-              本サービスの情報は一般的な参考情報です。実際の手続き・期限・提出先は必ず各公式機関の最新情報をご確認ください。
+              現在は福岡県・東京都渋谷区対応のβ版です。本サービスの情報は一般的な参考情報です。
+              実際の手続き・期限・提出先は必ず各公式機関の最新情報をご確認ください。
             </p>
             <p className="mt-1">© 2026 SUNBOO経営ナビ</p>
           </div>

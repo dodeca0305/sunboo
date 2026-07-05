@@ -8,6 +8,7 @@ import { registerCompanyEvent, getBrowserId, fetchEventTypes } from '@/lib/event
 import type { CorporateType, EventType, EventTypeCode, EventRegistrationResult } from '@/lib/types';
 import ScheduleList from '../result/ScheduleList';
 import { toScheduleProcedure } from '@/lib/scheduleProcedure';
+import { trackEvent } from '@/lib/analytics';
 import {
   MapPin, Users, Building2, PartyPopper, UserPlus, UserCog,
   ArrowRight, AlertTriangle, CheckCircle2, DatabaseZap, RotateCcw, Pencil, Info,
@@ -184,6 +185,7 @@ export default function EventsPage() {
       setSubmitError('イベントの登録に失敗しました。時間をおいて再度お試しください。');
       return;
     }
+    trackEvent('event_registered', { eventTypeCode: selectedCode });
     setResult(registration);
   }
 

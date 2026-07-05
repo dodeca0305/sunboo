@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { FileText, Building2, Clock, ExternalLink, ArrowRight, Search, AlertTriangle, Eye } from 'lucide-react';
+import TrackedLink from '@/components/TrackedLink';
 
 // ユーザーテスト用デモ導線（Sprint 10）。福岡市中央区・合同会社・従業員あり・3月決算の
 // 入力例で /result に直接遷移し、フォーム入力なしで結果画面をすぐに見てもらえるようにする。
@@ -51,14 +52,18 @@ export default function TopPage() {
           </p>
 
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href="/start" className="btn-primary btn-primary-lg text-sm">
+            <TrackedLink href="/start" eventName="start_clicked" className="btn-primary btn-primary-lg text-sm">
               はじめる
               <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link href={DEMO_RESULT_URL} className="btn-secondary gap-2 px-6 py-2.5 text-sm">
+            </TrackedLink>
+            <TrackedLink
+              href={DEMO_RESULT_URL}
+              eventName="demo_view_clicked"
+              className="btn-secondary gap-2 px-6 py-2.5 text-sm"
+            >
               <Eye className="h-4 w-4" />
               デモとして試す
-            </Link>
+            </TrackedLink>
             <Link href="/search" className="btn-secondary gap-2 px-6 py-2.5 text-sm">
               <Search className="h-4 w-4" />
               手続きを検索

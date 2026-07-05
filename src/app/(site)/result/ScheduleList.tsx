@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import type { ProcedureCategory } from '@/lib/types';
 import type { ProcedureStatus, ScheduleProcedure } from '@/lib/scheduleProcedure';
 import {
@@ -8,9 +9,10 @@ import {
   bucketOf, daysRemaining, type AdviserRecommendation, type RiskEntry,
 } from '@/lib/adviserScore';
 import { buildNotifications, type Notification } from '@/lib/notificationEngine';
+import { trackEvent } from '@/lib/analytics';
 import {
   Building2, ChevronDown, ExternalLink, AlertTriangle, Check,
-  MapPin, Send, Sun, CalendarDays, CalendarRange, Calendar, Star, Sparkles, MessageSquareText, CalendarClock, ShieldAlert, Bell,
+  MapPin, Send, Sun, CalendarDays, CalendarRange, Calendar, Star, Sparkles, MessageSquareText, CalendarClock, ShieldAlert, Bell, Info, X,
 } from 'lucide-react';
 import ProcedureDetailExtra from '@/components/ProcedureDetailExtra';
 
@@ -42,6 +44,36 @@ function nextStatus(current: ProcedureStatus): ProcedureStatus {
 const STATUS_KEY = 'sunboo:procedure-status';
 // 旧バージョン（完了/未完了の2値のみ）からの移行用
 const LEGACY_COMPLETED_KEY = 'sunboo:completed-procedures';
+
+// 初回オンボーディング（Sprint 11）。一度閉じたら二度と表示しない。
+const ONBOARDING_KEY = 'sunboo:onboarding-dismissed';
+
+function OnboardingCard({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="card flex items-start gap-3 border-gray-200 bg-gray-50/60">
+      <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-gray-900">初めての方へ</p>
+        <p className="mt-1 text-xs leading-relaxed text-gray-500">
+          上から「通知」（期限が近づいたお知らせ）→「AI参謀」（今なにを優先すべきかの判断）→
+          「優先度」（未着手・進行中の一覧）の順に並んでいます。詳しい見方は
+          <Link href="/help" className="mx-1 text-blue-600 hover:text-blue-700">
+            ヘルプ
+          </Link>
+          をご覧ください。
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="このメッセージを閉じる"
+        className="shrink-0 rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
 
 function loadStatusMap(): Record<number, ProcedureStatus> {
   if (typeof window === 'undefined') return {};
@@ -441,15 +473,24 @@ function AdviserCard({
 export default function ScheduleList({ procedures }: { procedures: ScheduleProcedure[] }) {
   const [statusMap, setStatusMap] = useState<Record<number, ProcedureStatus>>({});
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  // null = まだ判定前（SSRとの不一致を避けるため、判定が終わるまで何も表示しない）
+  const [onboardingDismissed, setOnboardingDismissed] = useState<boolean | null>(null);
 
   useEffect(() => {
     setStatusMap(loadStatusMap());
+    setOnboardingDismissed(window.localStorage.getItem(ONBOARDING_KEY) === 'true');
   }, []);
 
+  function dismissOnboarding() {
+    window.localStorage.setItem(ONBOARDING_KEY, 'true');
+    setOnboardingDismissed(true);
+  }
+
   function cycleStatus(id: number) {
+    const updatedStatus = nextStatus(statusMap[id] ?? 'not_started');
+    trackEvent('procedure_status_changed', { procedureId: id, status: updatedStatus });
     setStatusMap((prev) => {
-      const current = prev[id] ?? 'not_started';
-      const updated = { ...prev, [id]: nextStatus(current) };
+      const updated = { ...prev, [id]: updatedStatus };
       window.localStorage.setItem(STATUS_KEY, JSON.stringify(updated));
       return updated;
     });
@@ -501,6 +542,8 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
 
   return (
     <div className="space-y-8">
+      {onboardingDismissed === false && <OnboardingCard onDismiss={dismissOnboarding} />}
+
       <NotificationCard notifications={notifications} />
 
       <AdviserCard
