@@ -247,29 +247,38 @@ function ProcedureRow({
   );
 }
 
+function SectionLabel({ children, tone = 'gray' }: { children: string; tone?: 'gray' | 'blue' }) {
+  return (
+    <p className={`text-xs font-semibold uppercase tracking-widest ${tone === 'blue' ? 'text-blue-500' : 'text-gray-400'}`}>
+      {children}
+    </p>
+  );
+}
+
 function StarRating({ stars }: { stars: 1 | 2 | 3 | 4 | 5 }) {
   return (
-    <div className="flex items-center gap-0.5" aria-label={`優先度 ${stars} / 5`}>
+    <div className="flex shrink-0 items-center gap-0.5" aria-label={`優先度 ${stars} / 5`}>
       {[1, 2, 3, 4, 5].map((n) => (
         <Star
           key={n}
-          className={`h-3.5 w-3.5 ${n <= stars ? 'fill-blue-600 text-blue-600' : 'text-gray-200'}`}
+          className={`h-3 w-3 ${n <= stars ? 'fill-blue-600 text-blue-600' : 'text-gray-200'}`}
         />
       ))}
     </div>
   );
 }
 
+// 「優先度」セクションは最重要アクションの補助情報として控えめに見せる（トーンを落とす）。
 function AdviserRecommendationCard({ rec }: { rec: AdviserRecommendation }) {
   return (
-    <div className="rounded-lg border border-gray-100 bg-gray-50/60 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="rounded-lg border border-gray-100 bg-gray-50/60 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
         <StarRating stars={rec.stars} />
-        <span className="tag border-blue-200 text-blue-600">{rec.label}</span>
+        <span className="tag text-[11px]">{rec.label}</span>
       </div>
-      <p className="mt-2 text-sm font-semibold text-gray-900">{rec.procedure.name}</p>
+      <p className="mt-1.5 text-sm font-medium text-gray-800">{rec.procedure.name}</p>
       {rec.reasons.length > 0 && (
-        <ul className="mt-2 space-y-0.5 text-xs text-gray-500">
+        <ul className="mt-1.5 space-y-0.5 text-xs leading-relaxed text-gray-500">
           {rec.reasons.map((reason, idx) => (
             <li key={idx}>・{reason}</li>
           ))}
@@ -288,16 +297,20 @@ const RISK_STYLE: Record<RiskEntry['severity'], { border: string; icon: string }
 function RiskSection({ risks }: { risks: RiskEntry[] }) {
   if (risks.length === 0) return null;
   return (
-    <div className="mt-2 rounded-lg border border-gray-100 bg-white px-4 py-3">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">注意すべきリスク</p>
+    <div className="mt-3">
+      <SectionLabel>注意すべきリスク</SectionLabel>
       <ul className="mt-1.5 space-y-2">
         {risks.map((risk) => {
           const style = RISK_STYLE[risk.severity];
           return (
-            <li key={risk.procedure.id} className={`flex items-start gap-2 rounded-md border ${style.border} px-3 py-2`}>
+            <li
+              key={risk.procedure.id}
+              className={`flex items-start gap-2 rounded-lg border ${style.border} bg-white px-3 py-2.5`}
+            >
               <ShieldAlert className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${style.icon}`} />
               <p className="text-xs leading-relaxed text-gray-700">
-                <span className="font-semibold text-gray-900">{risk.procedure.name}</span>：{risk.message}
+                <span className="font-semibold text-gray-900">{risk.procedure.name}</span>
+                ：{risk.message}
               </p>
             </li>
           );
@@ -323,44 +336,52 @@ function AdviserCard({
   if (recommendations.length === 0 && !comment && !lookahead && risks.length === 0) return null;
 
   return (
-    <div className="card border-blue-100 bg-blue-50/40">
+    <div className="card border-blue-100 bg-blue-50/40 p-4 sm:p-6">
       <div className="flex items-center gap-1.5">
-        <Sparkles className="h-4 w-4 text-blue-600" />
+        <Sparkles className="h-4 w-4 shrink-0 text-blue-600" />
         <p className="text-xs font-semibold uppercase tracking-widest text-blue-500">
           AI参謀
         </p>
       </div>
 
+      {/* A. 最重要アクション */}
       {comment && (
-        <div className="mt-3 flex items-start gap-2 rounded-lg border border-blue-100 bg-white px-4 py-3">
-          <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-          <p className="text-sm font-medium leading-relaxed text-gray-900">{comment}</p>
-        </div>
-      )}
-
-      {lookahead && (
-        <div className="mt-2 flex items-start gap-2 rounded-lg border border-gray-100 bg-white px-4 py-3">
-          <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">次に来る予定</p>
-            <p className="mt-0.5 text-sm leading-relaxed text-gray-700">{lookahead}</p>
+        <div className="mt-3">
+          <SectionLabel tone="blue">最重要アクション</SectionLabel>
+          <div className="mt-1.5 flex items-start gap-2 rounded-lg border border-blue-100 bg-white px-3 py-2.5 sm:px-4 sm:py-3">
+            <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+            <p className="text-sm font-medium leading-relaxed text-gray-900">{comment}</p>
           </div>
         </div>
       )}
 
+      {/* B. 次に来る予定 */}
+      {lookahead && (
+        <div className="mt-3">
+          <SectionLabel>次に来る予定</SectionLabel>
+          <div className="mt-1.5 flex items-start gap-2 rounded-lg border border-gray-100 bg-white px-3 py-2.5 sm:px-4 sm:py-3">
+            <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+            <p className="text-sm leading-relaxed text-gray-700">{lookahead}</p>
+          </div>
+        </div>
+      )}
+
+      {/* C. 注意すべきリスク */}
       <RiskSection risks={risks} />
 
+      {/* D. 優先度（補助情報。区切り線を入れて主役級の情報と視覚的に分ける） */}
       {recommendations.length > 0 && (
-        <>
-          <p className="mt-4 text-xs text-gray-500">
-            未着手・進行中の{incompleteCount}件から、優先度が高い手続きを選びました
-          </p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <div className="mt-4 border-t border-blue-100/70 pt-3">
+          <div className="flex items-baseline justify-between gap-2">
+            <SectionLabel>優先度</SectionLabel>
+            <span className="text-[11px] text-gray-400">未着手・進行中{incompleteCount}件中の上位{recommendations.length}件</span>
+          </div>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
             {recommendations.map((rec) => (
               <AdviserRecommendationCard key={rec.procedure.id} rec={rec} />
             ))}
           </div>
-        </>
+        </div>
       )}
     </div>
   );
