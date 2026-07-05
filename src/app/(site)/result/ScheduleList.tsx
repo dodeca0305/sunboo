@@ -3,10 +3,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ProcedureCategory } from '@/lib/types';
 import type { ProcedureStatus, ScheduleProcedure } from '@/lib/scheduleProcedure';
-import { buildAdviserComment, buildAdviserSummary, buildLookaheadComment, bucketOf, daysRemaining, type AdviserRecommendation } from '@/lib/adviserScore';
+import {
+  buildAdviserComment, buildAdviserSummary, buildLookaheadComment, buildRiskEntries,
+  bucketOf, daysRemaining, type AdviserRecommendation, type RiskEntry,
+} from '@/lib/adviserScore';
 import {
   Building2, ChevronDown, ExternalLink, AlertTriangle, Check,
-  MapPin, Send, Sun, CalendarDays, CalendarRange, Calendar, Star, Sparkles, MessageSquareText, CalendarClock,
+  MapPin, Send, Sun, CalendarDays, CalendarRange, Calendar, Star, Sparkles, MessageSquareText, CalendarClock, ShieldAlert,
 } from 'lucide-react';
 import ProcedureDetailExtra from '@/components/ProcedureDetailExtra';
 
@@ -276,18 +279,48 @@ function AdviserRecommendationCard({ rec }: { rec: AdviserRecommendation }) {
   );
 }
 
+const RISK_STYLE: Record<RiskEntry['severity'], { border: string; icon: string }> = {
+  overdue: { border: 'border-red-200', icon: 'text-red-600' },
+  soon: { border: 'border-amber-200', icon: 'text-amber-600' },
+  watch: { border: 'border-amber-100', icon: 'text-amber-500' },
+};
+
+function RiskSection({ risks }: { risks: RiskEntry[] }) {
+  if (risks.length === 0) return null;
+  return (
+    <div className="mt-2 rounded-lg border border-gray-100 bg-white px-4 py-3">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">注意すべきリスク</p>
+      <ul className="mt-1.5 space-y-2">
+        {risks.map((risk) => {
+          const style = RISK_STYLE[risk.severity];
+          return (
+            <li key={risk.procedure.id} className={`flex items-start gap-2 rounded-md border ${style.border} px-3 py-2`}>
+              <ShieldAlert className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${style.icon}`} />
+              <p className="text-xs leading-relaxed text-gray-700">
+                <span className="font-semibold text-gray-900">{risk.procedure.name}</span>：{risk.message}
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function AdviserCard({
   recommendations,
   incompleteCount,
   comment,
   lookahead,
+  risks,
 }: {
   recommendations: AdviserRecommendation[];
   incompleteCount: number;
   comment: string;
   lookahead: string | null;
+  risks: RiskEntry[];
 }) {
-  if (recommendations.length === 0 && !comment && !lookahead) return null;
+  if (recommendations.length === 0 && !comment && !lookahead && risks.length === 0) return null;
 
   return (
     <div className="card border-blue-100 bg-blue-50/40">
@@ -314,6 +347,8 @@ function AdviserCard({
           </div>
         </div>
       )}
+
+      <RiskSection risks={risks} />
 
       {recommendations.length > 0 && (
         <>
@@ -383,6 +418,10 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
     () => buildLookaheadComment(procedures, statusMap),
     [procedures, statusMap],
   );
+  const riskEntries = useMemo(
+    () => buildRiskEntries(procedures, statusMap),
+    [procedures, statusMap],
+  );
 
   return (
     <div className="space-y-8">
@@ -390,6 +429,7 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
         recommendations={adviser.recommendations}
         incompleteCount={adviser.incompleteCount}
         comment={adviserComment}
+        risks={riskEntries}
         lookahead={lookaheadComment}
       />
 

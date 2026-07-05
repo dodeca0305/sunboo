@@ -5,6 +5,7 @@ export type ProcedureStatus = 'not_started' | 'in_progress' | 'done';
 
 export type ScheduleProcedure = {
   id: number;
+  code: string;
   name: string;
   description: string;
   category: ProcedureCategory;
@@ -28,6 +29,7 @@ export type ScheduleProcedure = {
 export function toScheduleProcedure(proc: ProcedureResult): ScheduleProcedure {
   return {
     id: proc.id,
+    code: proc.code,
     name: proc.name,
     description: proc.description,
     category: proc.category,

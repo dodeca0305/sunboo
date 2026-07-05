@@ -349,3 +349,75 @@ export function buildLookaheadComment(
     .filter(Boolean)
     .join('');
 }
+
+// ── リスク参謀（Phase 3.3 MVP）───────────────────────────────
+// 「やらなかった場合どうなるか」を手続きごとに一言添える。DB追加はせず、
+// procedures.code による既知の手続きへの個別文言 ＋ カテゴリ別の一般的な文言（フォールバック）の
+// 2段構えで決定的に生成する。過度に不安を煽らないよう「〜の可能性があります」調で統一する。
+const RISK_BY_CODE: Record<string, string> = {
+  SOCIAL_INS_NEW: '期限を過ぎると、遡及手続きや行政対応が必要になる可能性があります。',
+  BLUE_RETURN_APPROVAL: '期限内に提出しないと、その事業年度で青色申告の適用を受けられない可能性があります。',
+  LABOR_INS_ESTABLISH: '従業員を雇用している場合、未提出のままだと労働保険関係の手続き遅延につながります。',
+  LEGAL_OFFICER_CHANGE: '期限を過ぎると、登記懈怠として過料の対象になる可能性があります。',
+};
+
+const RISK_BY_CATEGORY: Record<ProcedureCategory, string> = {
+  tax: '提出が遅れると、税務署とのやり取りで追加の対応が必要になる可能性があります。',
+  labor: '未提出のままだと、労務関連の手続きに遅延が生じる可能性があります。',
+  insurance: '未提出のままだと、保険の適用開始が遅れる可能性があります。',
+  registration: '提出が遅れると、行政手続き上の不利益が生じる可能性があります。',
+  legal: '期限を過ぎると、登記関連の手続きに支障が生じる可能性があります。',
+  other: '提出が遅れると、対応が後手に回る可能性があります。',
+};
+
+function riskMessageFor(p: ScheduleProcedure): string {
+  return RISK_BY_CODE[p.code] ?? RISK_BY_CATEGORY[p.category] ?? RISK_BY_CATEGORY.other;
+}
+
+// 期限未定の手続きを「注意すべきリスク」に含めるかどうかの基準。legal（登記懈怠の過料等）・
+// tax（青色申告の適用喪失等）は結果が具体的かつ重い一方、labor/insurance/registration/other は
+// 期限が定まって初めて実害が具体化するため、期限未定の段階では対象外とする。
+const HIGH_IMPORTANCE_CATEGORIES = new Set<ProcedureCategory>(['legal', 'tax']);
+
+export type RiskSeverity = 'overdue' | 'soon' | 'watch';
+
+export type RiskEntry = {
+  procedure: ScheduleProcedure;
+  message: string;
+  severity: RiskSeverity;
+};
+
+export function buildRiskEntries(
+  procedures: ScheduleProcedure[],
+  statusMap: Record<number, ProcedureStatus>,
+  maxItems = 3,
+): RiskEntry[] {
+  const pending = procedures.filter((p) => (statusMap[p.id] ?? 'not_started') !== 'done');
+
+  const candidates = pending
+    .map((p) => ({ procedure: p, days: daysRemaining(p.next_deadline_date) }))
+    .filter(({ procedure, days }) => {
+      if (days !== null && days < 0) return true; // ① 期限超過
+      if (days !== null && days <= 7) return true; // ② 期限7日以内
+      if (days === null && HIGH_IMPORTANCE_CATEGORIES.has(procedure.category)) return true; // ③ 期限未定・重要カテゴリ
+      return false;
+    })
+    .map(({ procedure, days }) => {
+      const severity: RiskSeverity = days === null ? 'watch' : days < 0 ? 'overdue' : 'soon';
+      return { procedure, days, severity };
+    });
+
+  candidates.sort((a, b) => {
+    const rank: Record<RiskSeverity, number> = { overdue: 0, soon: 1, watch: 2 };
+    const r = rank[a.severity] - rank[b.severity];
+    if (r !== 0) return r;
+    if (a.days !== null && b.days !== null) return a.days - b.days;
+    return 0;
+  });
+
+  return candidates.slice(0, maxItems).map(({ procedure, severity }) => ({
+    procedure,
+    severity,
+    message: riskMessageFor(procedure),
+  }));
+}
