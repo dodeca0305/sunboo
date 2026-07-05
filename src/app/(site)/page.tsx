@@ -1,5 +1,9 @@
 import Link from 'next/link';
-import { FileText, Building2, Clock, ExternalLink, ArrowRight, Search, AlertTriangle } from 'lucide-react';
+import { FileText, Building2, Clock, ExternalLink, ArrowRight, Search, AlertTriangle, Eye } from 'lucide-react';
+
+// ユーザーテスト用デモ導線（Sprint 10）。福岡市中央区・合同会社・従業員あり・3月決算の
+// 入力例で /result に直接遷移し、フォーム入力なしで結果画面をすぐに見てもらえるようにする。
+const DEMO_RESULT_URL = '/result?pref=40&muni=401331&emp=true&fm=3&corp=godo';
 
 const FEATURES = [
   {
@@ -51,11 +55,20 @@ export default function TopPage() {
               はじめる
               <ArrowRight className="h-4 w-4" />
             </Link>
+            <Link href={DEMO_RESULT_URL} className="btn-secondary gap-2 px-6 py-2.5 text-sm">
+              <Eye className="h-4 w-4" />
+              デモとして試す
+            </Link>
             <Link href="/search" className="btn-secondary gap-2 px-6 py-2.5 text-sm">
               <Search className="h-4 w-4" />
               手続きを検索
             </Link>
           </div>
+
+          <p className="mx-auto mt-5 flex max-w-md items-center justify-center gap-1.5 text-center text-xs text-gray-400">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            現在は福岡県・東京都渋谷区対応のβ版です。実際の提出前には必ず公式情報をご確認ください。
+          </p>
         </div>
       </section>
 
