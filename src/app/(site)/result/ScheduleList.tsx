@@ -7,9 +7,10 @@ import {
   buildAdviserComment, buildAdviserSummary, buildLookaheadComment, buildRiskEntries,
   bucketOf, daysRemaining, type AdviserRecommendation, type RiskEntry,
 } from '@/lib/adviserScore';
+import { buildNotifications, type Notification } from '@/lib/notificationEngine';
 import {
   Building2, ChevronDown, ExternalLink, AlertTriangle, Check,
-  MapPin, Send, Sun, CalendarDays, CalendarRange, Calendar, Star, Sparkles, MessageSquareText, CalendarClock, ShieldAlert,
+  MapPin, Send, Sun, CalendarDays, CalendarRange, Calendar, Star, Sparkles, MessageSquareText, CalendarClock, ShieldAlert, Bell,
 } from 'lucide-react';
 import ProcedureDetailExtra from '@/components/ProcedureDetailExtra';
 
@@ -255,6 +256,56 @@ function SectionLabel({ children, tone = 'gray' }: { children: string; tone?: 'g
   );
 }
 
+const NOTIFICATION_LABEL: Record<Notification['severity'], string> = {
+  overdue: '期限超過',
+  today: '今日まで',
+  in3days: 'あと3日',
+  in7days: 'あと7日',
+};
+
+const NOTIFICATION_STYLE: Record<Notification['severity'], { border: string; icon: string; tag: string }> = {
+  overdue: { border: 'border-red-200', icon: 'text-red-600', tag: 'border-red-200 text-red-600' },
+  today: { border: 'border-red-100', icon: 'text-red-500', tag: 'border-red-200 text-red-600' },
+  in3days: { border: 'border-amber-200', icon: 'text-amber-600', tag: 'border-amber-200 text-amber-700' },
+  in7days: { border: 'border-amber-100', icon: 'text-amber-500', tag: 'border-amber-200 text-amber-700' },
+};
+
+// 通知カード：「期限の知らせ」に徹し、AI参謀（判断・理由づけ）とは役割を分ける。
+// スコアや推奨理由は出さず、期限超過／当日／3日前／7日前という決まったタイミングの
+// 事実だけを淡々と列挙する（件数の絞り込みも行わない）。
+function NotificationCard({ notifications }: { notifications: Notification[] }) {
+  if (notifications.length === 0) return null;
+
+  return (
+    <div className="card">
+      <div className="flex items-center gap-1.5">
+        <Bell className="h-4 w-4 shrink-0 text-gray-500" />
+        <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">通知</p>
+      </div>
+      <ul className="mt-3 space-y-2">
+        {notifications.map((n) => {
+          const style = NOTIFICATION_STYLE[n.severity];
+          return (
+            <li key={n.id} className={`flex items-start gap-2 rounded-lg border ${style.border} px-3 py-2.5`}>
+              <Bell className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${style.icon}`} />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className={`tag ${style.tag}`}>{NOTIFICATION_LABEL[n.severity]}</span>
+                  <span className="text-sm font-semibold text-gray-900">{n.title}</span>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-gray-500">
+                  {n.message}
+                  {n.office && `（提出先：${n.office}）`}
+                </p>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function StarRating({ stars }: { stars: 1 | 2 | 3 | 4 | 5 }) {
   return (
     <div className="flex shrink-0 items-center gap-0.5" aria-label={`優先度 ${stars} / 5`}>
@@ -443,9 +494,15 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
     () => buildRiskEntries(procedures, statusMap),
     [procedures, statusMap],
   );
+  const notifications = useMemo(
+    () => buildNotifications(procedures, statusMap),
+    [procedures, statusMap],
+  );
 
   return (
     <div className="space-y-8">
+      <NotificationCard notifications={notifications} />
+
       <AdviserCard
         recommendations={adviser.recommendations}
         incompleteCount={adviser.incompleteCount}
