@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ProcedureCategory } from '@/lib/types';
 import type { ProcedureStatus, ScheduleProcedure } from '@/lib/scheduleProcedure';
-import { buildAdviserSummary, bucketOf, daysRemaining, type AdviserRecommendation } from '@/lib/adviserScore';
+import { buildAdviserComment, buildAdviserSummary, bucketOf, daysRemaining, type AdviserRecommendation } from '@/lib/adviserScore';
 import {
   Building2, ChevronDown, ExternalLink, AlertTriangle, Check,
-  MapPin, Send, Sun, CalendarDays, CalendarRange, Calendar, Star, Sparkles,
+  MapPin, Send, Sun, CalendarDays, CalendarRange, Calendar, Star, Sparkles, MessageSquareText,
 } from 'lucide-react';
 import ProcedureDetailExtra from '@/components/ProcedureDetailExtra';
 
@@ -279,11 +279,13 @@ function AdviserRecommendationCard({ rec }: { rec: AdviserRecommendation }) {
 function AdviserCard({
   recommendations,
   incompleteCount,
+  comment,
 }: {
   recommendations: AdviserRecommendation[];
   incompleteCount: number;
+  comment: string;
 }) {
-  if (recommendations.length === 0) return null;
+  if (recommendations.length === 0 && !comment) return null;
 
   return (
     <div className="card border-blue-100 bg-blue-50/40">
@@ -293,14 +295,26 @@ function AdviserCard({
           AI参謀
         </p>
       </div>
-      <p className="mt-1 text-xs text-gray-500">
-        未着手・進行中の{incompleteCount}件から、優先度が高い手続きを選びました
-      </p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        {recommendations.map((rec) => (
-          <AdviserRecommendationCard key={rec.procedure.id} rec={rec} />
-        ))}
-      </div>
+
+      {comment && (
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-blue-100 bg-white px-4 py-3">
+          <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+          <p className="text-sm font-medium leading-relaxed text-gray-900">{comment}</p>
+        </div>
+      )}
+
+      {recommendations.length > 0 && (
+        <>
+          <p className="mt-4 text-xs text-gray-500">
+            未着手・進行中の{incompleteCount}件から、優先度が高い手続きを選びました
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            {recommendations.map((rec) => (
+              <AdviserRecommendationCard key={rec.procedure.id} rec={rec} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -349,12 +363,17 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
     () => buildAdviserSummary(procedures, statusMap),
     [procedures, statusMap],
   );
+  const adviserComment = useMemo(
+    () => buildAdviserComment(procedures, statusMap),
+    [procedures, statusMap],
+  );
 
   return (
     <div className="space-y-8">
       <AdviserCard
         recommendations={adviser.recommendations}
         incompleteCount={adviser.incompleteCount}
+        comment={adviserComment}
       />
 
       <div className="card">
