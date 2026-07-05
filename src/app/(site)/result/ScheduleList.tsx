@@ -1,16 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ProcedureCategory } from '@/lib/types';
-import type { ScheduleProcedure } from '@/lib/scheduleProcedure';
+import type { ProcedureStatus, ScheduleProcedure } from '@/lib/scheduleProcedure';
+import { buildAdviserSummary, bucketOf, daysRemaining, type AdviserRecommendation } from '@/lib/adviserScore';
 import {
   Building2, ChevronDown, ExternalLink, AlertTriangle, Check,
-  MapPin, Send, Sun, CalendarDays, CalendarRange, Calendar,
+  MapPin, Send, Sun, CalendarDays, CalendarRange, Calendar, Star, Sparkles,
 } from 'lucide-react';
 import ProcedureDetailExtra from '@/components/ProcedureDetailExtra';
 
-export type ProcedureStatus = 'not_started' | 'in_progress' | 'done';
-
+export type { ProcedureStatus } from '@/lib/scheduleProcedure';
 export type { ScheduleProcedure } from '@/lib/scheduleProcedure';
 
 const CATEGORY_LABEL: Record<ProcedureCategory, string> = {
@@ -62,14 +62,6 @@ function loadStatusMap(): Record<number, ProcedureStatus> {
   return {};
 }
 
-function daysRemaining(dateStr: string | null): number | null {
-  if (!dateStr) return null;
-  const target = new Date(`${dateStr}T00:00:00`);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return Math.round((target.getTime() - today.getTime()) / 86400000);
-}
-
 function RemainingBadge({ days }: { days: number | null }) {
   if (days === null) {
     return <span className="text-xs font-medium text-gray-400">期限なし</span>;
@@ -104,14 +96,6 @@ const BUCKET_ICON: Record<UrgencyBucket, typeof Sun> = {
 };
 
 const BUCKET_ORDER: UrgencyBucket[] = ['today', 'week', 'month', 'later'];
-
-function bucketOf(days: number | null): UrgencyBucket {
-  if (days === null) return 'later';
-  if (days <= 0) return 'today';
-  if (days <= 7) return 'week';
-  if (days <= 30) return 'month';
-  return 'later';
-}
 
 function StatusButton({ status, onClick }: { status: ProcedureStatus; onClick: () => void }) {
   const isDone = status === 'done';
@@ -260,6 +244,67 @@ function ProcedureRow({
   );
 }
 
+function StarRating({ stars }: { stars: 1 | 2 | 3 | 4 | 5 }) {
+  return (
+    <div className="flex items-center gap-0.5" aria-label={`優先度 ${stars} / 5`}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Star
+          key={n}
+          className={`h-3.5 w-3.5 ${n <= stars ? 'fill-blue-600 text-blue-600' : 'text-gray-200'}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function AdviserRecommendationCard({ rec }: { rec: AdviserRecommendation }) {
+  return (
+    <div className="rounded-lg border border-gray-100 bg-gray-50/60 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <StarRating stars={rec.stars} />
+        <span className="tag border-blue-200 text-blue-600">{rec.label}</span>
+      </div>
+      <p className="mt-2 text-sm font-semibold text-gray-900">{rec.procedure.name}</p>
+      {rec.reasons.length > 0 && (
+        <ul className="mt-2 space-y-0.5 text-xs text-gray-500">
+          {rec.reasons.map((reason, idx) => (
+            <li key={idx}>・{reason}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function AdviserCard({
+  recommendations,
+  incompleteCount,
+}: {
+  recommendations: AdviserRecommendation[];
+  incompleteCount: number;
+}) {
+  if (recommendations.length === 0) return null;
+
+  return (
+    <div className="card border-blue-100 bg-blue-50/40">
+      <div className="flex items-center gap-1.5">
+        <Sparkles className="h-4 w-4 text-blue-600" />
+        <p className="text-xs font-semibold uppercase tracking-widest text-blue-500">
+          AI参謀
+        </p>
+      </div>
+      <p className="mt-1 text-xs text-gray-500">
+        未着手・進行中の{incompleteCount}件から、優先度が高い手続きを選びました
+      </p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        {recommendations.map((rec) => (
+          <AdviserRecommendationCard key={rec.procedure.id} rec={rec} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ScheduleList({ procedures }: { procedures: ScheduleProcedure[] }) {
   const [statusMap, setStatusMap] = useState<Record<number, ProcedureStatus>>({});
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -300,8 +345,18 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
   const doneCount = procedures.filter((p) => statusMap[p.id] === 'done').length;
   const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
+  const adviser = useMemo(
+    () => buildAdviserSummary(procedures, statusMap),
+    [procedures, statusMap],
+  );
+
   return (
     <div className="space-y-8">
+      <AdviserCard
+        recommendations={adviser.recommendations}
+        incompleteCount={adviser.incompleteCount}
+      />
+
       <div className="card">
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
           手続き完了率

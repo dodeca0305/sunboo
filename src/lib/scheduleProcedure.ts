@@ -1,12 +1,15 @@
 import type { ProcedureCategory, LinkStatus, ProcedureResult } from '@/lib/types';
 import type { ProcedureDocumentItem } from '@/components/ProcedureDetailExtra';
 
+export type ProcedureStatus = 'not_started' | 'in_progress' | 'done';
+
 export type ScheduleProcedure = {
   id: number;
   name: string;
   description: string;
   category: ProcedureCategory;
   timing_label: string;
+  timing_type: string;
   next_deadline: string | null;
   next_deadline_date: string | null;
   office: { name: string; map_url?: string | null } | null;
@@ -29,6 +32,7 @@ export function toScheduleProcedure(proc: ProcedureResult): ScheduleProcedure {
     description: proc.description,
     category: proc.category,
     timing_label: proc.timing_label,
+    timing_type: proc.timing_type,
     next_deadline: proc.next_deadline,
     next_deadline_date: proc.next_deadline_date,
     office: proc.office ? { name: proc.office.name, map_url: proc.office.map_url } : null,
