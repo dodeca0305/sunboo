@@ -9,7 +9,7 @@ import {
   bucketOf, daysRemaining, type AdviserRecommendation, type RiskEntry,
 } from '@/lib/adviserScore';
 import { buildNotifications, type Notification } from '@/lib/notificationEngine';
-import { loadCompanyProfile, type CompanyProfile } from '@/lib/companyProfile';
+import { applyCompanyProfileToProcedures, loadCompanyProfile, type CompanyProfile } from '@/lib/companyProfile';
 import { trackEvent } from '@/lib/analytics';
 import {
   Building2, ChevronDown, ExternalLink, AlertTriangle, Check,
@@ -555,7 +555,13 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
     });
   }
 
-  const sorted = [...procedures].sort((a, b) => {
+  // CompanyProfile（会社ステージ・源泉所得税の納期特例）を反映した手続き一覧。
+  const effectiveProcedures = useMemo(
+    () => applyCompanyProfileToProcedures(procedures, profile),
+    [procedures, profile],
+  );
+
+  const sorted = [...effectiveProcedures].sort((a, b) => {
     if (a.next_deadline_date && b.next_deadline_date) {
       return a.next_deadline_date.localeCompare(b.next_deadline_date);
     }
@@ -574,29 +580,29 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
     buckets[bucketOf(daysRemaining(proc.next_deadline_date))].push(proc);
   });
 
-  const total = procedures.length;
-  const doneCount = procedures.filter((p) => statusMap[p.id] === 'done').length;
+  const total = effectiveProcedures.length;
+  const doneCount = effectiveProcedures.filter((p) => statusMap[p.id] === 'done').length;
   const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
   const adviser = useMemo(
-    () => buildAdviserSummary(procedures, statusMap),
-    [procedures, statusMap],
+    () => buildAdviserSummary(effectiveProcedures, statusMap),
+    [effectiveProcedures, statusMap],
   );
   const adviserComment = useMemo(
-    () => buildAdviserComment(procedures, statusMap, profile),
-    [procedures, statusMap, profile],
+    () => buildAdviserComment(effectiveProcedures, statusMap, profile),
+    [effectiveProcedures, statusMap, profile],
   );
   const lookaheadComment = useMemo(
-    () => buildLookaheadComment(procedures, statusMap),
-    [procedures, statusMap],
+    () => buildLookaheadComment(effectiveProcedures, statusMap),
+    [effectiveProcedures, statusMap],
   );
   const riskEntries = useMemo(
-    () => buildRiskEntries(procedures, statusMap),
-    [procedures, statusMap],
+    () => buildRiskEntries(effectiveProcedures, statusMap),
+    [effectiveProcedures, statusMap],
   );
   const notifications = useMemo(
-    () => buildNotifications(procedures, statusMap),
-    [procedures, statusMap],
+    () => buildNotifications(effectiveProcedures, statusMap),
+    [effectiveProcedures, statusMap],
   );
   const profileAdvisories = useMemo(() => buildProfileAdvisories(profile), [profile]);
 

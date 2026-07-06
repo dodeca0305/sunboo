@@ -1,4 +1,5 @@
 import type { CorporateType } from './types';
+import type { ScheduleProcedure } from './scheduleProcedure';
 
 // ── Company Profile Engine（Sprint 14 Phase14.2）───────────────
 // 会社ごとの税務・労務の実態を localStorage（'sunboo:company-profile'）に持ち、
@@ -214,6 +215,68 @@ export function deriveCorporateTaxInterimFiling(stage: CompanyStage): InterimFil
 
 export function deriveConsumptionTaxInterimFrequency(stage: CompanyStage): ConsumptionTaxInterimFrequency | null {
   return stage === 'first_term' ? 'none' : null;
+}
+
+// ── 会社ステージ・納期の特例による手続きの出し分け（設計書 ④⑤、Phase14.2追加分）───
+
+// stage === 'second_term_or_later' のとき非表示にする設立系手続き（procedures.code）。
+const ESTABLISHMENT_PROCEDURE_CODES = new Set([
+  'CORP_ESTABLISH_TAX',   // 法人設立届出書
+  'BLUE_RETURN_APPROVAL', // 青色申告承認申請書
+  'PAYROLL_OFFICE_OPEN',  // 給与支払事務所等の開設届
+  'SOCIAL_INS_NEW',       // 社会保険新規適用届
+  'LEGAL_ESTABLISH_KK',   // 株式会社設立登記
+  'LEGAL_ESTABLISH_GODO', // 合同会社設立登記
+]);
+
+const WITHHOLDING_TAX_CODE = 'WITHHOLDING_TAX'; // 源泉所得税の納付
+
+function toIsoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// 納期の特例（1/20, 7/10の年2回）の次回期日を計算する。
+// diagnosis.ts の calculateNextDeadline とは別に、CompanyProfile側の上書きとして
+// クライアント側で計算する（サーバー側の診断結果は毎月納付前提のまま変えない）。
+function specialExceptionDeadline(): { label: string; date: string } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const year = today.getFullYear();
+  const candidates = [
+    new Date(year, 0, 20),
+    new Date(year, 6, 10),
+    new Date(year + 1, 0, 20),
+  ];
+  const next = candidates.find((d) => d.getTime() >= today.getTime()) ?? candidates[candidates.length - 1];
+  return {
+    label: `${next.getFullYear()}年${next.getMonth() + 1}月${next.getDate()}日（納期の特例）`,
+    date: toIsoDate(next),
+  };
+}
+
+// 診断エンジン・イベントエンジンが返した procedures に対し、CompanyProfileの内容を反映する。
+// ① stage === 'second_term_or_later' の場合、設立系手続きを取り除く
+// ② withholdingTaxCycle === 'special_exception' の場合、源泉所得税の期限を年2回パターンに
+//    上書きする（'unset'/'monthly' の場合は毎月納付のまま表示する。'unset' はAI参謀側の
+//    確認コメントで案内する＝buildProfileAdvisories参照）
+export function applyCompanyProfileToProcedures(
+  procedures: ScheduleProcedure[],
+  profile: CompanyProfile | null,
+): ScheduleProcedure[] {
+  if (!profile) return procedures;
+
+  return procedures
+    .filter((p) => !(profile.stage === 'second_term_or_later' && ESTABLISHMENT_PROCEDURE_CODES.has(p.code)))
+    .map((p) => {
+      if (p.code === WITHHOLDING_TAX_CODE && profile.withholdingTaxCycle === 'special_exception') {
+        const next = specialExceptionDeadline();
+        return { ...p, next_deadline: next.label, next_deadline_date: next.date };
+      }
+      return p;
+    });
 }
 
 // ── Rule Engine 連携（設計書 ⑤）─────────────────────────────────
