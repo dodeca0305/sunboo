@@ -8,6 +8,7 @@ import {
 } from './types';
 import { calculateNextDeadline, resolveOffices } from './diagnosis';
 import { evaluateRules, type RuleContext } from './ruleEngine';
+import { buildProfileRuleContext, type CompanyProfile } from './companyProfile';
 import type { SupabaseClient } from './supabase';
 
 // anonymous_company_events.browser_id はアカウント機能が無いため、ブラウザ単位で
@@ -48,6 +49,9 @@ export async function registerCompanyEvent(
   client: SupabaseClient,
   browserId: string,
   input: CompanyEventInput,
+  // Company Profile Engine（Sprint 14 Phase14.2）: 渡された場合のみ Rule Context に
+  // 税務・労務の詳細情報を追加する。既存呼び出し元との後方互換のため省略可能。
+  profile?: CompanyProfile,
 ): Promise<EventRegistrationResult | null> {
   // 1. イベント種別を特定
   const { data: eventTypeRaw } = await client
@@ -95,6 +99,7 @@ export async function registerCompanyEvent(
     corporate_type: input.corporateType,
     has_employees: input.hasEmployees,
     prefecture_code: prefectureCode,
+    ...(profile ? buildProfileRuleContext(profile) : {}),
   };
   const ruleResult = await evaluateRules(client, context);
 

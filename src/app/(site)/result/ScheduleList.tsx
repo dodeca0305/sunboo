@@ -5,14 +5,15 @@ import Link from 'next/link';
 import type { ProcedureCategory } from '@/lib/types';
 import type { ProcedureStatus, ScheduleProcedure } from '@/lib/scheduleProcedure';
 import {
-  buildAdviserComment, buildAdviserSummary, buildLookaheadComment, buildRiskEntries,
+  buildAdviserComment, buildAdviserSummary, buildLookaheadComment, buildRiskEntries, buildProfileAdvisories,
   bucketOf, daysRemaining, type AdviserRecommendation, type RiskEntry,
 } from '@/lib/adviserScore';
 import { buildNotifications, type Notification } from '@/lib/notificationEngine';
+import { loadCompanyProfile, type CompanyProfile } from '@/lib/companyProfile';
 import { trackEvent } from '@/lib/analytics';
 import {
   Building2, ChevronDown, ExternalLink, AlertTriangle, Check,
-  MapPin, Send, Sun, CalendarDays, CalendarRange, Calendar, Star, Sparkles, MessageSquareText, CalendarClock, ShieldAlert, Bell, Info, X,
+  MapPin, Send, Sun, CalendarDays, CalendarRange, Calendar, Star, Sparkles, MessageSquareText, CalendarClock, ShieldAlert, Bell, Info, X, Lightbulb, UserCheck,
 } from 'lucide-react';
 import ProcedureDetailExtra from '@/components/ProcedureDetailExtra';
 
@@ -71,6 +72,28 @@ function OnboardingCard({ onDismiss }: { onDismiss: () => void }) {
       >
         <X className="h-4 w-4" />
       </button>
+    </div>
+  );
+}
+
+// Company Profile Engine（Sprint 14 Phase14.2）への誘導。プロフィール未入力の間だけ、
+// 既存のAI参謀・通知カードと同じ控えめなトーンで表示する（未入力でも困らない設計のため必須にしない）。
+function ProfileGuidanceCard() {
+  return (
+    <div className="card flex items-start gap-3 border-gray-200 bg-gray-50/60">
+      <UserCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-gray-900">プロフィールを詳しく入力すると、精度が上がります</p>
+        <p className="mt-1 text-xs leading-relaxed text-gray-500">
+          資本金・消費税の課税方式・顧問専門家の有無などを登録すると、AI参謀のアドバイスがより具体的になります。
+        </p>
+      </div>
+      <Link
+        href="/profile"
+        className="btn-secondary shrink-0 px-3 py-1.5 text-xs whitespace-nowrap"
+      >
+        入力する
+      </Link>
     </div>
   );
 }
@@ -403,20 +426,49 @@ function RiskSection({ risks }: { risks: RiskEntry[] }) {
   );
 }
 
+function ProfileAdvisorySection({ advisories }: { advisories: string[] }) {
+  if (advisories.length === 0) return null;
+  return (
+    <div className="mt-3">
+      <SectionLabel>会社情報からのアドバイス</SectionLabel>
+      <ul className="mt-1.5 space-y-2">
+        {advisories.map((message, idx) => (
+          <li
+            key={idx}
+            className="flex items-start gap-2 rounded-lg border border-gray-100 bg-white px-3 py-2.5"
+          >
+            <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-500" />
+            <p className="text-xs leading-relaxed text-gray-700">{message}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function AdviserCard({
   recommendations,
   incompleteCount,
   comment,
   lookahead,
   risks,
+  profileAdvisories,
 }: {
   recommendations: AdviserRecommendation[];
   incompleteCount: number;
   comment: string;
   lookahead: string | null;
   risks: RiskEntry[];
+  profileAdvisories: string[];
 }) {
-  if (recommendations.length === 0 && !comment && !lookahead && risks.length === 0) return null;
+  if (
+    recommendations.length === 0 &&
+    !comment &&
+    !lookahead &&
+    risks.length === 0 &&
+    profileAdvisories.length === 0
+  )
+    return null;
 
   return (
     <div className="card border-blue-100 bg-blue-50/40 p-4 sm:p-6">
@@ -452,6 +504,9 @@ function AdviserCard({
       {/* C. 注意すべきリスク */}
       <RiskSection risks={risks} />
 
+      {/* C'. 会社情報からのアドバイス（/profile入力があれば表示） */}
+      <ProfileAdvisorySection advisories={profileAdvisories} />
+
       {/* D. 優先度（補助情報。区切り線を入れて主役級の情報と視覚的に分ける） */}
       {recommendations.length > 0 && (
         <div className="mt-4 border-t border-blue-100/70 pt-3">
@@ -475,10 +530,14 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
   const [expandedId, setExpandedId] = useState<number | null>(null);
   // null = まだ判定前（SSRとの不一致を避けるため、判定が終わるまで何も表示しない）
   const [onboardingDismissed, setOnboardingDismissed] = useState<boolean | null>(null);
+  const [profile, setProfile] = useState<CompanyProfile | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
   useEffect(() => {
     setStatusMap(loadStatusMap());
     setOnboardingDismissed(window.localStorage.getItem(ONBOARDING_KEY) === 'true');
+    setProfile(loadCompanyProfile());
+    setProfileLoaded(true);
   }, []);
 
   function dismissOnboarding() {
@@ -524,8 +583,8 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
     [procedures, statusMap],
   );
   const adviserComment = useMemo(
-    () => buildAdviserComment(procedures, statusMap),
-    [procedures, statusMap],
+    () => buildAdviserComment(procedures, statusMap, profile),
+    [procedures, statusMap, profile],
   );
   const lookaheadComment = useMemo(
     () => buildLookaheadComment(procedures, statusMap),
@@ -539,6 +598,7 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
     () => buildNotifications(procedures, statusMap),
     [procedures, statusMap],
   );
+  const profileAdvisories = useMemo(() => buildProfileAdvisories(profile), [profile]);
 
   return (
     <div className="space-y-8">
@@ -552,7 +612,10 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
         comment={adviserComment}
         risks={riskEntries}
         lookahead={lookaheadComment}
+        profileAdvisories={profileAdvisories}
       />
+
+      {profileLoaded && !profile && <ProfileGuidanceCard />}
 
       <div className="card">
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">

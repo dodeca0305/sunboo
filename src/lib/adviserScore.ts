@@ -1,5 +1,6 @@
 import type { ProcedureCategory } from '@/lib/types';
 import type { ProcedureStatus, ScheduleProcedure } from './scheduleProcedure';
+import { hasEmployees, type CompanyProfile } from './companyProfile';
 
 // ── AI参謀（Phase 3.1 MVP）───────────────────────────────────
 // 期限・イベント由来・提出先の重複・ステータスから優先度を決定的に算出する。
@@ -202,9 +203,18 @@ function pickPrimaryTarget(scored: ScoredProcedure[]): PrimaryPick | null {
   return { target: withDeadline.length > 0 ? withDeadline[0] : scored[0], isOverdue: false };
 }
 
+// 顧問税理士がいる会社には「税務」カテゴリの手続きについてのみ、顧問への確認を促す一言を足す
+// （税理士がいない場合にコメント文言を変えるのは、当面は憶測に基づく具体的な行動指示になり
+// うるため見送り、buildProfileAdvisories側の一般的な案内に留める）。
+function advisorSuffix(category: ProcedureCategory, profile?: CompanyProfile | null): string {
+  if (category === 'tax' && profile?.advisors.taxAccountant) return '顧問税理士にご確認ください。';
+  return '';
+}
+
 export function buildAdviserComment(
   procedures: ScheduleProcedure[],
   statusMap: Record<number, ProcedureStatus>,
+  profile?: CompanyProfile | null,
 ): string {
   const scored = scoreProcedures(procedures, statusMap);
   const pick = pickPrimaryTarget(scored);
@@ -221,6 +231,7 @@ export function buildAdviserComment(
       `【要注意】${s.procedure.name}の期限を${overdueDays}日超過しています。`,
       officePhrase(s),
       '至急ご対応ください。',
+      advisorSuffix(s.procedure.category, profile),
     ]
       .filter(Boolean)
       .join('');
@@ -239,6 +250,7 @@ export function buildAdviserComment(
       reasonPhrase(target),
       officePhrase(target),
       actionPhrase,
+      advisorSuffix(target.procedure.category, profile),
     ]
       .filter(Boolean)
       .join('');
@@ -251,6 +263,7 @@ export function buildAdviserComment(
       `本日が${target.procedure.name}の提出期限です。`,
       officePhrase(target),
       '最優先で本日中に対応してください。',
+      advisorSuffix(target.procedure.category, profile),
     ]
       .filter(Boolean)
       .join('');
@@ -260,6 +273,7 @@ export function buildAdviserComment(
       `今週は${target.procedure.name}を最優先で進めてください。`,
       `期限まで${target.days}日です。`,
       officePhrase(target),
+      advisorSuffix(target.procedure.category, profile),
     ]
       .filter(Boolean)
       .join('');
@@ -269,6 +283,7 @@ export function buildAdviserComment(
       `今月中に${target.procedure.name}を進めておきましょう。`,
       `期限まで${target.days}日です。`,
       officePhrase(target),
+      advisorSuffix(target.procedure.category, profile),
     ]
       .filter(Boolean)
       .join('');
@@ -279,9 +294,33 @@ export function buildAdviserComment(
     `期限は${deadlineLabel}（あと${target.days}日）です。`,
     officePhrase(target),
     actionPhrase,
+    advisorSuffix(target.procedure.category, profile),
   ]
     .filter(Boolean)
     .join('');
+}
+
+// ── Company Profile Engine 連携（Phase 14.2）─────────────────
+// procedures から独立して、会社の税務・労務プロフィールそのものから導ける一般的な助言。
+// 通知エンジン（期限の知らせ）ともスコアリング（procedure単位のリスク）とも役割が異なるため、
+// 専用の一覧として返す（AdviserCardに新規セクションとして表示する想定）。
+export function buildProfileAdvisories(profile: CompanyProfile | null | undefined): string[] {
+  if (!profile) return [];
+  const advisories: string[] = [];
+
+  if (profile.stage === 'first_term' && profile.consumptionTaxStatus === 'exempt') {
+    advisories.push(
+      '設立1期目のため消費税の免税事業者に該当する可能性があります。資本金や今後の課税売上高の状況にご注意ください。',
+    );
+  }
+
+  if (profile.withholdingTaxCycle === 'unset' && hasEmployees(profile)) {
+    advisories.push(
+      '給与の源泉所得税は原則毎月納付ですが、要件を満たせば年2回にまとめる「納期の特例」を届け出ることができます。税務署への届出をご検討ください。',
+    );
+  }
+
+  return advisories;
 }
 
 // ── 先読み参謀（Phase 3.2 MVP）───────────────────────────────

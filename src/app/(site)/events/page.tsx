@@ -6,6 +6,9 @@ import { supabase } from '@/lib/supabase';
 import { prefectures as staticPrefectures } from '@/data/prefectures';
 import { registerCompanyEvent, getBrowserId, fetchEventTypes } from '@/lib/events';
 import type { CorporateType, EventType, EventTypeCode, EventRegistrationResult } from '@/lib/types';
+import {
+  createCompanyProfile, loadCompanyProfile, saveCompanyProfile, type CompanyProfile,
+} from '@/lib/companyProfile';
 import ScheduleList from '../result/ScheduleList';
 import { toScheduleProcedure } from '@/lib/scheduleProcedure';
 import { trackEvent } from '@/lib/analytics';
@@ -13,31 +16,6 @@ import {
   MapPin, Users, Building2, PartyPopper, UserPlus, UserCog,
   ArrowRight, AlertTriangle, CheckCircle2, DatabaseZap, RotateCcw, Pencil, Info,
 } from 'lucide-react';
-
-const PROFILE_KEY = 'sunboo:company-profile';
-
-type CompanyProfile = {
-  prefectureCode: string;
-  prefectureName: string;
-  municipalityCode: string;
-  municipalityName: string;
-  corporateType: CorporateType;
-  hasEmployees: boolean;
-};
-
-function loadProfile(): CompanyProfile | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = window.localStorage.getItem(PROFILE_KEY);
-    return raw ? (JSON.parse(raw) as CompanyProfile) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveProfile(profile: CompanyProfile) {
-  window.localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-}
 
 const CORPORATE_TYPE_LABEL: Record<CorporateType, string> = {
   kabushiki: '株式会社',
@@ -83,7 +61,7 @@ export default function EventsPage() {
   const [result, setResult] = useState<EventRegistrationResult | null>(null);
 
   useEffect(() => {
-    setProfile(loadProfile());
+    setProfile(loadCompanyProfile());
     setProfileLoaded(true);
   }, []);
 
@@ -150,15 +128,16 @@ export default function EventsPage() {
 
     const prefName = prefList.find((p) => p.code === prefCode)?.name ?? prefCode;
     const muniName = muniList.find((m) => m.code === muniCode)?.name ?? muniCode;
-    const newProfile: CompanyProfile = {
+    const newProfile: CompanyProfile = createCompanyProfile({
       prefectureCode: prefCode,
       prefectureName: prefName,
       municipalityCode: muniCode,
       municipalityName: muniName,
       corporateType: corporateType as CorporateType,
-      hasEmployees: hasEmployees as boolean,
-    };
-    saveProfile(newProfile);
+      // この簡易フォームは「あり/なし」しか聞かないため、正確な人数は /profile での入力に委ねる
+      employeeCount: hasEmployees ? 1 : 0,
+    });
+    saveCompanyProfile(newProfile);
     setProfile(newProfile);
   }
 
@@ -173,13 +152,18 @@ export default function EventsPage() {
     setSubmitting(true);
     setSubmitError(null);
     const browserId = getBrowserId();
-    const registration = await registerCompanyEvent(supabase, browserId, {
-      eventTypeCode: selectedCode,
-      eventDate,
-      municipalityCode: profile.municipalityCode,
-      corporateType: profile.corporateType,
-      hasEmployees: profile.hasEmployees,
-    });
+    const registration = await registerCompanyEvent(
+      supabase,
+      browserId,
+      {
+        eventTypeCode: selectedCode,
+        eventDate,
+        municipalityCode: profile.municipalityCode,
+        corporateType: profile.corporateType,
+        hasEmployees: profile.employeeCount > 0,
+      },
+      profile,
+    );
     setSubmitting(false);
     if (!registration) {
       setSubmitError('イベントの登録に失敗しました。時間をおいて再度お試しください。');
@@ -415,7 +399,7 @@ export default function EventsPage() {
             {profile.prefectureName} {profile.municipalityName}
           </p>
           <p className="mt-0.5 text-xs text-gray-400">
-            {CORPORATE_TYPE_LABEL[profile.corporateType]} ・ 従業員{profile.hasEmployees ? 'あり' : 'なし'}
+            {CORPORATE_TYPE_LABEL[profile.corporateType]} ・ 従業員{profile.employeeCount > 0 ? 'あり' : 'なし'}
           </p>
         </div>
         <button type="button" onClick={handleEditProfile} className="btn-secondary inline-flex items-center gap-1 px-3 py-1.5 text-xs">
