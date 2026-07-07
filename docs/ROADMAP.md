@@ -215,6 +215,24 @@ v0.11「経営ロードマップ進化エンジン」2節で素描したTax Retu
   Advisory Timeline（AI参謀・通知の発信記録）の記録タイミング、事実の訂正を追記で表現する方針の妥当性
 - Sprint19.2〜19.6の段階的な実装順序案は[TIMELINE_ENGINE.md](TIMELINE_ENGINE.md) 10節を参照
 
+## v0.15 State Engine（設計完了・実装未着手）
+
+**狙い**: Timeline（v0.14）に記録された事実から、会社の「今の状態」をフィールド単位で計算する。
+CompanyProfile（ユーザーの自己申告）とは情報源が異なる「Timelineからの計算結果」を導入し、
+Rule Engine・Roadmap・AI参謀が参照できる正規化された現在地を用意する。
+
+- 設計: [STATE_ENGINE.md](STATE_ENGINE.md)（Sprint 20 Phase20.1）
+- 核心的な判断: 既存の`deriveConsumptionTaxStatus`等3関数（`companyProfile.ts`）・`detectMismatches`
+  （`profile/tax-returns/page.tsx`、Sprint18.2実装済み）を、State Engineが一般化する対象の
+  先行実装として位置づける（同ドキュメント0節・4節）。CompanyProfileを置き換えるものではなく、
+  Timelineの事実から計算した「システムの認識」を新たに追加する
+- 新規導入する概念: `CompanyState`/`StateField<T>`（値・確からしさ・根拠イベントID・情報の新しさを
+  1組で保持）、[ROADMAP_EVOLUTION_ENGINE.md](ROADMAP_EVOLUTION_ENGINE.md) 6節のConfidence3分類
+  （`confirmed`/`estimated`/`incomplete`）を再利用したReason（根拠）の保持
+- 要判断事項: 既存`derive*`関数・`detectMismatches`との統合方式（置き換えの時期・範囲）、
+  Timeline上で矛盾する複数の記録がある場合の優先順位、Roadmap計算式をStateベースに簡略化するか
+- Sprint20.2〜20.6の段階的な実装順序案は[STATE_ENGINE.md](STATE_ENGINE.md) 10節を参照
+
 ## v1.0 福岡県版正式リリース（未着手）
 
 **狙い**: 東京都渋谷区・福岡県全域という現状の対応エリアのうち、福岡県を軸に正式リリースする。
