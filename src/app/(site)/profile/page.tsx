@@ -13,7 +13,7 @@ import {
   type LocalTaxCollectionMethod, type TaxationMethod, type WithholdingTaxCycle,
 } from '@/lib/companyProfile';
 import {
-  MapPin, Banknote, CalendarClock, Receipt,
+  MapPin, Banknote, CalendarClock, Receipt, FileClock,
   ShieldCheck, Send, Briefcase, ArrowRight, AlertTriangle, CheckCircle2, Sparkles,
 } from 'lucide-react';
 
@@ -575,6 +575,20 @@ export default function ProfilePage() {
           {saved ? <CheckCircle2 className="h-5 w-5" /> : <ArrowRight className="h-5 w-5" />}
         </button>
       </form>
+
+      {/* 確定申告実績（Tax Return Profile、Sprint17.2） */}
+      <div className="card mt-4 flex items-center gap-3">
+        <FileClock className="h-5 w-5 shrink-0 text-blue-600" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-gray-900">確定申告実績</p>
+          <p className="mt-1 text-xs leading-relaxed text-gray-500">
+            前期の申告内容（課税売上高・確定税額等）を記録すると、消費税ステータス等の自動判定の精度が上がります
+          </p>
+        </div>
+        <Link href="/profile/tax-returns" className="btn-secondary shrink-0 px-3 py-1.5 text-xs whitespace-nowrap">
+          記録する →
+        </Link>
+      </div>
 
       <p className="mt-4 text-center text-xs text-gray-400">
         <Link href="/events" className="underline hover:text-gray-600">イベント登録はこちら</Link>

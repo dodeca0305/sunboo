@@ -1,5 +1,10 @@
 import type { CorporateType } from './types';
 import type { ScheduleProcedure } from './scheduleProcedure';
+import {
+  consumptionTaxInterimFrequencyFromAmount, corporateTaxRequiresInterimFiling,
+  getEntryTwoPeriodsAgo, getLatestEntry, isTaxableSalesAboveExemptionThreshold,
+  type TaxReturnProfile,
+} from './taxReturnProfile';
 
 // ── Company Profile Engine（Sprint 14 Phase14.2）───────────────
 // 会社ごとの税務・労務の実態を localStorage（'sunboo:company-profile'）に持ち、
@@ -192,15 +197,23 @@ export function deriveStage(
   return today <= firstPeriodEnd ? 'first_term' : 'second_term_or_later';
 }
 
-// 新設法人の消費税納税義務の特例（資本金1,000万円以上は設立事業年度から課税事業者）のみを
-// 根拠に判定する。基準期間の課税売上高は会計データが無いと判定できないため、それ以外は null。
+// 新設法人の消費税納税義務の特例（資本金1,000万円以上は設立事業年度から課税事業者）を最優先の
+// 根拠にする。それ以外は Tax Return Profile（Sprint17.2、taxReturnProfile 省略時は従来通り）の
+// 基準期間（2期前）の課税売上高から判定する。根拠が無ければ null を返し断定しない。
 export function deriveConsumptionTaxStatus(
   capital: number | null,
   stage: CompanyStage,
+  taxReturnProfile?: TaxReturnProfile,
 ): ConsumptionTaxStatus | null {
   if (capital === null) return null;
   if (capital >= 10_000_000) return 'taxable';
   if (stage === 'first_term') return 'exempt';
+
+  const baseline = taxReturnProfile ? getEntryTwoPeriodsAgo(taxReturnProfile) : null;
+  if (baseline?.taxableSalesAmount) {
+    const isAbove = isTaxableSalesAboveExemptionThreshold(baseline.taxableSalesAmount);
+    if (isAbove !== null) return isAbove ? 'taxable' : 'exempt';
+  }
   return null;
 }
 
@@ -208,13 +221,32 @@ export function deriveLocalTaxCollectionMethod(employeeCount: number): LocalTaxC
   return employeeCount > 0 ? 'special_collection' : null;
 }
 
-// 1期目は前年実績が存在しないため確実に「なし」。2期目以降は前年実績次第のためユーザー入力。
-export function deriveCorporateTaxInterimFiling(stage: CompanyStage): InterimFilingStatus | null {
-  return stage === 'first_term' ? 'none' : null;
+// 1期目は前年実績が存在しないため確実に「なし」。2期目以降はTax Return Profileの直近期（前期）の
+// 確定法人税額から判定する（taxReturnProfile 省略時・データ不足時は従来通りユーザー入力に委ねる）。
+export function deriveCorporateTaxInterimFiling(
+  stage: CompanyStage,
+  taxReturnProfile?: TaxReturnProfile,
+): InterimFilingStatus | null {
+  if (stage === 'first_term') return 'none';
+  const latest = taxReturnProfile ? getLatestEntry(taxReturnProfile) : null;
+  if (latest?.corporateTaxAmount) {
+    const requiresFiling = corporateTaxRequiresInterimFiling(latest.corporateTaxAmount);
+    if (requiresFiling !== null) return requiresFiling ? 'has' : 'none';
+  }
+  return null;
 }
 
-export function deriveConsumptionTaxInterimFrequency(stage: CompanyStage): ConsumptionTaxInterimFrequency | null {
-  return stage === 'first_term' ? 'none' : null;
+export function deriveConsumptionTaxInterimFrequency(
+  stage: CompanyStage,
+  taxReturnProfile?: TaxReturnProfile,
+): ConsumptionTaxInterimFrequency | null {
+  if (stage === 'first_term') return 'none';
+  const latest = taxReturnProfile ? getLatestEntry(taxReturnProfile) : null;
+  if (latest?.consumptionTaxAmount) {
+    const frequency = consumptionTaxInterimFrequencyFromAmount(latest.consumptionTaxAmount);
+    if (frequency !== null) return frequency;
+  }
+  return null;
 }
 
 // ── 会社ステージ・納期の特例による手続きの出し分け（設計書 ④⑤、Phase14.2追加分）───
