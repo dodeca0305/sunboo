@@ -1,6 +1,7 @@
 import type { ProcedureCategory } from '@/lib/types';
 import type { ProcedureStatus, ScheduleProcedure } from './scheduleProcedure';
 import { hasEmployees, type CompanyProfile } from './companyProfile';
+import type { TaxReturnEntry } from './taxReturnProfile';
 
 // ── AI参謀（Phase 3.1 MVP）───────────────────────────────────
 // 期限・イベント由来・提出先の重複・ステータスから優先度を決定的に算出する。
@@ -321,6 +322,40 @@ export function buildProfileAdvisories(profile: CompanyProfile | null | undefine
   }
 
   return advisories;
+}
+
+// ── 決算更新サマリー（Sprint 18 Phase18.1設計・18.2実装）─────────
+// TaxReturnEntry入力とそれに伴うChange Interview（矛盾確認）が完了した直後にのみ表示する
+// 一過性のコメント。buildProfileAdvisories（継続的に表示される助言）とは性質が異なるため、
+// 呼び出し側（tax-returns/page.tsx）で「直近の更新で変わった値」を before/after として渡す。
+// 設計: docs/CLOSING_UPDATE_FLOW.md 6節。
+export function buildClosingUpdateSummary(
+  before: CompanyProfile,
+  after: CompanyProfile,
+  latestEntry: TaxReturnEntry | null,
+): string[] {
+  const summary: string[] = [];
+
+  if (before.consumptionTaxStatus === 'exempt' && after.consumptionTaxStatus === 'taxable') {
+    summary.push('今期から消費税の課税事業者に切り替わりました。次の消費税確定申告にご注意ください。');
+  }
+
+  if (before.corporateTaxInterimFiling === 'none' && after.corporateTaxInterimFiling === 'has') {
+    summary.push('法人税の中間申告が必要になりました。');
+  }
+
+  // 従業員数の乖離は矛盾確認の対象にせず、ここでの注意喚起に留める（設計書3-2節）。
+  if (
+    latestEntry?.employeeCountAtFiscalYearEnd !== null &&
+    latestEntry?.employeeCountAtFiscalYearEnd !== undefined &&
+    latestEntry.employeeCountAtFiscalYearEnd !== after.employeeCount
+  ) {
+    summary.push(
+      `期末時点の従業員数（${latestEntry.employeeCountAtFiscalYearEnd}名）が現在のプロフィール（${after.employeeCount}名）と異なるようです。最新の人数に更新することをおすすめします。`,
+    );
+  }
+
+  return summary;
 }
 
 // ── 先読み参謀（Phase 3.2 MVP）───────────────────────────────

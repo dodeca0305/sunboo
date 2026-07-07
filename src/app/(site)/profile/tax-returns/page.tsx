@@ -6,13 +6,14 @@ import {
   deriveConsumptionTaxStatus, deriveCorporateTaxInterimFiling, deriveConsumptionTaxInterimFrequency,
   loadCompanyProfile, saveCompanyProfile, type CompanyProfile,
   type ConsumptionTaxInterimFrequency, type ConsumptionTaxStatus, type InterimFilingStatus,
-  type InvoiceRegistrationStatus, type TaxationMethod,
+  type InvoiceRegistrationStatus, type TaxationMethod, type WithholdingTaxCycle,
 } from '@/lib/companyProfile';
 import {
-  addTaxReturnEntry, confidenceOfAmount, deleteTaxReturnEntry, loadTaxReturnProfile,
+  addTaxReturnEntry, confidenceOfAmount, deleteTaxReturnEntry, getLatestEntry, loadTaxReturnProfile,
   updateTaxReturnEntry, CONSUMPTION_TAX_BUCKETS, CORPORATE_TAX_BUCKETS, TAXABLE_SALES_BUCKETS,
   type AmountPrecision, type AmountValue, type TaxReturnEntry, type TaxReturnProfile,
 } from '@/lib/taxReturnProfile';
+import { buildClosingUpdateSummary } from '@/lib/adviserScore';
 import {
   ChevronLeft, FileClock, Plus, Pencil, Trash2, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
@@ -42,6 +43,12 @@ const CONSUMPTION_INTERIM_FREQ_LABEL: Record<ConsumptionTaxInterimFrequency, str
   '1': '年1回',
   '3': '年3回',
   '11': '年11回',
+};
+
+const WITHHOLDING_CYCLE_LABEL: Record<WithholdingTaxCycle, string> = {
+  monthly: '毎月納付',
+  special_exception: '年2回（納期の特例）',
+  unset: '未設定',
 };
 
 const CONFIDENCE_LABEL: Record<'high' | 'medium' | 'low', string> = {
@@ -166,9 +173,16 @@ function AmountField({
   );
 }
 
-type MismatchField = 'consumptionTaxStatus' | 'corporateTaxInterimFiling' | 'consumptionTaxInterimFrequency';
+export type MismatchField =
+  | 'consumptionTaxStatus'
+  | 'corporateTaxInterimFiling'
+  | 'consumptionTaxInterimFrequency'
+  | 'capital'
+  | 'withholdingTaxCycle'
+  | 'invoiceRegistrationStatus'
+  | 'stage';
 
-type Mismatch = {
+export type Mismatch = {
   field: MismatchField;
   label: string;
   currentLabel: string;
@@ -177,7 +191,7 @@ type Mismatch = {
 };
 
 // CompanyProfileとTaxReturnProfileが食い違う項目を検出する（申告書を自動で正としない。4節）。
-function detectMismatches(profile: CompanyProfile, taxReturnProfile: TaxReturnProfile): Mismatch[] {
+export function detectMismatches(profile: CompanyProfile, taxReturnProfile: TaxReturnProfile): Mismatch[] {
   const mismatches: Mismatch[] = [];
 
   const suggestedConsumptionTaxStatus = deriveConsumptionTaxStatus(profile.capital, profile.stage, taxReturnProfile);
@@ -210,6 +224,55 @@ function detectMismatches(profile: CompanyProfile, taxReturnProfile: TaxReturnPr
       currentLabel: CONSUMPTION_INTERIM_FREQ_LABEL[profile.consumptionTaxInterimFrequency],
       suggestedLabel: CONSUMPTION_INTERIM_FREQ_LABEL[suggestedInterimFrequency],
       apply: (p) => ({ ...p, consumptionTaxInterimFrequency: suggestedInterimFrequency }),
+    });
+  }
+
+  // ── ここから Sprint18.2 追加分（決算更新フロー設計書 3-1節）───────
+  const latest = getLatestEntry(taxReturnProfile);
+
+  // ① 資本金の乖離（増資イベントの記録漏れ検出）
+  if (latest?.capitalAtFiling !== null && latest?.capitalAtFiling !== undefined && latest.capitalAtFiling !== profile.capital) {
+    mismatches.push({
+      field: 'capital',
+      label: '資本金',
+      currentLabel: profile.capital !== null ? `${profile.capital.toLocaleString()}円` : '未入力',
+      suggestedLabel: `${latest.capitalAtFiling.toLocaleString()}円`,
+      apply: (p) => ({ ...p, capital: latest.capitalAtFiling }),
+    });
+  }
+
+  // ② 源泉所得税の納付サイクルの乖離
+  if (latest?.withholdingTaxCycleActual && latest.withholdingTaxCycleActual !== profile.withholdingTaxCycle) {
+    const actual = latest.withholdingTaxCycleActual;
+    mismatches.push({
+      field: 'withholdingTaxCycle',
+      label: '源泉所得税の納付サイクル',
+      currentLabel: WITHHOLDING_CYCLE_LABEL[profile.withholdingTaxCycle],
+      suggestedLabel: WITHHOLDING_CYCLE_LABEL[actual],
+      apply: (p) => ({ ...p, withholdingTaxCycle: actual }),
+    });
+  }
+
+  // ③ インボイス登録状況の乖離
+  if (latest && latest.invoiceRegistrationStatus !== profile.invoiceRegistrationStatus) {
+    const suggested = latest.invoiceRegistrationStatus;
+    mismatches.push({
+      field: 'invoiceRegistrationStatus',
+      label: 'インボイス登録状況',
+      currentLabel: INVOICE_LABEL[profile.invoiceRegistrationStatus],
+      suggestedLabel: INVOICE_LABEL[suggested],
+      apply: (p) => ({ ...p, invoiceRegistrationStatus: suggested }),
+    });
+  }
+
+  // ④ 会社ステージの遷移（決算実績が1件でもあれば1期目のままではありえない）
+  if (profile.stage === 'first_term' && taxReturnProfile.entries.length > 0) {
+    mismatches.push({
+      field: 'stage',
+      label: '会社ステージ',
+      currentLabel: '1期目',
+      suggestedLabel: '2期目以降',
+      apply: (p) => ({ ...p, stage: 'second_term_or_later' }),
     });
   }
 
@@ -309,6 +372,9 @@ export default function TaxReturnsPage() {
   const [draft, setDraft] = useState<EntryDraft>(EMPTY_ENTRY_DRAFT);
   const [error, setError] = useState<string | null>(null);
   const [mismatches, setMismatches] = useState<Mismatch[]>([]);
+  // Change Interview開始時点のプロフィールを保持し、全件解決後に決算更新サマリーの before/after 比較に使う
+  const [profileBeforeReview, setProfileBeforeReview] = useState<CompanyProfile | null>(null);
+  const [closingSummary, setClosingSummary] = useState<string[] | null>(null);
 
   useEffect(() => {
     setProfile(loadCompanyProfile());
@@ -354,20 +420,37 @@ export default function TaxReturnsPage() {
     const updated = editingId ? updateTaxReturnEntry(editingId, draft) : addTaxReturnEntry(draft);
     setTaxReturnProfile(updated);
     setShowForm(false);
+    setClosingSummary(null);
 
     if (profile) {
-      setMismatches(detectMismatches(profile, updated));
+      const detected = detectMismatches(profile, updated);
+      setMismatches(detected);
+      if (detected.length > 0) {
+        setProfileBeforeReview(profile);
+      } else {
+        // 矛盾が無い場合もChange Interviewは即座に完了したとみなし、サマリーを表示する
+        setProfileBeforeReview(null);
+        setClosingSummary(buildClosingUpdateSummary(profile, profile, getLatestEntry(updated)));
+      }
     }
   }
 
   function handleResolveMismatch(field: MismatchField, adopt: boolean) {
     const mismatch = mismatches.find((m) => m.field === field);
+    let finalProfile = profile;
     if (adopt && mismatch && profile) {
-      const updatedProfile = mismatch.apply(profile);
-      saveCompanyProfile(updatedProfile);
-      setProfile(updatedProfile);
+      finalProfile = mismatch.apply(profile);
+      saveCompanyProfile(finalProfile);
+      setProfile(finalProfile);
     }
-    setMismatches((prev) => prev.filter((m) => m.field !== field));
+
+    const remaining = mismatches.filter((m) => m.field !== field);
+    setMismatches(remaining);
+
+    if (remaining.length === 0 && profileBeforeReview && finalProfile) {
+      setClosingSummary(buildClosingUpdateSummary(profileBeforeReview, finalProfile, getLatestEntry(taxReturnProfile)));
+      setProfileBeforeReview(null);
+    }
   }
 
   if (!loaded) return null;
@@ -393,6 +476,25 @@ export default function TaxReturnsPage() {
           {mismatches.map((m) => (
             <MismatchCard key={m.field} mismatch={m} onResolve={handleResolveMismatch} />
           ))}
+        </div>
+      )}
+
+      {mismatches.length === 0 && closingSummary && closingSummary.length > 0 && (
+        <div className="card mb-6 space-y-3 border-blue-200 bg-blue-50/40">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-600" />
+            <h2 className="font-semibold text-gray-800">決算更新サマリー</h2>
+          </div>
+          <ul className="space-y-1.5 pl-6 text-sm text-gray-700">
+            {closingSummary.map((s, i) => (
+              <li key={i} className="list-disc">{s}</li>
+            ))}
+          </ul>
+          <div className="pl-6">
+            <button type="button" onClick={() => setClosingSummary(null)} className="btn-secondary px-3 py-1.5 text-xs">
+              閉じる
+            </button>
+          </div>
         </div>
       )}
 
