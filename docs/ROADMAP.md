@@ -80,6 +80,8 @@ Roadmap反映順序を整理した。詳細: [PROCEDURE_MASTER_AUDIT.md](PROCEDU
   「やることリスト」にどう統合するか（診断エンジン側の`procedures`は既にfrequencyを持っている）
 - 会社プロフィール（`anonymous_company_events`に非正規化されている）を年間ビューでどう束ねるか。永続的な
   会社エンティティ（現状は意図的に作っていない、[DATABASE.md](DATABASE.md)参照）が必要になる可能性がある
+- → 「複数年ホライズンで手続きを見せる」という狙いはv0.11「経営ロードマップ進化エンジン」がより広い
+  枠組みとして引き継ぐ設計にした（[ROADMAP_EVOLUTION_ENGINE.md](ROADMAP_EVOLUTION_ENGINE.md) 4節参照）
 
 ## v0.7 補助金・助成金（未着手）
 
@@ -109,6 +111,7 @@ Roadmap反映順序を整理した。詳細: [PROCEDURE_MASTER_AUDIT.md](PROCEDU
 **狙い**: 蓄積された会社データ・手続き履歴・ルール判定結果をもとに、AIが経営者に能動的な助言を行う機能。
 本ドキュメント整備（Phase 2.6）自体が、このフェーズに向けた「AIが読める設計資産」を残す準備という位置づけ。
 着手時は既存のルールエンジンの`context`／`rules`データをAIの判断材料としてどう連携するかが論点になる。
+→ 長期見通し（Roadmap Foresight）としての発展形はv0.11で設計済み（[ROADMAP_EVOLUTION_ENGINE.md](ROADMAP_EVOLUTION_ENGINE.md) 7節）。
 
 ## v0.10 Company Profile Engine（設計完了・実装未着手）
 
@@ -116,10 +119,40 @@ Roadmap反映順序を整理した。詳細: [PROCEDURE_MASTER_AUDIT.md](PROCEDU
 顧問専門家の有無等）を`CompanyProfile`として一元的に持ち、Rule Engine・AI参謀・Notification Engine・
 将来の会計データ連携・経営ロードマップの共通の判断材料にする。
 
-- 設計: [COMPANY_PROFILE_ENGINE.md](COMPANY_PROFILE_ENGINE.md)（Sprint 14 Phase14.1）
+- 設計: [COMPANY_PROFILE_ENGINE.md](COMPANY_PROFILE_ENGINE.md)（Sprint 14 Phase14.1）。CompanyProfile型・
+  localStorage実装・Rule Engine連携はSprint14 Phase14.2で実装済み
 - 要判断事項: 永続化方式（localStorage継続 or 新規DBテーブル or v0.8前倒し）は実装前に確認が必要
 - Phase14.2以降の課題: 中間申告の複数期日対応（procedures/timing_dataのスキーマ拡張）、
   Rule Engineコンテキストの拡張、診断エンジンへのRule Engine展開
+- **2026-07-06、Phase14.2の範囲を超えて`applyCompanyProfileToProcedures`（`src/lib/companyProfile.ts`）が
+  追加された**（コミット`fa034f5`「fix: apply company profile filters to roadmap」、`origin/main`に
+  push済み）。CompanyProfileの影響がRule Engineのcontextに留まらず、実際に表示される手続きの絞り込み
+  （`stage`に応じた設立系手続きの非表示）・期限の上書き（源泉所得税の納期の特例）にまで広がった。
+  Sprint16の設計プロセスを経ずに追加されたものだが、v0.11の設計と矛盾せず、その一部を先取りする
+  内容と確認済み（詳細: [ROADMAP_EVOLUTION_ENGINE.md](ROADMAP_EVOLUTION_ENGINE.md) 0節）
+- → 「経営ロードマップの共通の判断材料にする」という狙いを引き継ぎ、具体的な設計に落としたものが
+  v0.11（[ROADMAP_EVOLUTION_ENGINE.md](ROADMAP_EVOLUTION_ENGINE.md)）
+
+## v0.11 経営ロードマップ進化エンジン（設計完了・実装未着手）
+
+**狙い**: 会社情報（CompanyProfile）・申告実績（Tax Return Profile）・変更点（Change Interview）・
+イベント（経営イベントエンジン）を統合し、単年の診断結果ではなく複数年ホライズンで継続的に
+更新される経営ロードマップの基盤を作る。v0.6「年間スケジュール」・v0.9「AI参謀β」・v0.10
+「Company Profile Engine」の3つが向かう先を1つの設計に統合する位置づけ。
+
+- 設計: [ROADMAP_EVOLUTION_ENGINE.md](ROADMAP_EVOLUTION_ENGINE.md)（Sprint 16 Phase16.1）
+- 新規導入する概念: Tax Return Profile（決算ごとの申告実績の時系列記録、CompanyProfileの
+  自動判定関数が抱える`null`返却の課題を解消する）、Change Interview（イベント発生時の
+  最小限の質問フロー）、Roadmap History（入力側の変更差分ログ）、Roadmap Confidence
+  （各手続きの確からしさのラベル付け）
+- 要判断事項: Tax Return Profileの解釈の妥当性、Roadmapを持続化しない設計方針の妥当性、
+  「決算」イベント活性化に伴う`/events`画面改修の範囲、DB移行（Roadmap History）をv0.8と
+  同時に行うかどうか
+- **注記**: v0.11は「設計完了・実装未着手」だが、v0.10の`applyCompanyProfileToProcedures`
+  （2026-07-06追加、上記参照）が本Sprintの狙いの一部（会社ステージに応じた手続きの出し分け）を
+  既に実現している。設計時にこの事実を確認し、矛盾しないこと・Roadmap Update Engineが
+  この既存関数を置き換えず組み込む設計にしたことを確認済み
+- Sprint16.2〜16.6の段階的な実装順序案は[ROADMAP_EVOLUTION_ENGINE.md](ROADMAP_EVOLUTION_ENGINE.md) 10節を参照
 
 ## v1.0 福岡県版正式リリース（未着手）
 
