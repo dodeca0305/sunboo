@@ -153,6 +153,26 @@ Roadmap反映順序を整理した。詳細: [PROCEDURE_MASTER_AUDIT.md](PROCEDU
   既に実現している。設計時にこの事実を確認し、矛盾しないこと・Roadmap Update Engineが
   この既存関数を置き換えず組み込む設計にしたことを確認済み
 - Sprint16.2〜16.6の段階的な実装順序案は[ROADMAP_EVOLUTION_ENGINE.md](ROADMAP_EVOLUTION_ENGINE.md) 10節を参照
+- **2026-07-07追記**: Tax Return Profileの設計はSprint17 Phase17.1で独立ドキュメント化された
+  （[TAX_RETURN_PROFILE_ENGINE.md](TAX_RETURN_PROFILE_ENGINE.md)、v0.12）。Sprint16.2の
+  「`TaxReturnProfile`型実装・決算イベント活性化」は、より詳細な設計であるSprint17.2〜17.3に
+  差し替える（重複実装を避けるため。実装時はv0.12側の計画を正とする）
+
+## v0.12 Tax Return Profile Engine（設計完了・実装未着手）
+
+**狙い**: 前期の確定申告実績を「会社の現在地」として扱い、CompanyProfileの自動判定関数が
+抱える`null`返却の課題（2期目以降の消費税ステータス・中間申告要否判定）を解消する。
+v0.11「経営ロードマップ進化エンジン」2節で素描したTax Return Profileを独立設計に格上げした位置づけ。
+
+- 設計: [TAX_RETURN_PROFILE_ENGINE.md](TAX_RETURN_PROFILE_ENGINE.md)（Sprint 17 Phase17.1）
+- 保持項目: 課税売上高・確定法人税額/消費税額・中間申告実績・決算公告実施有無等、確定申告書の
+  記載事項ベースで整理（詳細は同ドキュメント2節）
+- CompanyProfileとの役割分担: `consumptionTaxStatus`等一部フィールドはTax Return Profileを
+  正本とし、矛盾時も自動上書きせずChange Interviewでの確認を経る設計（同ドキュメント4節）
+- 将来像として、確定申告書のOCR・AI抽出による自動取得も構想したが、本Sprintの実装計画には
+  含めない（同ドキュメント9節）
+- 要判断事項: 概算レンジ入力を認めるか、Confidence分類を4分類に拡張するか、OCR構想の着手是非
+- Sprint17.2〜17.6の段階的な実装順序案は[TAX_RETURN_PROFILE_ENGINE.md](TAX_RETURN_PROFILE_ENGINE.md) 10節を参照
 
 ## v1.0 福岡県版正式リリース（未着手）
 
