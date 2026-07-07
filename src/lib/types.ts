@@ -211,6 +211,16 @@ export type EventRegistrationResult = {
   warnings: { message: string; severity: 'info' | 'warning' }[];
 };
 
+// Timeline Engine（Sprint19.2）: 登録済みイベント1件をTimeline用に読み取るための型。
+// anonymous_company_events と event_types(code, name) をJOINして取得する（fetchCompanyEvents、events.ts）。
+export type RegisteredCompanyEvent = {
+  id: number;
+  eventTypeCode: EventTypeCode;
+  eventTypeName: string;
+  eventDate: string; // ISO (YYYY-MM-DD)。事実が発生した日
+  createdAt: string; // ISO datetime。SUNBOOに記録された日時
+};
+
 // ── 旧静的データとの互換型（src/data/ で使用）────────────────
 
 export type Industry = {

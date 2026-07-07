@@ -2,9 +2,11 @@ import {
   CompanyEventInput,
   EventRegistrationResult,
   EventType,
+  EventTypeCode,
   JurisdictionOffice,
   LinkStatus,
   ProcedureResult,
+  RegisteredCompanyEvent,
 } from './types';
 import { calculateNextDeadline, resolveOffices } from './diagnosis';
 import { evaluateRules, type RuleContext } from './ruleEngine';
@@ -142,4 +144,36 @@ export async function registerCompanyEvent(
   });
 
   return { eventId, eventType, procedures, warnings: ruleResult.warnings };
+}
+
+// Timeline Engine（Sprint19.2）: このブラウザが登録した anonymous_company_events を
+// event_types(code, name) とJOINして時系列に取得する（読み取り専用、DB構造変更なし）。
+// timeline.ts はDBクライアントを持たない純粋関数のみで構成するため、DB取得はここに置き、
+// 呼び出し側（画面）がこの結果を buildTimelineFromSources に渡す設計にする。
+export async function fetchCompanyEvents(
+  client: SupabaseClient,
+  browserId: string,
+): Promise<RegisteredCompanyEvent[]> {
+  const { data } = await client
+    .from('anonymous_company_events')
+    .select('id, event_date, created_at, event_types(code, name)')
+    .eq('browser_id', browserId)
+    .order('event_date');
+
+  type Row = {
+    id: number;
+    event_date: string;
+    created_at: string;
+    event_types: { code: EventTypeCode; name: string } | null;
+  };
+
+  return ((data as Row[] | null) ?? [])
+    .filter((row): row is Row & { event_types: { code: EventTypeCode; name: string } } => row.event_types !== null)
+    .map((row) => ({
+      id: row.id,
+      eventTypeCode: row.event_types.code,
+      eventTypeName: row.event_types.name,
+      eventDate: row.event_date,
+      createdAt: row.created_at,
+    }));
 }
