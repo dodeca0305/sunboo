@@ -173,6 +173,28 @@ v0.11「経営ロードマップ進化エンジン」2節で素描したTax Retu
   含めない（同ドキュメント9節）
 - 要判断事項: 概算レンジ入力を認めるか、Confidence分類を4分類に拡張するか、OCR構想の着手是非
 - Sprint17.2〜17.6の段階的な実装順序案は[TAX_RETURN_PROFILE_ENGINE.md](TAX_RETURN_PROFILE_ENGINE.md) 10節を参照
+- **Sprint17.2は実装済み**（`AmountValue`/`TaxReturnEntry`/`TaxReturnProfile`型、`localStorage`
+  （`sunboo:tax-return-profile`）、`/profile/tax-returns`の一覧・手入力フォーム、CompanyProfileとの
+  矛盾検出（3項目）と「申告書を採用/プロフィールを維持」の2択UI、Confidence3分類のタグ表示。
+  Playwright確認済み。詳細: [TAX_RETURN_PROFILE_MVP_PROPOSAL.md](TAX_RETURN_PROFILE_MVP_PROPOSAL.md)）
+
+## v0.13 決算更新フロー（設計完了・実装未着手）
+
+**狙い**: TaxReturnProfile入力後にCompanyProfileとの差分を確認し、Roadmap・AI参謀・通知への
+反映につなげる一連のフローを設計する。v0.12実装（Sprint17.2）が3項目のみに留まっていた
+矛盾確認を拡張し、手入力・イベント連動・将来のPDF読取という3つの入口が同じフローに合流する
+設計にした位置づけ。
+
+- 設計: [CLOSING_UPDATE_FLOW.md](CLOSING_UPDATE_FLOW.md)（Sprint 18 Phase18.1）
+- Sprint17.2の`detectMismatches`が未対応だった4項目（資本金・源泉所得税の納付サイクル・
+  インボイス登録状況・会社ステージ）を矛盾確認の対象に追加する設計（同ドキュメント3節）
+- 新規: 決算更新完了直後にのみ表示する「決算更新サマリー」コメント（同ドキュメント6節）、
+  矛盾未解決の催促通知（同ドキュメント7節）
+- 将来のPDF読取（v0.12 9節）は「入口を1つ追加するだけ」で済む設計にし、差分確認以降の
+  ロジックは変更不要とした（同ドキュメント8節）
+- 要判断事項: 会社ステージの矛盾を「維持」しても解消しない仕様でよいか、従業員数の乖離を
+  矛盾ではなく注意喚起に留める整理でよいか
+- Sprint18.2〜18.6の段階的な実装順序案は[CLOSING_UPDATE_FLOW.md](CLOSING_UPDATE_FLOW.md) 9節を参照
 
 ## v1.0 福岡県版正式リリース（未着手）
 
