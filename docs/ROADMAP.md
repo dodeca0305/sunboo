@@ -196,6 +196,25 @@ v0.11「経営ロードマップ進化エンジン」2節で素描したTax Retu
   矛盾ではなく注意喚起に留める整理でよいか
 - Sprint18.2〜18.6の段階的な実装順序案は[CLOSING_UPDATE_FLOW.md](CLOSING_UPDATE_FLOW.md) 9節を参照
 
+## v0.14 Timeline Engine（設計完了・実装未着手）
+
+**狙い**: 会社に関するすべての事実の記録（会社情報の変化・決算実績・従業員の増減・将来の会計データ）を
+単一の追記専用ログとして統合し、Roadmap・AI参謀・通知・将来のPDF/会計データ連携すべての共通基盤にする。
+引継ぎメモの最終ゴール「税務・労務・会計・経営を一つのTimelineで管理する経営OS」に向けた最初の設計。
+
+- 設計: [TIMELINE_ENGINE.md](TIMELINE_ENGINE.md)（Sprint 19 Phase19.1）
+- 核心的な判断: [ROADMAP_EVOLUTION_ENGINE.md](ROADMAP_EVOLUTION_ENGINE.md) 5節で設計済み・未実装の
+  「Roadmap History」を単体実装せず、Timelineの`company`/`tax`カテゴリとして統合する（同ドキュメント
+  0節・5節）。既存の`anonymous_company_events`（DB）・`TaxReturnProfile`（localStorage）は変更せず、
+  Timelineはこれらを読み取り専用のビューとして統合し、既存データに対応しない新規記録
+  （Advisoryカテゴリ等）のみ`localStorage`新規キー（`sunboo:timeline`）に追記する設計
+- 新規導入する概念: `TimelineEvent`（`occurredAt`/`recordedAt`を分離した正規化イベントモデル）、
+  5カテゴリ（Company/Tax/HR/Financial/Advisory）、Event-Driven設計（Timelineへの追記がRule Engine・
+  Change Interview・Roadmap・AI参謀・通知を駆動する関係の整理）
+- 要判断事項: Roadmap History統合の方針（Sprint16.3 Roadmap Update Engine本体の完了待ちになる点）、
+  Advisory Timeline（AI参謀・通知の発信記録）の記録タイミング、事実の訂正を追記で表現する方針の妥当性
+- Sprint19.2〜19.6の段階的な実装順序案は[TIMELINE_ENGINE.md](TIMELINE_ENGINE.md) 10節を参照
+
 ## v1.0 福岡県版正式リリース（未着手）
 
 **狙い**: 東京都渋谷区・福岡県全域という現状の対応エリアのうち、福岡県を軸に正式リリースする。
