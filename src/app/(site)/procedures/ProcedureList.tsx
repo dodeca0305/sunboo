@@ -23,6 +23,7 @@ type ProcedureItem = {
 
 const CATEGORY_LABEL: Record<ProcedureCategory, string> = {
   tax: '税務',
+  local_tax: '地方税',
   labor: '労務',
   insurance: '社保',
   registration: '登録',

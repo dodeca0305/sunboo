@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Search, Zap, UserCircle } from 'lucide-react';
+import { Search, Zap, UserCircle, CalendarRange } from 'lucide-react';
 import FeedbackLink from '@/components/FeedbackLink';
 
 export default function SiteLayout({
@@ -56,6 +56,13 @@ export default function SiteLayout({
               プロフィール
             </Link>
             <Link
+              href="/roadmap"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+            >
+              <CalendarRange className="h-4 w-4" />
+              ロードマップ
+            </Link>
+            <Link
               href="/search"
               className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
               aria-label="検索"
@@ -97,6 +104,9 @@ export default function SiteLayout({
               </Link>
               <Link href="/profile" className="text-gray-500 transition-colors hover:text-gray-900">
                 プロフィール
+              </Link>
+              <Link href="/roadmap" className="text-gray-500 transition-colors hover:text-gray-900">
+                ロードマップ
               </Link>
               <Link href="/start" className="text-gray-500 transition-colors hover:text-gray-900">
                 診断する

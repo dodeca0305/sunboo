@@ -252,7 +252,8 @@ export function deriveConsumptionTaxInterimFrequency(
 // ── 会社ステージ・納期の特例による手続きの出し分け（設計書 ④⑤、Phase14.2追加分）───
 
 // stage === 'second_term_or_later' のとき非表示にする設立系手続き（procedures.code）。
-const ESTABLISHMENT_PROCEDURE_CODES = new Set([
+// roadmap.ts（Sprint21.2）もConfidence判定にこのSetを再利用するためexportする（重複させない）。
+export const ESTABLISHMENT_PROCEDURE_CODES = new Set([
   'CORP_ESTABLISH_TAX',   // 法人設立届出書
   'BLUE_RETURN_APPROVAL', // 青色申告承認申請書
   'PAYROLL_OFFICE_OPEN',  // 給与支払事務所等の開設届
@@ -261,7 +262,7 @@ const ESTABLISHMENT_PROCEDURE_CODES = new Set([
   'LEGAL_ESTABLISH_GODO', // 合同会社設立登記
 ]);
 
-const WITHHOLDING_TAX_CODE = 'WITHHOLDING_TAX'; // 源泉所得税の納付
+export const WITHHOLDING_TAX_CODE = 'WITHHOLDING_TAX'; // 源泉所得税の納付（roadmap.tsも参照）
 
 function toIsoDate(d: Date): string {
   const y = d.getFullYear();

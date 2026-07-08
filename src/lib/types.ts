@@ -91,7 +91,7 @@ export type Jurisdiction = {
   organization_office_id: number;
 };
 
-export type ProcedureCategory = 'tax' | 'labor' | 'insurance' | 'registration' | 'legal' | 'other';
+export type ProcedureCategory = 'tax' | 'local_tax' | 'labor' | 'insurance' | 'registration' | 'legal' | 'other';
 
 export type CorporateType = 'kabushiki' | 'godo';
 

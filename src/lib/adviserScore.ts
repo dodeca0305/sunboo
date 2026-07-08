@@ -363,6 +363,7 @@ export function buildClosingUpdateSummary(
 // 「今やっておくべき準備」はカテゴリ別の一般的な準備内容（決定的ロジック、DB追加なし）。
 const PREP_PHRASE: Record<ProcedureCategory, string> = {
   tax: '必要書類・金額を整理しておきましょう。',
+  local_tax: '必要書類・金額を整理しておきましょう。',
   labor: '賃金・勤怠関係の資料を整理しておきましょう。',
   insurance: '対象者・保険料の情報を確認しておきましょう。',
   registration: '必要な証明書・書類を準備しておきましょう。',
@@ -437,6 +438,7 @@ const RISK_BY_CODE: Record<string, string> = {
 
 const RISK_BY_CATEGORY: Record<ProcedureCategory, string> = {
   tax: '提出が遅れると、税務署とのやり取りで追加の対応が必要になる可能性があります。',
+  local_tax: '提出が遅れると、都道府県・市区町村とのやり取りで追加の対応が必要になる可能性があります。',
   labor: '未提出のままだと、労務関連の手続きに遅延が生じる可能性があります。',
   insurance: '未提出のままだと、保険の適用開始が遅れる可能性があります。',
   registration: '提出が遅れると、行政手続き上の不利益が生じる可能性があります。',
