@@ -106,6 +106,11 @@ Roadmap反映順序を整理した。詳細: [PROCEDURE_MASTER_AUDIT.md](PROCEDU
 > `anonymous_company_events`注記）。本フェーズ着手時は、これを流用するか無関係として扱うかを
 > まずユーザーに確認すること。
 
+> **追記（Sprint22）**: 本節が想定していた内容は[COMPANY_WORKSPACE.md](COMPANY_WORKSPACE.md)
+> （v0.17）として具体化された。「事務所アカウント」は「管理者・担当者・経営者・閲覧のみ」の
+> 4ロール、「永続的な会社エンティティ」は`companies`テーブル（本節の注記にある既存レガシー
+> テーブルを流用するか要判断）として設計を進めている。以降の詳細はv0.17を参照。
+
 ## v0.9 AI参謀β（未着手）
 
 **狙い**: 蓄積された会社データ・手続き履歴・ルール判定結果をもとに、AIが経営者に能動的な助言を行う機能。
@@ -232,6 +237,51 @@ Rule Engine・Roadmap・AI参謀が参照できる正規化された現在地を
 - 要判断事項: 既存`derive*`関数・`detectMismatches`との統合方式（置き換えの時期・範囲）、
   Timeline上で矛盾する複数の記録がある場合の優先順位、Roadmap計算式をStateベースに簡略化するか
 - Sprint20.2〜20.6の段階的な実装順序案は[STATE_ENGINE.md](STATE_ENGINE.md) 10節を参照
+
+## v0.16 Annual Roadmap Engine（設計完了・実装済み）
+
+**狙い**: State（v0.15）・Timeline・Procedure Master・Rule Engineを統合し、経営者へ「年間ロードマップ」
+（今年度〜今後2年分の手続き予定）を一覧提示する最初の画面を実装する。
+
+- 設計: [ANNUAL_ROADMAP_ENGINE.md](ANNUAL_ROADMAP_ENGINE.md)（Sprint 21 Phase21.1）
+- 核心的な判断: [STATE_ENGINE.md](STATE_ENGINE.md) 7節が予告していた将来の簡略化式
+  `Roadmap = f(State, ProcedureMaster, RuleEngine, 今日の日付)`を正式採用し、`RoadmapItem`の
+  Confidenceは独自計算せず`StateField.confidence`をそのまま使う設計にした。Roadmap History
+  （[ROADMAP_EVOLUTION_ENGINE.md](ROADMAP_EVOLUTION_ENGINE.md) 5節）はTimelineで代替済みと
+  結論づけ、独立実装しなかった
+- 実装（Sprint21.2、実施済み）: `src/lib/roadmap.ts`（`RoadmapItem`/`RoadmapYear`型、
+  `buildAnnualRoadmap()`）、`/roadmap`ページ（一覧表示のみ、AI参謀・通知エンジンとは未接続）。
+  既存の`runDiagnosis`/`evaluateRules`/`applyCompanyProfileToProcedures`/`calculateNextDeadline`は
+  いずれも無変更のまま、「次のN回」ラッパーで複数年分に展開する設計で再利用した。あわせて
+  `procedures.category`の`'local_tax'`がTypeScript型に未追加だった既知の表示バグ（地方税系5件が
+  「その他」にフォールバックしていた）も解消した
+- 既知の制約: `withholdingTaxCycle`のState欠落（v0.15から持ち越し）、消費税中間申告の年3回/11回の
+  複数期日対応、`buildRoadmapForesight`/`buildRoadmapAlerts`は未着手のままスコープ外とした
+- 複数年ホライズンはβ版として3年固定を採用（[ANNUAL_ROADMAP_ENGINE.md](ANNUAL_ROADMAP_ENGINE.md) 6-2節）
+
+## v0.17 Company Workspace（設計完了・実装未着手）
+
+**狙い**: SUNBOOの主利用者を「経営者本人」から「管理者・税理士」へ転換する。管理者・税理士が
+会社ごとにログインし、Company Profile・Tax Return Profile・Timeline・State・Annual Roadmap・
+Events・Accounting Data・Financial Analysis・AI参謀・Documentsを一元管理し、必要な情報だけを
+経営者へ共有できるモデルを目指す。v0.8「顧問先管理」が置いていた構想を正式に具体化するもの。
+
+- 設計: [COMPANY_WORKSPACE.md](COMPANY_WORKSPACE.md)（Sprint 22 Phase22.1）
+- 核心的な判断: 診断エンジン・Rule Engine・Timeline/State/Annual Roadmap Engine・AI参謀・
+  通知エンジンはいずれも「渡されたデータに対する純粋関数」であり、`localStorage`かDBかを
+  関知しない設計になっている。**Company Workspaceはこれらの計算ロジックを一切変更せず、
+  「データの出どころ」と「誰が見られるか」だけを変える利用モデルの転換**と位置づけた
+  （同ドキュメント1-2節）
+- 新規導入する概念: 会社一覧・会社別Workspace（10タブ構成）、経営者への共有リンクモデル
+  （ログイン不要、項目単位でトグル）、4段階の権限設計（管理者/担当者/経営者/閲覧のみ、
+  現状の`admin_users`はロールを持たないため完全新規）
+- 最重要の要判断事項: 本番に既に存在する素性不明の`companies`/`company_events`
+  （`auth_user_id`/`company_id`軸、`admin_read`ポリシー付き。v0.8の注記で判明済み）を
+  流用するか、無関係として扱い新規設計するか（同ドキュメント0節・8-3節）
+- その他の要判断事項: `(site)`配下の`/profile`/`/events`/`/roadmap`/`/result`を段階的共存
+  させるか、Workspaceへ一本化するか（同ドキュメント9-3節）。経営者への共有を将来的に
+  軽量ログインへ拡張するタイミング（同ドキュメント6-2節）
+- Sprint22.2〜22.6の段階的な実装順序案は[COMPANY_WORKSPACE.md](COMPANY_WORKSPACE.md) 10節を参照
 
 ## v1.0 福岡県版正式リリース（未着手）
 
