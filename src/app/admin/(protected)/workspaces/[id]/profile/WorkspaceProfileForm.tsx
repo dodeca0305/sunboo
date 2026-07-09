@@ -1,0 +1,251 @@
+'use client';
+
+import { useState } from 'react';
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
+import { createBrowserSupabase } from '@/lib/supabase/browser';
+import type { CorporateType } from '@/lib/types';
+import type {
+  CompanyProfile, CompanyStage, ConsumptionTaxStatus, InvoiceRegistrationStatus, WithholdingTaxCycle,
+} from '@/lib/companyProfile';
+import { companyProfileToWorkspaceUpdatePayload } from '@/lib/workspaceCompanyProfile';
+
+// ── Company Workspace — 会社プロフィール編集フォーム（Sprint 23 Phase23.2）───────
+// 既存 src/app/(site)/profile/page.tsx の項目・トーンを参考にしつつ、MVPとして主要10項目のみを
+// 編集対象にする（丸ごとコピーはしない）。taxationMethod・corporateTaxInterimFiling・
+// consumptionTaxInterimFrequency・localTaxCollectionMethod・eTaxEnabled・eLTaxEnabled・
+// 顧問税理士以外のadvisorsは、読み込んだ値をそのまま保持して書き戻す（このフォームでは変更しない）。
+
+const CORPORATE_TYPE_LABEL: Record<CorporateType, string> = {
+  kabushiki: '株式会社',
+  godo: '合同会社',
+};
+
+const STAGE_LABEL: Record<CompanyStage, string> = {
+  pre_establishment: '設立前',
+  first_term: '1期目',
+  second_term_or_later: '2期目以降',
+};
+
+const CONSUMPTION_TAX_LABEL: Record<ConsumptionTaxStatus, string> = {
+  exempt: '免税事業者',
+  taxable: '課税事業者',
+};
+
+const INVOICE_LABEL: Record<InvoiceRegistrationStatus, string> = {
+  registered: '登録済み',
+  not_registered: '未登録',
+};
+
+const WITHHOLDING_CYCLE_LABEL: Record<WithholdingTaxCycle, string> = {
+  monthly: '毎月納付',
+  special_exception: '納期の特例（年2回）',
+  unset: '未設定',
+};
+
+const FISCAL_MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
+
+export default function WorkspaceProfileForm({
+  companyId,
+  initialProfile,
+}: {
+  companyId: number;
+  initialProfile: CompanyProfile;
+}) {
+  const [profile, setProfile] = useState<CompanyProfile>(initialProfile);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function set<K extends keyof CompanyProfile>(key: K, value: CompanyProfile[K]) {
+    setProfile((p) => ({ ...p, [key]: value }));
+    setSaved(false);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    const supabase = createBrowserSupabase();
+    if (!supabase) {
+      setError('Supabase が設定されていません。');
+      return;
+    }
+
+    setSaving(true);
+    const { companyFields, profileFields } = companyProfileToWorkspaceUpdatePayload(profile);
+
+    const { error: companyError } = await supabase
+      .from('workspace_companies')
+      .update(companyFields)
+      .eq('id', companyId);
+
+    if (companyError) {
+      setSaving(false);
+      setError(`会社情報の保存に失敗しました: ${companyError.message}`);
+      return;
+    }
+
+    const { error: profileError } = await supabase
+      .from('workspace_company_profiles')
+      .upsert({ company_id: companyId, ...profileFields }, { onConflict: 'company_id' });
+
+    setSaving(false);
+    if (profileError) {
+      setError(`プロフィールの保存に失敗しました: ${profileError.message}`);
+      return;
+    }
+
+    setSaved(true);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="card max-w-2xl space-y-5">
+      {error && (
+        <div className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          {error}
+        </div>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="form-label">法人種別</label>
+          <select
+            value={profile.corporateType}
+            onChange={(e) => set('corporateType', e.target.value as CorporateType)}
+            className="form-select"
+          >
+            {(['kabushiki', 'godo'] as const).map((v) => (
+              <option key={v} value={v}>{CORPORATE_TYPE_LABEL[v]}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="form-label">決算月</label>
+          <select
+            value={profile.fiscalMonth ?? ''}
+            onChange={(e) => set('fiscalMonth', e.target.value ? Number(e.target.value) : null)}
+            className="form-select"
+          >
+            <option value="">未設定</option>
+            {FISCAL_MONTHS.map((m) => (
+              <option key={m} value={m}>{m}月</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="form-label">設立日</label>
+          <input
+            type="date"
+            value={profile.establishedDate ?? ''}
+            onChange={(e) => set('establishedDate', e.target.value || null)}
+            className="form-input"
+          />
+        </div>
+        <div>
+          <label className="form-label">資本金（円）</label>
+          <input
+            type="number"
+            min={0}
+            step={10000}
+            placeholder="例: 5000000"
+            value={profile.capital ?? ''}
+            onChange={(e) => set('capital', e.target.value === '' ? null : Number(e.target.value))}
+            className="form-input"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="form-label">従業員数</label>
+        <input
+          type="number"
+          min={0}
+          value={profile.employeeCount}
+          onChange={(e) => set('employeeCount', Math.max(0, Number(e.target.value) || 0))}
+          className="form-input"
+        />
+      </div>
+
+      <div>
+        <label className="form-label">会社ステージ</label>
+        <select
+          value={profile.stage}
+          onChange={(e) => set('stage', e.target.value as CompanyStage)}
+          className="form-select"
+        >
+          {(['pre_establishment', 'first_term', 'second_term_or_later'] as const).map((v) => (
+            <option key={v} value={v}>{STAGE_LABEL[v]}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="form-label">消費税ステータス</label>
+          <select
+            value={profile.consumptionTaxStatus}
+            onChange={(e) => set('consumptionTaxStatus', e.target.value as ConsumptionTaxStatus)}
+            className="form-select"
+          >
+            {(['exempt', 'taxable'] as const).map((v) => (
+              <option key={v} value={v}>{CONSUMPTION_TAX_LABEL[v]}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="form-label">インボイス登録状況</label>
+          <select
+            value={profile.invoiceRegistrationStatus}
+            onChange={(e) => set('invoiceRegistrationStatus', e.target.value as InvoiceRegistrationStatus)}
+            className="form-select"
+          >
+            {(['not_registered', 'registered'] as const).map((v) => (
+              <option key={v} value={v}>{INVOICE_LABEL[v]}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label className="form-label">源泉所得税の納付サイクル</label>
+        <select
+          value={profile.withholdingTaxCycle}
+          onChange={(e) => set('withholdingTaxCycle', e.target.value as WithholdingTaxCycle)}
+          className="form-select"
+        >
+          {(['unset', 'monthly', 'special_exception'] as const).map((v) => (
+            <option key={v} value={v}>{WITHHOLDING_CYCLE_LABEL[v]}</option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          <input
+            type="checkbox"
+            checked={profile.advisors.taxAccountant}
+            onChange={(e) => set('advisors', { ...profile.advisors, taxAccountant: e.target.checked })}
+            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          顧問税理士がいる
+        </label>
+      </div>
+
+      <div className="flex items-center gap-3 border-t border-gray-100 pt-5">
+        <button type="submit" disabled={saving} className="btn-primary disabled:opacity-60">
+          {saving ? '保存中…' : '保存する'}
+        </button>
+        {saved && (
+          <span className="flex items-center gap-1 text-xs font-medium text-blue-600">
+            <CheckCircle2 className="h-4 w-4" />
+            保存しました
+          </span>
+        )}
+      </div>
+    </form>
+  );
+}
