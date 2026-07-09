@@ -6,6 +6,7 @@ import { workspaceRowsToCompanyProfile, type WorkspaceCompanyProfileRow, type Wo
 import { buildWorkspaceTimelineEvents } from '@/lib/workspaceTimelineProducer';
 import { buildStateFromTimeline } from '@/lib/state';
 import { buildAnnualRoadmap } from '@/lib/roadmap';
+import type { WorkspaceProcedureStatus, WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
 import AnnualRoadmapView from '@/components/AnnualRoadmapView';
 
 // ── Company Workspace — 年間ロードマップ（Sprint 23 Phase23.3・Phase23.4）─────
@@ -23,6 +24,11 @@ import AnnualRoadmapView from '@/components/AnnualRoadmapView';
 // 一方、会社設立イベントが1件でもTimelineに入ることで、stage（1期目と確定できる）・
 // consumptionTaxStatus（1期目なら免税、または資本金1,000万円以上なら課税と確定できる）は
 // confirmed/estimatedになり得る（本ファイル冒頭の確認事項参照）。
+//
+// 【Sprint24.1で追加】workspace_procedure_statuses（本Sprint新設）から手続きステータスを取得し、
+// AnnualRoadmapViewにcompanyIdとあわせて渡す。ステータス変更（クリック操作）自体は
+// AnnualRoadmapView内部で完結する（Server Componentである本ページからは関数propsを
+// 渡せないため）。
 
 export default async function WorkspaceRoadmapPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -45,13 +51,19 @@ export default async function WorkspaceRoadmapPage({ params }: { params: Promise
   // 想定外のデータ（DB行の欠落・形式不一致等）で例外が出ても画面が真っ白/無反応にならないよう、
   // try/catchで捕捉してエラーカードを表示する（Sprint23.3レビューで追加した防御的措置）。
   let roadmapYears: Awaited<ReturnType<typeof buildAnnualRoadmap>> = [];
+  let statusMap: WorkspaceProcedureStatusMap = {};
   let computeError: string | null = null;
   try {
-    const [{ data: profileData }, { data: prefData }, { data: muniData }] = await Promise.all([
+    const [{ data: profileData }, { data: prefData }, { data: muniData }, { data: statusData }] = await Promise.all([
       supabase.from('workspace_company_profiles').select('*').eq('company_id', companyId).maybeSingle(),
       supabase.from('prefectures').select('name').eq('code', company.prefecture_code).maybeSingle(),
       supabase.from('municipalities').select('name').eq('code', company.municipality_code).maybeSingle(),
+      supabase.from('workspace_procedure_statuses').select('procedure_id, status').eq('company_id', companyId),
     ]);
+
+    for (const row of (statusData as { procedure_id: number; status: WorkspaceProcedureStatus }[] | null) ?? []) {
+      statusMap[row.procedure_id] = row.status;
+    }
 
     const profile = (profileData as WorkspaceCompanyProfileRow | null) ?? null;
     const prefectureName = (prefData as { name: string } | null)?.name ?? '';
@@ -105,7 +117,7 @@ export default async function WorkspaceRoadmapPage({ params }: { params: Promise
           表示できる手続きがありません。会社プロフィールの決算月などの登録状況をご確認ください。
         </div>
       ) : (
-        <AnnualRoadmapView roadmapYears={roadmapYears} />
+        <AnnualRoadmapView roadmapYears={roadmapYears} statusMap={statusMap} companyId={companyId} />
       )}
     </div>
   );

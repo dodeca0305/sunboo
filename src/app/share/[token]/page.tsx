@@ -6,14 +6,18 @@ import {
 import { buildWorkspaceTimelineEvents } from '@/lib/workspaceTimelineProducer';
 import { buildStateFromTimeline } from '@/lib/state';
 import { buildAnnualRoadmap } from '@/lib/roadmap';
+import type { WorkspaceProcedureStatus, WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
 import AnnualRoadmapView from '@/components/AnnualRoadmapView';
 
-// ── Company Workspace — 経営者向け共有ページ（Sprint 24 Phase24.0）───────
+// ── Company Workspace — 経営者向け共有ページ（Sprint 24 Phase24.0・Phase24.1）───
 // ログイン不要・編集不可の閲覧専用ページ。get_shared_workspace_view（Sprint22.4 MVP migration、
-// SECURITY DEFINER RPC）をanonキーで呼び出し、トークンが有効な場合のみ会社情報を受け取る。
-// Roadmap自体はRPCで計算せず（保存しない設計、docs/WORKSPACE_DB_DESIGN.md 12-2節）、
-// このページがbuildAnnualRoadmap（無変更）をanonキーのクライアントで呼び出して都度計算する
-// （procedures/rulesは既存の公開/roadmapページと同じくanonにSELECT許可済みのため成立する）。
+// Sprint24.1でstatusesを追加、SECURITY DEFINER RPC）をanonキーで呼び出し、トークンが
+// 有効な場合のみ会社情報を受け取る。Roadmap自体はRPCで計算せず（保存しない設計、
+// docs/WORKSPACE_DB_DESIGN.md 12-2節）、このページがbuildAnnualRoadmap（無変更）をanonキーの
+// クライアントで呼び出して都度計算する（procedures/rulesは既存の公開/roadmapページと同じく
+// anonにSELECT許可済みのため成立する）。手続きステータスはRPCが返す"statuses"配列を
+// そのまま表示するのみで、companyIdを渡さないため編集はできない
+// （AnnualRoadmapViewのeditable判定はstatusMap+companyId両方が必要）。
 // AI参謀・書類・会計分析は本Sprintでは共有しない（docs/COMPANY_WORKSPACE.md 5節、要判断事項）。
 
 const CORPORATE_TYPE_LABEL: Record<string, string> = {
@@ -38,7 +42,11 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
   }
 
   const { data: viewData } = await supabase.rpc('get_shared_workspace_view', { p_token: token });
-  const view = viewData as { company?: WorkspaceCompanyRow; profile?: WorkspaceCompanyProfileRow | null } | null;
+  const view = viewData as {
+    company?: WorkspaceCompanyRow;
+    profile?: WorkspaceCompanyProfileRow | null;
+    statuses?: { procedure_id: number; status: WorkspaceProcedureStatus }[];
+  } | null;
 
   if (!view || !view.company) {
     return <InvalidLinkNotice message="このリンクは無効か、有効期限が切れています。共有元にお問い合わせください。" />;
@@ -46,6 +54,10 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
 
   const company = view.company;
   const profile = view.profile ?? null;
+  const statusMap: WorkspaceProcedureStatusMap = {};
+  for (const row of view.statuses ?? []) {
+    statusMap[row.procedure_id] = row.status;
+  }
 
   const [{ data: prefData }, { data: muniData }] = await Promise.all([
     supabase.from('prefectures').select('name').eq('code', company.prefecture_code).maybeSingle(),
@@ -111,7 +123,7 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
           表示できる手続きがありません。
         </div>
       ) : (
-        <AnnualRoadmapView roadmapYears={roadmapYears} />
+        <AnnualRoadmapView roadmapYears={roadmapYears} statusMap={statusMap} />
       )}
 
       <p className="mt-10 flex items-start gap-2 text-xs text-gray-400">
