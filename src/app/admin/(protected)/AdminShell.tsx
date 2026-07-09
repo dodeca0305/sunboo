@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   Building2,
+  Briefcase,
   ClipboardList,
   Link2,
   Upload,
@@ -21,6 +22,7 @@ import { createBrowserSupabase } from '@/lib/supabase/browser';
 
 const NAV_ITEMS = [
   { href: '/admin', label: 'ダッシュボード', icon: LayoutDashboard, exact: true },
+  { href: '/admin/workspaces', label: '顧問先', icon: Briefcase },
   { href: '/admin/offices', label: '管轄機関', icon: Building2 },
   { href: '/admin/organization-types', label: '機関種別', icon: Tags },
   { href: '/admin/procedures', label: '手続き', icon: ClipboardList },
