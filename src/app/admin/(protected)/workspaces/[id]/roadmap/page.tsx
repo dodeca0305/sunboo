@@ -3,24 +3,26 @@ import { notFound } from 'next/navigation';
 import { ChevronLeft, CalendarRange, Info, AlertTriangle } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { workspaceRowsToCompanyProfile, type WorkspaceCompanyProfileRow, type WorkspaceCompanyRow } from '@/lib/workspaceCompanyProfile';
+import { buildWorkspaceTimelineEvents } from '@/lib/workspaceTimelineProducer';
 import { buildStateFromTimeline } from '@/lib/state';
 import { buildAnnualRoadmap } from '@/lib/roadmap';
 import AnnualRoadmapView from '@/components/AnnualRoadmapView';
 
-// ── Company Workspace — 年間ロードマップ（Sprint 23 Phase23.3）──────────
+// ── Company Workspace — 年間ロードマップ（Sprint 23 Phase23.3・Phase23.4）─────
 // buildAnnualRoadmap（src/lib/roadmap.ts）・buildStateFromTimeline（src/lib/state.ts）は
 // いずれも無変更で再利用する。表示は AnnualRoadmapView（src/components/）を
 // src/app/(site)/roadmap/page.tsx と共有する。
 //
-// 【Sprint23.3のスコープ】workspace_timeline_events・workspace_tax_return_profiles・
-// workspace_company_events はまだ存在しない（Sprint22.4 MVP migrationの対象外）ため、
-// Timelineは空配列として扱う（buildStateFromTimeline([])）。この結果、Stateの全フィールドは
-// 常にincompleteになり、State経由でのみ判定される項目（消費税確定申告の追加等、
-// src/lib/roadmap.ts参照）はRoadmapに反映されない。一方、CompanyProfile
-// （workspace_company_profilesの値）を直接参照する項目（会社ステージによる設立系手続きの
-// 除外、源泉所得税の特例、決算月・法人種別・従業員数）は本Sprintでも正しく反映される。
-// この差はSprint22.4のDBスキーマを変更せずに対応する本Sprintの制約による既知の限界であり、
-// workspace_timeline_events等の実装（Sprint23.4以降）で解消する見込み。
+// 【Sprint23.4で追加】buildWorkspaceTimelineEvents（src/lib/workspaceTimelineProducer.ts）で
+// workspace_company_profiles由来（会社設立イベント）のTimelineを構築し、State計算に渡すように
+// なった。ただしworkspace_tax_return_profiles・workspace_company_events はまだ存在しない
+// （DBスキーマ変更なしの制約）ため、tax/eventカテゴリのTimelineEventはまだ構築できない。
+// このため、tax_return_profileソースが必要なState項目（invoiceRegistrationStatus・
+// withholdingTaxCycle・2期目以降のconsumptionTaxStatus/corporateTaxInterimFiling等）は
+// 引き続きincompleteのままになる（次Sprint以降、workspace_tax_return_profiles実装後に解消見込み）。
+// 一方、会社設立イベントが1件でもTimelineに入ることで、stage（1期目と確定できる）・
+// consumptionTaxStatus（1期目なら免税、または資本金1,000万円以上なら課税と確定できる）は
+// confirmed/estimatedになり得る（本ファイル冒頭の確認事項参照）。
 
 export default async function WorkspaceRoadmapPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -57,8 +59,9 @@ export default async function WorkspaceRoadmapPage({ params }: { params: Promise
 
     const companyProfile = workspaceRowsToCompanyProfile(company, profile, prefectureName, municipalityName);
 
-    // Timeline未実装のため空配列扱い（本ファイル冒頭コメント参照）
-    const state = buildStateFromTimeline([]);
+    // company_profileソースのみのTimeline（本ファイル冒頭コメント参照。tax/eventソースは未実装）
+    const timelineEvents = buildWorkspaceTimelineEvents(companyProfile);
+    const state = buildStateFromTimeline(timelineEvents);
     roadmapYears = await buildAnnualRoadmap(supabase, companyProfile, state, 3);
   } catch (err) {
     computeError = err instanceof Error ? err.message : '不明なエラー';
