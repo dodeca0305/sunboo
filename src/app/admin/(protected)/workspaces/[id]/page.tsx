@@ -1,14 +1,26 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
-  ChevronLeft, Building2, Receipt, CalendarRange, Share2, BarChart3, Sparkles, FileStack,
+  ChevronLeft, Building2, Receipt, CalendarRange, Share2, BarChart3, FileStack,
 } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
+import { workspaceRowsToCompanyProfile, type WorkspaceCompanyProfileRow } from '@/lib/workspaceCompanyProfile';
+import { buildWorkspaceTimelineEvents } from '@/lib/workspaceTimelineProducer';
+import { buildStateFromTimeline } from '@/lib/state';
+import { buildAnnualRoadmap } from '@/lib/roadmap';
+import type { WorkspaceProcedureStatus, WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
+import { generateWorkspaceAdvice } from '@/lib/workspaceAdvice';
+import WorkspaceAdviceCard from '@/components/WorkspaceAdviceCard';
 
-// ── Company Workspace Shell（Sprint23.1〜23.4・Sprint24.0）───────────
+// ── Company Workspace Shell（Sprint23.1〜23.4・Sprint24.0・Sprint24.2）───────
 // 会社別Workspaceの「入口」と「骨組み」。会社プロフィール（23.2）・年間ロードマップ（23.3・23.4）・
 // 共有（24.0）は実装済みのためリンクを張る。TaxReturn編集はいずれも次Sprint以降
 // （docs/COMPANY_WORKSPACE.md 4節・10節）。
+//
+// 【Sprint24.2で追加】AI参謀カード。データ取得〜State/Roadmap計算はroadmap/page.tsxと同じ
+// パターンを踏襲し（buildWorkspaceTimelineEvents → buildStateFromTimeline → buildAnnualRoadmap）、
+// 計算結果をgenerateWorkspaceAdvice（純粋関数、src/lib/workspaceAdvice.ts）に渡すだけで、
+// 既存Engineには一切手を入れない。ルールベースMVP（LLM未使用）。
 
 type WorkspaceCompanyRow = {
   id: number;
@@ -30,7 +42,6 @@ const SECTIONS = [
   { icon: CalendarRange, title: '年間ロードマップ', description: '今後の手続き予定の一覧', hrefSuffix: '/roadmap', comingSoon: false },
   { icon: Share2, title: '共有', description: '経営者への共有リンクの発行・管理', hrefSuffix: '/share', comingSoon: false },
   { icon: BarChart3, title: '会計分析', description: '決算実績の推移分析', hrefSuffix: null, comingSoon: true },
-  { icon: Sparkles, title: 'AI参謀', description: '優先度判断・アドバイス', hrefSuffix: null, comingSoon: true },
   { icon: FileStack, title: '書類', description: '決算書・登記簿謄本等の添付', hrefSuffix: null, comingSoon: true },
 ] as const;
 
@@ -51,6 +62,37 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
   const company = data as WorkspaceCompanyRow | null;
   if (!company) notFound();
 
+  // buildAnnualRoadmapは診断エンジン・Rule Engineへの複数のDB問い合わせを内部で行うため、
+  // 想定外のデータで例外が出てもAI参謀カードが画面全体を巻き込んで落ちないよう、
+  // try/catchで捕捉する（roadmap/page.tsxと同じ防御的措置）。取得失敗時はカード自体を表示しない。
+  let advice: ReturnType<typeof generateWorkspaceAdvice> | null = null;
+  try {
+    const [{ data: profileData }, { data: prefData }, { data: muniData }, { data: statusData }] = await Promise.all([
+      supabase.from('workspace_company_profiles').select('*').eq('company_id', companyId).maybeSingle(),
+      supabase.from('prefectures').select('name').eq('code', company.prefecture_code).maybeSingle(),
+      supabase.from('municipalities').select('name').eq('code', company.municipality_code).maybeSingle(),
+      supabase.from('workspace_procedure_statuses').select('procedure_id, status').eq('company_id', companyId),
+    ]);
+
+    const statusMap: WorkspaceProcedureStatusMap = {};
+    for (const row of (statusData as { procedure_id: number; status: WorkspaceProcedureStatus }[] | null) ?? []) {
+      statusMap[row.procedure_id] = row.status;
+    }
+
+    const profile = (profileData as WorkspaceCompanyProfileRow | null) ?? null;
+    const prefectureName = (prefData as { name: string } | null)?.name ?? '';
+    const municipalityName = (muniData as { name: string } | null)?.name ?? '';
+
+    const companyProfile = workspaceRowsToCompanyProfile(company, profile, prefectureName, municipalityName);
+    const timelineEvents = buildWorkspaceTimelineEvents(companyProfile);
+    const state = buildStateFromTimeline(timelineEvents);
+    const roadmapYears = await buildAnnualRoadmap(supabase, companyProfile, state, 3);
+
+    advice = generateWorkspaceAdvice(roadmapYears, statusMap, state);
+  } catch {
+    advice = null;
+  }
+
   return (
     <div className="space-y-6">
       <Link href="/admin/workspaces" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900">
@@ -65,6 +107,8 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
           {company.fiscal_month && <span className="tag">決算月: {company.fiscal_month}月</span>}
         </div>
       </div>
+
+      {advice && <WorkspaceAdviceCard advice={advice} />}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {SECTIONS.map(({ icon: Icon, title, description, hrefSuffix, comingSoon }) => {
