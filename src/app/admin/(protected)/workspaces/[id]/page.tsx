@@ -9,12 +9,13 @@ import { buildWorkspaceTimelineEvents } from '@/lib/workspaceTimelineProducer';
 import { buildStateFromTimeline, type CompanyState } from '@/lib/state';
 import { buildAnnualRoadmap } from '@/lib/roadmap';
 import type { WorkspaceProcedureStatus, WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
+import type { WorkspaceDocumentStatus } from '@/lib/workspaceDocumentStatus';
 import { generateWorkspaceAdvice, summarizeWorkspaceProgress, type WorkspaceAdvice, type WorkspaceProgressSummary } from '@/lib/workspaceAdvice';
 import WorkspaceDashboard from '@/components/WorkspaceDashboard';
 
-// ── Company Workspace Shell（Sprint23.1〜23.4・Sprint24.0・Sprint24.2・Sprint25）─────
+// ── Company Workspace Shell（Sprint23.1〜23.4・Sprint24.0・Sprint24.2・Sprint25・Sprint26）───
 // 会社別Workspaceの「入口」と「骨組み」。会社プロフィール（23.2）・年間ロードマップ（23.3・23.4）・
-// 共有（24.0）は実装済みのためリンクを張る。TaxReturn編集はいずれも次Sprint以降
+// 共有（24.0）・書類（26）は実装済みのためリンクを張る。TaxReturn編集は次Sprint以降
 // （docs/COMPANY_WORKSPACE.md 4節・10節）。
 //
 // 【Sprint25で本ページをホームダッシュボード化】データ取得〜State/Roadmap計算はroadmap/page.tsxと
@@ -23,6 +24,11 @@ import WorkspaceDashboard from '@/components/WorkspaceDashboard';
 // src/lib/workspaceAdvice.ts）に渡すだけで、既存Engineには一切手を入れない。
 // Sprint24.2のWorkspaceAdviceCardはWorkspaceDashboardに統合し、「今日やること」「期限警告」
 // 「進捗サマリー」「AI参謀」「会社概要」の5区画に再構成した。
+//
+// 【Sprint26で追加】workspace_documents（本Sprint新設）から「要更新」件数のみを取得し、
+// ダッシュボードに渡す。書類一覧・状態変更自体は/documentsサブページ（WorkspaceDocumentsView）が
+// 担当し、本ページは件数の表示のみを行う（roadmap Engineの成否に依存させないため、
+// 別のtry/catchで独立して取得する）。
 
 type WorkspaceCompanyRow = {
   id: number;
@@ -44,7 +50,7 @@ const SECTIONS = [
   { icon: CalendarRange, title: '年間ロードマップ', description: '今後の手続き予定の一覧', hrefSuffix: '/roadmap', comingSoon: false },
   { icon: Share2, title: '共有', description: '経営者への共有リンクの発行・管理', hrefSuffix: '/share', comingSoon: false },
   { icon: BarChart3, title: '会計分析', description: '決算実績の推移分析', hrefSuffix: null, comingSoon: true },
-  { icon: FileStack, title: '書類', description: '決算書・登記簿謄本等の添付', hrefSuffix: null, comingSoon: true },
+  { icon: FileStack, title: '書類', description: '定款・登記簿謄本等の登録状況', hrefSuffix: '/documents', comingSoon: false },
 ] as const;
 
 export default async function WorkspaceCompanyPage({ params }: { params: Promise<{ id: string }> }) {
@@ -63,6 +69,20 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
 
   const company = data as WorkspaceCompanyRow | null;
   if (!company) notFound();
+
+  // 書類の「要更新」件数はRoadmap Engineの計算とは無関係のため、下のtry/catchとは
+  // 独立して取得する（roadmap側が例外で失敗しても件数表示は影響を受けない）。
+  let documentsNeedingUpdateCount = 0;
+  try {
+    const { data: documentsData } = await supabase
+      .from('workspace_documents')
+      .select('status')
+      .eq('company_id', companyId);
+    documentsNeedingUpdateCount = ((documentsData as { status: WorkspaceDocumentStatus }[] | null) ?? [])
+      .filter((d) => d.status === 'needs_update').length;
+  } catch {
+    documentsNeedingUpdateCount = 0;
+  }
 
   // buildAnnualRoadmapは診断エンジン・Rule Engineへの複数のDB問い合わせを内部で行うため、
   // 想定外のデータで例外が出てもダッシュボードが画面全体を巻き込んで落ちないよう、
@@ -119,6 +139,7 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
 
       {advice && progress && state && (
         <WorkspaceDashboard
+          companyId={companyId}
           company={{
             corporateType: company.corporate_type,
             fiscalMonth: company.fiscal_month,
@@ -128,6 +149,7 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
           state={state}
           advice={advice}
           progress={progress}
+          documentsNeedingUpdateCount={documentsNeedingUpdateCount}
         />
       )}
 

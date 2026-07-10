@@ -1,15 +1,19 @@
+import Link from 'next/link';
 import { ListChecks, AlertTriangle, PieChart, Sparkles, Building2 } from 'lucide-react';
 import type { WorkspaceAdvice, WorkspaceAdviceItem, WorkspaceProgressSummary } from '@/lib/workspaceAdvice';
 import type { CompanyState } from '@/lib/state';
 import type { CompanyStage, ConsumptionTaxStatus } from '@/lib/companyProfile';
 
-// ── Company Workspace — ホームダッシュボード（Sprint 25）─────────────────
+// ── Company Workspace — ホームダッシュボード（Sprint 25・Sprint 26）───────────
 // Workspaceを開いた最初の画面。generateWorkspaceAdvice・summarizeWorkspaceProgress
 // （いずれもsrc/lib/workspaceAdvice.ts、既存Engineの出力を集計するだけの純粋関数）と
 // buildStateFromTimelineの結果を受け取って表示するだけで、計算は一切行わない。
 // 「今日やること」「期限警告」はWorkspaceAdviceの priority/warnings をそのまま、
 // 「AI参謀」は summary + opportunities（気づき）を表示する（Sprint24.2の
 // WorkspaceAdviceCardを本コンポーネントに統合し、ダッシュボードの区画として再構成した）。
+//
+// 【Sprint26で追加】書類（workspace_documents）は一覧・状態変更を持たず、「要更新」件数のみを
+// 会社概要カードに表示する（要件どおり件数だけ。詳細は/documentsへのリンクで確認する）。
 
 const CORPORATE_TYPE_LABEL: Record<string, string> = {
   kabushiki: '株式会社',
@@ -58,11 +62,14 @@ const PROGRESS_STAT_LABEL: { key: keyof Pick<WorkspaceProgressSummary, 'notStart
 ];
 
 export default function WorkspaceDashboard({
+  companyId,
   company,
   state,
   advice,
   progress,
+  documentsNeedingUpdateCount,
 }: {
+  companyId: number;
   company: {
     corporateType: string;
     fiscalMonth: number | null;
@@ -72,6 +79,7 @@ export default function WorkspaceDashboard({
   state: CompanyState;
   advice: WorkspaceAdvice;
   progress: WorkspaceProgressSummary;
+  documentsNeedingUpdateCount: number;
 }) {
   return (
     <div className="space-y-4">
@@ -178,6 +186,12 @@ export default function WorkspaceDashboard({
               <ConfidenceTag confidence={state.consumptionTaxStatus.confidence} />
             </span>
           )}
+          <Link
+            href={`/admin/workspaces/${companyId}/documents`}
+            className={`tag hover:bg-gray-50 ${documentsNeedingUpdateCount > 0 ? 'border-amber-200 text-amber-700' : ''}`}
+          >
+            要更新書類 {documentsNeedingUpdateCount}件
+          </Link>
         </div>
       </div>
     </div>
