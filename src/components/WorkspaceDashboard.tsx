@@ -1,10 +1,11 @@
 import Link from 'next/link';
-import { ListChecks, AlertTriangle, PieChart, Sparkles, Building2 } from 'lucide-react';
+import { ListChecks, AlertTriangle, PieChart, Sparkles, Building2, Compass } from 'lucide-react';
 import type { WorkspaceAdvice, WorkspaceAdviceItem, WorkspaceProgressSummary } from '@/lib/workspaceAdvice';
+import type { WorkspaceDecisions, DecisionPriority } from '@/lib/workspaceDecisions';
 import type { CompanyState } from '@/lib/state';
 import type { CompanyStage, ConsumptionTaxStatus } from '@/lib/companyProfile';
 
-// ── Company Workspace — ホームダッシュボード（Sprint 25・Sprint 26）───────────
+// ── Company Workspace — ホームダッシュボード（Sprint 25・Sprint 26・Sprint 27）─────
 // Workspaceを開いた最初の画面。generateWorkspaceAdvice・summarizeWorkspaceProgress
 // （いずれもsrc/lib/workspaceAdvice.ts、既存Engineの出力を集計するだけの純粋関数）と
 // buildStateFromTimelineの結果を受け取って表示するだけで、計算は一切行わない。
@@ -14,6 +15,10 @@ import type { CompanyStage, ConsumptionTaxStatus } from '@/lib/companyProfile';
 //
 // 【Sprint26で追加】書類（workspace_documents）は一覧・状態変更を持たず、「要更新」件数のみを
 // 会社概要カードに表示する（要件どおり件数だけ。詳細は/documentsへのリンクで確認する）。
+//
+// 【Sprint27で追加】generateWorkspaceDecisions（src/lib/workspaceDecisions.ts）の結果を
+// 「意思決定」として表示する。AI参謀（情報表示）を置き換えるのではなく別セクションとして追加する
+// （手続き×書類の突き合わせ・決算月からの逆算など、AI参謀より一段踏み込んだ判断を提示するため）。
 
 const CORPORATE_TYPE_LABEL: Record<string, string> = {
   kabushiki: '株式会社',
@@ -61,12 +66,20 @@ const PROGRESS_STAT_LABEL: { key: keyof Pick<WorkspaceProgressSummary, 'notStart
   { key: 'onHold', label: '保留' },
 ];
 
+const DECISION_PRIORITY_LABEL: Record<DecisionPriority, string> = { high: '高', medium: '中', low: '低' };
+const DECISION_PRIORITY_TAG_CLASS: Record<DecisionPriority, string> = {
+  high: 'border-red-200 text-red-700',
+  medium: 'border-amber-200 text-amber-700',
+  low: '',
+};
+
 export default function WorkspaceDashboard({
   companyId,
   company,
   state,
   advice,
   progress,
+  decisions,
   documentsNeedingUpdateCount,
 }: {
   companyId: number;
@@ -79,6 +92,7 @@ export default function WorkspaceDashboard({
   state: CompanyState;
   advice: WorkspaceAdvice;
   progress: WorkspaceProgressSummary;
+  decisions: WorkspaceDecisions;
   documentsNeedingUpdateCount: number;
 }) {
   return (
@@ -115,6 +129,50 @@ export default function WorkspaceDashboard({
             <p className="text-sm text-gray-400">警告はありません。</p>
           )}
         </div>
+      </div>
+
+      <div className="card space-y-3">
+        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500">
+          <Compass className="h-3.5 w-3.5 text-blue-600" />
+          意思決定
+        </div>
+        <p className="text-sm text-gray-700">{decisions.summary}</p>
+
+        {decisions.actions.length > 0 && (
+          <ul className="space-y-1.5">
+            {decisions.actions.map((action, idx) => (
+              <li key={idx} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
+                <span className={`tag ${DECISION_PRIORITY_TAG_CLASS[action.priority]}`}>{DECISION_PRIORITY_LABEL[action.priority]}</span>
+                <span className="font-medium text-gray-900">{action.title}</span>
+                <span className="text-xs text-gray-500">{action.reason}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {decisions.watchItems.length > 0 && (
+          <div>
+            <div className="mb-1 text-xs font-semibold text-gray-400">注視事項</div>
+            <ul className="space-y-1">
+              {decisions.watchItems.map((item, idx) => (
+                <li key={idx} className="text-xs text-gray-500">
+                  <span className="font-medium text-gray-700">{item.title}</span> — {item.reason}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {decisions.completed.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {decisions.completed.slice(0, 6).map((item, idx) => (
+              <span key={idx} className="tag text-gray-400">{item.title}</span>
+            ))}
+            {decisions.completed.length > 6 && (
+              <span className="text-xs text-gray-400">他{decisions.completed.length - 6}件完了</span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

@@ -9,11 +9,12 @@ import { buildWorkspaceTimelineEvents } from '@/lib/workspaceTimelineProducer';
 import { buildStateFromTimeline, type CompanyState } from '@/lib/state';
 import { buildAnnualRoadmap } from '@/lib/roadmap';
 import type { WorkspaceProcedureStatus, WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
-import type { WorkspaceDocumentStatus } from '@/lib/workspaceDocumentStatus';
+import type { WorkspaceDocumentStatus, WorkspaceDocumentType, WorkspaceDocumentStatusMap } from '@/lib/workspaceDocumentStatus';
 import { generateWorkspaceAdvice, summarizeWorkspaceProgress, type WorkspaceAdvice, type WorkspaceProgressSummary } from '@/lib/workspaceAdvice';
+import { generateWorkspaceDecisions, type WorkspaceDecisions } from '@/lib/workspaceDecisions';
 import WorkspaceDashboard from '@/components/WorkspaceDashboard';
 
-// ── Company Workspace Shell（Sprint23.1〜23.4・Sprint24.0・Sprint24.2・Sprint25・Sprint26）───
+// ── Company Workspace Shell（Sprint23.1〜23.4・Sprint24.0・Sprint24.2・Sprint25・Sprint26・Sprint27）─
 // 会社別Workspaceの「入口」と「骨組み」。会社プロフィール（23.2）・年間ロードマップ（23.3・23.4）・
 // 共有（24.0）・書類（26）は実装済みのためリンクを張る。TaxReturn編集は次Sprint以降
 // （docs/COMPANY_WORKSPACE.md 4節・10節）。
@@ -25,10 +26,14 @@ import WorkspaceDashboard from '@/components/WorkspaceDashboard';
 // Sprint24.2のWorkspaceAdviceCardはWorkspaceDashboardに統合し、「今日やること」「期限警告」
 // 「進捗サマリー」「AI参謀」「会社概要」の5区画に再構成した。
 //
-// 【Sprint26で追加】workspace_documents（本Sprint新設）から「要更新」件数のみを取得し、
-// ダッシュボードに渡す。書類一覧・状態変更自体は/documentsサブページ（WorkspaceDocumentsView）が
-// 担当し、本ページは件数の表示のみを行う（roadmap Engineの成否に依存させないため、
-// 別のtry/catchで独立して取得する）。
+// 【Sprint26で追加】workspace_documents（本Sprint新設）から書類ステータスを取得し、
+// documentStatusMap（Sprint27のDecision Engineにも使う）と「要更新」件数を組み立てる。
+// 書類一覧・状態変更自体は/documentsサブページ（WorkspaceDocumentsView）が担当し、
+// 本ページは表示のみを行う（roadmap Engineの成否に依存させないため、別のtry/catchで独立して取得する）。
+//
+// 【Sprint27で追加】generateWorkspaceDecisions（純粋関数、src/lib/workspaceDecisions.ts）に
+// companyProfile・state・roadmapYears・procedureStatusMap・documentStatusMapを渡し、
+// 「意思決定」セクションとしてWorkspaceDashboardに追加した。
 
 type WorkspaceCompanyRow = {
   id: number;
@@ -70,17 +75,21 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
   const company = data as WorkspaceCompanyRow | null;
   if (!company) notFound();
 
-  // 書類の「要更新」件数はRoadmap Engineの計算とは無関係のため、下のtry/catchとは
-  // 独立して取得する（roadmap側が例外で失敗しても件数表示は影響を受けない）。
+  // 書類ステータスの取得はRoadmap Engineの計算とは無関係のため、下のtry/catchとは
+  // 独立して取得する（roadmap側が例外で失敗しても書類関連の表示は影響を受けない）。
+  let documentStatusMap: WorkspaceDocumentStatusMap = {};
   let documentsNeedingUpdateCount = 0;
   try {
     const { data: documentsData } = await supabase
       .from('workspace_documents')
-      .select('status')
+      .select('document_type, status')
       .eq('company_id', companyId);
-    documentsNeedingUpdateCount = ((documentsData as { status: WorkspaceDocumentStatus }[] | null) ?? [])
-      .filter((d) => d.status === 'needs_update').length;
+    for (const row of (documentsData as { document_type: WorkspaceDocumentType; status: WorkspaceDocumentStatus }[] | null) ?? []) {
+      documentStatusMap[row.document_type] = row.status;
+      if (row.status === 'needs_update') documentsNeedingUpdateCount++;
+    }
   } catch {
+    documentStatusMap = {};
     documentsNeedingUpdateCount = 0;
   }
 
@@ -89,6 +98,7 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
   // try/catchで捕捉する（roadmap/page.tsxと同じ防御的措置）。取得失敗時はダッシュボード自体を表示しない。
   let advice: WorkspaceAdvice | null = null;
   let progress: WorkspaceProgressSummary | null = null;
+  let decisions: WorkspaceDecisions | null = null;
   let state: CompanyState | null = null;
   let prefectureName = '';
   let municipalityName = '';
@@ -116,9 +126,11 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
 
     advice = generateWorkspaceAdvice(roadmapYears, statusMap, state);
     progress = summarizeWorkspaceProgress(roadmapYears, statusMap);
+    decisions = generateWorkspaceDecisions(companyProfile, state, roadmapYears, statusMap, documentStatusMap);
   } catch {
     advice = null;
     progress = null;
+    decisions = null;
     state = null;
   }
 
@@ -137,7 +149,7 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
         </div>
       </div>
 
-      {advice && progress && state && (
+      {advice && progress && decisions && state && (
         <WorkspaceDashboard
           companyId={companyId}
           company={{
@@ -149,6 +161,7 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
           state={state}
           advice={advice}
           progress={progress}
+          decisions={decisions}
           documentsNeedingUpdateCount={documentsNeedingUpdateCount}
         />
       )}

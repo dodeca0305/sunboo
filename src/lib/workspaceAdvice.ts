@@ -31,18 +31,20 @@ const URGENT_WINDOW_DAYS = 3;
 const INCOMPLETE_LOOKAHEAD_DAYS = 90;
 const PRIORITY_MAX_ITEMS = 5;
 
-function daysUntil(dueDate: string, today: Date): number {
+// Sprint27のWorkspace Decision Engineも同じ基準で期限までの日数・表示形式・ステータス解決を
+// 行うため、ここでexportして共有する（重複させない）。
+export function daysUntil(dueDate: string, today: Date): number {
   const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const due = new Date(`${dueDate}T00:00:00`);
   return Math.round((due.getTime() - startOfToday.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function formatDueDate(dueDate: string): string {
+export function formatDueDate(dueDate: string): string {
   const [, m, d] = dueDate.split('-');
   return `${Number(m)}月${Number(d)}日`;
 }
 
-function statusOf(item: RoadmapItem, statusMap: WorkspaceProcedureStatusMap): WorkspaceProcedureStatus {
+export function statusOf(item: RoadmapItem, statusMap: WorkspaceProcedureStatusMap): WorkspaceProcedureStatus {
   return statusMap[item.procedure.id] ?? 'not_started';
 }
 
