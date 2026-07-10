@@ -1,7 +1,14 @@
 # ROADMAP.md — SUNBOO ロードマップ
 
-v0.1〜v0.5は実装済み（本ドキュメント作成時点、Phase 1〜2.5に対応）。v0.6以降は未着手の構想であり、
-着手前に必ず要件整理・設計を行うこと（[CLAUDE.md](../CLAUDE.md)の開発フロー参照）。
+**2026-07-10（Sprint29）で実装状況を実コードに合わせて全面同期した。** 本ドキュメントは長らく
+Sprint21（Phase 2.6「設計資産化」）時点のまま更新されておらず、「v0.6以降は未着手」という記述が
+Sprint22〜28で実装されたCompany Workspace・Timeline/State/Annual Roadmap Engine等を反映していなかった
+（[ARCHITECTURE_REVIEW_SPRINT28.md](ARCHITECTURE_REVIEW_SPRINT28.md) 2-1節・3-1節で指摘・確認済み）。
+以下、各バージョンの実装状況を実コード確認済みの内容に更新した。
+
+v0.1〜v0.6・v0.9・v0.14〜v0.17は実装済み（詳細は各節）。今後の開発方針・(site)配下との関係の
+整理は[WORKSPACE_MIGRATION_STRATEGY.md](WORKSPACE_MIGRATION_STRATEGY.md)（Sprint29）を参照。
+未着手の構想に着手する際は、引き続き必ず要件整理・設計を行うこと（[CLAUDE.md](../CLAUDE.md)の開発フロー参照）。
 
 ## v0.1 基盤 ✅ 完了
 
@@ -69,11 +76,14 @@ Roadmap反映順序を整理した。詳細: [PROCEDURE_MASTER_AUDIT.md](PROCEDU
 - Phase15.3〜15.6（地方税の管轄機関データ整備、UI表示ラベル対応等）は未着手。段階的な実装順序案は
   [PROCEDURE_MASTER_AUDIT.md](PROCEDURE_MASTER_AUDIT.md) 5節を参照
 
-## v0.6 年間スケジュール（未着手）
+## v0.6 年間スケジュール ✅ 完了（v0.16として実装）
 
 **狙い**: 「今日やること」（Phase 1.6）は単発の診断・イベント結果に閉じている。年次・月次で繰り返し発生する
 手続き（源泉所得税の毎月納付、算定基礎届、労働保険年度更新、年末調整等）を含め、1年間を通じたカレンダー
 ビューとして提示する。
+
+**2026-07-10追記**: 本節が構想していた内容は、下記v0.16「Annual Roadmap Engine」として実装済み。
+本節は経緯の記録として残す（実装内容は削除しない）。
 
 検討が必要な点（設計フェーズで詰めること）:
 - 繰り返し発生する手続き（`frequency = monthly` / `annual`）を、単発の`anonymous_company_events`と同じ
@@ -111,12 +121,19 @@ Roadmap反映順序を整理した。詳細: [PROCEDURE_MASTER_AUDIT.md](PROCEDU
 > 4ロール、「永続的な会社エンティティ」は`companies`テーブル（本節の注記にある既存レガシー
 > テーブルを流用するか要判断）として設計を進めている。以降の詳細はv0.17を参照。
 
-## v0.9 AI参謀β（未着手）
+## v0.9 AI参謀β ✅ ルールベースMVP実装済み（LLM未使用）
 
 **狙い**: 蓄積された会社データ・手続き履歴・ルール判定結果をもとに、AIが経営者に能動的な助言を行う機能。
 本ドキュメント整備（Phase 2.6）自体が、このフェーズに向けた「AIが読める設計資産」を残す準備という位置づけ。
 着手時は既存のルールエンジンの`context`／`rules`データをAIの判断材料としてどう連携するかが論点になる。
 → 長期見通し（Roadmap Foresight）としての発展形はv0.11で設計済み（[ROADMAP_EVOLUTION_ENGINE.md](ROADMAP_EVOLUTION_ENGINE.md) 7節）。
+
+**2026-07-10追記**: Sprint24.2で`generateWorkspaceAdvice`（`src/lib/workspaceAdvice.ts`）として実装済み。
+Roadmap/Procedure Statusの出力をルールベースで集計し「状況説明」を行う（LLM呼び出しなし）。
+Sprint27では役割を分離した`generateWorkspaceDecisions`（`src/lib/workspaceDecisions.ts`、「行動提案」）を
+追加し、Workspace Dashboardの「AI参謀」「意思決定」の2区画として実装済み。LLMによる置き換えは
+[ARCHITECTURE_REVIEW_SPRINT28.md](ARCHITECTURE_REVIEW_SPRINT28.md) 9-4節の通り、明確な必要性が
+確認されるまで着手しない方針。
 
 ## v0.10 Company Profile Engine（設計完了・実装未着手）
 
@@ -201,7 +218,15 @@ v0.11「経営ロードマップ進化エンジン」2節で素描したTax Retu
   矛盾ではなく注意喚起に留める整理でよいか
 - Sprint18.2〜18.6の段階的な実装順序案は[CLOSING_UPDATE_FLOW.md](CLOSING_UPDATE_FLOW.md) 9節を参照
 
-## v0.14 Timeline Engine（設計完了・実装未着手）
+## v0.14 Timeline Engine ✅ 実装済み
+
+**2026-07-10追記**: `src/lib/timeline.ts`（型・localStorage永続化層）と`src/lib/timelineProducer.ts`
+（(site)側の4ソース統合プロデューサー：`buildTimelineFromSources`）として実装済み。Sprint23.4で
+Workspace向けの`src/lib/workspaceTimelineProducer.ts`（`buildWorkspaceTimelineEvents`、
+`timelineProducer.ts`の関数を直接呼び出す薄いラッパー）も追加された。現状Workspace側は
+`company_profile`ソースのみ組み込み済みで、`tax_return_profile`/`event`ソースは
+`workspace_tax_return_profiles`/`workspace_company_events`テーブル未実装のため保留中
+（詳細は[ARCHITECTURE_REVIEW_SPRINT28.md](ARCHITECTURE_REVIEW_SPRINT28.md) 1-2節）。
 
 **狙い**: 会社に関するすべての事実の記録（会社情報の変化・決算実績・従業員の増減・将来の会計データ）を
 単一の追記専用ログとして統合し、Roadmap・AI参謀・通知・将来のPDF/会計データ連携すべての共通基盤にする。
@@ -220,7 +245,13 @@ v0.11「経営ロードマップ進化エンジン」2節で素描したTax Retu
   Advisory Timeline（AI参謀・通知の発信記録）の記録タイミング、事実の訂正を追記で表現する方針の妥当性
 - Sprint19.2〜19.6の段階的な実装順序案は[TIMELINE_ENGINE.md](TIMELINE_ENGINE.md) 10節を参照
 
-## v0.15 State Engine（設計完了・実装未着手）
+## v0.15 State Engine ✅ 実装済み
+
+**2026-07-10追記**: `src/lib/state.ts`の`buildStateFromTimeline`として実装済み（Sprint20）。
+`TimelineEvent[]`を入力に`CompanyState`（`StateField<T>`の集合）を都度計算する純粋関数で、保存しない
+設計方針が維持されている。既知の制約（`withholdingTaxCycle`が常に`incomplete`を返す等）は
+実装当時から変わっておらず、[ARCHITECTURE_REVIEW_SPRINT28.md](ARCHITECTURE_REVIEW_SPRINT28.md)でも
+再確認済み。
 
 **狙い**: Timeline（v0.14）に記録された事実から、会社の「今の状態」をフィールド単位で計算する。
 CompanyProfile（ユーザーの自己申告）とは情報源が異なる「Timelineからの計算結果」を導入し、
@@ -259,7 +290,28 @@ Rule Engine・Roadmap・AI参謀が参照できる正規化された現在地を
   複数期日対応、`buildRoadmapForesight`/`buildRoadmapAlerts`は未着手のままスコープ外とした
 - 複数年ホライズンはβ版として3年固定を採用（[ANNUAL_ROADMAP_ENGINE.md](ANNUAL_ROADMAP_ENGINE.md) 6-2節）
 
-## v0.17 Company Workspace（設計完了・実装未着手）
+## v0.17 Company Workspace ✅ 部分実装済み（正式系として採用、Sprint29確定）
+
+**2026-07-10追記（Sprint22〜29の実装状況）**: Sprint22〜27で以下を実装済み。
+
+- `workspace_companies` / `workspace_company_profiles` / `workspace_members`（未使用） /
+  `workspace_share_links`（Sprint22.4）、`workspace_procedure_statuses`（Sprint24.1）、
+  `workspace_documents`（Sprint26）の6テーブル
+- 会社一覧・新規登録・会社別Workspace（Profile / Annual Roadmap / Documents / Share の4タブ）
+- Workspace Dashboard（今日やること／期限警告／意思決定／進捗サマリー／AI参謀／会社概要、Sprint25・27）
+- 経営者への共有リンク（`get_shared_workspace_view` RPC、ログイン不要のトークン方式、Sprint24.0）
+
+以下は本節が設計した10タブ構成のうち**未実装のまま**であることを確認済み
+（[ARCHITECTURE_REVIEW_SPRINT28.md](ARCHITECTURE_REVIEW_SPRINT28.md) 2-2節）: Tax Return Profile
+（Sprint33で対応予定）、Timeline（独立画面なし、Dashboard内部の計算にのみ使用）、Events、
+Accounting Data、Financial Analysis。7節が設計した4ロール権限モデル（管理者/担当者/経営者/閲覧のみ）も
+**未実装**で、現状は「`admin_users`登録者なら誰でも全社アクセス可」というフラットな権限モデルのまま
+運用されている（Sprint31で対応予定、5-2節参照）。
+
+**Sprint29での確定事項**: [WORKSPACE_MIGRATION_STRATEGY.md](WORKSPACE_MIGRATION_STRATEGY.md)により、
+`/admin/workspaces/*`を正式系（Primary）、`(site)`配下を互換・検証用と位置づけることが確定した
+（`/start`・`/result`は匿名リード獲得の独立した役割として例外的に存続）。今後の新機能は原則Workspace側
+のみに実装する。
 
 **狙い**: SUNBOOの主利用者を「経営者本人」から「管理者・税理士」へ転換する。管理者・税理士が
 会社ごとにログインし、Company Profile・Tax Return Profile・Timeline・State・Annual Roadmap・
@@ -278,13 +330,36 @@ Events・Accounting Data・Financial Analysis・AI参謀・Documentsを一元管
 - 最重要の要判断事項: 本番に既に存在する素性不明の`companies`/`company_events`
   （`auth_user_id`/`company_id`軸、`admin_read`ポリシー付き。v0.8の注記で判明済み）を
   流用するか、無関係として扱い新規設計するか（同ドキュメント0節・8-3節）
+  **→ Sprint22.2で決着済み**: [COMPANY_WORKSPACE_DB_AUDIT.md](COMPANY_WORKSPACE_DB_AUDIT.md)の調査により
+  「流用しない・新規`workspace_companies`等を作る」（B案）を採用。素性不明の`companies`/`company_events`は
+  触らずそのまま残置している
 - その他の要判断事項: `(site)`配下の`/profile`/`/events`/`/roadmap`/`/result`を段階的共存
-  させるか、Workspaceへ一本化するか（同ドキュメント9-3節）。経営者への共有を将来的に
-  軽量ログインへ拡張するタイミング（同ドキュメント6-2節）
+  させるか、Workspaceへ一本化するか（同ドキュメント9-3節）
+  **→ Sprint29で決着済み**: [WORKSPACE_MIGRATION_STRATEGY.md](WORKSPACE_MIGRATION_STRATEGY.md)により
+  「段階的共存」（A案）に近い中間案（Workspaceを正式系とし、`(site)`は互換・検証用として新機能停止・
+  バグ修正のみに縮小、`/start`・`/result`のみ例外的に独立存続）を採用
+  。経営者への共有を将来的に軽量ログインへ拡張するタイミング（同ドキュメント6-2節）は引き続き未決
 - Sprint22.2〜22.6の段階的な実装順序案は[COMPANY_WORKSPACE.md](COMPANY_WORKSPACE.md) 10節を参照
+  （実際の実装順序はSprint22.4「4テーブルのみへのスコープ縮小」等、詳細は
+  [WORKSPACE_DB_MVP_MIGRATION.md](WORKSPACE_DB_MVP_MIGRATION.md)参照）
+
+## v0.18 Architecture Review & Migration Strategy ✅ 完了（Sprint28〜29）
+
+**狙い**: Sprint22〜27でCompany Workspace化が急速に進んだ一方、設計ドキュメントの更新が追いつかず
+（本ファイル冒頭参照）、技術的負債・権限モデルの不足・データモデルの周期性課題が蓄積していた。
+これを実コード・migration・git historyの直接確認に基づいて棚卸しし、Sprint30以降の実装順序を確定する。
+
+- Sprint28: [ARCHITECTURE_REVIEW_SPRINT28.md](ARCHITECTURE_REVIEW_SPRINT28.md)。最重要3課題
+  （設計ドキュメントと実装の同期／周期的ステータス管理の再設計／Workspace単位のアクセス制御）を特定
+- Sprint29: [WORKSPACE_MIGRATION_STRATEGY.md](WORKSPACE_MIGRATION_STRATEGY.md)。`(site)`とWorkspaceの
+  役割分担を確定し、本ファイル（`ROADMAP.md`）を実装状況に同期
+- Sprint30以降の推奨順序: 30 周期的ステータス再設計 → 31 Workspace単位のアクセス制御 →
+  32 Workspaceデータ取得共通化 → 33 Tax Return ProfileのWorkspace対応
 
 ## v1.0 福岡県版正式リリース（未着手）
 
 **狙い**: 東京都渋谷区・福岡県全域という現状の対応エリアのうち、福岡県を軸に正式リリースする。
 リリース判定基準（有料化するかどうか、対応市区町村の精度検証、`procedure_organizations`等の未参照テーブルの
-扱いをどうするか等）は着手時に改めて要件整理すること。
+扱いをどうするか等）は着手時に改めて要件整理すること。v1.0完成条件の詳細は
+[ARCHITECTURE_REVIEW_SPRINT28.md](ARCHITECTURE_REVIEW_SPRINT28.md)・
+[WORKSPACE_MIGRATION_STRATEGY.md](WORKSPACE_MIGRATION_STRATEGY.md)の「v1.0完成条件」節を参照。
