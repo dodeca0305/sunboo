@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { workspaceRowsToCompanyProfile, type WorkspaceCompanyProfileRow, type WorkspaceCompanyRow } from '@/lib/workspaceCompanyProfile';
+import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import WorkspaceProfileForm from './WorkspaceProfileForm';
 
 export default async function WorkspaceCompanyProfilePage({ params }: { params: Promise<{ id: string }> }) {
@@ -44,6 +45,7 @@ export default async function WorkspaceCompanyProfilePage({ params }: { params: 
         {company.name} に戻る
       </Link>
       <h1 className="text-xl font-bold text-gray-900">会社プロフィール — {company.name}</h1>
+      <WorkspaceSubNav companyId={companyId} />
       <WorkspaceProfileForm companyId={companyId} initialProfile={initialProfile} />
     </div>
   );

@@ -4,6 +4,7 @@ import { ChevronLeft, FileStack, Info } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
 import type { WorkspaceDocumentType, WorkspaceDocumentStatus, WorkspaceDocumentStatusMap } from '@/lib/workspaceDocumentStatus';
 import WorkspaceDocumentsView from '@/components/WorkspaceDocumentsView';
+import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 
 // ── Company Workspace — 書類（Sprint 26 Workspace Documents MVP）────────────
 // workspace_documents（本Sprint新設）のステータス（メタデータのみ）を一覧表示・変更する。
@@ -51,6 +52,8 @@ export default async function WorkspaceDocumentsPage({ params }: { params: Promi
         <FileStack className="h-6 w-6 text-blue-600" />
         <h1 className="text-xl font-bold text-gray-900">書類 — {company.name}</h1>
       </div>
+
+      <WorkspaceSubNav companyId={companyId} />
 
       <div className="card flex items-start gap-3 border-gray-200 bg-gray-50/60">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />

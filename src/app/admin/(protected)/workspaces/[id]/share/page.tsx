@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { ChevronLeft, Share2, Info } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
 import WorkspaceShareLinksPanel, { type ShareLinkRow } from './WorkspaceShareLinksPanel';
+import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 
 // ── Company Workspace — 共有（Sprint 24 Phase24.0）───────────────────
 // workspace_share_links・get_shared_workspace_view（いずれもSprint22.4 MVP migrationで
@@ -48,6 +49,8 @@ export default async function WorkspaceSharePage({ params }: { params: Promise<{
         <Share2 className="h-6 w-6 text-blue-600" />
         <h1 className="text-xl font-bold text-gray-900">共有 — {company.name}</h1>
       </div>
+
+      <WorkspaceSubNav companyId={companyId} />
 
       <div className="card flex items-start gap-3 border-gray-200 bg-gray-50/60">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />

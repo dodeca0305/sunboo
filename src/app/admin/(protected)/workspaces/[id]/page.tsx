@@ -13,6 +13,7 @@ import type { WorkspaceDocumentStatus, WorkspaceDocumentType, WorkspaceDocumentS
 import { generateWorkspaceAdvice, summarizeWorkspaceProgress, type WorkspaceAdvice, type WorkspaceProgressSummary } from '@/lib/workspaceAdvice';
 import { generateWorkspaceDecisions, type WorkspaceDecisions } from '@/lib/workspaceDecisions';
 import WorkspaceDashboard from '@/components/WorkspaceDashboard';
+import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 
 // ── Company Workspace Shell（Sprint23.1〜23.4・Sprint24.0・Sprint24.2・Sprint25・Sprint26・Sprint27）─
 // 会社別Workspaceの「入口」と「骨組み」。会社プロフィール（23.2）・年間ロードマップ（23.3・23.4）・
@@ -51,7 +52,7 @@ const CORPORATE_TYPE_LABEL: Record<string, string> = {
 
 const SECTIONS = [
   { icon: Building2, title: '会社プロフィール', description: '税務・労務の現況（CompanyProfile）', hrefSuffix: '/profile', comingSoon: false },
-  { icon: Receipt, title: '決算実績', description: '決算のたびの申告実績（TaxReturnProfile）', hrefSuffix: null, comingSoon: false },
+  { icon: Receipt, title: '決算実績', description: '決算のたびの申告実績（TaxReturnProfile）', hrefSuffix: null, comingSoon: true },
   { icon: CalendarRange, title: '年間ロードマップ', description: '今後の手続き予定の一覧', hrefSuffix: '/roadmap', comingSoon: false },
   { icon: Share2, title: '共有', description: '経営者への共有リンクの発行・管理', hrefSuffix: '/share', comingSoon: false },
   { icon: BarChart3, title: '会計分析', description: '決算実績の推移分析', hrefSuffix: null, comingSoon: true },
@@ -148,6 +149,8 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
           {company.fiscal_month && <span className="tag">決算月: {company.fiscal_month}月</span>}
         </div>
       </div>
+
+      <WorkspaceSubNav companyId={companyId} />
 
       {advice && progress && decisions && state && (
         <WorkspaceDashboard

@@ -1,6 +1,11 @@
 import Link from 'next/link';
-import { Search, Zap, UserCircle, CalendarRange } from 'lucide-react';
+import { Search, Zap, UserCircle, CalendarRange, Briefcase } from 'lucide-react';
 import FeedbackLink from '@/components/FeedbackLink';
+
+// ── (site)ヘッダー・フッター（Sprint 30 Workspace Navigation & Migration）─────────
+// 税理士・会計事務所向けの管理画面（/admin/workspaces、Sprint29でWorkspace Migration
+// Strategyにより正式系と位置づけ済み）への導線を追加した。(site)側から/adminへのリンクは
+// これまで0件だった（WORKSPACE_MIGRATION_STRATEGY.md 3-1節で確認済み）。
 
 export default function SiteLayout({
   children,
@@ -70,6 +75,13 @@ export default function SiteLayout({
               <Search className="h-4 w-4" />
               <span className="hidden sm:inline">検索</span>
             </Link>
+            <Link
+              href="/admin/login"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+            >
+              <Briefcase className="h-4 w-4" />
+              税理士の方はこちら
+            </Link>
             <Link href="/start" className="btn-primary ml-2 px-4 py-2 text-xs">
               診断する →
             </Link>
@@ -113,6 +125,9 @@ export default function SiteLayout({
               </Link>
               <Link href="/help" className="text-gray-500 transition-colors hover:text-gray-900">
                 ヘルプ
+              </Link>
+              <Link href="/admin/login" className="text-gray-500 transition-colors hover:text-gray-900">
+                税理士・会計事務所の方
               </Link>
               <FeedbackLink className="inline-flex items-center gap-1 text-gray-500 transition-colors hover:text-gray-900" />
             </nav>
