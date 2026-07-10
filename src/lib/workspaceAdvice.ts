@@ -47,7 +47,8 @@ function statusOf(item: RoadmapItem, statusMap: WorkspaceProcedureStatusMap): Wo
 }
 
 // 同じ手続きが複数年・複数回出現する中から、手続きごとに最も近い1回だけを判断材料にする
-function nearestOccurrencePerProcedure(roadmapYears: RoadmapYear[]): RoadmapItem[] {
+// （Sprint25の進捗サマリーも同じ基準で集計するため、ここでexportして共有する）
+export function nearestOccurrencePerProcedure(roadmapYears: RoadmapYear[]): RoadmapItem[] {
   const sorted = roadmapYears.flatMap((y) => y.items).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   const nearest = new Map<number, RoadmapItem>();
   for (const item of sorted) {
@@ -135,4 +136,40 @@ export function generateWorkspaceAdvice(
           : '直近の手続きに遅れはありません。';
 
   return { priority, warnings, opportunities, summary };
+}
+
+// ── Workspace Dashboard — 進捗サマリー（Sprint 25）───────────────────
+// generateWorkspaceAdvice同様、既存Engineの出力（Roadmap・Procedure Status）を集計するだけの
+// 純粋関数。新しい期限計算・判定ロジックは持たない（手続きごとの状態をカウントするのみ）。
+
+export type WorkspaceProgressSummary = {
+  total: number;
+  done: number;
+  inProgress: number;
+  onHold: number;
+  notStarted: number;
+  completionRate: number; // 0-100の整数。totalが0のときは0
+};
+
+export function summarizeWorkspaceProgress(
+  roadmapYears: RoadmapYear[],
+  statusMap: WorkspaceProcedureStatusMap,
+): WorkspaceProgressSummary {
+  const items = nearestOccurrencePerProcedure(roadmapYears);
+  let done = 0;
+  let inProgress = 0;
+  let onHold = 0;
+  let notStarted = 0;
+
+  for (const item of items) {
+    switch (statusOf(item, statusMap)) {
+      case 'done': done++; break;
+      case 'in_progress': inProgress++; break;
+      case 'on_hold': onHold++; break;
+      default: notStarted++;
+    }
+  }
+
+  const total = items.length;
+  return { total, done, inProgress, onHold, notStarted, completionRate: total > 0 ? Math.round((done / total) * 100) : 0 };
 }

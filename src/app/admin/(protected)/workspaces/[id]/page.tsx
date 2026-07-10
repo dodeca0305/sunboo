@@ -6,21 +6,23 @@ import {
 import { createServerSupabase } from '@/lib/supabase/server';
 import { workspaceRowsToCompanyProfile, type WorkspaceCompanyProfileRow } from '@/lib/workspaceCompanyProfile';
 import { buildWorkspaceTimelineEvents } from '@/lib/workspaceTimelineProducer';
-import { buildStateFromTimeline } from '@/lib/state';
+import { buildStateFromTimeline, type CompanyState } from '@/lib/state';
 import { buildAnnualRoadmap } from '@/lib/roadmap';
 import type { WorkspaceProcedureStatus, WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
-import { generateWorkspaceAdvice } from '@/lib/workspaceAdvice';
-import WorkspaceAdviceCard from '@/components/WorkspaceAdviceCard';
+import { generateWorkspaceAdvice, summarizeWorkspaceProgress, type WorkspaceAdvice, type WorkspaceProgressSummary } from '@/lib/workspaceAdvice';
+import WorkspaceDashboard from '@/components/WorkspaceDashboard';
 
-// ── Company Workspace Shell（Sprint23.1〜23.4・Sprint24.0・Sprint24.2）───────
+// ── Company Workspace Shell（Sprint23.1〜23.4・Sprint24.0・Sprint24.2・Sprint25）─────
 // 会社別Workspaceの「入口」と「骨組み」。会社プロフィール（23.2）・年間ロードマップ（23.3・23.4）・
 // 共有（24.0）は実装済みのためリンクを張る。TaxReturn編集はいずれも次Sprint以降
 // （docs/COMPANY_WORKSPACE.md 4節・10節）。
 //
-// 【Sprint24.2で追加】AI参謀カード。データ取得〜State/Roadmap計算はroadmap/page.tsxと同じ
-// パターンを踏襲し（buildWorkspaceTimelineEvents → buildStateFromTimeline → buildAnnualRoadmap）、
-// 計算結果をgenerateWorkspaceAdvice（純粋関数、src/lib/workspaceAdvice.ts）に渡すだけで、
-// 既存Engineには一切手を入れない。ルールベースMVP（LLM未使用）。
+// 【Sprint25で本ページをホームダッシュボード化】データ取得〜State/Roadmap計算はroadmap/page.tsxと
+// 同じパターンを踏襲し（buildWorkspaceTimelineEvents → buildStateFromTimeline → buildAnnualRoadmap）、
+// 計算結果をgenerateWorkspaceAdvice・summarizeWorkspaceProgress（いずれも純粋関数、
+// src/lib/workspaceAdvice.ts）に渡すだけで、既存Engineには一切手を入れない。
+// Sprint24.2のWorkspaceAdviceCardはWorkspaceDashboardに統合し、「今日やること」「期限警告」
+// 「進捗サマリー」「AI参謀」「会社概要」の5区画に再構成した。
 
 type WorkspaceCompanyRow = {
   id: number;
@@ -63,9 +65,13 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
   if (!company) notFound();
 
   // buildAnnualRoadmapは診断エンジン・Rule Engineへの複数のDB問い合わせを内部で行うため、
-  // 想定外のデータで例外が出てもAI参謀カードが画面全体を巻き込んで落ちないよう、
-  // try/catchで捕捉する（roadmap/page.tsxと同じ防御的措置）。取得失敗時はカード自体を表示しない。
-  let advice: ReturnType<typeof generateWorkspaceAdvice> | null = null;
+  // 想定外のデータで例外が出てもダッシュボードが画面全体を巻き込んで落ちないよう、
+  // try/catchで捕捉する（roadmap/page.tsxと同じ防御的措置）。取得失敗時はダッシュボード自体を表示しない。
+  let advice: WorkspaceAdvice | null = null;
+  let progress: WorkspaceProgressSummary | null = null;
+  let state: CompanyState | null = null;
+  let prefectureName = '';
+  let municipalityName = '';
   try {
     const [{ data: profileData }, { data: prefData }, { data: muniData }, { data: statusData }] = await Promise.all([
       supabase.from('workspace_company_profiles').select('*').eq('company_id', companyId).maybeSingle(),
@@ -80,17 +86,20 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
     }
 
     const profile = (profileData as WorkspaceCompanyProfileRow | null) ?? null;
-    const prefectureName = (prefData as { name: string } | null)?.name ?? '';
-    const municipalityName = (muniData as { name: string } | null)?.name ?? '';
+    prefectureName = (prefData as { name: string } | null)?.name ?? '';
+    municipalityName = (muniData as { name: string } | null)?.name ?? '';
 
     const companyProfile = workspaceRowsToCompanyProfile(company, profile, prefectureName, municipalityName);
     const timelineEvents = buildWorkspaceTimelineEvents(companyProfile);
-    const state = buildStateFromTimeline(timelineEvents);
+    state = buildStateFromTimeline(timelineEvents);
     const roadmapYears = await buildAnnualRoadmap(supabase, companyProfile, state, 3);
 
     advice = generateWorkspaceAdvice(roadmapYears, statusMap, state);
+    progress = summarizeWorkspaceProgress(roadmapYears, statusMap);
   } catch {
     advice = null;
+    progress = null;
+    state = null;
   }
 
   return (
@@ -108,7 +117,19 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
         </div>
       </div>
 
-      {advice && <WorkspaceAdviceCard advice={advice} />}
+      {advice && progress && state && (
+        <WorkspaceDashboard
+          company={{
+            corporateType: company.corporate_type,
+            fiscalMonth: company.fiscal_month,
+            prefectureName,
+            municipalityName,
+          }}
+          state={state}
+          advice={advice}
+          progress={progress}
+        />
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {SECTIONS.map(({ icon: Icon, title, description, hrefSuffix, comingSoon }) => {
