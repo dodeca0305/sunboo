@@ -6,7 +6,7 @@ import { workspaceRowsToCompanyProfile, type WorkspaceCompanyProfileRow, type Wo
 import { buildWorkspaceTimelineEvents } from '@/lib/workspaceTimelineProducer';
 import { buildStateFromTimeline } from '@/lib/state';
 import { buildAnnualRoadmap } from '@/lib/roadmap';
-import type { WorkspaceProcedureStatus, WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
+import { workspaceProcedureOccurrenceKey, type WorkspaceProcedureStatusMap, type WorkspaceProcedureStatusRow } from '@/lib/workspaceProcedureStatus';
 import AnnualRoadmapView from '@/components/AnnualRoadmapView';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 
@@ -30,6 +30,10 @@ import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 // AnnualRoadmapViewにcompanyIdとあわせて渡す。ステータス変更（クリック操作）自体は
 // AnnualRoadmapView内部で完結する（Server Componentである本ページからは関数propsを
 // 渡せないため）。
+//
+// 【Sprint32で出現回単位に変更】statusMapのキーをprocedure_idのみからworkspaceProcedureOccurrenceKey
+// （procedure_id + occurrence_key）へ変更した。occurrence_keyはRoadmapItem.dueDateをそのまま使う
+// （docs/PERIODIC_STATUS_REDESIGN.md、Sprint31設計レビューで承認済み）。
 
 export default async function WorkspaceRoadmapPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -59,11 +63,11 @@ export default async function WorkspaceRoadmapPage({ params }: { params: Promise
       supabase.from('workspace_company_profiles').select('*').eq('company_id', companyId).maybeSingle(),
       supabase.from('prefectures').select('name').eq('code', company.prefecture_code).maybeSingle(),
       supabase.from('municipalities').select('name').eq('code', company.municipality_code).maybeSingle(),
-      supabase.from('workspace_procedure_statuses').select('procedure_id, status').eq('company_id', companyId),
+      supabase.from('workspace_procedure_statuses').select('procedure_id, occurrence_key, status').eq('company_id', companyId),
     ]);
 
-    for (const row of (statusData as { procedure_id: number; status: WorkspaceProcedureStatus }[] | null) ?? []) {
-      statusMap[row.procedure_id] = row.status;
+    for (const row of (statusData as WorkspaceProcedureStatusRow[] | null) ?? []) {
+      statusMap[workspaceProcedureOccurrenceKey(row.procedure_id, row.occurrence_key)] = row.status;
     }
 
     const profile = (profileData as WorkspaceCompanyProfileRow | null) ?? null;

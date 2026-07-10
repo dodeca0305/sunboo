@@ -1,15 +1,22 @@
 import type { RoadmapItem, RoadmapYear } from './roadmap';
 import type { CompanyState } from './state';
-import type { WorkspaceProcedureStatus, WorkspaceProcedureStatusMap } from './workspaceProcedureStatus';
+import { workspaceProcedureOccurrenceKey, type WorkspaceProcedureStatus, type WorkspaceProcedureStatusMap } from './workspaceProcedureStatus';
 import type { ProcedureCategory } from './types';
 
-// ── Workspace AI Adviser — ルールベースMVP（Sprint 24 Phase24.2）─────────
+// ── Workspace AI Adviser — ルールベースMVP（Sprint 24 Phase24.2・Sprint 32）─────────
 // Advice = f( Annual Roadmap, Procedure Status, State )。既存Engine（診断エンジン・State Engine・
 // Annual Roadmap Engine）の出力をそのまま入力として受け取り、新たな計算・DBアクセスは一切行わない
 // 純粋関数。LLMは呼ばない（将来のAI置き換えに備え、入出力の形だけ先に固定する）。
 //
 // Roadmapは同じ手続きが複数年・複数回（毎月納付等）出現するため、判断材料には手続きごとの
 // 最も近い1回（nearestByProcedure）のみを使う。
+//
+// 【Sprint32での責務分離】nearestOccurrencePerProcedureは「どの出現を判断材料にするか」を選ぶだけで、
+// 「その出現の状態が何か」はstatusOfが個別に解決する。両者が別の関数である理由: 以前は
+// statusOfがprocedure_idだけで状態を引いていたため、選ばれた出現に関わらず同じ状態を返してしまい
+// （＝全出現回を同一状態として扱う誤り）、事実上nearestOccurrencePerProcedureの選択が意味を
+// 持たなかった。procedure_id + dueDate（occurrence_key）で引くことで、選ばれた出現の状態を
+// 正しく解決できるようになった。
 
 export type WorkspaceAdviceItem = {
   procedureId?: number;
@@ -45,7 +52,7 @@ export function formatDueDate(dueDate: string): string {
 }
 
 export function statusOf(item: RoadmapItem, statusMap: WorkspaceProcedureStatusMap): WorkspaceProcedureStatus {
-  return statusMap[item.procedure.id] ?? 'not_started';
+  return statusMap[workspaceProcedureOccurrenceKey(item.procedure.id, item.dueDate)] ?? 'not_started';
 }
 
 // 同じ手続きが複数年・複数回出現する中から、手続きごとに最も近い1回だけを判断材料にする

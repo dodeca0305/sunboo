@@ -4,13 +4,13 @@ import { useState } from 'react';
 import type { RoadmapItem, RoadmapYear } from '@/lib/roadmap';
 import type { ProcedureCategory } from '@/lib/types';
 import {
-  WORKSPACE_PROCEDURE_STATUS_LABEL, WORKSPACE_PROCEDURE_STATUSES,
+  WORKSPACE_PROCEDURE_STATUS_LABEL, WORKSPACE_PROCEDURE_STATUSES, workspaceProcedureOccurrenceKey,
   type WorkspaceProcedureStatus, type WorkspaceProcedureStatusMap,
 } from '@/lib/workspaceProcedureStatus';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import { AlertTriangle } from 'lucide-react';
 
-// ── 年間ロードマップ — 表示コンポーネント（Sprint 23 Phase23.3・Sprint 24 Phase24.1）───
+// ── 年間ロードマップ — 表示コンポーネント（Sprint 23 Phase23.3・Sprint 24 Phase24.1・Sprint 32）───
 // src/app/(site)/roadmap/page.tsx と admin/(protected)/workspaces/[id]/roadmap/page.tsx・
 // src/app/share/[token]/page.tsx の3箇所から使う共通の表示部分
 // （年→月→手続き一覧のグループ化・カード表示）。buildAnnualRoadmap（src/lib/roadmap.ts）の
@@ -20,7 +20,12 @@ import { AlertTriangle } from 'lucide-react';
 // - 両方省略（(site)/roadmap の既存呼び出し）: 従来通りステータス表示なし
 // - statusMapのみ指定（/share/[token]）: 読み取り専用でステータスを表示（編集不可）
 // - 両方指定（Workspace管理画面）: クリックでステータス変更可能。変更は内部で
-//   workspace_procedure_statuses（Sprint24.1新設）にupsertする
+//   workspace_procedure_statuses にupsertする
+//
+// 【Sprint32で出現回単位に変更】statusMapのキーはprocedure_idのみから
+// workspaceProcedureOccurrenceKey(procedureId, dueDate)へ変更した。同じ手続きが複数年・
+// 複数回出現する場合（毎月納付・毎年申告等）に、出現ごとに独立した状態を持てるようにするため
+// （docs/PERIODIC_STATUS_REDESIGN.md、Sprint31設計レビューで承認済み）。
 //
 // 'use client' が必要な理由: ステータス変更の onChange ハンドラを持つため
 // （Server Componentは関数propsを子に渡せないため、更新ロジック自体をこのコンポーネント内に持つ）。
@@ -66,21 +71,25 @@ export default function AnnualRoadmapView({
   const [statusError, setStatusError] = useState<string | null>(null);
   const editable = statusMap !== undefined && companyId !== undefined;
 
-  async function handleStatusChange(procedureId: number, status: WorkspaceProcedureStatus) {
+  async function handleStatusChange(procedureId: number, dueDate: string, status: WorkspaceProcedureStatus) {
     if (!companyId) return;
-    const previous = localStatusMap[procedureId] ?? 'not_started';
-    setLocalStatusMap((prev) => ({ ...prev, [procedureId]: status })); // 楽観的更新
+    const key = workspaceProcedureOccurrenceKey(procedureId, dueDate);
+    const previous = localStatusMap[key] ?? 'not_started';
+    setLocalStatusMap((prev) => ({ ...prev, [key]: status })); // 楽観的更新
     setStatusError(null);
 
     const supabase = createBrowserSupabase();
     if (!supabase) return;
     const { error } = await supabase
       .from('workspace_procedure_statuses')
-      .upsert({ company_id: companyId, procedure_id: procedureId, status }, { onConflict: 'company_id,procedure_id' });
+      .upsert(
+        { company_id: companyId, procedure_id: procedureId, occurrence_key: dueDate, status },
+        { onConflict: 'company_id,procedure_id,occurrence_key' },
+      );
 
     if (error) {
       // 保存に失敗した場合は表示を元に戻す（DB未反映のまま見た目だけ変わった状態にしない）
-      setLocalStatusMap((prev) => ({ ...prev, [procedureId]: previous }));
+      setLocalStatusMap((prev) => ({ ...prev, [key]: previous }));
       setStatusError(`保存に失敗しました: ${error.message}`);
     }
   }
@@ -102,7 +111,7 @@ export default function AnnualRoadmapView({
                 <h3 className="mb-2 text-sm font-semibold text-gray-500">{MONTH_LABEL(month)}</h3>
                 <ul className="space-y-2">
                   {items.map((item, idx) => {
-                    const status = localStatusMap[item.procedure.id] ?? 'not_started';
+                    const status = localStatusMap[workspaceProcedureOccurrenceKey(item.procedure.id, item.dueDate)] ?? 'not_started';
                     return (
                       <li
                         key={`${item.procedure.id}-${item.dueDate}-${idx}`}
@@ -120,7 +129,7 @@ export default function AnnualRoadmapView({
                         {statusMap && editable && (
                           <select
                             value={status}
-                            onChange={(e) => handleStatusChange(item.procedure.id, e.target.value as WorkspaceProcedureStatus)}
+                            onChange={(e) => handleStatusChange(item.procedure.id, item.dueDate, e.target.value as WorkspaceProcedureStatus)}
                             className="form-select ml-auto w-auto py-1 text-xs"
                           >
                             {WORKSPACE_PROCEDURE_STATUSES.map((s) => (

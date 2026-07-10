@@ -8,7 +8,7 @@ import { workspaceRowsToCompanyProfile, type WorkspaceCompanyProfileRow } from '
 import { buildWorkspaceTimelineEvents } from '@/lib/workspaceTimelineProducer';
 import { buildStateFromTimeline, type CompanyState } from '@/lib/state';
 import { buildAnnualRoadmap } from '@/lib/roadmap';
-import type { WorkspaceProcedureStatus, WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
+import { workspaceProcedureOccurrenceKey, type WorkspaceProcedureStatusMap, type WorkspaceProcedureStatusRow } from '@/lib/workspaceProcedureStatus';
 import type { WorkspaceDocumentStatus, WorkspaceDocumentType, WorkspaceDocumentStatusMap } from '@/lib/workspaceDocumentStatus';
 import { generateWorkspaceAdvice, summarizeWorkspaceProgress, type WorkspaceAdvice, type WorkspaceProgressSummary } from '@/lib/workspaceAdvice';
 import { generateWorkspaceDecisions, type WorkspaceDecisions } from '@/lib/workspaceDecisions';
@@ -35,6 +35,12 @@ import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 // 【Sprint27で追加】generateWorkspaceDecisions（純粋関数、src/lib/workspaceDecisions.ts）に
 // companyProfile・state・roadmapYears・procedureStatusMap・documentStatusMapを渡し、
 // 「意思決定」セクションとしてWorkspaceDashboardに追加した。
+//
+// 【Sprint32で出現回単位に変更】statusMapのキーをworkspaceProcedureOccurrenceKey
+// （procedure_id + occurrence_key）へ変更した。generateWorkspaceAdvice/summarizeWorkspaceProgress/
+// generateWorkspaceDecisionsはいずれもstatusOf（src/lib/workspaceAdvice.ts）経由でこのMapを読むため、
+// 本ページ側の変更点はデータ取得・Map構築のみで、Engine側の呼び出しコードは無変更のまま
+// 正しく出現回ごとのステータスを参照できる。
 
 type WorkspaceCompanyRow = {
   id: number;
@@ -108,12 +114,12 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
       supabase.from('workspace_company_profiles').select('*').eq('company_id', companyId).maybeSingle(),
       supabase.from('prefectures').select('name').eq('code', company.prefecture_code).maybeSingle(),
       supabase.from('municipalities').select('name').eq('code', company.municipality_code).maybeSingle(),
-      supabase.from('workspace_procedure_statuses').select('procedure_id, status').eq('company_id', companyId),
+      supabase.from('workspace_procedure_statuses').select('procedure_id, occurrence_key, status').eq('company_id', companyId),
     ]);
 
     const statusMap: WorkspaceProcedureStatusMap = {};
-    for (const row of (statusData as { procedure_id: number; status: WorkspaceProcedureStatus }[] | null) ?? []) {
-      statusMap[row.procedure_id] = row.status;
+    for (const row of (statusData as WorkspaceProcedureStatusRow[] | null) ?? []) {
+      statusMap[workspaceProcedureOccurrenceKey(row.procedure_id, row.occurrence_key)] = row.status;
     }
 
     const profile = (profileData as WorkspaceCompanyProfileRow | null) ?? null;

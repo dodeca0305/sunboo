@@ -6,19 +6,23 @@ import {
 import { buildWorkspaceTimelineEvents } from '@/lib/workspaceTimelineProducer';
 import { buildStateFromTimeline } from '@/lib/state';
 import { buildAnnualRoadmap } from '@/lib/roadmap';
-import type { WorkspaceProcedureStatus, WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
+import { workspaceProcedureOccurrenceKey, type WorkspaceProcedureStatus, type WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
 import AnnualRoadmapView from '@/components/AnnualRoadmapView';
 
-// ── Company Workspace — 経営者向け共有ページ（Sprint 24 Phase24.0・Phase24.1）───
+// ── Company Workspace — 経営者向け共有ページ（Sprint 24 Phase24.0・Phase24.1・Sprint 32）───
 // ログイン不要・編集不可の閲覧専用ページ。get_shared_workspace_view（Sprint22.4 MVP migration、
-// Sprint24.1でstatusesを追加、SECURITY DEFINER RPC）をanonキーで呼び出し、トークンが
-// 有効な場合のみ会社情報を受け取る。Roadmap自体はRPCで計算せず（保存しない設計、
+// Sprint24.1でstatusesを追加、Sprint32でoccurrence_keyを追加、SECURITY DEFINER RPC）をanonキーで
+// 呼び出し、トークンが有効な場合のみ会社情報を受け取る。Roadmap自体はRPCで計算せず（保存しない設計、
 // docs/WORKSPACE_DB_DESIGN.md 12-2節）、このページがbuildAnnualRoadmap（無変更）をanonキーの
 // クライアントで呼び出して都度計算する（procedures/rulesは既存の公開/roadmapページと同じく
 // anonにSELECT許可済みのため成立する）。手続きステータスはRPCが返す"statuses"配列を
 // そのまま表示するのみで、companyIdを渡さないため編集はできない
 // （AnnualRoadmapViewのeditable判定はstatusMap+companyId両方が必要）。
 // AI参謀・書類・会計分析は本Sprintでは共有しない（docs/COMPANY_WORKSPACE.md 5節、要判断事項）。
+//
+// 【Sprint32で出現回単位に変更】statusMapのキーをworkspaceProcedureOccurrenceKey
+// （procedure_id + occurrence_key）へ変更した。RPCが返すoccurrence_keyをそのまま使い、
+// 新しい採番ロジックは作らない（docs/PERIODIC_STATUS_REDESIGN.md、Sprint31設計レビューで承認済み）。
 
 const CORPORATE_TYPE_LABEL: Record<string, string> = {
   kabushiki: '株式会社',
@@ -45,7 +49,7 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
   const view = viewData as {
     company?: WorkspaceCompanyRow;
     profile?: WorkspaceCompanyProfileRow | null;
-    statuses?: { procedure_id: number; status: WorkspaceProcedureStatus }[];
+    statuses?: { procedure_id: number; occurrence_key: string; status: WorkspaceProcedureStatus }[];
   } | null;
 
   if (!view || !view.company) {
@@ -56,7 +60,7 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
   const profile = view.profile ?? null;
   const statusMap: WorkspaceProcedureStatusMap = {};
   for (const row of view.statuses ?? []) {
-    statusMap[row.procedure_id] = row.status;
+    statusMap[workspaceProcedureOccurrenceKey(row.procedure_id, row.occurrence_key)] = row.status;
   }
 
   const [{ data: prefData }, { data: muniData }] = await Promise.all([
