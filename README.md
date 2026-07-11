@@ -17,7 +17,8 @@
 | `/result` | 診断結果（管轄機関・手続き一覧） |
 | `/procedures` | 手続きマスタ一覧（カテゴリフィルター付き） |
 | `/offices` | 管轄機関一覧（機関タイプフィルター付き） |
-| `/admin` | 管理画面（要ログイン。詳細は [管理画面（Admin）](#管理画面admin) を参照） |
+| `/admin` | 手続きマスタ管理画面（要ログイン。詳細は [管理画面（Admin）](#管理画面admin) を参照） |
+| `/admin/workspaces` | 顧問先管理（Company Workspace、要ログイン。正式系。詳細は [Company Workspace](#company-workspace顧問先管理) を参照） |
 
 ---
 
@@ -229,6 +230,24 @@ ON CONFLICT (email) DO NOTHING;
 -- 削除（Supabase Authのユーザー自体は Authentication → Users から別途削除）
 DELETE FROM admin_users WHERE email = 'former-admin@example.com';
 ```
+
+---
+
+## Company Workspace（顧問先管理）
+
+`/admin/workspaces` は税理士・会計事務所が顧問先ごとにCompany Profile・決算実績・年間ロードマップ・
+書類・経営者への共有リンクを一元管理する画面です。`/admin`（手続きマスタ管理）とは別区画で、
+**こちらが今後の新機能追加先（正式系）**です（`/`, `/start`, `/result`等の一般ユーザー向けページは
+互換・検証用として存続、新機能は追加しません）。
+
+- ログイン方法・管理者アカウントの追加/削除は上記「[管理画面（Admin）](#管理画面admin)」と同じ
+  `admin_users`の仕組みを使います
+- 会社（Workspace）ごとのアクセス制御は`workspace_members`テーブルが担い、`owner`/`member`/`viewer`
+  の3ロールがあります。**割り当てにはUIが無く、Supabase SQL Editorでの手動操作が必要です**
+  （具体的なSQLは[docs/CLOSED_BETA_LAUNCH_PLAN.md](docs/CLOSED_BETA_LAUNCH_PLAN.md) 6節を参照）
+- クローズドβとして実際の税理士・会計事務所に試用してもらう計画・手順は
+  [docs/CLOSED_BETA_LAUNCH_PLAN.md](docs/CLOSED_BETA_LAUNCH_PLAN.md)・
+  [docs/BETA_TEST_CHECKLIST.md](docs/BETA_TEST_CHECKLIST.md)を参照してください
 
 ---
 

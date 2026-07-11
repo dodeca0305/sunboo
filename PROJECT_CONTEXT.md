@@ -84,7 +84,28 @@ Phase 3で急速に進んだWorkspace化に対し、実コード・migration・g
 （[WORKSPACE_MIGRATION_STRATEGY.md](docs/WORKSPACE_MIGRATION_STRATEGY.md)）。本ドキュメント自体も
 この2つのレビューを受けて更新している。
 
-## 現在の状態（2026-07-10時点、Sprint29で同期）
+### Phase 5（Sprint30〜41）— β版準備・Workspace機能拡充
+Sprint28〜29のレビューで特定した3つの最重要課題を解消し、Company Workspaceを対外提供可能な水準まで
+引き上げた。周期的ステータス管理を出現回単位に再設計（`occurrence_key`導入、Sprint31設計・
+Sprint32実装、[PERIODIC_STATUS_REDESIGN.md](docs/PERIODIC_STATUS_REDESIGN.md)）、Workspace単位の
+アクセス制御を`workspace_members`ベースの2層モデルで実装（Sprint33）、データ取得ロジックを
+`src/lib/workspaceLoader.ts`へ共通化（Sprint34）、Tax Return ProfileをDB化（Sprint35）。続けて
+通知エンジンの設計・実装（Notification Engine設計→Notification Center MVP実装→Notification
+Settings設計→Notification Delivery Architecture設計、Sprint36〜39。実装は画面内通知センターのみで、
+メール等の外部配信は設計のみに留める）、v1.0 Release Candidate Review（Sprint40）による技術的負債の
+棚卸し、その指摘を受けたβ前軽微修正（Sprint41、決算実績削除・共有リンク失効への確認ダイアログ追加等）
+を行った。詳細は[NOTIFICATION_ENGINE_DESIGN.md](docs/NOTIFICATION_ENGINE_DESIGN.md)等の各設計書・
+[V1_RELEASE_CANDIDATE_REVIEW.md](docs/V1_RELEASE_CANDIDATE_REVIEW.md)を参照。
+
+### Phase 6（Sprint42）— クローズドβ launch準備
+実際の税理士・会計事務所にCompany Workspaceを試用してもらうためのクローズドβ計画を整備した。
+新機能追加は行わず、βテスト対象者・利用開始手順・管理者アカウント発行手順・既知の制約・重大障害の
+定義とβ停止条件等を[CLOSED_BETA_LAUNCH_PLAN.md](docs/CLOSED_BETA_LAUNCH_PLAN.md)・
+[BETA_TEST_CHECKLIST.md](docs/BETA_TEST_CHECKLIST.md)・
+[BETA_FEEDBACK_TEMPLATE.md](docs/BETA_FEEDBACK_TEMPLATE.md)として整備した（β自体は本ドキュメント
+時点では未実施）。
+
+## 現在の状態（2026-07-11時点、Sprint42で同期）
 
 - **技術スタック**: Next.js 16（App Router / Turbopack）、TypeScript、Tailwind CSS v4、Supabase
   （PostgreSQL + Auth）、lucide-react、Papa Parse。ホスティングはVercel想定
@@ -96,23 +117,43 @@ Phase 3で急速に進んだWorkspace化に対し、実コード・migration・g
   （新機能追加は停止、バグ修正のみ。`/start`・`/result`のみ匿名リード獲得の独立した役割として存続。
   詳細は[WORKSPACE_MIGRATION_STRATEGY.md](docs/WORKSPACE_MIGRATION_STRATEGY.md)）
 - **顧問先管理画面（`/admin/workspaces`配下、Supabase Auth必須）**: 顧問先一覧・新規登録・会社別
-  Workspace（Dashboard / Profile / Annual Roadmap / Documents / Share）・経営者への共有リンク発行。
-  **Sprint29で正式系（Primary）と位置づけを確定**。今後の新機能は原則こちらにのみ実装する
+  Workspace（Dashboard / Profile / Tax Return Profile / Annual Roadmap / Documents / Share）・
+  経営者への共有リンク発行・通知センター（画面内表示のみ）。**正式系（Primary）**。今後の新機能は
+  原則こちらにのみ実装する
 - **既存の管理画面（手続きマスタ管理）**: `/admin` 配下。ダッシュボード、管轄機関CRUD、機関種別CRUD、
   手続きCRUD、ルールCRUD、リンクチェック、CSVインポート/エクスポート（Workspace機能とは別区画）
 - **認証**: 一般ユーザー側（`(site)`）は認証なし（匿名・ブラウザ単位のlocalStorageで完了ステータス等を管理）。
   管理画面（既存の手続きマスタ管理・Workspace管理いずれも）はSupabase Auth + `admin_users` 許可リストで保護。
-  **既知の制約**: `admin_users`はロールを持たないフラットな全権リストであり、Workspace単位のアクセス制御
-  （どの管理者がどの顧問先を担当するか）は未実装（Sprint31で対応予定）
-- **データ取得方式**: API Routesは使わず、Supabase-jsをブラウザ/サーバーコンポーネントから直接呼び出す方式で統一
+  Workspace単位のアクセス制御はSprint33で実装済み（`workspace_members`の`owner`/`member`/`viewer`
+  ロールによる2層モデル、`admin_users`が大枠のログインゲート）。**既知の制約**: 管理者アカウント発行・
+  `workspace_members`への割り当てにはUIが無く、Supabase Dashboard・SQL Editorでの手動操作が必要
+  （[CLOSED_BETA_LAUNCH_PLAN.md](docs/CLOSED_BETA_LAUNCH_PLAN.md)参照）
+- **データ取得方式**: API Routesは使わず、Supabase-jsをブラウザ/サーバーコンポーネントから直接呼び出す方式で統一。
+  Workspace側のデータ取得は`src/lib/workspaceLoader.ts`に共通化済み（Sprint34）
+- **通知**: 画面内通知センター（Sprint37実装済み、Decision Engine/AI Adviserの出力を配信形式へ
+  変換するだけの判断ロジックを持たないルーティング層）のみ稼働。メール・Slack・LINE・Web Push等の
+  外部push配信は設計のみで未実装（[NOTIFICATION_ENGINE_DESIGN.md](docs/NOTIFICATION_ENGINE_DESIGN.md)・
+  [NOTIFICATION_SETTINGS_DESIGN.md](docs/NOTIFICATION_SETTINGS_DESIGN.md)・
+  [NOTIFICATION_DELIVERY_ARCHITECTURE.md](docs/NOTIFICATION_DELIVERY_ARCHITECTURE.md)、Sprint36・38・39）
+- **β提供**: Sprint42でクローズドβ launch計画を整備済み（未実施）。詳細は
+  [CLOSED_BETA_LAUNCH_PLAN.md](docs/CLOSED_BETA_LAUNCH_PLAN.md)
 - **未着手・既知の制約**:
   - 東京都・福岡県以外の都道府県は未対応
   - `procedure_organizations` テーブルは定義済みだがアプリコードから未参照（将来、1手続き複数提出先対応に使う想定）
   - `README.md` はPhase 1時点の記述が多く残っており、現状と一部乖離がある（セットアップ手順自体は有効）
   - `next lint` がプロジェクト設定の問題で動作しない既知の問題がある
-  - Workspaceの手続きステータス・書類ステータスは年度・出現回を区別できない（Sprint30で再設計予定、
-    詳細は[ARCHITECTURE_REVIEW_SPRINT28.md](docs/ARCHITECTURE_REVIEW_SPRINT28.md) 6-2節）
-  - Workspace単位のアクセス制御が未実装（Sprint31で対応予定、同ドキュメント5-2節）
+  - withholdingTaxCycle（源泉所得税の納付サイクル実績）はTax Return Profileに保存されるが、
+    State Engine・年間ロードマップには反映されない（`state.ts`の既知のギャップ、Workspace UIには
+    注意書き済み、Sprint41）
+  - 共有リンクに有効期限設定UIが無い（発行後は失効操作を行うまで無期限、Sprint41で注意書き済み）
+  - `at_establishment`/`hiring_event`/`event_based`の手続き（法人設立届出書等）が年間ロードマップの
+    一覧から除外される（`src/lib/roadmap.ts`の既知の制約）
+  - Company Workspaceの4段階権限モデル（管理者/担当者/経営者/閲覧のみ）のうち、経営者向け軽量
+    ログインは未実装（`ARCHITECTURE_REVIEW_SPRINT28.md` 9-1節で時期尚早と判断）
+  - Notification Settings（個人ごとの通知フィルタ）・Delivery（外部push配信）は設計のみで未実装
+    （Sprint38・39、実要望確認後に着手する方針）
+  - 詳細な技術的負債の棚卸しは[V1_RELEASE_CANDIDATE_REVIEW.md](docs/V1_RELEASE_CANDIDATE_REVIEW.md)
+    （Sprint40）を参照
 
 ## 今後のロードマップ
 
@@ -124,8 +165,10 @@ v0.15（State Engine）→ v0.16（Annual Roadmap Engine）→ v0.17（Company W
 v0.18（Architecture Review & Migration Strategy）→ v0.7（補助金・助成金、未着手）→
 v0.8（顧問先管理、v0.17へ統合済み）→ v1.0（福岡県版正式リリース、未着手）
 
-v0.1〜v0.6・v0.9・v0.14〜v0.18はSprint29時点で実装済み（v0.17 Company Workspaceは10タブ構成のうち
-4タブ・Dashboard・共有機能が実装済みで、Tax Return Profile・Events・Accounting Data・Financial Analysis・
-4段階権限モデルは未実装）。Sprint30以降の推奨順序（周期的ステータス再設計→アクセス制御→
-データ取得共通化→Tax Return Profile対応）は[ROADMAP.md](docs/ROADMAP.md)・
-[WORKSPACE_MIGRATION_STRATEGY.md](docs/WORKSPACE_MIGRATION_STRATEGY.md)を参照。v0.7・v1.0は未着手。
+v0.1〜v0.6・v0.9・v0.14〜v0.18はSprint29時点で実装済み。Sprint30〜35で、v0.17 Company Workspaceの
+残タスクのうち周期的ステータス再設計・Workspace単位のアクセス制御・データ取得共通化・
+Tax Return Profile対応が完了した（Events・Accounting Data・Financial Analysis・4段階権限モデルの
+残りは引き続き未実装）。Sprint36〜39で通知エンジン（画面内通知センターのみ実装、外部push配信は設計のみ）、
+Sprint40〜41でv1.0 Release Candidate Reviewとβ前軽微修正、Sprint42でクローズドβ launch計画を整備した
+（詳細は本ファイル「完了済みPhase」Phase5・Phase6、[CLOSED_BETA_LAUNCH_PLAN.md](docs/CLOSED_BETA_LAUNCH_PLAN.md)
+を参照）。v0.7（補助金・助成金）・v1.0（福岡県版正式リリース）は未着手。
