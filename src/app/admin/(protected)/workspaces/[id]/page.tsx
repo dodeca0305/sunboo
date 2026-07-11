@@ -8,6 +8,7 @@ import { type CompanyState } from '@/lib/state';
 import type { WorkspaceDocumentStatusMap } from '@/lib/workspaceDocumentStatus';
 import { generateWorkspaceAdvice, summarizeWorkspaceProgress, type WorkspaceAdvice, type WorkspaceProgressSummary } from '@/lib/workspaceAdvice';
 import { generateWorkspaceDecisions, type WorkspaceDecisions } from '@/lib/workspaceDecisions';
+import { buildWorkspaceNotifications, type WorkspaceNotification } from '@/lib/workspaceNotifications';
 import { loadWorkspaceCompany, loadWorkspaceDocumentStatuses, loadWorkspaceRoadmapContext } from '@/lib/workspaceLoader';
 import WorkspaceDashboard from '@/components/WorkspaceDashboard';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
@@ -42,6 +43,11 @@ import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 // パイプラインの組み立ては、roadmap/page.tsxと重複していた（約30行）。src/lib/workspaceLoader.ts
 // （loadWorkspaceCompany・loadWorkspaceRoadmapContext）へ切り出し、両ページから共通利用する。
 // Engine自体（buildWorkspaceTimelineEvents・buildStateFromTimeline・buildAnnualRoadmap）は無変更。
+//
+// 【Sprint37で追加】buildWorkspaceNotifications（純粋関数、src/lib/workspaceNotifications.ts）に
+// decisions・advice・procedureStatusMap・documentStatusMapを渡し、「通知センター」として
+// WorkspaceDashboardの最上部に表示する。新しい判定ロジックは持たず、Decision/Adviceの結果を
+// 変換するだけ（設計: docs/NOTIFICATION_ENGINE_DESIGN.md、Sprint36承認済み）。
 
 const CORPORATE_TYPE_LABEL: Record<string, string> = {
   kabushiki: '株式会社',
@@ -87,6 +93,7 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
   let advice: WorkspaceAdvice | null = null;
   let progress: WorkspaceProgressSummary | null = null;
   let decisions: WorkspaceDecisions | null = null;
+  let notifications: WorkspaceNotification[] = [];
   let state: CompanyState | null = null;
   let prefectureName = '';
   let municipalityName = '';
@@ -100,10 +107,12 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
     advice = generateWorkspaceAdvice(roadmapYears, procedureStatusMap, state);
     progress = summarizeWorkspaceProgress(roadmapYears, procedureStatusMap);
     decisions = generateWorkspaceDecisions(companyProfile, state, roadmapYears, procedureStatusMap, documentStatusMap);
+    notifications = buildWorkspaceNotifications(companyId, decisions, advice, procedureStatusMap, documentStatusMap);
   } catch {
     advice = null;
     progress = null;
     decisions = null;
+    notifications = [];
     state = null;
   }
 
@@ -137,6 +146,7 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
           advice={advice}
           progress={progress}
           decisions={decisions}
+          notifications={notifications}
           documentsNeedingUpdateCount={documentsNeedingUpdateCount}
         />
       )}

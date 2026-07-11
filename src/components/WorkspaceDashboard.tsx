@@ -1,7 +1,13 @@
 import Link from 'next/link';
-import { ListChecks, AlertTriangle, PieChart, Sparkles, Building2, Compass } from 'lucide-react';
+import {
+  ListChecks, AlertTriangle, PieChart, Sparkles, Building2, Compass,
+  Bell, Clock, PauseCircle, FileStack, Receipt, Info,
+} from 'lucide-react';
 import type { WorkspaceAdvice, WorkspaceAdviceItem, WorkspaceProgressSummary } from '@/lib/workspaceAdvice';
 import type { WorkspaceDecisions, DecisionPriority } from '@/lib/workspaceDecisions';
+import type {
+  WorkspaceNotification, WorkspaceNotificationCategory, WorkspaceNotificationSeverity,
+} from '@/lib/workspaceNotifications';
 import type { CompanyState } from '@/lib/state';
 import type { CompanyStage, ConsumptionTaxStatus } from '@/lib/companyProfile';
 
@@ -19,6 +25,13 @@ import type { CompanyStage, ConsumptionTaxStatus } from '@/lib/companyProfile';
 // 【Sprint27で追加】generateWorkspaceDecisions（src/lib/workspaceDecisions.ts）の結果を
 // 「意思決定」として表示する。AI参謀（情報表示）を置き換えるのではなく別セクションとして追加する
 // （手続き×書類の突き合わせ・決算月からの逆算など、AI参謀より一段踏み込んだ判断を提示するため）。
+//
+// 【Sprint37で追加】buildWorkspaceNotifications（src/lib/workspaceNotifications.ts、Decision/Adviceの
+// 出力をそのまま変換するだけの純粋関数）の結果を「通知センター」として最上部に追加する。
+// 既存の「期限警告」「意思決定」セクションを置き換えたり件数を絞ったりはしない（両セクションは
+// 引き続き全件を表示する）。通知センターは重要度上位5件だけを横断的に集約した「まず見るべき場所」で
+// あり、下の各セクションはその詳細・全体像という役割分担にする（docs/NOTIFICATION_ENGINE_DESIGN.md
+// 4節「Dashboardはpull型・全体状況、Notificationはpush型・今すぐ注意を向ける項目」）。
 
 const CORPORATE_TYPE_LABEL: Record<string, string> = {
   kabushiki: '株式会社',
@@ -73,6 +86,43 @@ const DECISION_PRIORITY_TAG_CLASS: Record<DecisionPriority, string> = {
   low: '',
 };
 
+// 通知センター（Sprint37）表示用の定数。severityのタグ配色はDecisionと同じ規則
+// （high=赤、medium=amber、low=無色）を踏襲し、独自の配色ルールは作らない。
+const NOTIFICATION_SEVERITY_LABEL: Record<WorkspaceNotificationSeverity, string> = { high: '高', medium: '中', low: '低' };
+const NOTIFICATION_SEVERITY_TAG_CLASS: Record<WorkspaceNotificationSeverity, string> = DECISION_PRIORITY_TAG_CLASS;
+const NOTIFICATION_CATEGORY_ICON: Record<WorkspaceNotificationCategory, typeof Clock> = {
+  deadline: Clock,
+  hold: PauseCircle,
+  document: FileStack,
+  closing: Receipt,
+  information: Info,
+};
+
+function NotificationRow({ notification }: { notification: WorkspaceNotification }) {
+  const Icon = NOTIFICATION_CATEGORY_ICON[notification.category];
+  const content = (
+    <div className="-mx-2.5 flex items-start gap-2.5 rounded-lg px-2.5 py-2 transition-colors hover:bg-gray-50">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span className={`tag ${NOTIFICATION_SEVERITY_TAG_CLASS[notification.severity]}`}>
+            {NOTIFICATION_SEVERITY_LABEL[notification.severity]}
+          </span>
+          <span className="text-sm font-medium text-gray-900">{notification.title}</span>
+        </div>
+        <p className="mt-0.5 text-xs leading-relaxed text-gray-500">{notification.message}</p>
+      </div>
+    </div>
+  );
+  return notification.href ? (
+    <Link href={notification.href} className="block">
+      {content}
+    </Link>
+  ) : (
+    <div>{content}</div>
+  );
+}
+
 export default function WorkspaceDashboard({
   companyId,
   company,
@@ -80,6 +130,7 @@ export default function WorkspaceDashboard({
   advice,
   progress,
   decisions,
+  notifications,
   documentsNeedingUpdateCount,
 }: {
   companyId: number;
@@ -93,10 +144,27 @@ export default function WorkspaceDashboard({
   advice: WorkspaceAdvice;
   progress: WorkspaceProgressSummary;
   decisions: WorkspaceDecisions;
+  notifications: WorkspaceNotification[];
   documentsNeedingUpdateCount: number;
 }) {
   return (
     <div className="space-y-4">
+      <div className="card space-y-2">
+        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500">
+          <Bell className="h-3.5 w-3.5 text-blue-600" />
+          通知センター
+        </div>
+        {notifications.length > 0 ? (
+          <div className="divide-y divide-gray-100">
+            {notifications.map((notification) => (
+              <NotificationRow key={notification.id} notification={notification} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400">現在、対応が必要な通知はありません。</p>
+        )}
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="card space-y-3">
           <div className="flex items-center gap-2 text-xs font-semibold text-gray-500">
