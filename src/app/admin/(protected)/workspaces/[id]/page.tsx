@@ -12,10 +12,9 @@ import { loadWorkspaceCompany, loadWorkspaceDocumentStatuses, loadWorkspaceRoadm
 import WorkspaceDashboard from '@/components/WorkspaceDashboard';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 
-// ── Company Workspace Shell（Sprint23.1〜23.4・Sprint24.0・Sprint24.2・Sprint25・Sprint26・Sprint27）─
+// ── Company Workspace Shell（Sprint23.1〜23.4・Sprint24.0・Sprint24.2・Sprint25・Sprint26・Sprint27・Sprint35）─
 // 会社別Workspaceの「入口」と「骨組み」。会社プロフィール（23.2）・年間ロードマップ（23.3・23.4）・
-// 共有（24.0）・書類（26）は実装済みのためリンクを張る。TaxReturn編集は次Sprint以降
-// （docs/COMPANY_WORKSPACE.md 4節・10節）。
+// 共有（24.0）・書類（26）・決算実績（35）は実装済みのためリンクを張る。
 //
 // 【Sprint25で本ページをホームダッシュボード化】データ取得〜State/Roadmap計算はroadmap/page.tsxと
 // 同じパターンを踏襲し（buildWorkspaceTimelineEvents → buildStateFromTimeline → buildAnnualRoadmap）、
@@ -51,7 +50,7 @@ const CORPORATE_TYPE_LABEL: Record<string, string> = {
 
 const SECTIONS = [
   { icon: Building2, title: '会社プロフィール', description: '税務・労務の現況（CompanyProfile）', hrefSuffix: '/profile', comingSoon: false },
-  { icon: Receipt, title: '決算実績', description: '決算のたびの申告実績（TaxReturnProfile）', hrefSuffix: null, comingSoon: true },
+  { icon: Receipt, title: '決算実績', description: '決算のたびの申告実績（TaxReturnProfile）', hrefSuffix: '/tax-returns', comingSoon: false },
   { icon: CalendarRange, title: '年間ロードマップ', description: '今後の手続き予定の一覧', hrefSuffix: '/roadmap', comingSoon: false },
   { icon: Share2, title: '共有', description: '経営者への共有リンクの発行・管理', hrefSuffix: '/share', comingSoon: false },
   { icon: BarChart3, title: '会計分析', description: '決算実績の推移分析', hrefSuffix: null, comingSoon: true },

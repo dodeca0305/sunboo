@@ -1,8 +1,9 @@
 import type { TimelineEvent } from './timeline';
 import type { CompanyProfile } from './companyProfile';
-import { buildCompanyTimelineEvents, mergeTimelineEvents } from './timelineProducer';
+import type { TaxReturnProfile } from './taxReturnProfile';
+import { buildCompanyTimelineEvents, buildTaxReturnTimelineEvents, mergeTimelineEvents } from './timelineProducer';
 
-// ── Company Workspace — Timeline構築（Sprint 23 Phase23.4）───────────────
+// ── Company Workspace — Timeline構築（Sprint 23 Phase23.4・Sprint 35）───────────────
 // workspace_companies / workspace_company_profiles（Sprint22.4 MVP migration）から、
 // 既存のTimeline Producer（src/lib/timelineProducer.ts）にそのまま渡せる形にする境界関数。
 // 既存のbuildCompanyTimelineEvents自体は変更しない。呼び出し元
@@ -11,11 +12,15 @@ import { buildCompanyTimelineEvents, mergeTimelineEvents } from './timelineProdu
 // （CompanyProfile型はlocalStorage由来かDB由来かを区別しないため、既存Producerを無変更で流用できる。
 // docs/COMPANY_WORKSPACE.md 1-2節「計算ロジックは変更せず、データの出どころだけを変える」の実例）。
 //
-// 【Sprint23.4のスコープ】company_profileソース（会社設立イベント）のみを対象にする。
-// workspace_tax_return_profiles・workspace_company_events はまだ存在しない
-// （DBスキーマ変更なしの制約）ため、tax_return_profile/eventソースはまだ構築できない。
-// これらのテーブルが実装された際は、buildTaxReturnTimelineEvents/buildCompanyEventTimelineEvents
-// （いずれも既存・無変更）の結果をmergeTimelineEventsの引数に追加するだけで拡張できる。
-export function buildWorkspaceTimelineEvents(companyProfile: CompanyProfile): TimelineEvent[] {
-  return mergeTimelineEvents(buildCompanyTimelineEvents(companyProfile));
+// 【Sprint35で追加】workspace_tax_return_profiles実装に伴い、buildTaxReturnTimelineEvents
+// （既存・無変更）の結果をmergeTimelineEventsの引数に追加した。company_events相当の
+// ソース（登録済みイベント）は本Sprintのスコープ外のまま。
+export function buildWorkspaceTimelineEvents(
+  companyProfile: CompanyProfile,
+  taxReturnProfile?: TaxReturnProfile,
+): TimelineEvent[] {
+  return mergeTimelineEvents(
+    buildCompanyTimelineEvents(companyProfile),
+    buildTaxReturnTimelineEvents(taxReturnProfile ?? { entries: [] }),
+  );
 }

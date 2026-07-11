@@ -1,11 +1,13 @@
 import type { SupabaseClient } from './supabase';
 import type { CompanyProfile } from './companyProfile';
+import type { TaxReturnProfile } from './taxReturnProfile';
 import { buildStateFromTimeline, type CompanyState } from './state';
 import { buildAnnualRoadmap, type RoadmapYear } from './roadmap';
 import {
   workspaceRowsToCompanyProfile,
   type WorkspaceCompanyRow, type WorkspaceCompanyProfileRow,
 } from './workspaceCompanyProfile';
+import { workspaceRowsToTaxReturnProfile, type WorkspaceTaxReturnProfileRow } from './workspaceTaxReturnProfile';
 import { buildWorkspaceTimelineEvents } from './workspaceTimelineProducer';
 import {
   workspaceProcedureOccurrenceKey,
@@ -107,35 +109,53 @@ export async function loadWorkspaceDocumentStatuses(
   return { statusMap, needsUpdateCount };
 }
 
-// CompanyProfile → TimelineEvent[] → CompanyStateの変換（DBアクセスなし、純粋関数の呼び出しのみ）。
-// buildWorkspaceTimelineEvents・buildStateFromTimelineは無変更のまま、呼び出し順序だけをまとめる。
-export function deriveWorkspaceState(companyProfile: CompanyProfile): CompanyState {
-  const timelineEvents = buildWorkspaceTimelineEvents(companyProfile);
+// workspace_tax_return_profilesを取得し、既存Engineの共通入力であるTaxReturnProfileへ変換する
+// （workspaceRowsToTaxReturnProfile自体は無変更、Sprint35）。
+export async function loadWorkspaceTaxReturnProfile(
+  supabase: SupabaseClient,
+  companyId: number,
+): Promise<TaxReturnProfile> {
+  const { data } = await supabase
+    .from('workspace_tax_return_profiles')
+    .select('*')
+    .eq('company_id', companyId);
+
+  return workspaceRowsToTaxReturnProfile((data as WorkspaceTaxReturnProfileRow[] | null) ?? []);
+}
+
+// CompanyProfile・TaxReturnProfile → TimelineEvent[] → CompanyStateの変換（DBアクセスなし、
+// 純粋関数の呼び出しのみ）。buildWorkspaceTimelineEvents・buildStateFromTimelineは無変更のまま、
+// 呼び出し順序だけをまとめる。taxReturnProfileは省略可（Sprint35以前の呼び出し元との互換のため）。
+export function deriveWorkspaceState(companyProfile: CompanyProfile, taxReturnProfile?: TaxReturnProfile): CompanyState {
+  const timelineEvents = buildWorkspaceTimelineEvents(companyProfile, taxReturnProfile);
   return buildStateFromTimeline(timelineEvents);
 }
 
 export type WorkspaceRoadmapContext = {
   companyProfile: CompanyProfile;
+  taxReturnProfile: TaxReturnProfile;
   state: CompanyState;
   roadmapYears: RoadmapYear[];
   procedureStatusMap: WorkspaceProcedureStatusMap;
 };
 
-// Dashboard・Roadmapページが共通で必要とする一式（CompanyProfile・State・Annual Roadmap・
-// 手続きステータス）をまとめて取得する。company_profile系3問い合わせとprocedure_statuses問い合わせは
-// 従来通り並列実行し（Promise.all二重掛け）、既存ページの問い合わせ回数・並列度を変えない。
+// Dashboard・Roadmapページが共通で必要とする一式（CompanyProfile・TaxReturnProfile・State・
+// Annual Roadmap・手続きステータス）をまとめて取得する。company_profile系3問い合わせと
+// procedure_statuses問い合わせは従来通り並列実行し（Promise.all二重掛け）、既存ページの
+// 問い合わせ回数・並列度を変えない。tax_return_profilesの取得も同じPromise.allに加える（Sprint35）。
 export async function loadWorkspaceRoadmapContext(
   supabase: SupabaseClient,
   company: WorkspaceCompanyRow,
   horizonYears = 3,
 ): Promise<WorkspaceRoadmapContext> {
-  const [companyProfile, procedureStatusMap] = await Promise.all([
+  const [companyProfile, taxReturnProfile, procedureStatusMap] = await Promise.all([
     loadWorkspaceCompanyProfile(supabase, company),
+    loadWorkspaceTaxReturnProfile(supabase, company.id),
     loadWorkspaceProcedureStatusMap(supabase, company.id),
   ]);
 
-  const state = deriveWorkspaceState(companyProfile);
+  const state = deriveWorkspaceState(companyProfile, taxReturnProfile);
   const roadmapYears = await buildAnnualRoadmap(supabase, companyProfile, state, horizonYears);
 
-  return { companyProfile, state, roadmapYears, procedureStatusMap };
+  return { companyProfile, taxReturnProfile, state, roadmapYears, procedureStatusMap };
 }
