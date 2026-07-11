@@ -21,10 +21,12 @@
   参照するのは`WorkspaceCompanyForm.tsx`（新規会社作成時、作成者本人を自動的に`owner`登録する）
   のみであり、**既存の会社に別の管理者を追加する手段はSupabase SQL Editorでの直接`INSERT`しかない**
   （4段階権限モデル・招待UIは`docs/ROADMAP.md`が「未実装」と明記している通り、現時点でも未実装）
-- **会社（Workspace）を削除するUIも無い。** アプリコード内の`workspace_companies`への`.delete()`呼び出しは
-  `WorkspaceCompanyForm.tsx:120`の1箇所のみで、これは「会社作成直後、`workspace_members`登録に
-  失敗した場合の補償処理」専用（3-13節で確認する通り、一般的な削除機能ではない）。**テスト終了後の
-  データ削除もSupabase SQL Editorでの直接`DELETE`が必要**
+- **会社（Workspace）の削除UIはSprint43で実装済み。** `/admin/workspaces/{id}`の「危険な操作」
+  区画（`WorkspaceDeleteButton.tsx`）から、そのWorkspaceの`owner`のみが会社名を確認しながら削除できる
+  （確認ダイアログ必須、RLSの`member_delete`ポリシーによりowner以外は実行してもDBレベルで拒否される
+  二重防御）。**テスト終了後のデータ削除は、まずこのUIを第一手段とする**（24節）。UIが使えない場合
+  （例: owner権限を持つ管理者アカウントが既に無効化されている等）のみ、Supabase SQL Editorでの
+  直接`DELETE`を代替手段として使う
 - **全ての`workspace_*`テーブルは`workspace_companies`への`ON DELETE CASCADE`を持つ**
   （`workspace_company_profiles`・`workspace_members`・`workspace_share_links`
   （`migration_workspace_mvp.sql`）・`workspace_procedure_statuses`
@@ -41,10 +43,14 @@
   アプリケーション独自の利用ログは事実上収集されない**（19節）
 - **[V1_RELEASE_CANDIDATE_REVIEW.md](V1_RELEASE_CANDIDATE_REVIEW.md)（Sprint40）・
   [Sprint41 Beta Polish](../CLAUDE.md)で洗い出された既知の制約・技術的負債は、本計画の
-  「既知の制約」（12節）にそのまま引き継ぐ**（新しい調査をやり直さない）
+  「既知の制約」（23節）にそのまま引き継ぐ**（新しい調査をやり直さない）
 - **本セッションはVercelの実行プラン・Supabaseの契約プランを確認できない**（過去のセッションと同様の
   制約、[NOTIFICATION_DELIVERY_ARCHITECTURE.md](NOTIFICATION_DELIVERY_ARCHITECTURE.md) 0-2節と同じ
   理由）。16節の確認項目は「運営側が着手前に自分で確認すべき」チェックリストとして提示する
+- **Sprint44時点で、本セッションが作成していない「株式会社REINE」という会社が`workspace_companies`に
+  存在することを確認した。** これがβ対象として使う会社なのか、無関係の既存データなのかは運営者のみが
+  判断できるため、削除・変更は一切行わず**運営者確認待ち**として扱う（β開始前に、この会社をβ対象に
+  含めるか除外するかを確認すること）
 
 ---
 
@@ -140,20 +146,20 @@
 `/admin/workspaces/{id}/profile`（`WorkspaceProfileForm.tsx`）で、法人種別・決算月・設立日・
 資本金・従業員数・会社ステージ・消費税ステータス・インボイス登録状況・源泉所得税の納付サイクル・
 顧問税理士の有無の10項目を編集できる。**`taxationMethod`等の一部項目はこのフォームからは編集できない**
-（12節「既知の制約」）。
+（23節「既知の制約」）。
 
 ## 9. Tax Return Profile入力
 
 `/admin/workspaces/{id}/tax-returns`（`WorkspaceTaxReturnsView.tsx`）で決算のたびの申告実績を
 登録する。**Sprint41で削除操作に確認ダイアログを追加済み**（誤操作防止）。**源泉所得税の納付実績欄は
-記録のみでState・Roadmapに反映されない旨がフォーム内に明記されている**（12節）。
+記録のみでState・Roadmapに反映されない旨がフォーム内に明記されている**（23節）。
 
 ## 10. Roadmap確認
 
 `/admin/workspaces/{id}/roadmap`（`AnnualRoadmapView.tsx`）で今年度から今後2年分の手続き予定を
 確認する。「推定」「情報不足」タグが表示される項目は、Company Profile・Tax Return Profileの
 入力状況によって内容が変わりうる旨を案内する。**`at_establishment`/`hiring_event`/`event_based`
-（法人設立届出書等）はRoadmapに一切表示されない既知の制約がある**（12節）。
+（法人設立届出書等）はRoadmapに一切表示されない既知の制約がある**（23節）。
 
 ## 11. Procedure Status操作
 
@@ -199,7 +205,7 @@ AI参謀・会社概要の7区画が表示される（Sprint37までに実装済
 **本セッションからは実際の契約プラン・デプロイ状態を確認できないため、運営側が着手前に必ず
 自分で確認すること。**
 
-- [ ] Vercel: `main`ブランチの最新コミット（本計画時点で`16fad85`以降）が本番にデプロイ済みであること
+- [ ] Vercel: `main`ブランチの最新コミット（本計画時点で`e906388`以降）が本番にデプロイ済みであること
       （過去に「pushし忘れて本番が古いコミットのまま」という事故が実際に発生している、
       `docs/ARCHITECTURE.md`記載）
 - [ ] Vercel: Project Settingsに`NEXT_PUBLIC_SUPABASE_URL`・`NEXT_PUBLIC_SUPABASE_ANON_KEY`が
@@ -272,7 +278,7 @@ AI参謀・会社概要の7区画が表示される（Sprint37までに実装済
 詳細な様式は[BETA_FEEDBACK_TEMPLATE.md](BETA_FEEDBACK_TEMPLATE.md)を参照。収集する主な観点:
 
 - 機能別の実務適合度（Company Profile／Tax Return Profile／Roadmap／Dashboard／Notification／Share）
-- 12節「既知の制約」が実務上のブロッカーになっているか
+- 23節「既知の制約」が実務上のブロッカーになっているか
 - UI/UXで分かりにくかった点（[V1_RELEASE_CANDIDATE_REVIEW.md](V1_RELEASE_CANDIDATE_REVIEW.md)の
   指摘事項が実際に体感されるか）
 - 「この機能があれば使い続けたい」という追加要望（ただしβでは実装しない、26節参照）
@@ -314,28 +320,39 @@ AI参謀・会社概要の7区画が表示される（Sprint37までに実装済
 | 設立時手続きの一部制約 | `at_establishment`/`hiring_event`/`event_based`の手続きがRoadmapから除外される | `src/lib/roadmap.ts:58-63` |
 | Company Profile一部項目は未編集 | `taxationMethod`等はWorkspace UIから編集できない | `WorkspaceProfileForm.tsx:13-16` |
 | 匿名共有リンクに通知・AI Adviser・Decisionを含めない | 共有ページは会社概要・年間ロードマップのみ（意図的な設計） | `get_shared_workspace_view`RPC |
-| workspace_members管理はSQL手動操作が必要 | 既存会社への管理者追加にUIが無い | 本ドキュメント6節 |
-| 会社削除UIが無い | テスト終了後のデータ削除はSQL手動操作が必要 | 本ドキュメント13-2節・0節 |
+| workspace_members管理はSQL手動操作が必要 | 既存会社への管理者追加にUIが無い（会社作成時の自動owner登録を除く） | 本ドキュメント6節 |
 | Change Interview（矛盾検知）はWorkspace側未実装 | (site)側の`detectMismatches`相当がWorkspaceには無い | `WorkspaceTaxReturnsView.tsx`コメント |
-| `loading.tsx`/`error.tsx`が全体的に未整備 | データ取得中の応答なし表示、想定外エラー時に真っ白画面になりうる | `V1_RELEASE_CANDIDATE_REVIEW.md` 1・17節 |
 | 対応エリアが東京都渋谷区・福岡県全域のみ | それ以外の市区町村は選択不可 | `PROJECT_CONTEXT.md` |
+| 住民税特別徴収は未実装 | 毎月納付・普通徴収に関するProcedureがProcedure Masterに1件も登録されていない。Engineの不具合ではなくデータ未登録が原因。実装する場合は毎月納付と納期の特例（年2回）をセットで設計する必要がある（納期の特例は`roadmap.ts`内の源泉所得税専用ハードコード分岐の拡張を伴うため、Procedure追加だけでは完結しない） | Sprint44調査、`docs/PROCEDURE_MASTER_AUDIT.md` |
 
 ---
 
 ## 24. テスト終了後のデータ削除手順
 
-対象会社のIDを確認した上で、Supabase SQL Editorで以下を実行する（`ON DELETE CASCADE`により
-関連テーブルはすべて連鎖的に削除される、0節で確認済み）。
+### 第一手段: Workspace削除UI（Sprint43実装済み）
+
+対象会社の`owner`としてログインし、`/admin/workspaces/{id}`の「危険な操作」区画から
+「『会社名』を削除する」を実行する。会社名を確認しながらの操作・確認ダイアログ必須で、
+削除後は自動的に`/admin/workspaces`へ遷移する。`workspace_companies`の削除により、
+`workspace_company_profiles`・`workspace_members`・`workspace_share_links`・
+`workspace_procedure_statuses`・`workspace_documents`・`workspace_tax_return_profiles`は
+既存の`ON DELETE CASCADE`ですべて連鎖削除される（0節で確認済み）。**通常はこのUIで完結し、
+SQL操作は不要。**
+
+### 代替手段: Supabase SQL Editor（UIが使えない場合のみ）
+
+owner権限を持つアカウントが既に無効化されている等、UIから削除できない場合に限り、
+Supabase SQL Editorで以下を実行する。
 
 ```sql
 -- 削除対象の確認
 SELECT id, name, created_at FROM workspace_companies ORDER BY created_at DESC;
 
--- 会社（Workspace）を1件削除する。workspace_company_profiles・workspace_members・
--- workspace_share_links・workspace_procedure_statuses・workspace_documents・
--- workspace_tax_return_profilesはすべて自動的に連鎖削除される。
+-- 会社（Workspace）を1件削除する。連鎖削除される点はUI削除と同じ。
 DELETE FROM workspace_companies WHERE id = <company_id>;
 ```
+
+### テスターアカウントの無効化（任意）
 
 テスター自身のアカウントもβ終了後に無効化する場合は、追加で以下を行う（β終了後も継続関係が
 続く場合は不要）。
@@ -370,14 +387,12 @@ Supabase Dashboard → Authentication → Usersから該当ユーザーを削除
 
 ---
 
-## β前に別途提案する軽微修正（本Sprintでは実施しない）
+## β前に別途提案する軽微修正
 
-実コード確認の過程で見つかった、コード変更を伴う軽微な改善候補。**本Sprintでは実装しない**
-（新機能追加を主目的にしないという方針、および「必要な軽微修正が見つかった場合は別途提案する」
-という指示に従う）。
+実コード確認の過程で見つかった、コード変更を伴う軽微な改善候補。
 
 - `workspace_members`の追加・一覧をUIから行えるようにする（現状SQL手動操作、6節）。β規模
   （1〜5社）では許容範囲だが、テスター自身がSQL操作を行うことは想定していないため、運営側が
   代行する前提である旨をチェックリストに明記する
-- 会社（Workspace）の削除をUIから行えるようにする（現状SQL手動操作、24節）
-- `loading.tsx`/`error.tsx`の追加（`V1_RELEASE_CANDIDATE_REVIEW.md`既出、優先度は引き続き低〜中）
+- ~~会社（Workspace）の削除をUIから行えるようにする~~ → **Sprint43で対応済み**（24節）
+- ~~`loading.tsx`/`error.tsx`の追加~~ → **Sprint43で対応済み**
