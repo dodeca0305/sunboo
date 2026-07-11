@@ -4,6 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 
+// ── Company Workspace — 新規会社登録フォーム（Sprint 23 Phase23.1・Sprint 33）─────
+// 【Sprint33で追加】workspace_companiesのRLSがWorkspace単位のアクセス制御へ変更されたため
+// （supabase/migration_workspace_access_control.sql）、会社を作成しただけでは作成者自身も
+// その会社にアクセスできない（workspace_membersに行が無いため）。会社作成の直後、
+// 作成者自身をrole='owner'としてworkspace_membersへ登録するところまでを本フォームの責務とする
+// （RLSのINSERT policyは「まだ誰もメンバーがいない会社」への最初のowner登録を許可している）。
+
 export type PrefectureOption = { code: string; name: string };
 type MunicipalityOption = { code: string; name: string };
 
@@ -71,6 +78,16 @@ export default function WorkspaceCompanyForm({ prefectures }: { prefectures: Pre
     }
 
     setSaving(true);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user?.email) {
+      setSaving(false);
+      setError('ログイン状態を確認できませんでした。再度ログインしてください。');
+      return;
+    }
+
     const { data, error: insertError } = await supabase
       .from('workspace_companies')
       .insert({
@@ -83,13 +100,34 @@ export default function WorkspaceCompanyForm({ prefectures }: { prefectures: Pre
       .select('id')
       .single();
 
-    setSaving(false);
     if (insertError || !data) {
+      setSaving(false);
       setError(`登録に失敗しました: ${insertError?.message ?? '不明なエラー'}`);
       return;
     }
 
     const companyId = (data as { id: number }).id;
+
+    // 作成者自身をownerとしてworkspace_membersへ登録する。ここで失敗すると、会社は
+    // 作成されたのに誰もアクセスできない「孤立した会社」が残ってしまう（DBトランザクションで
+    // 一括にはしていないMVPのため）。失敗時はSprint33 migrationのDELETEポリシー特例
+    // （メンバーが1人もいない会社は誰でも削除可）を使って直前の会社を削除する補償処理を行う。
+    const { error: memberError } = await supabase
+      .from('workspace_members')
+      .insert({ company_id: companyId, email: user.email, role: 'owner' });
+
+    if (memberError) {
+      const { error: rollbackError } = await supabase.from('workspace_companies').delete().eq('id', companyId);
+      setSaving(false);
+      setError(
+        rollbackError
+          ? `会社の登録処理に失敗し、後片付けにも失敗しました（会社ID: ${companyId}）。管理者に直接お問い合わせください。`
+          : `アクセス権限の設定に失敗したため、登録を取り消しました: ${memberError.message}。もう一度お試しください。`,
+      );
+      return;
+    }
+
+    setSaving(false);
     router.push(`/admin/workspaces/${companyId}`);
     router.refresh();
   }
