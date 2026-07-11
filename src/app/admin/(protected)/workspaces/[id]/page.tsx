@@ -12,6 +12,7 @@ import { buildWorkspaceNotifications, type WorkspaceNotification } from '@/lib/w
 import { loadWorkspaceCompany, loadWorkspaceDocumentStatuses, loadWorkspaceRoadmapContext } from '@/lib/workspaceLoader';
 import WorkspaceDashboard from '@/components/WorkspaceDashboard';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
+import WorkspaceDeleteButton from './WorkspaceDeleteButton';
 
 // ── Company Workspace Shell（Sprint23.1〜23.4・Sprint24.0・Sprint24.2・Sprint25・Sprint26・Sprint27・Sprint35）─
 // 会社別Workspaceの「入口」と「骨組み」。会社プロフィール（23.2）・年間ロードマップ（23.3・23.4）・
@@ -48,6 +49,11 @@ import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 // decisions・advice・procedureStatusMap・documentStatusMapを渡し、「通知センター」として
 // WorkspaceDashboardの最上部に表示する。新しい判定ロジックは持たず、Decision/Adviceの結果を
 // 変換するだけ（設計: docs/NOTIFICATION_ENGINE_DESIGN.md、Sprint36承認済み）。
+//
+// 【Sprint43で追加】ログイン中のユーザーがこの会社でownerかどうかをworkspace_membersから判定し、
+// ownerの場合のみ画面下部に「危険な操作」（会社削除）を表示する。RLS側（member_delete policy、
+// migration_workspace_access_control.sql）も既にowner以外のDELETEを拒否しているため、UI側の
+// 判定はあくまで表示の出し分けであり、実際の権限保証はRLSが担う（二重防御）。
 
 const CORPORATE_TYPE_LABEL: Record<string, string> = {
   kabushiki: '株式会社',
@@ -73,6 +79,22 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
 
   const company = await loadWorkspaceCompany(supabase, companyId);
   if (!company) notFound();
+
+  // ログイン中のユーザーがこの会社でownerかどうかを判定する（危険な操作の表示要否のみに使う）。
+  // 取得に失敗した場合は安全側（削除UIを表示しない）に倒す。
+  let isOwner = false;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user?.email) {
+    const { data: memberRow } = await supabase
+      .from('workspace_members')
+      .select('role')
+      .eq('company_id', companyId)
+      .eq('email', user.email)
+      .maybeSingle();
+    isOwner = (memberRow as { role: string } | null)?.role === 'owner';
+  }
 
   // 書類ステータスの取得はRoadmap Engineの計算とは無関係のため、下のtry/catchとは
   // 独立して取得する（roadmap側が例外で失敗しても書類関連の表示は影響を受けない）。
@@ -180,6 +202,8 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
           );
         })}
       </div>
+
+      {isOwner && <WorkspaceDeleteButton companyId={companyId} companyName={company.name} />}
     </div>
   );
 }
