@@ -2,11 +2,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ChevronLeft, CalendarRange, Info, AlertTriangle } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { workspaceRowsToCompanyProfile, type WorkspaceCompanyProfileRow, type WorkspaceCompanyRow } from '@/lib/workspaceCompanyProfile';
-import { buildWorkspaceTimelineEvents } from '@/lib/workspaceTimelineProducer';
-import { buildStateFromTimeline } from '@/lib/state';
-import { buildAnnualRoadmap } from '@/lib/roadmap';
-import { workspaceProcedureOccurrenceKey, type WorkspaceProcedureStatusMap, type WorkspaceProcedureStatusRow } from '@/lib/workspaceProcedureStatus';
+import type { RoadmapYear } from '@/lib/roadmap';
+import type { WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
+import { loadWorkspaceCompany, loadWorkspaceRoadmapContext } from '@/lib/workspaceLoader';
 import AnnualRoadmapView from '@/components/AnnualRoadmapView';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 
@@ -34,6 +32,11 @@ import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 // 【Sprint32で出現回単位に変更】statusMapのキーをprocedure_idのみからworkspaceProcedureOccurrenceKey
 // （procedure_id + occurrence_key）へ変更した。occurrence_keyはRoadmapItem.dueDateをそのまま使う
 // （docs/PERIODIC_STATUS_REDESIGN.md、Sprint31設計レビューで承認済み）。
+//
+// 【Sprint34でデータ取得を共通化】company取得・CompanyProfile変換・Timeline/State/Annual Roadmap
+// パイプラインの組み立ては、workspaces/[id]/page.tsx（Dashboard）と重複していた。
+// src/lib/workspaceLoader.ts（loadWorkspaceCompany・loadWorkspaceRoadmapContext）へ切り出し、
+// 両ページから共通利用する。Engine自体は無変更。
 
 export default async function WorkspaceRoadmapPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -43,43 +46,19 @@ export default async function WorkspaceRoadmapPage({ params }: { params: Promise
   const supabase = await createServerSupabase();
   if (!supabase) notFound();
 
-  const { data: companyData } = await supabase
-    .from('workspace_companies')
-    .select('id, name, prefecture_code, municipality_code, corporate_type, fiscal_month')
-    .eq('id', companyId)
-    .maybeSingle();
-
-  const company = companyData as WorkspaceCompanyRow | null;
+  const company = await loadWorkspaceCompany(supabase, companyId);
   if (!company) notFound();
 
   // buildAnnualRoadmapは診断エンジン・Rule Engineへの複数のDB問い合わせを内部で行うため、
   // 想定外のデータ（DB行の欠落・形式不一致等）で例外が出ても画面が真っ白/無反応にならないよう、
   // try/catchで捕捉してエラーカードを表示する（Sprint23.3レビューで追加した防御的措置）。
-  let roadmapYears: Awaited<ReturnType<typeof buildAnnualRoadmap>> = [];
+  let roadmapYears: RoadmapYear[] = [];
   let statusMap: WorkspaceProcedureStatusMap = {};
   let computeError: string | null = null;
   try {
-    const [{ data: profileData }, { data: prefData }, { data: muniData }, { data: statusData }] = await Promise.all([
-      supabase.from('workspace_company_profiles').select('*').eq('company_id', companyId).maybeSingle(),
-      supabase.from('prefectures').select('name').eq('code', company.prefecture_code).maybeSingle(),
-      supabase.from('municipalities').select('name').eq('code', company.municipality_code).maybeSingle(),
-      supabase.from('workspace_procedure_statuses').select('procedure_id, occurrence_key, status').eq('company_id', companyId),
-    ]);
-
-    for (const row of (statusData as WorkspaceProcedureStatusRow[] | null) ?? []) {
-      statusMap[workspaceProcedureOccurrenceKey(row.procedure_id, row.occurrence_key)] = row.status;
-    }
-
-    const profile = (profileData as WorkspaceCompanyProfileRow | null) ?? null;
-    const prefectureName = (prefData as { name: string } | null)?.name ?? '';
-    const municipalityName = (muniData as { name: string } | null)?.name ?? '';
-
-    const companyProfile = workspaceRowsToCompanyProfile(company, profile, prefectureName, municipalityName);
-
-    // company_profileソースのみのTimeline（本ファイル冒頭コメント参照。tax/eventソースは未実装）
-    const timelineEvents = buildWorkspaceTimelineEvents(companyProfile);
-    const state = buildStateFromTimeline(timelineEvents);
-    roadmapYears = await buildAnnualRoadmap(supabase, companyProfile, state, 3);
+    const context = await loadWorkspaceRoadmapContext(supabase, company);
+    roadmapYears = context.roadmapYears;
+    statusMap = context.procedureStatusMap;
   } catch (err) {
     computeError = err instanceof Error ? err.message : '不明なエラー';
   }

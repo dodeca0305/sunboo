@@ -4,14 +4,11 @@ import {
   ChevronLeft, Building2, Receipt, CalendarRange, Share2, BarChart3, FileStack,
 } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { workspaceRowsToCompanyProfile, type WorkspaceCompanyProfileRow } from '@/lib/workspaceCompanyProfile';
-import { buildWorkspaceTimelineEvents } from '@/lib/workspaceTimelineProducer';
-import { buildStateFromTimeline, type CompanyState } from '@/lib/state';
-import { buildAnnualRoadmap } from '@/lib/roadmap';
-import { workspaceProcedureOccurrenceKey, type WorkspaceProcedureStatusMap, type WorkspaceProcedureStatusRow } from '@/lib/workspaceProcedureStatus';
-import type { WorkspaceDocumentStatus, WorkspaceDocumentType, WorkspaceDocumentStatusMap } from '@/lib/workspaceDocumentStatus';
+import { type CompanyState } from '@/lib/state';
+import type { WorkspaceDocumentStatusMap } from '@/lib/workspaceDocumentStatus';
 import { generateWorkspaceAdvice, summarizeWorkspaceProgress, type WorkspaceAdvice, type WorkspaceProgressSummary } from '@/lib/workspaceAdvice';
 import { generateWorkspaceDecisions, type WorkspaceDecisions } from '@/lib/workspaceDecisions';
+import { loadWorkspaceCompany, loadWorkspaceDocumentStatuses, loadWorkspaceRoadmapContext } from '@/lib/workspaceLoader';
 import WorkspaceDashboard from '@/components/WorkspaceDashboard';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 
@@ -41,15 +38,11 @@ import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 // generateWorkspaceDecisionsはいずれもstatusOf（src/lib/workspaceAdvice.ts）経由でこのMapを読むため、
 // 本ページ側の変更点はデータ取得・Map構築のみで、Engine側の呼び出しコードは無変更のまま
 // 正しく出現回ごとのステータスを参照できる。
-
-type WorkspaceCompanyRow = {
-  id: number;
-  name: string;
-  corporate_type: string;
-  fiscal_month: number | null;
-  prefecture_code: string;
-  municipality_code: string;
-};
+//
+// 【Sprint34でデータ取得を共通化】company取得・CompanyProfile変換・Timeline/State/Annual Roadmap
+// パイプラインの組み立ては、roadmap/page.tsxと重複していた（約30行）。src/lib/workspaceLoader.ts
+// （loadWorkspaceCompany・loadWorkspaceRoadmapContext）へ切り出し、両ページから共通利用する。
+// Engine自体（buildWorkspaceTimelineEvents・buildStateFromTimeline・buildAnnualRoadmap）は無変更。
 
 const CORPORATE_TYPE_LABEL: Record<string, string> = {
   kabushiki: '株式会社',
@@ -73,13 +66,7 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
   const supabase = await createServerSupabase();
   if (!supabase) notFound();
 
-  const { data } = await supabase
-    .from('workspace_companies')
-    .select('id, name, corporate_type, fiscal_month, prefecture_code, municipality_code')
-    .eq('id', companyId)
-    .maybeSingle();
-
-  const company = data as WorkspaceCompanyRow | null;
+  const company = await loadWorkspaceCompany(supabase, companyId);
   if (!company) notFound();
 
   // 書類ステータスの取得はRoadmap Engineの計算とは無関係のため、下のtry/catchとは
@@ -87,14 +74,9 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
   let documentStatusMap: WorkspaceDocumentStatusMap = {};
   let documentsNeedingUpdateCount = 0;
   try {
-    const { data: documentsData } = await supabase
-      .from('workspace_documents')
-      .select('document_type, status')
-      .eq('company_id', companyId);
-    for (const row of (documentsData as { document_type: WorkspaceDocumentType; status: WorkspaceDocumentStatus }[] | null) ?? []) {
-      documentStatusMap[row.document_type] = row.status;
-      if (row.status === 'needs_update') documentsNeedingUpdateCount++;
-    }
+    const documents = await loadWorkspaceDocumentStatuses(supabase, companyId);
+    documentStatusMap = documents.statusMap;
+    documentsNeedingUpdateCount = documents.needsUpdateCount;
   } catch {
     documentStatusMap = {};
     documentsNeedingUpdateCount = 0;
@@ -110,30 +92,15 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
   let prefectureName = '';
   let municipalityName = '';
   try {
-    const [{ data: profileData }, { data: prefData }, { data: muniData }, { data: statusData }] = await Promise.all([
-      supabase.from('workspace_company_profiles').select('*').eq('company_id', companyId).maybeSingle(),
-      supabase.from('prefectures').select('name').eq('code', company.prefecture_code).maybeSingle(),
-      supabase.from('municipalities').select('name').eq('code', company.municipality_code).maybeSingle(),
-      supabase.from('workspace_procedure_statuses').select('procedure_id, occurrence_key, status').eq('company_id', companyId),
-    ]);
+    const { companyProfile, state: computedState, roadmapYears, procedureStatusMap } =
+      await loadWorkspaceRoadmapContext(supabase, company);
+    state = computedState;
+    prefectureName = companyProfile.prefectureName;
+    municipalityName = companyProfile.municipalityName;
 
-    const statusMap: WorkspaceProcedureStatusMap = {};
-    for (const row of (statusData as WorkspaceProcedureStatusRow[] | null) ?? []) {
-      statusMap[workspaceProcedureOccurrenceKey(row.procedure_id, row.occurrence_key)] = row.status;
-    }
-
-    const profile = (profileData as WorkspaceCompanyProfileRow | null) ?? null;
-    prefectureName = (prefData as { name: string } | null)?.name ?? '';
-    municipalityName = (muniData as { name: string } | null)?.name ?? '';
-
-    const companyProfile = workspaceRowsToCompanyProfile(company, profile, prefectureName, municipalityName);
-    const timelineEvents = buildWorkspaceTimelineEvents(companyProfile);
-    state = buildStateFromTimeline(timelineEvents);
-    const roadmapYears = await buildAnnualRoadmap(supabase, companyProfile, state, 3);
-
-    advice = generateWorkspaceAdvice(roadmapYears, statusMap, state);
-    progress = summarizeWorkspaceProgress(roadmapYears, statusMap);
-    decisions = generateWorkspaceDecisions(companyProfile, state, roadmapYears, statusMap, documentStatusMap);
+    advice = generateWorkspaceAdvice(roadmapYears, procedureStatusMap, state);
+    progress = summarizeWorkspaceProgress(roadmapYears, procedureStatusMap);
+    decisions = generateWorkspaceDecisions(companyProfile, state, roadmapYears, procedureStatusMap, documentStatusMap);
   } catch {
     advice = null;
     progress = null;

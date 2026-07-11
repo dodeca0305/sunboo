@@ -2,14 +2,16 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ChevronLeft, FileStack, Info } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
-import type { WorkspaceDocumentType, WorkspaceDocumentStatus, WorkspaceDocumentStatusMap } from '@/lib/workspaceDocumentStatus';
+import { loadWorkspaceCompany, loadWorkspaceDocumentStatuses } from '@/lib/workspaceLoader';
 import WorkspaceDocumentsView from '@/components/WorkspaceDocumentsView';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 
-// ── Company Workspace — 書類（Sprint 26 Workspace Documents MVP）────────────
-// workspace_documents（本Sprint新設）のステータス（メタデータのみ）を一覧表示・変更する。
+// ── Company Workspace — 書類（Sprint 26 Workspace Documents MVP・Sprint 34）───────
+// workspace_documents（Sprint26新設）のステータス（メタデータのみ）を一覧表示・変更する。
 // ファイルアップロードはスコープ外。ステータス変更自体はWorkspaceDocumentsView内で完結する
 // （Server Componentである本ページからは関数propsを渡せないため、roadmap/page.tsxと同じ構成）。
+// 【Sprint34でデータ取得を共通化】company取得・書類ステータス取得をsrc/lib/workspaceLoader.ts
+// （loadWorkspaceCompany・loadWorkspaceDocumentStatuses）へ切り出した。
 
 export default async function WorkspaceDocumentsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -19,24 +21,10 @@ export default async function WorkspaceDocumentsPage({ params }: { params: Promi
   const supabase = await createServerSupabase();
   if (!supabase) notFound();
 
-  const { data: companyData } = await supabase
-    .from('workspace_companies')
-    .select('id, name')
-    .eq('id', companyId)
-    .maybeSingle();
-
-  const company = companyData as { id: number; name: string } | null;
+  const company = await loadWorkspaceCompany(supabase, companyId);
   if (!company) notFound();
 
-  const { data: documentsData } = await supabase
-    .from('workspace_documents')
-    .select('document_type, status')
-    .eq('company_id', companyId);
-
-  const statusMap: WorkspaceDocumentStatusMap = {};
-  for (const row of (documentsData as { document_type: WorkspaceDocumentType; status: WorkspaceDocumentStatus }[] | null) ?? []) {
-    statusMap[row.document_type] = row.status;
-  }
+  const { statusMap } = await loadWorkspaceDocumentStatuses(supabase, companyId);
 
   return (
     <div className="space-y-6">

@@ -2,9 +2,16 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { workspaceRowsToCompanyProfile, type WorkspaceCompanyProfileRow, type WorkspaceCompanyRow } from '@/lib/workspaceCompanyProfile';
+import { loadWorkspaceCompany, loadWorkspaceCompanyProfile } from '@/lib/workspaceLoader';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import WorkspaceProfileForm from './WorkspaceProfileForm';
+
+// ── Company Workspace — 会社プロフィール（Sprint 23 Phase23.2・Sprint 34）─────────
+// 【Sprint34でデータ取得を共通化】company取得・CompanyProfile変換はDashboard・Roadmapと重複していた。
+// src/lib/workspaceLoader.ts（loadWorkspaceCompany・loadWorkspaceCompanyProfile）へ切り出した。
+// 本ページはAnnual Roadmapの計算（診断エンジンへの追加問い合わせを伴う）を必要としないため、
+// loadWorkspaceRoadmapContextではなくloadWorkspaceCompanyProfileのみを呼ぶ
+// （問い合わせ回数を従来通り3件に保つ）。
 
 export default async function WorkspaceCompanyProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -14,26 +21,10 @@ export default async function WorkspaceCompanyProfilePage({ params }: { params: 
   const supabase = await createServerSupabase();
   if (!supabase) notFound();
 
-  const { data: companyData } = await supabase
-    .from('workspace_companies')
-    .select('id, name, prefecture_code, municipality_code, corporate_type, fiscal_month')
-    .eq('id', companyId)
-    .maybeSingle();
-
-  const company = companyData as WorkspaceCompanyRow | null;
+  const company = await loadWorkspaceCompany(supabase, companyId);
   if (!company) notFound();
 
-  const [{ data: profileData }, { data: prefData }, { data: muniData }] = await Promise.all([
-    supabase.from('workspace_company_profiles').select('*').eq('company_id', companyId).maybeSingle(),
-    supabase.from('prefectures').select('name').eq('code', company.prefecture_code).maybeSingle(),
-    supabase.from('municipalities').select('name').eq('code', company.municipality_code).maybeSingle(),
-  ]);
-
-  const profile = (profileData as WorkspaceCompanyProfileRow | null) ?? null;
-  const prefectureName = (prefData as { name: string } | null)?.name ?? '';
-  const municipalityName = (muniData as { name: string } | null)?.name ?? '';
-
-  const initialProfile = workspaceRowsToCompanyProfile(company, profile, prefectureName, municipalityName);
+  const initialProfile = await loadWorkspaceCompanyProfile(supabase, company);
 
   return (
     <div className="space-y-6">

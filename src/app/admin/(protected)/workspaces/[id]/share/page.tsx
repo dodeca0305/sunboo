@@ -2,13 +2,16 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ChevronLeft, Share2, Info } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
+import { loadWorkspaceCompany } from '@/lib/workspaceLoader';
 import WorkspaceShareLinksPanel, { type ShareLinkRow } from './WorkspaceShareLinksPanel';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 
-// ── Company Workspace — 共有（Sprint 24 Phase24.0）───────────────────
+// ── Company Workspace — 共有（Sprint 24 Phase24.0・Sprint 34）───────────────
 // workspace_share_links・get_shared_workspace_view（いずれもSprint22.4 MVP migrationで
 // 実装済み、DBスキーマ変更なし）を利用する。共有対象は本Sprintでは
 // company/profile/roadmapの3項目固定（項目単位のトグルは次Sprint以降）。
+// 【Sprint34でデータ取得を共通化】company取得をsrc/lib/workspaceLoader.ts
+// （loadWorkspaceCompany）へ切り出した。共有リンク自体の取得は本ページ固有のため変更なし。
 
 export default async function WorkspaceSharePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,13 +21,7 @@ export default async function WorkspaceSharePage({ params }: { params: Promise<{
   const supabase = await createServerSupabase();
   if (!supabase) notFound();
 
-  const { data: companyData } = await supabase
-    .from('workspace_companies')
-    .select('id, name')
-    .eq('id', companyId)
-    .maybeSingle();
-
-  const company = companyData as { id: number; name: string } | null;
+  const company = await loadWorkspaceCompany(supabase, companyId);
   if (!company) notFound();
 
   const { data: linksData } = await supabase
