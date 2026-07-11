@@ -166,7 +166,13 @@ export function TaxReturnEntryCard({
             <Pencil className="h-3 w-3" />
             編集
           </button>
-          <button type="button" onClick={onDelete} className="btn-secondary inline-flex items-center gap-1 px-2.5 py-1 text-xs text-red-600">
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm(`${entry.fiscalYear}の決算実績を削除します。よろしいですか？`)) onDelete();
+            }}
+            className="btn-secondary inline-flex items-center gap-1 px-2.5 py-1 text-xs text-red-600"
+          >
             <Trash2 className="h-3 w-3" />
             削除
           </button>

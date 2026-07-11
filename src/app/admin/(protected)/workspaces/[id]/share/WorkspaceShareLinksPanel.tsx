@@ -68,6 +68,7 @@ export default function WorkspaceShareLinksPanel({
   }
 
   async function handleRevoke(linkId: number) {
+    if (!window.confirm('この共有リンクを失効させます。経営者はこのリンクを使えなくなります。よろしいですか？')) return;
     const supabase = createBrowserSupabase();
     if (!supabase) return;
     const revokedAt = new Date().toISOString();

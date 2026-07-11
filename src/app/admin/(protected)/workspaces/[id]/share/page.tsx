@@ -54,7 +54,8 @@ export default async function WorkspaceSharePage({ params }: { params: Promise<{
         <p className="text-xs leading-relaxed text-gray-500">
           発行したリンクを経営者に共有すると、ログイン不要で「会社概要」「年間ロードマップ」を
           閲覧できます（編集はできません）。AI参謀・書類・会計分析はまだ共有できません。
-          不要になったリンクは失効させてください。
+          現在、共有リンクに有効期限はありません。発行後は「失効させる」を押すまで有効なままに
+          なりますので、不要になったリンクは速やかに失効させてください。
         </p>
       </div>
 

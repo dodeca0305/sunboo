@@ -328,6 +328,9 @@ export default function WorkspaceTaxReturnsView({
                   value={draft.withholdingTaxCycleActual}
                   onChange={(v) => set('withholdingTaxCycleActual', v)}
                 />
+                <p className="text-xs text-amber-600">
+                  現在この項目は記録のみ保存され、年間ロードマップ・Stateには反映されません。
+                </p>
               </div>
             )}
 
