@@ -27,6 +27,11 @@ export type ConsumptionTaxInterimFrequency = 'none' | '1' | '3' | '11';
 export type WithholdingTaxCycle = 'monthly' | 'special_exception' | 'unset';
 export type LocalTaxCollectionMethod = 'special_collection' | 'general_collection';
 
+// 個人住民税の特別徴収（地方税法）の納付サイクル。源泉所得税（WithholdingTaxCycle、所得税法）とは
+// 別制度・別の特例日程（6/10, 12/10 vs 1/20, 7/10）のため、値の語彙も意図的に揃えない
+// （docs/RESIDENT_TAX_SUPPORT_DESIGN.md 2節「命名の整理」）。
+export type ResidentTaxPaymentCycle = 'unknown' | 'monthly' | 'special';
+
 export type AdvisorPresence = {
   taxAccountant: boolean; // 税理士
   laborConsultant: boolean; // 社労士
@@ -59,8 +64,11 @@ export type CompanyProfile = {
   // 源泉所得税
   withholdingTaxCycle: WithholdingTaxCycle;
 
-  // 地方税
+  // 地方税（住民税特別徴収）。residentTaxPaymentCycle は localTaxCollectionMethod が
+  // 'special_collection'（特別徴収）の場合にのみ意味を持つ（'general_collection' の会社には
+  // そもそも納付サイクルという概念が無い）。
   localTaxCollectionMethod: LocalTaxCollectionMethod;
+  residentTaxPaymentCycle: ResidentTaxPaymentCycle;
 
   // 電子申告
   eTaxEnabled: boolean;
@@ -93,6 +101,7 @@ const PROFILE_DEFAULTS = {
   consumptionTaxInterimFrequency: 'none' as ConsumptionTaxInterimFrequency,
   withholdingTaxCycle: 'unset' as WithholdingTaxCycle,
   localTaxCollectionMethod: 'special_collection' as LocalTaxCollectionMethod,
+  residentTaxPaymentCycle: 'unknown' as ResidentTaxPaymentCycle,
   eTaxEnabled: false,
   eLTaxEnabled: false,
   advisors: DEFAULT_ADVISORS,
@@ -162,6 +171,9 @@ export function loadCompanyProfile(): CompanyProfile | null {
       localTaxCollectionMethod:
         (parsed.localTaxCollectionMethod as LocalTaxCollectionMethod | undefined) ??
         PROFILE_DEFAULTS.localTaxCollectionMethod,
+      residentTaxPaymentCycle:
+        (parsed.residentTaxPaymentCycle as ResidentTaxPaymentCycle | undefined) ??
+        PROFILE_DEFAULTS.residentTaxPaymentCycle,
       eTaxEnabled: (parsed.eTaxEnabled as boolean | undefined) ?? PROFILE_DEFAULTS.eTaxEnabled,
       eLTaxEnabled: (parsed.eLTaxEnabled as boolean | undefined) ?? PROFILE_DEFAULTS.eLTaxEnabled,
       advisors: { ...DEFAULT_ADVISORS, ...advisorsRaw },
@@ -263,6 +275,7 @@ export const ESTABLISHMENT_PROCEDURE_CODES = new Set([
 ]);
 
 export const WITHHOLDING_TAX_CODE = 'WITHHOLDING_TAX'; // 源泉所得税の納付（roadmap.tsも参照）
+export const RESIDENT_TAX_WITHHOLDING_CODE = 'RESIDENT_TAX_WITHHOLDING'; // 住民税特別徴収税額の納付（roadmap.tsも参照）
 
 function toIsoDate(d: Date): string {
   const y = d.getFullYear();
@@ -271,17 +284,43 @@ function toIsoDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-// 納期の特例（1/20, 7/10の年2回）の次回期日を計算する。
+// ── 周期手続きの「毎月納付 / 納期の特例（年2回）」切替（Sprint47で一般化）───────────
+// 元は WITHHOLDING_TAX_CODE 専用のif分岐だった。Sprint47で RESIDENT_TAX_WITHHOLDING_CODE が
+// 同じ形（毎月10日が基本形、CompanyProfileの特定フィールドが特定の値のときだけ年2回パターンに
+// 切り替わる）の2件目として加わったため、procedure.code → 設定 のテーブル参照に一般化した
+// （docs/RESIDENT_TAX_SUPPORT_DESIGN.md 5節）。roadmap.ts の expandOccurrences も同じテーブルを
+// 参照する（重複させない）。将来3件目が増えてもこのテーブルに1行足すだけでよい。
+export type PeriodicCycleOverride = {
+  cycleField: 'withholdingTaxCycle' | 'residentTaxPaymentCycle';
+  specialValue: string; // profile[cycleField] がこの値のときだけ年2回パターンに切り替える
+  specialDates: readonly [number, number][]; // [month(0-indexed), day] を年内昇順で2件
+};
+
+export const PERIODIC_CYCLE_OVERRIDES: Record<string, PeriodicCycleOverride> = {
+  [WITHHOLDING_TAX_CODE]: {
+    cycleField: 'withholdingTaxCycle',
+    specialValue: 'special_exception',
+    specialDates: [[0, 20], [6, 10]], // 1/20, 7/10（所得税法）
+  },
+  [RESIDENT_TAX_WITHHOLDING_CODE]: {
+    cycleField: 'residentTaxPaymentCycle',
+    specialValue: 'special',
+    specialDates: [[5, 10], [11, 10]], // 6/10, 12/10（地方税法）
+  },
+};
+
+// 納期の特例（年2回）の次回期日を計算する。dates は年内昇順の2件を想定（例: [1/20, 7/10]）。
 // diagnosis.ts の calculateNextDeadline とは別に、CompanyProfile側の上書きとして
 // クライアント側で計算する（サーバー側の診断結果は毎月納付前提のまま変えない）。
-function specialExceptionDeadline(): { label: string; date: string } {
+function nextPeriodicCycleDeadline(dates: readonly [number, number][]): { label: string; date: string } {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const year = today.getFullYear();
+  const [first, second] = dates;
   const candidates = [
-    new Date(year, 0, 20),
-    new Date(year, 6, 10),
-    new Date(year + 1, 0, 20),
+    new Date(year, first[0], first[1]),
+    new Date(year, second[0], second[1]),
+    new Date(year + 1, first[0], first[1]),
   ];
   const next = candidates.find((d) => d.getTime() >= today.getTime()) ?? candidates[candidates.length - 1];
   return {
@@ -292,9 +331,15 @@ function specialExceptionDeadline(): { label: string; date: string } {
 
 // 診断エンジン・イベントエンジンが返した procedures に対し、CompanyProfileの内容を反映する。
 // ① stage === 'second_term_or_later' の場合、設立系手続きを取り除く
-// ② withholdingTaxCycle === 'special_exception' の場合、源泉所得税の期限を年2回パターンに
-//    上書きする（'unset'/'monthly' の場合は毎月納付のまま表示する。'unset' はAI参謀側の
-//    確認コメントで案内する＝buildProfileAdvisories参照）
+// ② localTaxCollectionMethod !== 'special_collection' の場合、住民税特別徴収の納付を取り除く
+//    （普通徴収を選択している会社には特別徴収の納付義務が無いため）
+// ③ residentTaxPaymentCycle === 'unknown' の場合、住民税特別徴収の納付を取り除く
+//    【Sprint47レビュー対応】毎月10日の出現をconfidence='incomplete'付きで表示すると、
+//    「毎月10日が予定として存在する」ように見える誤案内リスクがあるため、周期が未確定の間は
+//    一覧に出さない（WITHHOLDING_TAX_CODEの'unset'時の既存挙動は変更しない。あちらは
+//    Sprint47以前からの確立済み挙動であり、本レビューの対象外）
+// ④ PERIODIC_CYCLE_OVERRIDES に該当する手続きは、対象フィールドが specialValue のときだけ
+//    期限を年2回パターンに上書きする（それ以外の値は毎月納付のまま表示する）
 export function applyCompanyProfileToProcedures(
   procedures: ScheduleProcedure[],
   profile: CompanyProfile | null,
@@ -303,9 +348,12 @@ export function applyCompanyProfileToProcedures(
 
   return procedures
     .filter((p) => !(profile.stage === 'second_term_or_later' && ESTABLISHMENT_PROCEDURE_CODES.has(p.code)))
+    .filter((p) => !(p.code === RESIDENT_TAX_WITHHOLDING_CODE && profile.localTaxCollectionMethod !== 'special_collection'))
+    .filter((p) => !(p.code === RESIDENT_TAX_WITHHOLDING_CODE && profile.residentTaxPaymentCycle === 'unknown'))
     .map((p) => {
-      if (p.code === WITHHOLDING_TAX_CODE && profile.withholdingTaxCycle === 'special_exception') {
-        const next = specialExceptionDeadline();
+      const override = PERIODIC_CYCLE_OVERRIDES[p.code];
+      if (override && (profile[override.cycleField] as string) === override.specialValue) {
+        const next = nextPeriodicCycleDeadline(override.specialDates);
         return { ...p, next_deadline: next.label, next_deadline_date: next.date };
       }
       return p;

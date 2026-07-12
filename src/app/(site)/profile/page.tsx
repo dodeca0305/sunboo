@@ -10,7 +10,7 @@ import {
   loadCompanyProfile, saveCompanyProfile,
   type AdvisorPresence, type CompanyProfile, type CompanyStage, type ConsumptionTaxInterimFrequency,
   type ConsumptionTaxStatus, type InterimFilingStatus, type InvoiceRegistrationStatus,
-  type LocalTaxCollectionMethod, type TaxationMethod, type WithholdingTaxCycle,
+  type LocalTaxCollectionMethod, type ResidentTaxPaymentCycle, type TaxationMethod, type WithholdingTaxCycle,
 } from '@/lib/companyProfile';
 import {
   MapPin, Banknote, CalendarClock, Receipt, FileClock,
@@ -66,6 +66,17 @@ const LOCAL_TAX_LABEL: Record<LocalTaxCollectionMethod, string> = {
   general_collection: '普通徴収',
 };
 
+// 住民税特別徴収（地方税）の納期区分。源泉所得税の納期（WITHHOLDING_CYCLE_LABEL、国税）とは
+// 別制度のため、文言を「住民税特別徴収の納期」と明示し混同を避ける。
+// 【Sprint47レビュー対応】「special」は従業員数等から自動的に該当するものではなく、市区町村へ
+// 申請し承認を受けて初めて選べる制度のため、ラベル自体に「承認済み」であることを明記する
+// （従業員数だけで自動判定しない、利用者の明示選択を維持する設計）。
+const RESIDENT_TAX_CYCLE_LABEL: Record<ResidentTaxPaymentCycle, string> = {
+  unknown: '未設定',
+  monthly: '毎月納付',
+  special: '年2回納付（納期の特例・自治体の承認済み）',
+};
+
 const ADVISOR_ITEMS: { key: keyof AdvisorPresence; label: string }[] = [
   { key: 'taxAccountant', label: '税理士' },
   { key: 'laborConsultant', label: '社労士' },
@@ -101,6 +112,7 @@ const EMPTY_DRAFT: ProfileDraft = {
   consumptionTaxInterimFrequency: 'none',
   withholdingTaxCycle: 'unset',
   localTaxCollectionMethod: 'special_collection',
+  residentTaxPaymentCycle: 'unknown',
   eTaxEnabled: false,
   eLTaxEnabled: false,
   advisors: {
@@ -516,6 +528,24 @@ export default function ProfilePage() {
               onChange={(v) => set('localTaxCollectionMethod', v)}
             />
           </div>
+
+          {draft.localTaxCollectionMethod === 'special_collection' && (
+            <div className="space-y-2">
+              <label className="form-label">住民税特別徴収の納期</label>
+              <ToggleButtons
+                options={(['unknown', 'monthly', 'special'] as const).map((v) => ({
+                  value: v,
+                  label: RESIDENT_TAX_CYCLE_LABEL[v],
+                }))}
+                value={draft.residentTaxPaymentCycle}
+                onChange={(v) => set('residentTaxPaymentCycle', v)}
+              />
+              <p className="text-xs leading-relaxed text-amber-700">
+                「年2回納付」は、市区町村への申請が承認されている場合にのみ選択してください。従業員数だけで
+                自動的に対象になるものではありません。未承認・未確認の場合は「未設定」のままにしてください。
+              </p>
+            </div>
+          )}
         </div>
 
         {/* ⑤ 電子申告 */}

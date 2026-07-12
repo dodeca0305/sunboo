@@ -4,6 +4,7 @@ import { calculateNextDeadline, runDiagnosis } from './diagnosis';
 import { evaluateRules, type RuleContext } from './ruleEngine';
 import {
   applyCompanyProfileToProcedures, hasEmployees, ESTABLISHMENT_PROCEDURE_CODES, WITHHOLDING_TAX_CODE,
+  RESIDENT_TAX_WITHHOLDING_CODE, PERIODIC_CYCLE_OVERRIDES,
   type CompanyProfile,
 } from './companyProfile';
 import { toScheduleProcedure, type ScheduleProcedure } from './scheduleProcedure';
@@ -45,9 +46,21 @@ function toIsoDate(d: Date): string {
 // 【MVPの簡略化】CONSUMPTION_TAX_RETURNはルール16(consumption_tax_status)・17(invoice_
 // registration_status)のどちらでも追加されうるが、本MVPではconsumptionTaxStatus1本のみを
 // 参照する（設計書7節が示す「最も確からしさが低いStateFieldを採用する」の厳密な実装は次Sprint以降）。
+// 【Sprint47の設計判断】RESIDENT_TAX_WITHHOLDING_CODEはStateを経由させない。
+// state.withholdingTaxCycleは常に'incomplete'を返す既知の未実装ギャップ（state.ts 189-199行）があり、
+// WITHHOLDING_TAX_CODEはこの壊れた値をそのまま使っているため、CompanyProfile側で明示的に
+// withholdingTaxCycleを設定してもConfidenceバッジは常に「情報不足」のままという不整合が残っている。
+// 住民税特別徴収でこの不整合を複製しないよう、State経由の判定にはしない
+// （docs/RESIDENT_TAX_SUPPORT_DESIGN.md 7節）。
+// 【Sprint47レビュー対応】residentTaxPaymentCycle === 'unknown' の場合はそもそも
+// applyCompanyProfileToProcedures（companyProfile.ts）がRESIDENT_TAX_WITHHOLDING_CODEを一覧から
+// 除外するため、この関数に到達する時点で周期は必ず'monthly'か'special'のいずれかに確定している
+// （毎月10日の出現をconfidence='incomplete'付きで表示すると「予定が存在するように見える」誤案内に
+// なるため、unknownは「情報不足として表示」ではなく「表示しない」を選んだ）。
 function confidenceForProcedure(code: string, state: CompanyState): StateConfidence {
   if (ESTABLISHMENT_PROCEDURE_CODES.has(code)) return state.stage.confidence;
   if (code === WITHHOLDING_TAX_CODE) return state.withholdingTaxCycle.confidence;
+  if (code === RESIDENT_TAX_WITHHOLDING_CODE) return 'confirmed';
   if (code === 'CONSUMPTION_TAX_RETURN') return state.consumptionTaxStatus.confidence;
   return 'confirmed';
 }
@@ -65,14 +78,18 @@ function expandOccurrences(proc: ScheduleProcedure, profile: CompanyProfile, hor
   if (!proc.next_deadline_date) return [];
   const first = new Date(`${proc.next_deadline_date}T00:00:00`);
 
-  // 源泉所得税の納期の特例（年2回・1/20と7/10）は、companyProfile.tsのspecialExceptionDeadline()が
-  // 「次の1回」しか返さないため、ここでhorizonYears分を年2回パターンで独自に展開する
-  // （specialExceptionDeadline自体は変更しない）。
-  if (proc.code === WITHHOLDING_TAX_CODE && profile.withholdingTaxCycle === 'special_exception') {
+  // 納期の特例（年2回）を持つ手続き（源泉所得税・住民税特別徴収）は、companyProfile.tsの
+  // nextPeriodicCycleDeadline()が「次の1回」しか返さないため、ここでhorizonYears分を
+  // 年2回パターンで独自に展開する（nextPeriodicCycleDeadline自体は変更しない）。
+  // 【Sprint47で一般化】PERIODIC_CYCLE_OVERRIDES（companyProfile.ts）を参照する形にし、
+  // WITHHOLDING_TAX_CODE専用のif分岐を廃止した。RESIDENT_TAX_WITHHOLDING_CODEもこのテーブル経由で
+  // 同じロジックに乗る。
+  const cycleOverride = PERIODIC_CYCLE_OVERRIDES[proc.code];
+  if (cycleOverride && (profile[cycleOverride.cycleField] as string) === cycleOverride.specialValue) {
     const dates: string[] = [];
     const startYear = first.getFullYear();
     for (let i = 0; i < horizonYears; i++) {
-      for (const [month, day] of [[0, 20], [6, 10]] as const) {
+      for (const [month, day] of cycleOverride.specialDates) {
         const d = new Date(startYear + i, month, day);
         if (d.getTime() >= first.getTime()) dates.push(toIsoDate(d));
       }

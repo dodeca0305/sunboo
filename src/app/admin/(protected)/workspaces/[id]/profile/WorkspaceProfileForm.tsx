@@ -5,15 +5,19 @@ import { CheckCircle2, AlertTriangle } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import type { CorporateType } from '@/lib/types';
 import type {
-  CompanyProfile, CompanyStage, ConsumptionTaxStatus, InvoiceRegistrationStatus, WithholdingTaxCycle,
+  CompanyProfile, CompanyStage, ConsumptionTaxStatus, InvoiceRegistrationStatus, ResidentTaxPaymentCycle,
+  WithholdingTaxCycle,
 } from '@/lib/companyProfile';
 import { companyProfileToWorkspaceUpdatePayload } from '@/lib/workspaceCompanyProfile';
 
-// ── Company Workspace — 会社プロフィール編集フォーム（Sprint 23 Phase23.2）───────
-// 既存 src/app/(site)/profile/page.tsx の項目・トーンを参考にしつつ、MVPとして主要10項目のみを
+// ── Company Workspace — 会社プロフィール編集フォーム（Sprint 23 Phase23.2・Sprint47）───────
+// 既存 src/app/(site)/profile/page.tsx の項目・トーンを参考にしつつ、MVPとして主要項目のみを
 // 編集対象にする（丸ごとコピーはしない）。taxationMethod・corporateTaxInterimFiling・
 // consumptionTaxInterimFrequency・localTaxCollectionMethod・eTaxEnabled・eLTaxEnabled・
 // 顧問税理士以外のadvisorsは、読み込んだ値をそのまま保持して書き戻す（このフォームでは変更しない）。
+// 【Sprint47で追加】residentTaxPaymentCycleのみ例外的に編集可能にする。localTaxCollectionMethod
+// 自体の編集UIはこのフォームに無いため、読み込んだ値（初期値は'special_collection'）を表示条件
+// としてのみ参照する（docs/RESIDENT_TAX_SUPPORT_DESIGN.md 3-4節）。
 
 const CORPORATE_TYPE_LABEL: Record<CorporateType, string> = {
   kabushiki: '株式会社',
@@ -40,6 +44,17 @@ const WITHHOLDING_CYCLE_LABEL: Record<WithholdingTaxCycle, string> = {
   monthly: '毎月納付',
   special_exception: '納期の特例（年2回）',
   unset: '未設定',
+};
+
+// 住民税特別徴収（地方税）の納期区分。源泉所得税の納期（WITHHOLDING_CYCLE_LABEL、国税）とは
+// 別制度のため、文言を「住民税特別徴収の納期」と明示し混同を避ける。
+// 【Sprint47レビュー対応】「special」は従業員数等から自動的に該当するものではなく、市区町村へ
+// 申請し承認を受けて初めて選べる制度のため、ラベル自体に「承認済み」であることを明記する
+// （従業員数だけで自動判定しない、利用者の明示選択を維持する設計）。
+const RESIDENT_TAX_CYCLE_LABEL: Record<ResidentTaxPaymentCycle, string> = {
+  unknown: '未設定',
+  monthly: '毎月納付',
+  special: '年2回納付（納期の特例・自治体の承認済み）',
 };
 
 const FISCAL_MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -222,6 +237,25 @@ export default function WorkspaceProfileForm({
           ))}
         </select>
       </div>
+
+      {profile.localTaxCollectionMethod === 'special_collection' && (
+        <div>
+          <label className="form-label">住民税特別徴収の納期</label>
+          <select
+            value={profile.residentTaxPaymentCycle}
+            onChange={(e) => set('residentTaxPaymentCycle', e.target.value as ResidentTaxPaymentCycle)}
+            className="form-select"
+          >
+            {(['unknown', 'monthly', 'special'] as const).map((v) => (
+              <option key={v} value={v}>{RESIDENT_TAX_CYCLE_LABEL[v]}</option>
+            ))}
+          </select>
+          <p className="mt-1.5 text-xs leading-relaxed text-amber-700">
+            「年2回納付」は、市区町村への申請が承認されている場合にのみ選択してください。従業員数だけで
+            自動的に対象になるものではありません。未承認・未確認の場合は「未設定」のままにしてください。
+          </p>
+        </div>
+      )}
 
       <div>
         <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
