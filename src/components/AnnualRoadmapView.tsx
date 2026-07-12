@@ -8,7 +8,8 @@ import {
   type WorkspaceProcedureStatus, type WorkspaceProcedureStatusMap,
 } from '@/lib/workspaceProcedureStatus';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
-import { AlertTriangle } from 'lucide-react';
+import { buildRoadmapSubmissionInfo } from '@/lib/roadmapSubmissionInfo';
+import { AlertTriangle, Building2, ExternalLink } from 'lucide-react';
 
 // ── 年間ロードマップ — 表示コンポーネント（Sprint 23 Phase23.3・Sprint 24 Phase24.1・Sprint 32）───
 // src/app/(site)/roadmap/page.tsx と admin/(protected)/workspaces/[id]/roadmap/page.tsx・
@@ -112,33 +113,64 @@ export default function AnnualRoadmapView({
                 <ul className="space-y-2">
                   {items.map((item, idx) => {
                     const status = localStatusMap[workspaceProcedureOccurrenceKey(item.procedure.id, item.dueDate)] ?? 'not_started';
+                    const submission = buildRoadmapSubmissionInfo(item.procedure);
                     return (
                       <li
                         key={`${item.procedure.id}-${item.dueDate}-${idx}`}
-                        className="card flex flex-wrap items-center gap-2 py-3"
+                        className="card space-y-2 py-3"
                       >
-                        <span className="text-sm font-medium text-gray-900">{item.procedure.name}</span>
-                        <span className="tag">{CATEGORY_LABEL[item.procedure.category] ?? 'その他'}</span>
-                        <span className="text-xs text-gray-400">{formatDueDate(item.dueDate)}</span>
-                        {item.confidence === 'estimated' && (
-                          <span className="tag border-amber-200 text-amber-700">推定</span>
-                        )}
-                        {item.confidence === 'incomplete' && (
-                          <span className="tag border-amber-200 text-amber-700">情報不足</span>
-                        )}
-                        {statusMap && editable && (
-                          <select
-                            value={status}
-                            onChange={(e) => handleStatusChange(item.procedure.id, item.dueDate, e.target.value as WorkspaceProcedureStatus)}
-                            className="form-select ml-auto w-auto py-1 text-xs"
-                          >
-                            {WORKSPACE_PROCEDURE_STATUSES.map((s) => (
-                              <option key={s} value={s}>{WORKSPACE_PROCEDURE_STATUS_LABEL[s]}</option>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium text-gray-900">{item.procedure.name}</span>
+                          <span className="tag">{CATEGORY_LABEL[item.procedure.category] ?? 'その他'}</span>
+                          <span className="text-xs text-gray-400">{formatDueDate(item.dueDate)}</span>
+                          {item.confidence === 'estimated' && (
+                            <span className="tag border-amber-200 text-amber-700">推定</span>
+                          )}
+                          {item.confidence === 'incomplete' && (
+                            <span className="tag border-amber-200 text-amber-700">情報不足</span>
+                          )}
+                          {statusMap && editable && (
+                            <select
+                              value={status}
+                              onChange={(e) => handleStatusChange(item.procedure.id, item.dueDate, e.target.value as WorkspaceProcedureStatus)}
+                              className="form-select ml-auto w-auto py-1 text-xs"
+                            >
+                              {WORKSPACE_PROCEDURE_STATUSES.map((s) => (
+                                <option key={s} value={s}>{WORKSPACE_PROCEDURE_STATUS_LABEL[s]}</option>
+                              ))}
+                            </select>
+                          )}
+                          {statusMap && !editable && (
+                            <span className="tag ml-auto">{WORKSPACE_PROCEDURE_STATUS_LABEL[status]}</span>
+                          )}
+                        </div>
+
+                        {submission.officeName === null ? (
+                          <p className="pl-0 text-xs text-gray-400">提出先情報は未登録です</p>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                            <span className="inline-flex items-center gap-1">
+                              <Building2 className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                              提出先: {submission.officeName}
+                            </span>
+                            {submission.url && (
+                              <a
+                                href={submission.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn-secondary inline-flex items-center gap-1 px-2.5 py-1 text-xs"
+                              >
+                                {submission.label}
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                            {submission.url && submission.urlStatus === 'unchecked' && (
+                              <span className="text-[10px] text-gray-400">（リンク未確認）</span>
+                            )}
+                            {submission.submissionMethods.map((m) => (
+                              <span key={m} className="tag">{m}</span>
                             ))}
-                          </select>
-                        )}
-                        {statusMap && !editable && (
-                          <span className="tag ml-auto">{WORKSPACE_PROCEDURE_STATUS_LABEL[status]}</span>
+                          </div>
                         )}
                       </li>
                     );
