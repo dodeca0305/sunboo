@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import type { RoadmapExportRow } from '@/lib/roadmapExport';
+import { buildExportFilename } from '@/lib/exportFilename';
 
 // ── Roadmap Excel出力 — ワークブック生成（Sprint 51）───────────────────
 // buildRoadmapExportRows（src/lib/roadmapExport.ts）が組み立てたプレーンな行データを
@@ -28,25 +29,11 @@ const COLUMNS: { header: string; key: keyof RoadmapExportRow; width: number }[] 
 
 const HYPERLINK_FONT = { color: { argb: 'FF2563EB' }, underline: true } as const;
 
-// ファイル名として使えない文字（OS/ブラウザ共通で禁止されがちな記号）だけを除去する。
-// スペースやハイフン等、会社名に含まれうる通常の文字はそのまま残す。
-const UNSAFE_FILENAME_CHARS = ['\\', '/', ':', '*', '?', '"', '<', '>', '|'];
-
-function sanitizeForFilename(input: string): string {
-  let result = input;
-  for (const ch of UNSAFE_FILENAME_CHARS) {
-    result = result.split(ch).join('');
-  }
-  return result.trim();
-}
-
 // 会社名・作成日からファイル名を安全に組み立てる。拡張子は常に.xlsxで固定する。
+// 【Sprint52で共通化】サニタイズ本体はsrc/lib/exportFilename.tsへ移動し、PDF出力と共有する
+// （docs/BETA_BACKLOG.md L-04「Windows/macOS双方で安全な文字への統一」に対応）。
 export function buildRoadmapExcelFilename(companyName: string, createdAt: Date): string {
-  const safeName = sanitizeForFilename(companyName) || '会社名未設定';
-  const y = createdAt.getFullYear();
-  const m = String(createdAt.getMonth() + 1).padStart(2, '0');
-  const d = String(createdAt.getDate()).padStart(2, '0');
-  return `SUNBOO_年間ロードマップ_${safeName}_${y}-${m}-${d}.xlsx`;
+  return buildExportFilename('SUNBOO_年間ロードマップ', companyName, createdAt, 'xlsx');
 }
 
 export async function buildRoadmapExcelBuffer(
