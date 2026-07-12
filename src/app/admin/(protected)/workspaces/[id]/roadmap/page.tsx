@@ -7,6 +7,7 @@ import type { WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus
 import { loadWorkspaceCompany, loadWorkspaceRoadmapContext } from '@/lib/workspaceLoader';
 import AnnualRoadmapView from '@/components/AnnualRoadmapView';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
+import RoadmapExcelExportButton from '@/components/RoadmapExcelExportButton';
 
 // ── Company Workspace — 年間ロードマップ（Sprint 23 Phase23.3・Phase23.4）─────
 // buildAnnualRoadmap（src/lib/roadmap.ts）・buildStateFromTimeline（src/lib/state.ts）は
@@ -74,9 +75,14 @@ export default async function WorkspaceRoadmapPage({ params }: { params: Promise
         {company.name} に戻る
       </Link>
 
-      <div className="flex items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-2.5">
         <CalendarRange className="h-6 w-6 text-blue-600" />
         <h1 className="text-xl font-bold text-gray-900">年間ロードマップ — {company.name}</h1>
+        {!computeError && totalItemCount > 0 && (
+          <div className="ml-auto">
+            <RoadmapExcelExportButton roadmapYears={roadmapYears} statusMap={statusMap} companyName={company.name} />
+          </div>
+        )}
       </div>
 
       <WorkspaceSubNav companyId={companyId} />
