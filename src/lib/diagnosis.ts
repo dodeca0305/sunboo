@@ -3,9 +3,32 @@ import {
   DiagnosisResult,
   JurisdictionOffice,
   LinkStatus,
+  ProcedureDocumentItemType,
   ProcedureResult,
 } from './types';
 import type { SupabaseClient } from './supabase';
+
+const VALID_DOCUMENT_ITEM_TYPES: ProcedureDocumentItemType[] = ['document', 'preparation', 'checklist'];
+
+// procedure_documents の生データ（Supabaseのjoin結果）を ProcedureResult.procedure_documents の
+// 形へ正規化する。runDiagnosis（本ファイル）・buildAnnualRoadmap（roadmap.ts）の両方から使う
+// 共通ヘルパー（診断エンジン・経営イベントエンジンで共通するロジックはsrc/lib/に置く、という
+// CLAUDE.mdの方針に従う）。item_typeが未設定・不正値の場合は'document'にフォールバックする
+// （旧データ・migration未適用環境でも誤動作しないようにするための防御的処理、Sprint54）。
+export function normalizeProcedureDocuments(raw: unknown): ProcedureResult['procedure_documents'] {
+  const rows = (raw as Record<string, unknown>[] | null) ?? [];
+  return rows.map((r) => {
+    const itemType = r.item_type as ProcedureDocumentItemType | undefined;
+    return {
+      name: r.name as string,
+      form_number: (r.form_number as string | null) ?? null,
+      is_required: (r.is_required as boolean) ?? true,
+      notes: (r.notes as string | null) ?? null,
+      item_type: itemType && VALID_DOCUMENT_ITEM_TYPES.includes(itemType) ? itemType : 'document',
+      sort_order: (r.sort_order as number | undefined) ?? 0,
+    };
+  });
+}
 
 type RawJurisdictionRow = {
   organization_types: { code: string } | null;
@@ -190,7 +213,7 @@ export async function runDiagnosis(
   let query = client
     .from('procedures')
     .select(
-      '*, official_links(label, url, status, fallback_url), procedure_documents(name, form_number, is_required, notes)',
+      '*, official_links(label, url, status, fallback_url), procedure_documents(name, form_number, is_required, notes, item_type, sort_order)',
     )
     .eq('is_active', true)
     .eq('include_in_diagnosis', true)
@@ -230,8 +253,7 @@ export async function runDiagnosis(
         office: officeMap.get(p.office_type as string) ?? null,
         official_links:
           (p.official_links as { label: string; url: string; status?: LinkStatus; fallback_url?: string | null }[]) ?? [],
-        procedure_documents:
-          (p.procedure_documents as { name: string; form_number: string | null; is_required: boolean; notes: string | null }[]) ?? [],
+        procedure_documents: normalizeProcedureDocuments(p.procedure_documents),
       };
     });
 

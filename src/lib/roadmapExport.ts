@@ -6,6 +6,7 @@ import {
   type WorkspaceProcedureStatusMap,
 } from '@/lib/workspaceProcedureStatus';
 import { buildRoadmapSubmissionInfo, type SubmissionLinkKind, type SubmissionUrlStatus } from '@/lib/roadmapSubmissionInfo';
+import { buildRoadmapDocumentItems, type RoadmapDocumentGroups } from '@/lib/roadmapDocuments';
 
 // ── Roadmap 出力行 — 共通データ生成（Sprint 51）──────────────────────
 // 設計: docs/ROADMAP_SUBMISSION_OFFICE_LINKS_DESIGN.md（Sprint50）が定めた
@@ -58,9 +59,27 @@ export type RoadmapExportRow = {
   status: string;
   confidence: string;
   cautionNote: string;
+  documentGuide: string; // 必要書類・事前準備・提出前チェックをitem_type別に見出し付きで改行結合。無ければ空文字
   assignee: string; // 常に空欄（利用者が出力後に記入する列）
   memo: string; // 常に空欄
 };
+
+// 必要書類ガイド（Sprint53設計・Sprint54実装）をExcelの1セルに収まる形へ整形する。
+// item_type別（document/preparation/checklist）に見出しを付け、改行で区切る
+// （複数項目はセル内で改行、Excel/PDFで内容を一致させる方針の一環）。
+function formatDocumentGuideCell(groups: RoadmapDocumentGroups): string {
+  const lines: string[] = [];
+  if (groups.documents.length > 0) {
+    lines.push(`[必要書類] ${groups.documents.map((d) => `${d.name}${d.isRequired ? '' : '（任意）'}`).join('、')}`);
+  }
+  if (groups.preparations.length > 0) {
+    lines.push(`[事前準備] ${groups.preparations.map((d) => d.name).join('、')}`);
+  }
+  if (groups.checklist.length > 0) {
+    lines.push(`[提出前チェック] ${groups.checklist.map((d) => d.name).join('、')}`);
+  }
+  return lines.join('\n');
+}
 
 // RoadmapYear[]・Procedure Status Mapから、occurrence単位（1出現=1行）の出力行を組み立てる。
 // 日付昇順に並べる。会社情報（会社名等）は行データ自体には含めない
@@ -94,6 +113,7 @@ export function buildRoadmapExportRows(
       status: WORKSPACE_PROCEDURE_STATUS_LABEL[status],
       confidence: CONFIDENCE_LABEL[item.confidence],
       cautionNote: item.procedure.caution_note ?? '',
+      documentGuide: formatDocumentGuideCell(buildRoadmapDocumentItems(item.procedure)),
       assignee: '',
       memo: '',
     };

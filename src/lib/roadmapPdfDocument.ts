@@ -118,6 +118,16 @@ function procedureBlock(row: RoadmapExportRow): Content {
     stack.push({ text: row.cautionNote, color: COLOR_MUTED, fontSize: 8.5, margin: [0, 2, 0, 0] });
   }
 
+  // 必要書類ガイド（Sprint53設計・Sprint54実装）。row.documentGuideはroadmapExport.tsが既に
+  // [必要書類]/[事前準備]/[提出前チェック]の見出し付きで改行結合済み（Excelと同一のテキスト）。
+  // ここで再度item_typeを判定し直すことはせず、Excel/PDFで内容が食い違わないようにする。
+  if (row.documentGuide) {
+    stack.push({
+      stack: row.documentGuide.split('\n').map((line) => ({ text: line, color: COLOR_MUTED, fontSize: 8.5 })),
+      margin: [0, 2, 0, 0],
+    });
+  }
+
   // URLが無い場合はURL欄自体を出さない（推測しない、Sprint50の方針を踏襲）
   if (row.url) {
     stack.push({

@@ -9,6 +9,7 @@ import {
 } from '@/lib/workspaceProcedureStatus';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import { buildRoadmapSubmissionInfo } from '@/lib/roadmapSubmissionInfo';
+import { buildRoadmapDocumentItems, hasAnyRoadmapDocumentItems } from '@/lib/roadmapDocuments';
 import { AlertTriangle, Building2, ExternalLink } from 'lucide-react';
 
 // ── 年間ロードマップ — 表示コンポーネント（Sprint 23 Phase23.3・Sprint 24 Phase24.1・Sprint 32）───
@@ -114,6 +115,8 @@ export default function AnnualRoadmapView({
                   {items.map((item, idx) => {
                     const status = localStatusMap[workspaceProcedureOccurrenceKey(item.procedure.id, item.dueDate)] ?? 'not_started';
                     const submission = buildRoadmapSubmissionInfo(item.procedure);
+                    const docGroups = buildRoadmapDocumentItems(item.procedure);
+                    const hasDocGuide = hasAnyRoadmapDocumentItems(docGroups);
                     return (
                       <li
                         key={`${item.procedure.id}-${item.dueDate}-${idx}`}
@@ -170,6 +173,29 @@ export default function AnnualRoadmapView({
                             {submission.submissionMethods.map((m) => (
                               <span key={m} className="tag">{m}</span>
                             ))}
+                          </div>
+                        )}
+
+                        {hasDocGuide && (
+                          <div className="space-y-1 border-t border-gray-100 pt-2 text-xs text-gray-500">
+                            {docGroups.documents.length > 0 && (
+                              <p>
+                                <span className="font-medium text-gray-600">必要書類: </span>
+                                {docGroups.documents.map((d) => `${d.name}${d.isRequired ? '' : '（任意）'}`).join('、')}
+                              </p>
+                            )}
+                            {docGroups.preparations.length > 0 && (
+                              <p>
+                                <span className="font-medium text-gray-600">事前準備: </span>
+                                {docGroups.preparations.map((d) => d.name).join('、')}
+                              </p>
+                            )}
+                            {docGroups.checklist.length > 0 && (
+                              <p>
+                                <span className="font-medium text-gray-600">提出前チェック: </span>
+                                {docGroups.checklist.map((d) => d.name).join('、')}
+                              </p>
+                            )}
                           </div>
                         )}
                       </li>

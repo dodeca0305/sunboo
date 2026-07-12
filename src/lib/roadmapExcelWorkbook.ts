@@ -23,6 +23,7 @@ const COLUMNS: { header: string; key: keyof RoadmapExportRow; width: number }[] 
   { header: 'ステータス', key: 'status', width: 10 },
   { header: 'Confidence', key: 'confidence', width: 12 },
   { header: '注意事項', key: 'cautionNote', width: 44 },
+  { header: '必要書類ガイド', key: 'documentGuide', width: 40 },
   { header: '担当者', key: 'assignee', width: 12 },
   { header: 'メモ', key: 'memo', width: 26 },
 ];
@@ -66,6 +67,14 @@ export async function buildRoadmapExcelBuffer(
       const urlCell = excelRow.getCell('url');
       urlCell.value = { text: row.url, hyperlink: row.url }; // クリック可能なハイパーリンク
       urlCell.font = { ...HYPERLINK_FONT };
+    }
+
+    if (row.documentGuide) {
+      // 必要書類ガイドは[見出し]付きで改行結合しているため、セル内で折り返して読めるようにする
+      const docGuideCell = excelRow.getCell('documentGuide');
+      docGuideCell.alignment = { wrapText: true, vertical: 'top' };
+      const lineCount = row.documentGuide.split('\n').length;
+      if (lineCount > 1) excelRow.height = 15 * lineCount;
     }
   }
 

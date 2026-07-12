@@ -1,6 +1,6 @@
 import type { SupabaseClient } from './supabase';
 import type { DiagnosisInput, JurisdictionOffice, LinkStatus, ProcedureResult } from './types';
-import { calculateNextDeadline, runDiagnosis } from './diagnosis';
+import { calculateNextDeadline, normalizeProcedureDocuments, runDiagnosis } from './diagnosis';
 import { evaluateRules, type RuleContext } from './ruleEngine';
 import {
   applyCompanyProfileToProcedures, hasEmployees, ESTABLISHMENT_PROCEDURE_CODES, WITHHOLDING_TAX_CODE,
@@ -177,7 +177,7 @@ export async function buildAnnualRoadmap(
     const { data: procsRaw } = await client
       .from('procedures')
       .select(
-        '*, official_links(label, url, status, fallback_url), procedure_documents(name, form_number, is_required, notes)',
+        '*, official_links(label, url, status, fallback_url), procedure_documents(name, form_number, is_required, notes, item_type, sort_order)',
       )
       .in('id', newIds);
 
@@ -194,8 +194,7 @@ export async function buildAnnualRoadmap(
         office: officeMap.get(p.office_type as string) ?? null,
         official_links:
           (p.official_links as { label: string; url: string; status?: LinkStatus; fallback_url?: string | null }[]) ?? [],
-        procedure_documents:
-          (p.procedure_documents as { name: string; form_number: string | null; is_required: boolean; notes: string | null }[]) ?? [],
+        procedure_documents: normalizeProcedureDocuments(p.procedure_documents),
       };
       return toScheduleProcedure(result);
     });

@@ -191,8 +191,23 @@ Open → Confirmed → Fixed
 | 期待動作 | どのOS（Windows/Mac/Linux）でもエラーなく保存できるファイル名になる |
 | 現状動作 | `src/lib/roadmapExcelWorkbook.ts`の`sanitizeForFilename()`は`\ / : * ? " < > \|`のみを除去しており、Windows固有の制約（予約デバイス名、末尾のピリオド/スペース禁止）には対応していない。Mac/Linuxでは問題にならないが、Windows環境でこれらの会社名の場合に保存が失敗する可能性がある |
 | 暫定対応 | 現状は該当するような特殊な会社名（予約デバイス名と完全一致、末尾がピリオド/スペース）が実際に登録されるまでは実害無し。回避策として、該当する保存エラーが起きた場合は手動でファイル名を変更して保存すれば良い |
-| Sprint候補 | 未定（β運用で実際に該当ケースが発生してから優先度を判断する） |
-| ステータス | Open |
+| Sprint候補 | Sprint52で対応済み |
+| ステータス | Fixed（`src/lib/exportFilename.ts`の`sanitizeCompanyNameForFilename()`で対応。半角/全角禁止記号・Windows予約デバイス名・末尾ピリオド/スペース・長すぎる会社名を処理し、Excel（Sprint51）・PDF（Sprint52）両方のファイル名生成で共通利用している） |
+
+### L-05: `procedure_documents`（必要書類マスタ）のデータが31手続き中13手続きにしか無い
+
+| 項目 | 内容 |
+|---|---|
+| 発見日 | Sprint53（Roadmap Required Documents Guide設計時に実データを確認して判明） |
+| 発見元 | Internal |
+| 対象画面 | Annual Roadmap・`/result`（ScheduleList、`ProcedureDetailExtra`）・将来のExcel/PDF出力の必要書類表示全般 |
+| 再現手順 | 1. 法人税確定申告・消費税確定申告・給与支払報告書・特別徴収税額の納付等（Phase15.2以降に追加した税務・地方税手続き）のいずれかについて必要書類を確認する 2. `procedure_documents`に該当データが1件も無いことを確認する |
+| 期待動作 | 全ての手続きについて必要書類の一覧が確認できる |
+| 現状動作 | `procedure_documents`は33件登録済みだが、対象は31手続き中13手続き（法人設立届出書・青色申告承認申請書・社会保険新規適用届・株式会社/合同会社設立登記等、Phase1〜1.5の設立系・登記系に偏る）のみ。Phase15.2以降に追加した税務・地方税カテゴリの手続きには1件も登録されていない（[ROADMAP_REQUIRED_DOCUMENTS_GUIDE_DESIGN.md](ROADMAP_REQUIRED_DOCUMENTS_GUIDE_DESIGN.md) 0-1節で確認済み） |
+| 暫定対応 | データが無い手続きは「必要書類は登録されていません」等、正直に情報不足を表示する（推測しない）。Sprint50の福岡県`municipal_tax`窓口データ不足（M-02）と同種の「表示は正しく動くが、データが薄い」状態であり、実装のバグではない |
+| Sprint候補 | 未定（Sprint54で表示基盤を実装した後、実際のβフィードバックで必要性の高い手続きから優先的にデータ投入を検討） |
+| ステータス | Confirmed |
+| 追記（Sprint54実装後の実データ確認） | 必要書類データがある13手続きは全て`timing_type`が`at_establishment`/`event_based`（設立時・随時発生）であり、起算日（イベント日）が無いと期限計算ができないという**別の既知の制約**（`src/lib/roadmap.ts`、`PROJECT_CONTEXT.md`記載）により**Annual Roadmap・Excel・PDF出力には現状一切表示されない**（`next_deadline_date`がnullになり`expandOccurrences`が空配列を返すため）。`/result`（診断結果画面）では正しく表示されることを実データで確認済み。Roadmap側で表示するには、Phase15.2以降の税務・地方税手続き（年次自動発生、起算日不要）への必要書類データ投入が必要（本項目と同じ対応で解消する） |
 
 ---
 

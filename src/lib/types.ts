@@ -170,12 +170,23 @@ export type DiagnosisInput = {
   hasOfficerTerm?: boolean;  // 株式会社のときのみ意味を持つ
 };
 
+// procedure_documents.item_type（Sprint53設計・Sprint54実装）。書類そのもの（document）に加え、
+// 書類ではない準備行動（preparation）・提出前の確認事項（checklist）を同じテーブルで表現する。
+export type ProcedureDocumentItemType = 'document' | 'preparation' | 'checklist';
+
 export type ProcedureResult = Procedure & {
   next_deadline: string | null;
   next_deadline_date: string | null; // ISO (YYYY-MM-DD)。残り日数計算用
   office: JurisdictionOffice | null;
   official_links: { label: string; url: string; status?: LinkStatus; fallback_url?: string | null }[];
-  procedure_documents: { name: string; form_number: string | null; is_required: boolean; notes: string | null }[];
+  procedure_documents: {
+    name: string;
+    form_number: string | null;
+    is_required: boolean;
+    notes: string | null;
+    item_type: ProcedureDocumentItemType;
+    sort_order: number;
+  }[];
 };
 
 export type DiagnosisResult = {

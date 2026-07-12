@@ -5,6 +5,11 @@ export type ProcedureDocumentItem = {
   form_number: string | null;
   is_required: boolean;
   notes: string | null;
+  // 【Sprint54で追加】item_type・sort_orderはScheduleProcedure.procedure_documentsの型に
+  // 揃えるためのフィールド。このコンポーネント自体はitem_typeを意識せず、Sprint53のレビュー方針
+  // 通り既存のフラット表示（全件をnotesの有無だけで並べる）を維持する（/resultの回帰を避ける）。
+  item_type?: 'document' | 'preparation' | 'checklist';
+  sort_order?: number;
 };
 
 export type ProcedureDetailExtraProps = {

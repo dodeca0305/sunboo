@@ -8,7 +8,7 @@ import {
   ProcedureResult,
   RegisteredCompanyEvent,
 } from './types';
-import { calculateNextDeadline, resolveOffices } from './diagnosis';
+import { calculateNextDeadline, normalizeProcedureDocuments, resolveOffices } from './diagnosis';
 import { evaluateRules, type RuleContext } from './ruleEngine';
 import { buildProfileRuleContext, type CompanyProfile } from './companyProfile';
 import type { SupabaseClient } from './supabase';
@@ -112,7 +112,7 @@ export async function registerCompanyEvent(
   const { data: procsRaw } = await client
     .from('procedures')
     .select(
-      '*, official_links(label, url, status, fallback_url), procedure_documents(name, form_number, is_required, notes)',
+      '*, official_links(label, url, status, fallback_url), procedure_documents(name, form_number, is_required, notes, item_type, sort_order)',
     )
     .in('id', ruleResult.addProcedureIds);
 
@@ -138,8 +138,7 @@ export async function registerCompanyEvent(
       office,
       official_links:
         (p.official_links as { label: string; url: string; status?: LinkStatus; fallback_url?: string | null }[]) ?? [],
-      procedure_documents:
-        (p.procedure_documents as { name: string; form_number: string | null; is_required: boolean; notes: string | null }[]) ?? [],
+      procedure_documents: normalizeProcedureDocuments(p.procedure_documents),
     };
   });
 
