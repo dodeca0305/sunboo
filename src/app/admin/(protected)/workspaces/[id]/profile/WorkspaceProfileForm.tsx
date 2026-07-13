@@ -5,8 +5,8 @@ import { CheckCircle2, AlertTriangle } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import type { CorporateType } from '@/lib/types';
 import type {
-  CompanyProfile, CompanyStage, ConsumptionTaxStatus, InvoiceRegistrationStatus, ResidentTaxPaymentCycle,
-  WithholdingTaxCycle,
+  CompanyProfile, CompanyStage, ConsumptionTaxStatus, InvoiceRegistrationStatus,
+  ResidentTaxPaymentCycle, WithholdingTaxCycle,
 } from '@/lib/companyProfile';
 import { companyProfileToWorkspaceUpdatePayload } from '@/lib/workspaceCompanyProfile';
 
@@ -149,6 +149,23 @@ export default function WorkspaceProfileForm({
           </select>
         </div>
       </div>
+
+      {profile.corporateType === 'kabushiki' && (
+        <div>
+          <label className="form-label">次回の役員変更予定日（任意）</label>
+          <input
+            type="date"
+            value={profile.nextOfficerChangeDate ?? ''}
+            onChange={(e) => set('nextOfficerChangeDate', e.target.value || null)}
+            className="form-input"
+          />
+          <p className="mt-1.5 text-xs leading-relaxed text-gray-400">
+            この日から2週間以内の登記申請期限を計算します。登記期限そのものではなく、
+            任期満了に伴う重任・交代が効力を生じる日（株主総会での重任決議日等）を
+            入力してください。未定の場合は空欄のままにしてください。
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>

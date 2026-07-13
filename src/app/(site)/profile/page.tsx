@@ -10,7 +10,8 @@ import {
   loadCompanyProfile, saveCompanyProfile,
   type AdvisorPresence, type CompanyProfile, type CompanyStage, type ConsumptionTaxInterimFrequency,
   type ConsumptionTaxStatus, type InterimFilingStatus, type InvoiceRegistrationStatus,
-  type LocalTaxCollectionMethod, type ResidentTaxPaymentCycle, type TaxationMethod, type WithholdingTaxCycle,
+  type LocalTaxCollectionMethod, type ResidentTaxPaymentCycle, type TaxationMethod,
+  type WithholdingTaxCycle,
 } from '@/lib/companyProfile';
 import {
   MapPin, Banknote, CalendarClock, Receipt, FileClock,
@@ -100,6 +101,7 @@ const EMPTY_DRAFT: ProfileDraft = {
   municipalityCode: '',
   municipalityName: '',
   corporateType: null,
+  nextOfficerChangeDate: null,
   employeeCount: 0,
   capital: null,
   establishedDate: '',
@@ -354,6 +356,23 @@ export default function ProfilePage() {
               onChange={(v) => set('corporateType', v)}
             />
           </div>
+
+          {draft.corporateType === 'kabushiki' && (
+            <div className="space-y-2">
+              <label className="form-label">次回の役員変更予定日（任意）</label>
+              <input
+                type="date"
+                className="form-input"
+                value={draft.nextOfficerChangeDate ?? ''}
+                onChange={(e) => set('nextOfficerChangeDate', e.target.value || null)}
+              />
+              <p className="text-xs leading-relaxed text-gray-400">
+                この日から2週間以内の登記申請期限を計算します。登記期限そのものではなく、
+                任期満了に伴う重任・交代が効力を生じる日（株主総会での重任決議日等）を
+                入力してください。未定の場合は空欄のままにしてください。
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="form-label">従業員数</label>

@@ -1,5 +1,6 @@
 import type { CorporateType } from './types';
 import type { ScheduleProcedure } from './scheduleProcedure';
+import { calculateNextDeadline } from './diagnosis';
 import {
   consumptionTaxInterimFrequencyFromAmount, corporateTaxRequiresInterimFiling,
   getEntryTwoPeriodsAgo, getLatestEntry, isTaxableSalesAboveExemptionThreshold,
@@ -46,6 +47,17 @@ export type CompanyProfile = {
   municipalityCode: string;
   municipalityName: string;
   corporateType: CorporateType;
+  // 役員変更（重任・交代）の効力が生じる予定日（ISO日付、株式会社のみ意味を持つ）。
+  // 【注意】登記申請期限そのものではない。この日から2週間（14日）以内の登記申請期限は、
+  // applyCompanyProfileToProcedures内でcalculateNextDeadlineのevent_based分岐が自動計算する。
+  // 【Sprint55レビュー対応】当初「役員任期の定め有無」という3値フラグを検討したが、株式会社の役員には
+  // 会社法上必ず任期があるため「定めなし」という選択肢自体が制度上誤りだった。加えて
+  // LEGAL_OFFICER_CHANGE（役員変更登記）はtiming_type='event_based'のため、有無フラグだけでは
+  // 起算日が無く、Annual Roadmapへoccurrenceを生成できなかった（docs/COMPANY_ADDRESS_OFFICE_RESOLUTION_DESIGN.md
+  // 0-5節）。次回の変更（重任・交代）の効力発生予定日そのものを起算日として保持する設計に変更する。
+  // src/lib/companyProfile.tsのapplyCompanyProfileToProcedures内でLEGAL_OFFICER_CHANGEの
+  // next_deadline_dateをこの値から計算する（calculateNextDeadlineのevent_based分岐を再利用）。
+  nextOfficerChangeDate: string | null;
   employeeCount: number; // 旧 hasEmployees(boolean) を置き換える。hasEmployees(profile) で判定する
   capital: number | null; // 資本金（円）
   establishedDate: string | null; // ISO日付。設立予定の場合はnull許容
@@ -90,6 +102,7 @@ const DEFAULT_ADVISORS: AdvisorPresence = {
 // 新規プロフィール作成時の初期値（多くの新設法人に当てはまる一般的な値）。
 // 所在地・法人種別・従業員数など会社ごとに必ず異なる項目は含まない。
 const PROFILE_DEFAULTS = {
+  nextOfficerChangeDate: null as string | null,
   capital: null as number | null,
   establishedDate: null as string | null,
   fiscalMonth: null as number | null,
@@ -174,6 +187,8 @@ export function loadCompanyProfile(): CompanyProfile | null {
       residentTaxPaymentCycle:
         (parsed.residentTaxPaymentCycle as ResidentTaxPaymentCycle | undefined) ??
         PROFILE_DEFAULTS.residentTaxPaymentCycle,
+      nextOfficerChangeDate:
+        (parsed.nextOfficerChangeDate as string | null | undefined) ?? PROFILE_DEFAULTS.nextOfficerChangeDate,
       eTaxEnabled: (parsed.eTaxEnabled as boolean | undefined) ?? PROFILE_DEFAULTS.eTaxEnabled,
       eLTaxEnabled: (parsed.eLTaxEnabled as boolean | undefined) ?? PROFILE_DEFAULTS.eLTaxEnabled,
       advisors: { ...DEFAULT_ADVISORS, ...advisorsRaw },
@@ -276,6 +291,7 @@ export const ESTABLISHMENT_PROCEDURE_CODES = new Set([
 
 export const WITHHOLDING_TAX_CODE = 'WITHHOLDING_TAX'; // 源泉所得税の納付（roadmap.tsも参照）
 export const RESIDENT_TAX_WITHHOLDING_CODE = 'RESIDENT_TAX_WITHHOLDING'; // 住民税特別徴収税額の納付（roadmap.tsも参照）
+export const LEGAL_OFFICER_CHANGE_CODE = 'LEGAL_OFFICER_CHANGE'; // 役員変更登記（roadmap.tsも参照）
 
 function toIsoDate(d: Date): string {
   const y = d.getFullYear();
@@ -340,6 +356,12 @@ function nextPeriodicCycleDeadline(dates: readonly [number, number][]): { label:
 //    Sprint47以前からの確立済み挙動であり、本レビューの対象外）
 // ④ PERIODIC_CYCLE_OVERRIDES に該当する手続きは、対象フィールドが specialValue のときだけ
 //    期限を年2回パターンに上書きする（それ以外の値は毎月納付のまま表示する）
+// ⑤ LEGAL_OFFICER_CHANGE（役員変更登記）は、profile.nextOfficerChangeDateが設定されている
+//    場合のみ、その日付を起算日としてcalculateNextDeadline（event_based分岐、diagnosis.ts）を
+//    再利用して期限を計算する。未設定の場合は診断エンジン側で既に除外されている（roadmap.tsの
+//    hasOfficerTerm判定）ため、ここに到達すること自体が無い想定だが、他経路（/result等）からの
+//    呼び出しに備え、念のため未設定時は何もしない（元のnext_deadline_date=nullのまま）
+//    （docs/COMPANY_ADDRESS_OFFICE_RESOLUTION_DESIGN.md 0-5節・Sprint55レビュー対応）。
 export function applyCompanyProfileToProcedures(
   procedures: ScheduleProcedure[],
   profile: CompanyProfile | null,
@@ -351,6 +373,15 @@ export function applyCompanyProfileToProcedures(
     .filter((p) => !(p.code === RESIDENT_TAX_WITHHOLDING_CODE && profile.localTaxCollectionMethod !== 'special_collection'))
     .filter((p) => !(p.code === RESIDENT_TAX_WITHHOLDING_CODE && profile.residentTaxPaymentCycle === 'unknown'))
     .map((p) => {
+      if (p.code === LEGAL_OFFICER_CHANGE_CODE && profile.nextOfficerChangeDate) {
+        const deadline = calculateNextDeadline(
+          p.timing_type,
+          p.timing_data ?? null,
+          profile.fiscalMonth ?? 0,
+          profile.nextOfficerChangeDate,
+        );
+        return { ...p, next_deadline: deadline.label, next_deadline_date: deadline.date };
+      }
       const override = PERIODIC_CYCLE_OVERRIDES[p.code];
       if (override && (profile[override.cycleField] as string) === override.specialValue) {
         const next = nextPeriodicCycleDeadline(override.specialDates);

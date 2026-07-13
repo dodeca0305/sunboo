@@ -11,6 +11,10 @@ export type ScheduleProcedure = {
   category: ProcedureCategory;
   timing_label: string;
   timing_type: string;
+  // 【Sprint55で追加】event_based手続き（役員変更登記等）の期限をCompanyProfile側で
+  // 再計算する際に、procedures.timing_data（例: {"days_from_event": 14}）が必要なため運ぶ。
+  // 既存の呼び出し元には影響しない追加フィールド。
+  timing_data?: Record<string, unknown> | null;
   next_deadline: string | null;
   next_deadline_date: string | null;
   office: {
@@ -45,6 +49,7 @@ export function toScheduleProcedure(proc: ProcedureResult): ScheduleProcedure {
     category: proc.category,
     timing_label: proc.timing_label,
     timing_type: proc.timing_type,
+    timing_data: proc.timing_data,
     next_deadline: proc.next_deadline,
     next_deadline_date: proc.next_deadline_date,
     office: proc.office

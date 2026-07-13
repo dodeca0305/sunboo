@@ -1,8 +1,8 @@
 import type { CorporateType } from './types';
 import type {
   AdvisorPresence, CompanyProfile, CompanyStage, ConsumptionTaxInterimFrequency, ConsumptionTaxStatus,
-  InterimFilingStatus, InvoiceRegistrationStatus, LocalTaxCollectionMethod, ResidentTaxPaymentCycle,
-  TaxationMethod, WithholdingTaxCycle,
+  InterimFilingStatus, InvoiceRegistrationStatus, LocalTaxCollectionMethod,
+  ResidentTaxPaymentCycle, TaxationMethod, WithholdingTaxCycle,
 } from './companyProfile';
 
 // ── Company Workspace — CompanyProfile境界変換（Sprint 23 Phase23.2）─────
@@ -38,6 +38,7 @@ export type WorkspaceCompanyProfileRow = {
   withholding_tax_cycle: string;
   local_tax_collection_method: string;
   resident_tax_payment_cycle: string;
+  next_officer_change_date: string | null;
   e_tax_enabled: boolean;
   e_ltax_enabled: boolean;
   advisors: AdvisorPresence;
@@ -58,6 +59,7 @@ const DEFAULT_PROFILE_FIELDS: Omit<WorkspaceCompanyProfileRow, 'company_id'> = {
   withholding_tax_cycle: 'unset',
   local_tax_collection_method: 'special_collection',
   resident_tax_payment_cycle: 'unknown',
+  next_officer_change_date: null,
   e_tax_enabled: false,
   e_ltax_enabled: false,
   advisors: {
@@ -95,6 +97,7 @@ export function workspaceRowsToCompanyProfile(
     withholdingTaxCycle: p.withholding_tax_cycle as WithholdingTaxCycle,
     localTaxCollectionMethod: p.local_tax_collection_method as LocalTaxCollectionMethod,
     residentTaxPaymentCycle: p.resident_tax_payment_cycle as ResidentTaxPaymentCycle,
+    nextOfficerChangeDate: p.next_officer_change_date,
     eTaxEnabled: p.e_tax_enabled,
     eLTaxEnabled: p.e_ltax_enabled,
     advisors: p.advisors,
@@ -126,6 +129,7 @@ export function companyProfileToWorkspaceUpdatePayload(profile: CompanyProfile):
       withholding_tax_cycle: profile.withholdingTaxCycle,
       local_tax_collection_method: profile.localTaxCollectionMethod,
       resident_tax_payment_cycle: profile.residentTaxPaymentCycle,
+      next_officer_change_date: profile.nextOfficerChangeDate,
       e_tax_enabled: profile.eTaxEnabled,
       e_ltax_enabled: profile.eLTaxEnabled,
       advisors: profile.advisors,

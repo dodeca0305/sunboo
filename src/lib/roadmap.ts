@@ -149,7 +149,15 @@ export async function buildAnnualRoadmap(
     hasEmployees: hasEmployees(profile),
     fiscalMonth,
     corporateType: profile.corporateType,
-    hasOfficerTerm: false, // CompanyProfileは役員任期の有無を保持していないため保守的にfalse
+    // 【Sprint55で接続・レビュー対応で再設計】profile.nextOfficerChangeDate（次回の役員変更予定日）が
+    // 設定されている場合のみtrueを渡す。requires_officer_term=trueの手続き（LEGAL_OFFICER_CHANGE＝
+    // 役員変更登記）は、日付が無ければ期限を計算できないため、未設定時は診断エンジンの時点で
+    // 除外する（companyProfile.tsのapplyCompanyProfileToProcedures側で日付から実際の期限を
+    // 計算する。docs/COMPANY_ADDRESS_OFFICE_RESOLUTION_DESIGN.md 0-5節）。
+    // corporateType === 'kabushiki' も明示的に条件へ含める。procedures.corporate_typeが
+    // LEGAL_OFFICER_CHANGEではNULL（法人種別を問わない）ため、日付の値だけに頼ると、
+    // 株式会社から合同会社へ変更した後も日付が残っている会社で誤って表示されうる（実機検証で確認）。
+    hasOfficerTerm: profile.corporateType === 'kabushiki' && profile.nextOfficerChangeDate !== null,
   };
   const diagnosisResult = await runDiagnosis(client, diagnosisInput);
   const diagnosisProcedures = diagnosisResult.procedures.map(toScheduleProcedure);
