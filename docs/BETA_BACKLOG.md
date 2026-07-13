@@ -103,8 +103,8 @@ Open → Confirmed → Fixed
 | 期待動作 | CompanyProfileで値を明示的に設定していれば、Confidenceは「confirmed」（確定）と表示される |
 | 現状動作 | `state.withholdingTaxCycle`が常に`'incomplete'`を返す既知の未実装ギャップ（`src/lib/state.ts` 189-199行、`deriveWithholdingTaxCycleField`のコメントで明記済み）があり、CompanyProfile側で値を設定していてもRoadmap上は常に「情報不足」バッジが表示される |
 | 暫定対応 | `timelineProducer.ts`の`taxReturnEntryToTimelineEvent`が生成するmetadataに`withholdingTaxCycleActual`を追加すれば、他フィールドと同様「直近のtaxイベントから読む」ロジックへ拡張できる（`state.ts`コメントが既に示唆）。住民税特別徴収（`RESIDENT_TAX_WITHHOLDING_CODE`）はこの不整合を複製しないよう、Sprint47で意図的にStateを経由しない実装にした（[RESIDENT_TAX_SUPPORT_DESIGN.md](RESIDENT_TAX_SUPPORT_DESIGN.md) 7節）。表示上の実害は「確定している情報が未確定に見える」という誤解のみで、期限計算自体は誤らない |
-| Sprint候補 | 未定（β終了後検討） |
-| ステータス | Confirmed |
+| Sprint候補 | Sprint58で表示バグを解消 |
+| ステータス | **Fixed（表示のみ）** — Sprint58で`roadmap.ts`の`confidenceForProcedure`がWITHHOLDING_TAX_CODEについてもRESIDENT_TAX_WITHHOLDING_CODEと同じ方針（Stateを経由せずCompanyProfileから直接判定）に変更し、`withholdingTaxCycle`が明示設定されていればConfidenceが「確定」と表示されるようになった（Playwrightで実機確認済み）。`state.ts`の`deriveWithholdingTaxCycleField`自体は「State = f(Timeline)」の原則を守るため意図的に`incomplete`を返したまま変更していない（`timelineProducer.ts`拡張は引き続き未着手のスコープ外）。根本のTimeline未対応そのものは残存するため、直接`state.withholdingTaxCycle`を使う新しい呼び出し元を将来追加する場合は同じ問題が再発しうる点に注意 |
 
 ### M-02: municipal_tax / prefectural_tax の窓口データが福岡県60市区町村に未整備
 

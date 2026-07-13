@@ -307,6 +307,7 @@ export const ESTABLISHMENT_PROCEDURE_CODES = new Set([
 export const WITHHOLDING_TAX_CODE = 'WITHHOLDING_TAX'; // 源泉所得税の納付（roadmap.tsも参照）
 export const RESIDENT_TAX_WITHHOLDING_CODE = 'RESIDENT_TAX_WITHHOLDING'; // 住民税特別徴収税額の納付（roadmap.tsも参照）
 export const LEGAL_OFFICER_CHANGE_CODE = 'LEGAL_OFFICER_CHANGE'; // 役員変更登記（roadmap.tsも参照）
+export const WITHHOLDING_SPECIAL_EXCEPTION_CODE = 'WITHHOLDING_SPECIAL_EXCEPTION'; // 源泉所得税の納期の特例申請
 
 function toIsoDate(d: Date): string {
   const y = d.getFullYear();
@@ -377,6 +378,13 @@ function nextPeriodicCycleDeadline(dates: readonly [number, number][]): { label:
 //    hasOfficerTerm判定）ため、ここに到達すること自体が無い想定だが、他経路（/result等）からの
 //    呼び出しに備え、念のため未設定時は何もしない（元のnext_deadline_date=nullのまま）
 //    （docs/COMPANY_ADDRESS_OFFICE_RESOLUTION_DESIGN.md 0-5節・Sprint55レビュー対応）。
+// ⑥ WITHHOLDING_SPECIAL_EXCEPTION（源泉所得税の納期の特例申請）は、常時使用する従業員が
+//    10人未満の場合のみ選択できる制度（procedures.target_note）。しかしRule Engine側の条件
+//    （'会社設立/従業員採用：源泉所得税の納期の特例申請'）はwithholdingTaxCycleのみを見て
+//    employeeCountを見ないため、10人以上の会社にも誤って推薦されうる（docs/
+//    COMPANY_PROFILE_OBLIGATION_AUDIT.md 4節で発見）。ここで employeeCount が
+//    0 < employeeCount < 10 の場合のみ通す。0人（未入力の代理値、employeeCountはnullを
+//    表現できない型のため）は保守的に非表示とする（Sprint58レビュー対応）。
 export function applyCompanyProfileToProcedures(
   procedures: ScheduleProcedure[],
   profile: CompanyProfile | null,
@@ -387,6 +395,7 @@ export function applyCompanyProfileToProcedures(
     .filter((p) => !(profile.stage === 'second_term_or_later' && ESTABLISHMENT_PROCEDURE_CODES.has(p.code)))
     .filter((p) => !(p.code === RESIDENT_TAX_WITHHOLDING_CODE && profile.localTaxCollectionMethod !== 'special_collection'))
     .filter((p) => !(p.code === RESIDENT_TAX_WITHHOLDING_CODE && profile.residentTaxPaymentCycle === 'unknown'))
+    .filter((p) => !(p.code === WITHHOLDING_SPECIAL_EXCEPTION_CODE && !(profile.employeeCount > 0 && profile.employeeCount < 10)))
     .map((p) => {
       if (p.code === LEGAL_OFFICER_CHANGE_CODE && profile.nextOfficerChangeDate) {
         const deadline = calculateNextDeadline(

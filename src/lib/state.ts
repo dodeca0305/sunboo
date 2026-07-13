@@ -186,14 +186,35 @@ function deriveCorporateTaxInterimFilingField(
   return incompleteField();
 }
 
-// 【既知のギャップ】TaxReturnEntry.withholdingTaxCycleActual（納期の特例の実績）は
-// timelineProducer.ts の taxReturnEntryToTimelineEvent が生成するmetadataに含まれていない
-// （他の実績項目——consumptionTaxStatus・invoiceRegistrationStatus・各種AmountValue・
+// 【なぜStateを使わないのか】withholdingTaxCycleはTimelineから導出できない。
+// TaxReturnEntry.withholdingTaxCycleActual（納期の特例の実績）は timelineProducer.ts の
+// taxReturnEntryToTimelineEvent が生成するmetadataに含まれていない（他の実績項目——
+// consumptionTaxStatus・invoiceRegistrationStatus・各種AmountValue・
 // employeeCountAtFiscalYearEnd——はすべてmetadataに含まれる中、この項目のみ欠落している）。
-// そのためTimelineには現時点でこのフィールドの根拠となる事実が一切存在せず、本MVPでは
-// 常にincompleteを返す。timelineProducer.tsのmetadataにwithholdingTaxCycleActualを追加すれば、
-// 他フィールドと同様「直近のtaxイベントから読む」ロジックへ拡張できる
-// （スコープ外のため本Sprintでは変更しない。要判断事項としてレビューで確認する）。
+// そのためTimelineには現時点でこのフィールドの根拠となる事実が一切存在せず、
+// 「State = f(Timeline)」の原則（docs/STATE_ENGINE.md）に従う限りincompleteを返すのが唯一
+// 正直な値である（timelineProducer.tsの変更はSprint58のスコープ外）。
+//
+// この値については、CompanyProfile.withholdingTaxCycleの明示入力値こそが唯一の真実
+// （source of truth）である。Timeline上の実績記録（withholdingTaxCycleActual）を待たずとも、
+// 利用者が「毎月納付」「納期の特例」を明示的に選んでいれば、それは既に確定した事実であり、
+// TimelineEvent化されていないというEngine側の実装都合によってConfidenceが「情報不足」に
+// 格下げされるべきではない。そのため、この値を実際に画面へ表示する側（roadmap.ts の
+// confidenceForProcedure、WITHHOLDING_TAX_CODEのConfidenceバッジ計算）は、Stateではなく
+// CompanyProfileを直接参照する設計にした（Sprint58）。
+//
+// 【Sprint58で確認した実際の運用】このState値を直接消費していたのはroadmap.tsの
+// confidenceForProcedureのみだった（grep確認、他の消費者は無し）。RESIDENT_TAX_WITHHOLDING_CODE
+// がSprint47で既に選んだのと同じ方針（このState値をそもそも経由しない）をWITHHOLDING_TAX_CODEにも
+// 適用し、roadmap.ts側でCompanyProfile.withholdingTaxCycleから直接Confidenceを判定するよう変更した
+// （docs/COMPANY_PROFILE_OBLIGATION_AUDIT.md 6節）。
+//
+// 本関数（State側）は「Timeline単体としては根拠が無い」という事実自体は変わらないため、
+// 返り値はincompleteのまま維持する。State ≠ CompanyProfileの直接反映という原則を保つことで、
+// 「Stateは常にTimelineに基づく確からしさだけを表す」という他フィールドとの一貫性を崩さない。
+// 将来、直接このState値を表示に使う新しい呼び出し元を追加する場合は、まずCompanyProfileを
+// 直接参照する方式（本Sprintと同じ）を検討し、それでも足りない場合にのみ
+// timelineProducer.tsのmetadata拡張を検討すること。
 function deriveWithholdingTaxCycleField(_events: TimelineEvent[]): StateField<WithholdingTaxCycle | null> {
   return incompleteField();
 }

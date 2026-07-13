@@ -48,8 +48,6 @@ function toIsoDate(d: Date): string {
 // 参照する（設計書7節が示す「最も確からしさが低いStateFieldを採用する」の厳密な実装は次Sprint以降）。
 // 【Sprint47の設計判断】RESIDENT_TAX_WITHHOLDING_CODEはStateを経由させない。
 // state.withholdingTaxCycleは常に'incomplete'を返す既知の未実装ギャップ（state.ts 189-199行）があり、
-// WITHHOLDING_TAX_CODEはこの壊れた値をそのまま使っているため、CompanyProfile側で明示的に
-// withholdingTaxCycleを設定してもConfidenceバッジは常に「情報不足」のままという不整合が残っている。
 // 住民税特別徴収でこの不整合を複製しないよう、State経由の判定にはしない
 // （docs/RESIDENT_TAX_SUPPORT_DESIGN.md 7節）。
 // 【Sprint47レビュー対応】residentTaxPaymentCycle === 'unknown' の場合はそもそも
@@ -57,9 +55,17 @@ function toIsoDate(d: Date): string {
 // 除外するため、この関数に到達する時点で周期は必ず'monthly'か'special'のいずれかに確定している
 // （毎月10日の出現をconfidence='incomplete'付きで表示すると「予定が存在するように見える」誤案内に
 // なるため、unknownは「情報不足として表示」ではなく「表示しない」を選んだ）。
-function confidenceForProcedure(code: string, state: CompanyState): StateConfidence {
+// 【Sprint58で修正】WITHHOLDING_TAX_CODEも同じ理由でState経由をやめた。従来は
+// state.withholdingTaxCycle.confidenceをそのまま使っており、CompanyProfileで値を明示的に
+// 設定してもConfidenceバッジが常に「情報不足」のままという不整合があった
+// （docs/COMPANY_PROFILE_OBLIGATION_AUDIT.md 6節、docs/BETA_BACKLOG.md M-01）。
+// RESIDENT_TAX_WITHHOLDING_CODEと異なりWITHHOLDING_TAX_CODEは'unset'でも一覧から除外されない
+// （毎月納付が法定の原則のため、保守的表示として残す既存挙動は変えない）ため、'unset'のときだけ
+// 「情報不足」、それ以外（'monthly'/'special_exception'を明示済み）は「確定」をCompanyProfileから
+// 直接判定する。
+function confidenceForProcedure(code: string, state: CompanyState, profile: CompanyProfile): StateConfidence {
   if (ESTABLISHMENT_PROCEDURE_CODES.has(code)) return state.stage.confidence;
-  if (code === WITHHOLDING_TAX_CODE) return state.withholdingTaxCycle.confidence;
+  if (code === WITHHOLDING_TAX_CODE) return profile.withholdingTaxCycle === 'unset' ? 'incomplete' : 'confirmed';
   if (code === RESIDENT_TAX_WITHHOLDING_CODE) return 'confirmed';
   if (code === 'CONSUMPTION_TAX_RETURN') return state.consumptionTaxStatus.confidence;
   return 'confirmed';
@@ -219,7 +225,7 @@ export async function buildAnnualRoadmap(
     expandOccurrences(proc, profile, horizonYears).map((dueDate) => ({
       procedure: proc,
       dueDate,
-      confidence: confidenceForProcedure(proc.code, state),
+      confidence: confidenceForProcedure(proc.code, state, profile),
     })),
   );
 

@@ -151,9 +151,9 @@ export default function WorkspaceProfileForm({
       </div>
 
       <p className="text-xs leading-relaxed text-gray-400">
-        都道府県・市区町村は会社登録時（{CORPORATE_TYPE_LABEL[profile.corporateType]}・
-        {profile.municipalityName || '未設定'}）に確定済みで、提出先（税務署・市区町村役場等）の
-        判定に使用しています。変更する場合は会社一覧から登録情報を編集してください。
+        都道府県・市区町村（{profile.municipalityName || '未設定'}）は会社登録時に確定し、
+        提出先（税務署・市区町村役場等）の判定に使用しています。登録内容を変更する機能は
+        現在準備中です。
       </p>
 
       <div>
