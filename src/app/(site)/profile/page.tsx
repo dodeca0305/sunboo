@@ -102,6 +102,7 @@ const EMPTY_DRAFT: ProfileDraft = {
   municipalityName: '',
   corporateType: null,
   nextOfficerChangeDate: null,
+  address: null,
   employeeCount: 0,
   capital: null,
   establishedDate: '',
@@ -322,6 +323,9 @@ export default function ProfilePage() {
                 <option key={p.code} value={p.code}>{p.name}</option>
               ))}
             </select>
+            <p className="mt-1.5 text-xs leading-relaxed text-gray-400">
+              提出先（税務署・市区町村役場等）の判定に使用します。
+            </p>
           </div>
 
           {draft.prefectureCode && (
@@ -334,19 +338,39 @@ export default function ProfilePage() {
                   <p className="text-sm font-medium text-gray-700">このエリアは現在未対応です</p>
                 </div>
               ) : (
-                <select
-                  className="form-select"
-                  value={draft.municipalityCode}
-                  onChange={(e) => set('municipalityCode', e.target.value)}
-                >
-                  <option value="">選択してください</option>
-                  {muniList.map((m) => (
-                    <option key={m.code} value={m.code}>{m.name}</option>
-                  ))}
-                </select>
+                <>
+                  <select
+                    className="form-select"
+                    value={draft.municipalityCode}
+                    onChange={(e) => set('municipalityCode', e.target.value)}
+                  >
+                    <option value="">選択してください</option>
+                    {muniList.map((m) => (
+                      <option key={m.code} value={m.code}>{m.name}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1.5 text-xs leading-relaxed text-gray-400">
+                    提出先を判定する唯一の情報です。変更すると管轄機関の判定結果が変わります。
+                  </p>
+                </>
               )}
             </div>
           )}
+
+          <div>
+            <label className="form-label">番地・建物名（任意）</label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="例: 1丁目2番3号 ○○ビル4階"
+              value={draft.address ?? ''}
+              onChange={(e) => set('address', e.target.value || null)}
+            />
+            <p className="mt-1.5 text-xs leading-relaxed text-gray-400">
+              Excel・PDF・共有ページでの本店所在地の表示にのみ使用します。提出先の判定には
+              使用しません（判定は都道府県・市区町村のみで行います）。
+            </p>
+          </div>
 
           <div>
             <label className="form-label">法人の種類</label>

@@ -104,6 +104,7 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
           <p className="mt-1 text-xs text-gray-500">
             {prefectureName}
             {municipalityName}
+            {companyProfile.address ?? ''}
             {company.fiscal_month ? ` ／ 決算月: ${company.fiscal_month}月` : ''}
           </p>
         </div>

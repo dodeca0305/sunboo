@@ -5,6 +5,7 @@ import { createServerSupabase } from '@/lib/supabase/server';
 import type { RoadmapYear } from '@/lib/roadmap';
 import type { WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
 import { loadWorkspaceCompany, loadWorkspaceRoadmapContext } from '@/lib/workspaceLoader';
+import { formatCompanyAddress } from '@/lib/companyProfile';
 import AnnualRoadmapView from '@/components/AnnualRoadmapView';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import RoadmapExcelExportButton from '@/components/RoadmapExcelExportButton';
@@ -56,11 +57,13 @@ export default async function WorkspaceRoadmapPage({ params }: { params: Promise
   // try/catchで捕捉してエラーカードを表示する（Sprint23.3レビューで追加した防御的措置）。
   let roadmapYears: RoadmapYear[] = [];
   let statusMap: WorkspaceProcedureStatusMap = {};
+  let companyAddress = '';
   let computeError: string | null = null;
   try {
     const context = await loadWorkspaceRoadmapContext(supabase, company);
     roadmapYears = context.roadmapYears;
     statusMap = context.procedureStatusMap;
+    companyAddress = formatCompanyAddress(context.companyProfile);
   } catch (err) {
     computeError = err instanceof Error ? err.message : '不明なエラー';
   }
@@ -81,8 +84,18 @@ export default async function WorkspaceRoadmapPage({ params }: { params: Promise
         <h1 className="text-xl font-bold text-gray-900">年間ロードマップ — {company.name}</h1>
         {!computeError && totalItemCount > 0 && (
           <div className="ml-auto flex flex-wrap items-start gap-2">
-            <RoadmapExcelExportButton roadmapYears={roadmapYears} statusMap={statusMap} companyName={company.name} />
-            <RoadmapPdfExportButton roadmapYears={roadmapYears} statusMap={statusMap} companyName={company.name} />
+            <RoadmapExcelExportButton
+              roadmapYears={roadmapYears}
+              statusMap={statusMap}
+              companyName={company.name}
+              companyAddress={companyAddress}
+            />
+            <RoadmapPdfExportButton
+              roadmapYears={roadmapYears}
+              statusMap={statusMap}
+              companyName={company.name}
+              companyAddress={companyAddress}
+            />
           </div>
         )}
       </div>

@@ -25,10 +25,12 @@ export default function RoadmapPdfExportButton({
   roadmapYears,
   statusMap,
   companyName,
+  companyAddress,
 }: {
   roadmapYears: RoadmapYear[];
   statusMap: WorkspaceProcedureStatusMap;
   companyName: string;
+  companyAddress: string;
 }) {
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +43,7 @@ export default function RoadmapPdfExportButton({
       const { buildRoadmapPdfBlob, buildRoadmapPdfFilename } = await import('@/lib/roadmapPdfDocument');
       const createdAt = new Date();
       const rows = buildRoadmapExportRows(roadmapYears, statusMap);
-      const blob = await buildRoadmapPdfBlob(rows, companyName, createdAt);
+      const blob = await buildRoadmapPdfBlob(rows, companyName, companyAddress, createdAt);
       const filename = buildRoadmapPdfFilename(companyName, createdAt);
 
       const url = URL.createObjectURL(blob);

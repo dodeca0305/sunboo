@@ -180,7 +180,12 @@ function formatCreatedLabel(createdAt: Date): string {
 
 const DISCLAIMER = '本資料は登録情報に基づく参考資料です。実際の手続き内容・期限・提出先は必ず専門家・各公式機関にご確認ください。';
 
-function buildDocumentDefinition(rows: RoadmapExportRow[], companyName: string, createdAt: Date): TDocumentDefinitions {
+function buildDocumentDefinition(
+  rows: RoadmapExportRow[],
+  companyName: string,
+  companyAddress: string,
+  createdAt: Date,
+): TDocumentDefinitions {
   const createdLabel = formatCreatedLabel(createdAt);
   const periodLabel = formatPeriodLabel(rows);
   const yearGroups = groupRowsByYearMonth(rows);
@@ -212,6 +217,7 @@ function buildDocumentDefinition(rows: RoadmapExportRow[], companyName: string, 
       { text: 'SUNBOO', style: 'coverBrand', margin: [0, 120, 0, 4] },
       { text: '年間手続きロードマップ', style: 'coverTitle' },
       { text: companyName, style: 'coverCompany', margin: [0, 24, 0, 0] },
+      ...(companyAddress ? [{ text: companyAddress, style: 'coverMeta' }] : []),
       { text: `対象期間: ${periodLabel}`, style: 'coverMeta' },
       { text: `作成日: ${createdLabel}`, style: 'coverMeta' },
       { text: DISCLAIMER, style: 'coverDisclaimer', margin: [0, 40, 0, 0] },
@@ -246,10 +252,11 @@ function buildDocumentDefinition(rows: RoadmapExportRow[], companyName: string, 
 export async function buildRoadmapPdfBlob(
   rows: RoadmapExportRow[],
   companyName: string,
+  companyAddress: string,
   createdAt: Date,
 ): Promise<Blob> {
   await ensureFontsRegistered();
-  const docDefinition = buildDocumentDefinition(rows, companyName, createdAt);
+  const docDefinition = buildDocumentDefinition(rows, companyName, companyAddress, createdAt);
   const pdf = pdfMake.createPdf(docDefinition);
   return pdf.getBlob();
 }

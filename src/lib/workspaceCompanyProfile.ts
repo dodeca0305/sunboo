@@ -39,6 +39,7 @@ export type WorkspaceCompanyProfileRow = {
   local_tax_collection_method: string;
   resident_tax_payment_cycle: string;
   next_officer_change_date: string | null;
+  address: string | null;
   e_tax_enabled: boolean;
   e_ltax_enabled: boolean;
   advisors: AdvisorPresence;
@@ -60,6 +61,7 @@ const DEFAULT_PROFILE_FIELDS: Omit<WorkspaceCompanyProfileRow, 'company_id'> = {
   local_tax_collection_method: 'special_collection',
   resident_tax_payment_cycle: 'unknown',
   next_officer_change_date: null,
+  address: null,
   e_tax_enabled: false,
   e_ltax_enabled: false,
   advisors: {
@@ -98,6 +100,7 @@ export function workspaceRowsToCompanyProfile(
     localTaxCollectionMethod: p.local_tax_collection_method as LocalTaxCollectionMethod,
     residentTaxPaymentCycle: p.resident_tax_payment_cycle as ResidentTaxPaymentCycle,
     nextOfficerChangeDate: p.next_officer_change_date,
+    address: p.address,
     eTaxEnabled: p.e_tax_enabled,
     eLTaxEnabled: p.e_ltax_enabled,
     advisors: p.advisors,
@@ -130,6 +133,7 @@ export function companyProfileToWorkspaceUpdatePayload(profile: CompanyProfile):
       local_tax_collection_method: profile.localTaxCollectionMethod,
       resident_tax_payment_cycle: profile.residentTaxPaymentCycle,
       next_officer_change_date: profile.nextOfficerChangeDate,
+      address: profile.address,
       e_tax_enabled: profile.eTaxEnabled,
       e_ltax_enabled: profile.eLTaxEnabled,
       advisors: profile.advisors,

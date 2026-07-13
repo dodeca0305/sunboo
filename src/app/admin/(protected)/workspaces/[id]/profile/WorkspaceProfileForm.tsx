@@ -150,6 +150,27 @@ export default function WorkspaceProfileForm({
         </div>
       </div>
 
+      <p className="text-xs leading-relaxed text-gray-400">
+        都道府県・市区町村は会社登録時（{CORPORATE_TYPE_LABEL[profile.corporateType]}・
+        {profile.municipalityName || '未設定'}）に確定済みで、提出先（税務署・市区町村役場等）の
+        判定に使用しています。変更する場合は会社一覧から登録情報を編集してください。
+      </p>
+
+      <div>
+        <label className="form-label">番地・建物名（任意）</label>
+        <input
+          type="text"
+          placeholder="例: 1丁目2番3号 ○○ビル4階"
+          value={profile.address ?? ''}
+          onChange={(e) => set('address', e.target.value || null)}
+          className="form-input"
+        />
+        <p className="mt-1.5 text-xs leading-relaxed text-gray-400">
+          Excel・PDF・共有ページでの本店所在地の表示にのみ使用します。提出先の判定には
+          使用しません（判定は都道府県・市区町村のみで行います）。
+        </p>
+      </div>
+
       {profile.corporateType === 'kabushiki' && (
         <div>
           <label className="form-label">次回の役員変更予定日（任意）</label>

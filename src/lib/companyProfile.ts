@@ -58,6 +58,12 @@ export type CompanyProfile = {
   // src/lib/companyProfile.tsのapplyCompanyProfileToProcedures内でLEGAL_OFFICER_CHANGEの
   // next_deadline_dateをこの値から計算する（calculateNextDeadlineのevent_based分岐を再利用）。
   nextOfficerChangeDate: string | null;
+  // 本店所在地の番地・建物名等（表示専用、判定には使用しない）。
+  // 【Sprint56】docs/COMPANY_ADDRESS_OFFICE_RESOLUTION_DESIGN.md（Sprint54、案B）に基づき追加。
+  // 提出先判定は引き続きmunicipalityCode（唯一の判定キー）のみで行う。この値はExcel/PDF/
+  // 共有画面での表示にのみ使う。都道府県・市区町村は既存のprefectureName/municipalityNameを
+  // そのまま流用し、重複するフィールドは作らない（郵便番号検索・住所解析は行わない）。
+  address: string | null;
   employeeCount: number; // 旧 hasEmployees(boolean) を置き換える。hasEmployees(profile) で判定する
   capital: number | null; // 資本金（円）
   establishedDate: string | null; // ISO日付。設立予定の場合はnull許容
@@ -103,6 +109,7 @@ const DEFAULT_ADVISORS: AdvisorPresence = {
 // 所在地・法人種別・従業員数など会社ごとに必ず異なる項目は含まない。
 const PROFILE_DEFAULTS = {
   nextOfficerChangeDate: null as string | null,
+  address: null as string | null,
   capital: null as number | null,
   establishedDate: null as string | null,
   fiscalMonth: null as number | null,
@@ -139,6 +146,13 @@ export function createCompanyProfile(
 
 export function hasEmployees(profile: CompanyProfile): boolean {
   return profile.employeeCount > 0;
+}
+
+// 都道府県名・市区町村名・番地（address）を結合した表示用の本店所在地文字列を組み立てる。
+// 【Sprint56】Excel/PDF/共有画面で同じ組み立てロジックを重複させないための共通関数
+// （表示専用。判定には使わない）。いずれかが未入力でも欠けている部分を飛ばして結合する。
+export function formatCompanyAddress(profile: CompanyProfile): string {
+  return [profile.prefectureName, profile.municipalityName, profile.address].filter(Boolean).join('');
 }
 
 export function loadCompanyProfile(): CompanyProfile | null {
@@ -189,6 +203,7 @@ export function loadCompanyProfile(): CompanyProfile | null {
         PROFILE_DEFAULTS.residentTaxPaymentCycle,
       nextOfficerChangeDate:
         (parsed.nextOfficerChangeDate as string | null | undefined) ?? PROFILE_DEFAULTS.nextOfficerChangeDate,
+      address: (parsed.address as string | null | undefined) ?? PROFILE_DEFAULTS.address,
       eTaxEnabled: (parsed.eTaxEnabled as boolean | undefined) ?? PROFILE_DEFAULTS.eTaxEnabled,
       eLTaxEnabled: (parsed.eLTaxEnabled as boolean | undefined) ?? PROFILE_DEFAULTS.eLTaxEnabled,
       advisors: { ...DEFAULT_ADVISORS, ...advisorsRaw },

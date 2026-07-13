@@ -9,12 +9,13 @@ import { buildExportFilename } from '@/lib/exportFilename';
 // このファイルはブラウザ専用（exceljsのbrowserビルド、package.jsonのbrowserフィールド経由で
 // バンドラーが自動解決する）。Client Componentからのみ呼び出す想定。
 
-const COLUMNS: { header: string; key: keyof RoadmapExportRow; width: number }[] = [
+const COLUMNS: { header: string; key: keyof RoadmapExportRow | 'companyAddress'; width: number }[] = [
   { header: '年度', key: 'year', width: 8 },
   { header: '月', key: 'month', width: 6 },
   { header: '期限', key: 'dueDate', width: 12 },
   { header: '手続き名', key: 'procedureName', width: 32 },
   { header: 'カテゴリ', key: 'category', width: 10 },
+  { header: '会社所在地', key: 'companyAddress', width: 30 },
   { header: '提出先', key: 'officeName', width: 26 },
   { header: '提出方法', key: 'submissionMethod', width: 18 },
   { header: 'リンク種別', key: 'linkKind', width: 10 },
@@ -40,6 +41,7 @@ export function buildRoadmapExcelFilename(companyName: string, createdAt: Date):
 export async function buildRoadmapExcelBuffer(
   rows: RoadmapExportRow[],
   companyName: string,
+  companyAddress: string,
   createdAt: Date,
 ): Promise<ExcelJS.Buffer> {
   const workbook = new ExcelJS.Workbook();
@@ -57,6 +59,7 @@ export async function buildRoadmapExcelBuffer(
   for (const row of rows) {
     const excelRow = sheet.addRow({
       ...row,
+      companyAddress,
       dueDate: row.dueDate ? new Date(`${row.dueDate}T00:00:00`) : null,
     });
 

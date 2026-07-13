@@ -23,10 +23,12 @@ export default function RoadmapExcelExportButton({
   roadmapYears,
   statusMap,
   companyName,
+  companyAddress,
 }: {
   roadmapYears: RoadmapYear[];
   statusMap: WorkspaceProcedureStatusMap;
   companyName: string;
+  companyAddress: string;
 }) {
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +43,7 @@ export default function RoadmapExcelExportButton({
       ]);
       const createdAt = new Date();
       const rows = buildRoadmapExportRows(roadmapYears, statusMap);
-      const buffer = await buildRoadmapExcelBuffer(rows, companyName, createdAt);
+      const buffer = await buildRoadmapExcelBuffer(rows, companyName, companyAddress, createdAt);
       const filename = buildRoadmapExcelFilename(companyName, createdAt);
 
       const blob = new Blob([buffer], {
