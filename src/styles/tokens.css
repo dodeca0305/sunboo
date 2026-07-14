@@ -1,0 +1,129 @@
+/*
+ * SUNBOO Design Tokens — Sprint81 "Design Tokens Foundation"
+ *
+ * docs/SUNBOO_DESIGN_GUIDELINES.md（Sprint80）で定義した正式仕様を、
+ * Tailwind v4のCSS-firstテーマ変数として実装したもの。
+ *
+ * 重要：このファイルはトークンの「追加」のみを行う。
+ * 既存の `.card` / `.btn-primary` / `.btn-secondary` / `.tag` / `.form-input` / `.form-select`
+ * 等（src/app/globals.css）は一切変更していない。ここで定義するユーティリティは
+ * `sunboo-` プレフィックス付きの新規クラス（例: bg-sunboo-warm-paper, rounded-sunboo-card）
+ * としてのみ生成され、既存コンポーネントのどこからも参照されていないため、
+ * 本ファイルの追加による画面表示への影響はゼロである。
+ *
+ * 各画面への実際の適用（既存クラスの置き換え）はSprint82以降で段階的に行う。
+ * 詳細な監査・優先順位は docs/SUNBOO_DESIGN_TOKEN_AUDIT.md を参照。
+ */
+
+@theme {
+  /* ============================================================
+   * Phase 1 — Color Tokens（SUNBOO_DESIGN_GUIDELINES.md §4）
+   * 正式名称: WarmPaper / Surface / Ink / MorningSun / Moss / Mist / Danger
+   * + Muted Text（ガイドライン§4本文で正式定義済みのため8番目のトークンとして追加）
+   * ============================================================ */
+  --color-sunboo-warm-paper: #FAF9F6; /* Background */
+  --color-sunboo-surface: #FFFFFF;    /* Surface */
+  --color-sunboo-ink: #1F2937;        /* Text */
+  --color-sunboo-ink-muted: #6B7280;  /* Muted Text */
+  --color-sunboo-morning-sun: #F59E0B;/* Primary（期限・現在地・主要導線のみ） */
+  --color-sunboo-moss: #6E8B74;       /* Success */
+  --color-sunboo-mist: #E7E5E4;       /* Border */
+  --color-sunboo-danger: #DC2626;     /* Danger */
+
+  /* ============================================================
+   * Phase 2 — Typography Tokens（同§5）
+   * font-size / line-height / font-weight / letter-spacing を
+   * 1ロール1ユーティリティ（例: text-sunboo-page-title）に統合。
+   * Tailwind v4の `--text-*--line-height` 等のペア指定機能を使用。
+   * ============================================================ */
+  --text-sunboo-hero: 3rem;              /* 48px */
+  --text-sunboo-hero--line-height: 1.15;
+  --text-sunboo-hero--font-weight: 700;
+  --text-sunboo-hero--letter-spacing: -0.01em;
+
+  --text-sunboo-page-title: 2.25rem;     /* 36px */
+  --text-sunboo-page-title--line-height: 1.25;
+  --text-sunboo-page-title--font-weight: 700;
+  --text-sunboo-page-title--letter-spacing: -0.01em;
+
+  --text-sunboo-section-title: 1.75rem;  /* 28px */
+  --text-sunboo-section-title--line-height: 1.3;
+  --text-sunboo-section-title--font-weight: 700;
+  --text-sunboo-section-title--letter-spacing: -0.005em;
+
+  --text-sunboo-card-title: 1.375rem;    /* 22px */
+  --text-sunboo-card-title--line-height: 1.4;
+  --text-sunboo-card-title--font-weight: 600;
+  --text-sunboo-card-title--letter-spacing: 0em;
+
+  --text-sunboo-body: 1rem;              /* 16px */
+  --text-sunboo-body--line-height: 1.7;
+  --text-sunboo-body--font-weight: 400;
+  --text-sunboo-body--letter-spacing: 0em;
+
+  --text-sunboo-caption: 0.875rem;       /* 14px */
+  --text-sunboo-caption--line-height: 1.6;
+  --text-sunboo-caption--font-weight: 400;
+  --text-sunboo-caption--letter-spacing: 0em;
+
+  --text-sunboo-tiny: 0.75rem;           /* 12px */
+  --text-sunboo-tiny--line-height: 1.5;
+  --text-sunboo-tiny--font-weight: 400;
+  --text-sunboo-tiny--letter-spacing: 0.01em;
+
+  /* ============================================================
+   * Phase 3 — Spacing Tokens（同§6、8pxグリッド）
+   * Tailwindの既定スペーシングスケール（0.25rem刻み）は
+   * step 2/4/6/8/12/16 の時点で既に 8/16/24/32/48/64px と一致するため、
+   * 数値スケール自体の変更は行わない（既存UIへの影響を避けるため）。
+   * ここではページ余白・セクション間隔など「マクロ用途」を明示する
+   * 意味的エイリアスのみを追加する（詳細はAUDIT.md Phase3参照）。
+   * ============================================================ */
+  --spacing-sunboo-1: 0.5rem;  /* 8px  情報ブロック内の最小間隔 */
+  --spacing-sunboo-2: 1rem;    /* 16px 情報ブロック間 */
+  --spacing-sunboo-3: 1.5rem;  /* 24px カード内パディング（下限）／情報ブロック間（上限） */
+  --spacing-sunboo-4: 2rem;    /* 32px カード内パディング（上限）／ページ左右余白（下限） */
+  --spacing-sunboo-6: 3rem;    /* 48px セクション間 */
+  --spacing-sunboo-8: 4rem;    /* 64px ページ左右余白（上限） */
+
+  /* ============================================================
+   * Phase 4 — Radius Tokens（同§7）
+   * ============================================================ */
+  --radius-sunboo-card: 0.875rem;   /* 14px */
+  --radius-sunboo-control: 0.75rem; /* 12px（Button/Inputレンジ10-12pxの上限。
+                                        既存 .btn-primary/.form-input と同値のため
+                                        置換時の見た目変化はゼロ想定） */
+  --radius-sunboo-badge: 0.5rem;    /* 8px（角丸バッジ用。pillバッジは既存 rounded-full を継続使用） */
+
+  /* ============================================================
+   * Phase 5 — Shadow Tokens（同§7）
+   * ============================================================ */
+  --shadow-sunboo-card: 0 4px 12px rgba(15, 23, 42, 0.05);
+  --shadow-sunboo-card-important: 0 6px 20px rgba(15, 23, 42, 0.06);
+  --shadow-sunboo-modal: 0 2px 8px rgba(15, 23, 42, 0.08); /* 「必要最小限」の暫定値。要レビュー */
+
+  /* ============================================================
+   * Phase 6 — Transition Tokens
+   * ============================================================ */
+  --ease-sunboo-out: cubic-bezier(0, 0, 0.2, 1); /* Tailwind標準の ease-out と同一曲線 */
+}
+
+/*
+ * Phase 6 補足：duration-150 と ease-out はTailwind v4の既定テーマに
+ * 既に存在するため、新規トークンとしての追加は不要（上記 --ease-sunboo-out は
+ * globals.css側の素のCSS transition記述で var() 参照する用途、または将来
+ * ユーティリティ側で `duration-150 ease-out` の組み合わせを明示する際の
+ * ドキュメント代わりとして定義している）。
+ * 詳細は docs/SUNBOO_DESIGN_TOKEN_AUDIT.md Phase 6 を参照。
+ */
+:root {
+  --transition-sunboo-duration: 150ms;
+  --transition-sunboo: 150ms var(--ease-sunboo-out);
+}
+
+/*
+ * Phase 7（Status Colors）は本ファイルに含めない。
+ * 「今回は置換せず、差分だけ整理する」というSprint81の指示に従い、
+ * 状態色の統合は docs/SUNBOO_DESIGN_TOKEN_AUDIT.md 内の調査結果のみとし、
+ * トークン定義（コード）は次スプリート以降の判断に委ねる。
+ */
