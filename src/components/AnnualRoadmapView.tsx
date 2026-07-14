@@ -9,10 +9,11 @@ import {
 } from '@/lib/workspaceProcedureStatus';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import { buildRoadmapSubmissionInfo } from '@/lib/roadmapSubmissionInfo';
-import { buildRoadmapDocumentItems, hasAnyRoadmapDocumentItems } from '@/lib/roadmapDocuments';
-import { AlertTriangle, Building2, ExternalLink } from 'lucide-react';
+import { buildRoadmapDocumentItems, hasAnyRoadmapDocumentItems, type RoadmapDocumentItem } from '@/lib/roadmapDocuments';
+import { AlertTriangle, Building2, ExternalLink, Info, Square } from 'lucide-react';
+import StatusBadge from '@/components/StatusBadge';
 
-// ── 年間ロードマップ — 表示コンポーネント（Sprint 23 Phase23.3・Sprint 24 Phase24.1・Sprint 32）───
+// ── 年間ロードマップ — 表示コンポーネント（Sprint 23 Phase23.3・Sprint 24 Phase24.1・Sprint 32・Sprint 84）───
 // src/app/(site)/roadmap/page.tsx と admin/(protected)/workspaces/[id]/roadmap/page.tsx・
 // src/app/share/[token]/page.tsx の3箇所から使う共通の表示部分
 // （年→月→手続き一覧のグループ化・カード表示）。buildAnnualRoadmap（src/lib/roadmap.ts）の
@@ -28,6 +29,11 @@ import { AlertTriangle, Building2, ExternalLink } from 'lucide-react';
 // workspaceProcedureOccurrenceKey(procedureId, dueDate)へ変更した。同じ手続きが複数年・
 // 複数回出現する場合（毎月納付・毎年申告等）に、出現ごとに独立した状態を持てるようにするため
 // （docs/PERIODIC_STATUS_REDESIGN.md、Sprint31設計レビューで承認済み）。
+//
+// 【Sprint84で再設計】カードの情報優先順位を「期限→手続き名→提出先→提出方法→公式ページ→
+// 必要書類→事前準備→提出前チェック→Status→Confidence→補足・注意事項」に統一し、
+// SUNBOO Design Tokens（src/styles/tokens.css）に接続した。データの並び順・グルーピング・
+// Engine呼び出しは一切変更していない（docs/SUNBOO_ROADMAP_CARD_REDESIGN_REVIEW.md参照）。
 //
 // 'use client' が必要な理由: ステータス変更の onChange ハンドラを持つため
 // （Server Componentは関数propsを子に渡せないため、更新ロジック自体をこのコンポーネント内に持つ）。
@@ -55,9 +61,90 @@ function groupByMonth(items: RoadmapItem[]): { month: number; items: RoadmapItem
   return Array.from(byMonth.entries()).sort(([a], [b]) => a - b).map(([month, monthItems]) => ({ month, items: monthItems }));
 }
 
-function formatDueDate(dueDate: string): string {
+// 表示専用の日付分解・相対日数計算（Roadmap Engineの期限計算そのものには一切関与しない）。
+function dueMonthDay(dueDate: string): { month: number; day: number } {
   const [, m, d] = dueDate.split('-');
-  return `${Number(m)}月${Number(d)}日`;
+  return { month: Number(m), day: Number(d) };
+}
+
+function daysUntil(dueDate: string): number {
+  const target = new Date(`${dueDate}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86400000);
+}
+
+type UrgencyTone = 'overdue' | 'urgent' | 'neutral';
+
+// 「Dangerは期限超過だけ」「MorningSunは現在地・近日期限の補助に限定」というSUNBOO_DESIGN_GUIDELINES.md
+// §4のルールをそのまま反映する。しきい値14日はScheduleList.tsxのRemainingBadgeと同じ基準を踏襲した。
+function urgencyOf(days: number): { tone: UrgencyTone; label: string } {
+  if (days < 0) return { tone: 'overdue', label: '期限超過' };
+  if (days === 0) return { tone: 'urgent', label: '本日締切' };
+  if (days <= 14) return { tone: 'urgent', label: `あと${days}日` };
+  return { tone: 'neutral', label: `あと${days}日` };
+}
+
+const URGENCY_TONE_CLASS: Record<UrgencyTone, string> = {
+  overdue: 'text-sunboo-danger',
+  urgent: 'text-sunboo-morning-sun-dark',
+  neutral: 'text-sunboo-ink-muted',
+};
+
+// カード内の小見出し（提出先・必要書類・事前準備・提出前チェック・確からしさ等）で共通利用する
+// ラベル。Tiny Tokenをそのまま使い、新しいタイポグラフィスケールを追加しない。
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-sunboo-tiny uppercase text-sunboo-ink-muted">{children}</p>
+  );
+}
+
+// 期限カラム（Desktop:左／Mobile:上部）。日を最大表示、月は小さく補助表示する。
+// 年は年セクション見出し（後述）で既に示しているため、カード側では繰り返さない
+// （「年は必要な場合のみ補助表示」に該当する曖昧さがこのコンポーネントの使い方では生じないため）。
+function DeadlineColumn({ dueDate }: { dueDate: string }) {
+  const { month, day } = dueMonthDay(dueDate);
+  const days = daysUntil(dueDate);
+  const { tone, label } = urgencyOf(days);
+  return (
+    <div
+      role="group"
+      aria-label={`期限 ${month}月${day}日、${label}`}
+      className="flex shrink-0 items-center justify-between gap-3 border-b border-sunboo-mist px-4 py-3 sm:w-24 sm:flex-col sm:items-start sm:justify-start sm:gap-1.5 sm:border-b-0 sm:border-r sm:px-4 sm:py-5"
+    >
+      <div aria-hidden="true" className="flex items-baseline gap-1.5 sm:flex-col sm:items-start sm:gap-0">
+        <span className="text-sunboo-tiny uppercase text-sunboo-ink-muted">{month}月</span>
+        <span className="text-sunboo-section-title text-sunboo-ink">{day}</span>
+      </div>
+      <span aria-hidden="true" className={`inline-flex items-center gap-1 text-xs font-semibold ${URGENCY_TONE_CLASS[tone]}`}>
+        {tone === 'overdue' && <AlertTriangle className="h-3 w-3 shrink-0" />}
+        {label}
+      </span>
+    </div>
+  );
+}
+
+// 必要書類・事前準備・提出前チェックの共通表示。折りたたまず初期表示し、
+// 「□」は装飾のみ（aria-hidden）とすることで、操作可能なチェックボックスだと誤認させない。
+function DocumentGroup({ label, items }: { label: string; items: RoadmapDocumentItem[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div>
+      <SectionLabel>{label}</SectionLabel>
+      <ul className="mt-1.5 space-y-1">
+        {items.map((d, idx) => (
+          <li key={`${d.name}-${idx}`} className="flex items-start gap-2 text-sm text-sunboo-ink">
+            <Square aria-hidden="true" strokeWidth={2.25} className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sunboo-mist" />
+            <span>
+              {d.name}
+              {!d.isRequired && <span className="text-sunboo-ink-muted">（任意）</span>}
+              {d.notes && <span className="text-sunboo-ink-muted">　{d.notes}</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 export default function AnnualRoadmapView({
@@ -106,98 +193,142 @@ export default function AnnualRoadmapView({
       )}
       {roadmapYears.map((yearBlock) => (
         <section key={yearBlock.year}>
-          <h2 className="mb-4 text-lg font-bold text-gray-900">{yearBlock.year}年</h2>
-          <div className="space-y-5">
+          <h2 className="text-sunboo-section-title mb-4 text-sunboo-ink">{yearBlock.year}年</h2>
+          <div className="space-y-6">
             {groupByMonth(yearBlock.items).map(({ month, items }) => (
               <div key={month}>
-                <h3 className="mb-2 text-sm font-semibold text-gray-500">{MONTH_LABEL(month)}</h3>
-                <ul className="space-y-2">
+                <h3 className="text-sunboo-tiny mb-2 uppercase text-sunboo-ink-muted">{MONTH_LABEL(month)}</h3>
+                <ul className="space-y-3">
                   {items.map((item, idx) => {
                     const status = localStatusMap[workspaceProcedureOccurrenceKey(item.procedure.id, item.dueDate)] ?? 'not_started';
                     const submission = buildRoadmapSubmissionInfo(item.procedure);
                     const docGroups = buildRoadmapDocumentItems(item.procedure);
                     const hasDocGuide = hasAnyRoadmapDocumentItems(docGroups);
+                    const isConfidenceLow = item.confidence === 'estimated' || item.confidence === 'incomplete';
+
                     return (
                       <li
                         key={`${item.procedure.id}-${item.dueDate}-${idx}`}
-                        className="card space-y-2 py-3"
+                        className="card overflow-hidden p-0 break-inside-avoid"
                       >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-medium text-gray-900">{item.procedure.name}</span>
-                          <span className="tag">{CATEGORY_LABEL[item.procedure.category] ?? 'その他'}</span>
-                          <span className="text-xs text-gray-400">{formatDueDate(item.dueDate)}</span>
-                          {item.confidence === 'estimated' && (
-                            <span className="tag border-amber-200 text-amber-700">推定</span>
-                          )}
-                          {item.confidence === 'incomplete' && (
-                            <span className="tag border-amber-200 text-amber-700">情報不足</span>
-                          )}
-                          {statusMap && editable && (
-                            <select
-                              value={status}
-                              onChange={(e) => handleStatusChange(item.procedure.id, item.dueDate, e.target.value as WorkspaceProcedureStatus)}
-                              className="form-select ml-auto w-auto py-1 text-xs"
-                            >
-                              {WORKSPACE_PROCEDURE_STATUSES.map((s) => (
-                                <option key={s} value={s}>{WORKSPACE_PROCEDURE_STATUS_LABEL[s]}</option>
-                              ))}
-                            </select>
-                          )}
-                          {statusMap && !editable && (
-                            <span className="tag ml-auto">{WORKSPACE_PROCEDURE_STATUS_LABEL[status]}</span>
-                          )}
+                        <div className="flex flex-col sm:flex-row">
+                          {/* 1. 期限（最も目立つ情報。Desktop:左カラム／Mobile:上部） */}
+                          <DeadlineColumn dueDate={item.dueDate} />
+
+                          <div className="min-w-0 flex-1 space-y-4 px-4 py-4 sm:py-5">
+                            {/* 2. 手続き名（日本語主表示。英語名フィールドは現行データモデルに存在しないため
+                                補助表示は未実装 — docs/SUNBOO_ROADMAP_CARD_REDESIGN_REVIEW.md参照） */}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="text-sunboo-card-title text-sunboo-ink">
+                                {item.procedure.name}
+                              </h4>
+                              <span className="tag">{CATEGORY_LABEL[item.procedure.category] ?? 'その他'}</span>
+                            </div>
+
+                            {/* 3〜5. 提出先／提出方法／公式ページ */}
+                            <div>
+                              <SectionLabel>提出先</SectionLabel>
+                              {submission.officeName === null ? (
+                                <p className="mt-1 text-sm text-sunboo-ink-muted">提出先情報は未登録です</p>
+                              ) : (
+                                <div className="mt-1 space-y-2">
+                                  <p className="flex items-center gap-1.5 text-sm text-sunboo-ink">
+                                    <Building2 className="h-3.5 w-3.5 shrink-0 text-sunboo-ink-muted" aria-hidden="true" />
+                                    {submission.officeName}
+                                  </p>
+                                  {submission.submissionMethods.length > 0 && (
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {submission.submissionMethods.map((m) => (
+                                        <span key={m} className="tag">{m}</span>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {submission.url && (
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <a
+                                        href={submission.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="btn-secondary inline-flex min-h-11 items-center gap-1 px-2.5 py-1 text-xs sm:min-h-0"
+                                      >
+                                        {submission.label}
+                                        <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                                      </a>
+                                      {submission.urlStatus === 'unchecked' && (
+                                        <span className="text-xs text-sunboo-ink-muted">（リンク未確認）</span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* 6〜8. 必要書類／事前準備／提出前チェック（同じデータソース、見出しを分けて表示） */}
+                            {hasDocGuide && (
+                              <div className="space-y-3 border-t border-sunboo-mist pt-3">
+                                <DocumentGroup label="必要書類" items={docGroups.documents} />
+                                <DocumentGroup label="事前準備" items={docGroups.preparations} />
+                                <DocumentGroup label="提出前チェック" items={docGroups.checklist} />
+                              </div>
+                            )}
+
+                            {/* 9. Status（StatusBadgeのみ使用。期限・手続き名より視覚的に弱く保つ） */}
+                            {statusMap && (
+                              <div className="border-t border-sunboo-mist pt-3">
+                                <SectionLabel>ステータス</SectionLabel>
+                                <div className="mt-1.5">
+                                  {editable ? (
+                                    <select
+                                      value={status}
+                                      aria-label={`${item.procedure.name}のステータス`}
+                                      onChange={(e) => handleStatusChange(item.procedure.id, item.dueDate, e.target.value as WorkspaceProcedureStatus)}
+                                      className="form-select min-h-11 w-auto py-1 text-xs sm:min-h-0"
+                                    >
+                                      {WORKSPACE_PROCEDURE_STATUSES.map((s) => (
+                                        <option key={s} value={s}>{WORKSPACE_PROCEDURE_STATUS_LABEL[s]}</option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <StatusBadge kind={status} />
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 10. Confidence（補助情報として控えめに。推測はせず、既存の一般的な説明のみ表示） */}
+                            {isConfidenceLow && (
+                              <div className="border-t border-sunboo-mist pt-3">
+                                <SectionLabel>確からしさ</SectionLabel>
+                                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                                  <StatusBadge kind={item.confidence === 'estimated' ? 'estimated' : 'info_missing'} />
+                                </div>
+                                {item.confidence === 'incomplete' && (
+                                  <p className="mt-1 text-xs leading-relaxed text-sunboo-ink-muted">
+                                    プロフィールや決算情報の入力状況によって内容が変わる可能性があります。
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
+                            {/* 11. 補足・注意事項（本文末尾の控えめなNotice。カード全体は着色しない） */}
+                            {(item.procedure.target_note || item.procedure.caution_note) && (
+                              <div className="space-y-2 border-t border-sunboo-mist pt-3 text-xs leading-relaxed text-sunboo-ink-muted">
+                                {item.procedure.target_note && (
+                                  <p>
+                                    <span className="font-medium text-sunboo-ink">対象：</span>
+                                    {item.procedure.target_note}
+                                  </p>
+                                )}
+                                {item.procedure.caution_note && (
+                                  <p className="flex items-start gap-1.5">
+                                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                    <span>{item.procedure.caution_note}</span>
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
-
-                        {submission.officeName === null ? (
-                          <p className="pl-0 text-xs text-gray-400">提出先情報は未登録です</p>
-                        ) : (
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                            <span className="inline-flex items-center gap-1">
-                              <Building2 className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                              提出先: {submission.officeName}
-                            </span>
-                            {submission.url && (
-                              <a
-                                href={submission.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn-secondary inline-flex items-center gap-1 px-2.5 py-1 text-xs"
-                              >
-                                {submission.label}
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            )}
-                            {submission.url && submission.urlStatus === 'unchecked' && (
-                              <span className="text-[10px] text-gray-400">（リンク未確認）</span>
-                            )}
-                            {submission.submissionMethods.map((m) => (
-                              <span key={m} className="tag">{m}</span>
-                            ))}
-                          </div>
-                        )}
-
-                        {hasDocGuide && (
-                          <div className="space-y-1 border-t border-gray-100 pt-2 text-xs text-gray-500">
-                            {docGroups.documents.length > 0 && (
-                              <p>
-                                <span className="font-medium text-gray-600">必要書類: </span>
-                                {docGroups.documents.map((d) => `${d.name}${d.isRequired ? '' : '（任意）'}`).join('、')}
-                              </p>
-                            )}
-                            {docGroups.preparations.length > 0 && (
-                              <p>
-                                <span className="font-medium text-gray-600">事前準備: </span>
-                                {docGroups.preparations.map((d) => d.name).join('、')}
-                              </p>
-                            )}
-                            {docGroups.checklist.length > 0 && (
-                              <p>
-                                <span className="font-medium text-gray-600">提出前チェック: </span>
-                                {docGroups.checklist.map((d) => d.name).join('、')}
-                              </p>
-                            )}
-                          </div>
-                        )}
                       </li>
                     );
                   })}
