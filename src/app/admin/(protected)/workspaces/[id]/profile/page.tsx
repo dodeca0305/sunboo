@@ -1,10 +1,10 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { Building2 } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { loadWorkspaceCompany, loadWorkspaceCompanyProfile } from '@/lib/workspaceLoader';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import WorkspaceProfileForm from './WorkspaceProfileForm';
+import PageHeader from '@/components/PageHeader';
 
 // ── Company Workspace — 会社プロフィール（Sprint 23 Phase23.2・Sprint 34）─────────
 // 【Sprint34でデータ取得を共通化】company取得・CompanyProfile変換はDashboard・Roadmapと重複していた。
@@ -28,14 +28,13 @@ export default async function WorkspaceCompanyProfilePage({ params }: { params: 
 
   return (
     <div className="space-y-6">
-      <Link
-        href={`/admin/workspaces/${companyId}`}
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900"
-      >
-        <ChevronLeft className="h-4 w-4" />
-        {company.name} に戻る
-      </Link>
-      <h1 className="text-xl font-bold text-gray-900">会社プロフィール — {company.name}</h1>
+      <PageHeader
+        backHref={`/admin/workspaces/${companyId}`}
+        backLabel={`${company.name} に戻る`}
+        icon={Building2}
+        title="会社プロフィール"
+        subtitle={`${company.name}の税務・労務の現況。手続きの判定に使う情報を登録します。`}
+      />
       <WorkspaceSubNav companyId={companyId} />
       <WorkspaceProfileForm companyId={companyId} initialProfile={initialProfile} />
     </div>

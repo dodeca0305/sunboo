@@ -1,4 +1,4 @@
-import { AlertTriangle, Building2, CalendarRange, Info } from 'lucide-react';
+import { AlertTriangle, Building2, CalendarRange } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import {
   workspaceRowsToCompanyProfile, type WorkspaceCompanyProfileRow, type WorkspaceCompanyRow,
@@ -8,6 +8,7 @@ import { buildStateFromTimeline } from '@/lib/state';
 import { buildAnnualRoadmap } from '@/lib/roadmap';
 import { workspaceProcedureOccurrenceKey, type WorkspaceProcedureStatus, type WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
 import AnnualRoadmapView from '@/components/AnnualRoadmapView';
+import InformationCard from '@/components/InformationCard';
 
 // ── Company Workspace — 経営者向け共有ページ（Sprint 24 Phase24.0・Phase24.1・Sprint 32）───
 // ログイン不要・編集不可の閲覧専用ページ。get_shared_workspace_view（Sprint22.4 MVP migration、
@@ -32,8 +33,8 @@ const CORPORATE_TYPE_LABEL: Record<string, string> = {
 function InvalidLinkNotice({ message }: { message: string }) {
   return (
     <div className="mx-auto flex max-w-md flex-col items-center px-4 py-24 text-center">
-      <AlertTriangle className="mb-3 h-8 w-8 text-gray-300" />
-      <p className="text-sm font-medium text-gray-700">{message}</p>
+      <AlertTriangle className="mb-3 h-8 w-8 text-sunboo-mist" />
+      <p className="text-sm font-medium text-sunboo-ink">{message}</p>
     </div>
   );
 }
@@ -84,28 +85,20 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-      <div className="mb-8 flex items-center gap-2.5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white select-none">
-          S
-        </span>
-        <span className="text-base font-bold tracking-tight text-gray-900">
-          SUNBOO<span className="text-blue-600">経営ナビ</span>
-        </span>
-        <span className="tag border-blue-200 text-blue-600">共有ページ（閲覧専用）</span>
-      </div>
-
-      <p className="mb-6 text-sm font-medium text-gray-700">
-        このページはSUNBOOが作成した年間行政ロードマップです。
+      {/* SUNBOOは裏方：会社名より前には小さなキャプションのみを置く（Sprint85） */}
+      <p className="mb-3 flex items-center gap-1.5 text-sunboo-tiny uppercase text-sunboo-ink-muted">
+        SUNBOOが作成した年間行政ロードマップ
+        <span className="tag">閲覧専用</span>
       </p>
 
       <div className="card mb-6 flex items-start gap-3">
-        <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+        <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-sunboo-ink-muted" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-lg font-bold text-gray-900">{company.name}</h1>
+            <h1 className="text-sunboo-card-title text-sunboo-ink">{company.name}</h1>
             <span className="tag">{CORPORATE_TYPE_LABEL[company.corporate_type] ?? company.corporate_type}</span>
           </div>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-sunboo-ink-muted">
             {prefectureName}
             {municipalityName}
             {companyProfile.address ?? ''}
@@ -115,32 +108,31 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
       </div>
 
       <div className="mb-4 flex items-center gap-2">
-        <CalendarRange className="h-5 w-5 text-blue-600" />
-        <h2 className="text-base font-bold text-gray-900">年間ロードマップ</h2>
+        <CalendarRange className="h-5 w-5 text-sunboo-ink-muted" />
+        <h2 className="text-sm font-bold text-sunboo-ink">年間ロードマップ</h2>
       </div>
 
-      <div className="card mb-6 flex items-start gap-3 border-gray-200 bg-gray-50/60">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-        <p className="text-xs leading-relaxed text-gray-500">
-          今年度から今後2年分の手続き予定を一覧表示する参考情報です。実際の手続き・期限・提出先は
-          必ず顧問の専門家・各公式機関の最新情報をご確認ください。「情報不足」「推定」のタグが
-          付いた手続きは、会社情報の登録状況によって内容が変わる可能性があるという意味です。
-        </p>
-      </div>
+      {/* Confidence（情報不足・推定タグ）の説明は控えめなDisclaimerとして小さく表示する */}
+      <InformationCard kind="disclaimer" className="mb-6">
+        今年度から今後2年分の手続き予定を一覧表示する参考情報です。実際の手続き・期限・提出先は
+        必ず顧問の専門家・各公式機関の最新情報をご確認ください。「情報不足」「推定」のタグが
+        付いた手続きは、会社情報の登録状況によって内容が変わる可能性があるという意味です。
+      </InformationCard>
 
       {totalItemCount === 0 ? (
-        <div className="card border-gray-200 bg-gray-50/60 text-sm text-gray-600">
-          表示できる手続きがありません。
-        </div>
+        <InformationCard kind="info">
+          今年の手続き予定はまだ登録されていません。
+        </InformationCard>
       ) : (
         <AnnualRoadmapView roadmapYears={roadmapYears} statusMap={statusMap} />
       )}
 
-      <p className="mt-10 flex items-start gap-2 text-xs text-gray-400">
-        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      <InformationCard kind="disclaimer" className="mt-10">
         本ページの情報は一般的な参考情報です。記帳・電子申告・法的助言そのものではありません。
         税務・労務の最終判断は必ず税理士・社労士等の専門家にご確認ください。
-      </p>
+      </InformationCard>
+
+      <p className="mt-6 text-center text-[11px] text-sunboo-mist">Powered by SUNBOO経営ナビ</p>
     </div>
   );
 }

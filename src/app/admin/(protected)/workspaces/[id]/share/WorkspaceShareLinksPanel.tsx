@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Link2, Copy, Check, Ban, AlertTriangle } from 'lucide-react';
+import { Link2, Copy, Check, Ban } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
+import InformationCard from '@/components/InformationCard';
 
 export type ShareLinkRow = {
   id: number;
@@ -95,12 +96,7 @@ export default function WorkspaceShareLinksPanel({
 
   return (
     <div className="space-y-4">
-      {error && (
-        <div className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-          {error}
-        </div>
-      )}
+      {error && <InformationCard kind="error">{error}</InformationCard>}
 
       <button type="button" onClick={handleCreate} disabled={creating} className="btn-primary disabled:opacity-60">
         <Link2 className="h-4 w-4" />
@@ -108,7 +104,9 @@ export default function WorkspaceShareLinksPanel({
       </button>
 
       {links.length === 0 ? (
-        <div className="card text-sm text-gray-500">まだ共有リンクがありません。</div>
+        <div className="card text-sm text-sunboo-ink-muted">
+          まだ共有リンクがありません。発行すると、経営者へそのまま渡せる年間ロードマップのURLができます。
+        </div>
       ) : (
         <div className="space-y-3">
           {links.map((link) => {
@@ -116,12 +114,10 @@ export default function WorkspaceShareLinksPanel({
             return (
               <div key={link.id} className="card space-y-2.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`tag ${revoked ? 'border-gray-200 text-gray-400' : 'border-blue-200 text-blue-600'}`}>
-                    {revoked ? '失効済み' : '有効'}
-                  </span>
-                  <span className="text-xs text-gray-400">発行日: {new Date(link.created_at).toLocaleDateString('ja-JP')}</span>
+                  <span className="tag">{revoked ? '失効済み' : '有効'}</span>
+                  <span className="text-xs text-sunboo-ink-muted">発行日: {new Date(link.created_at).toLocaleDateString('ja-JP')}</span>
                   {link.last_accessed_at && (
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-sunboo-ink-muted">
                       最終アクセス: {new Date(link.last_accessed_at).toLocaleDateString('ja-JP')}
                     </span>
                   )}
@@ -131,7 +127,7 @@ export default function WorkspaceShareLinksPanel({
                     readOnly
                     value={shareUrl(link.token)}
                     onFocus={(e) => e.currentTarget.select()}
-                    className="form-input flex-1 text-xs text-gray-600"
+                    className="form-input flex-1 text-xs text-sunboo-ink-muted"
                   />
                   <button
                     type="button"
@@ -146,7 +142,7 @@ export default function WorkspaceShareLinksPanel({
                     <button
                       type="button"
                       onClick={() => handleRevoke(link.id)}
-                      className="btn-secondary shrink-0 px-3 py-1.5 text-xs text-red-600 hover:border-red-200 hover:bg-red-50"
+                      className="btn-secondary shrink-0 px-3 py-1.5 text-xs text-sunboo-danger hover:border-sunboo-danger"
                     >
                       <Ban className="h-3.5 w-3.5" />
                       失効させる

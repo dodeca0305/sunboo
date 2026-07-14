@@ -1,22 +1,31 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { CheckCircle2, Circle, AlertTriangle } from 'lucide-react';
 import {
   WORKSPACE_DOCUMENT_TYPES, WORKSPACE_DOCUMENT_TYPE_LABEL,
   WORKSPACE_DOCUMENT_STATUSES, WORKSPACE_DOCUMENT_STATUS_LABEL,
   type WorkspaceDocumentType, type WorkspaceDocumentStatus, type WorkspaceDocumentStatusMap,
 } from '@/lib/workspaceDocumentStatus';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
+import InformationCard from '@/components/InformationCard';
 
-// ── Company Workspace — 書類一覧（Sprint 26 Workspace Documents MVP）─────────
+// ── Company Workspace — 書類一覧（Sprint 26 Workspace Documents MVP・Sprint 85）─────────
 // workspace_documents（本Sprint新設）のステータスを表示・変更する。ファイルアップロードは
 // スコープ外（メタデータのみ）。AnnualRoadmapView（Sprint23.3・24.1）の楽観的更新パターンを踏襲する。
+// 【Sprint85で追加】各行を「今年提出した書類の記録」として読めるよう、状態をアイコンで示す
+// （registered=Moss・needs_update=MorningSun系・not_registered=中立）。ステータス種別・DB問い合わせは無変更。
 
-const STATUS_TONE: Record<WorkspaceDocumentStatus, 'neutral' | 'amber'> = {
-  not_registered: 'neutral',
-  registered: 'neutral',
-  needs_update: 'amber',
+const STATUS_ICON: Record<WorkspaceDocumentStatus, typeof CheckCircle2> = {
+  not_registered: Circle,
+  registered: CheckCircle2,
+  needs_update: AlertTriangle,
+};
+
+const STATUS_ICON_CLASS: Record<WorkspaceDocumentStatus, string> = {
+  not_registered: 'text-sunboo-mist',
+  registered: 'text-sunboo-moss',
+  needs_update: 'text-sunboo-morning-sun-dark',
 };
 
 export default function WorkspaceDocumentsView({
@@ -48,22 +57,19 @@ export default function WorkspaceDocumentsView({
 
   return (
     <div className="space-y-3">
-      {error && (
-        <div className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-          {error}
-        </div>
-      )}
+      {error && <InformationCard kind="error">{error}</InformationCard>}
       <ul className="space-y-2">
         {WORKSPACE_DOCUMENT_TYPES.map((documentType) => {
           const status = localStatusMap[documentType] ?? 'not_registered';
-          const tone = STATUS_TONE[status];
+          const Icon = STATUS_ICON[status];
           return (
-            <li key={documentType} className="card flex flex-wrap items-center gap-2 py-3">
-              <span className="text-sm font-medium text-gray-900">{WORKSPACE_DOCUMENT_TYPE_LABEL[documentType]}</span>
-              {tone === 'amber' && <span className="tag border-amber-200 text-amber-700">要更新</span>}
+            <li key={documentType} className="card flex flex-wrap items-center gap-3 py-3">
+              <Icon className={`h-4 w-4 shrink-0 ${STATUS_ICON_CLASS[status]}`} aria-hidden="true" />
+              <span className="text-sm font-medium text-sunboo-ink">{WORKSPACE_DOCUMENT_TYPE_LABEL[documentType]}</span>
+              {status === 'needs_update' && <span className="tag tag--caution">要更新</span>}
               <select
                 value={status}
+                aria-label={`${WORKSPACE_DOCUMENT_TYPE_LABEL[documentType]}の登録状況`}
                 onChange={(e) => handleStatusChange(documentType, e.target.value as WorkspaceDocumentStatus)}
                 className="form-select ml-auto w-auto py-1 text-xs"
               >

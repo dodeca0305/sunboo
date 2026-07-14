@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
+import { CheckCircle2, ArrowRight } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import type { CorporateType } from '@/lib/types';
 import type {
@@ -10,6 +10,7 @@ import type {
   ResidentTaxPaymentCycle, WithholdingTaxCycle,
 } from '@/lib/companyProfile';
 import { companyProfileToWorkspaceUpdatePayload } from '@/lib/workspaceCompanyProfile';
+import InformationCard from '@/components/InformationCard';
 
 // ── Company Workspace — 会社プロフィール編集フォーム（Sprint 23 Phase23.2・Sprint47）───────
 // 既存 src/app/(site)/profile/page.tsx の項目・トーンを参考にしつつ、MVPとして主要項目のみを
@@ -122,12 +123,7 @@ export default function WorkspaceProfileForm({
 
   return (
     <form onSubmit={handleSubmit} className="card max-w-2xl space-y-5">
-      {error && (
-        <div className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-          {error}
-        </div>
-      )}
+      {error && <InformationCard kind="error">{error}</InformationCard>}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>

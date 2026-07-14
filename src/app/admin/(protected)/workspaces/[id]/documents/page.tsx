@@ -1,17 +1,22 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ChevronLeft, FileStack, Info } from 'lucide-react';
+import { FileStack } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { loadWorkspaceCompany, loadWorkspaceDocumentStatuses } from '@/lib/workspaceLoader';
 import WorkspaceDocumentsView from '@/components/WorkspaceDocumentsView';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
+import PageHeader from '@/components/PageHeader';
+import InformationCard from '@/components/InformationCard';
+import { WORKSPACE_DOCUMENT_TYPES } from '@/lib/workspaceDocumentStatus';
 
-// ── Company Workspace — 書類（Sprint 26 Workspace Documents MVP・Sprint 34）───────
+// ── Company Workspace — 書類（Sprint 26 Workspace Documents MVP・Sprint 34・Sprint 85）───────
 // workspace_documents（Sprint26新設）のステータス（メタデータのみ）を一覧表示・変更する。
 // ファイルアップロードはスコープ外。ステータス変更自体はWorkspaceDocumentsView内で完結する
 // （Server Componentである本ページからは関数propsを渡せないため、roadmap/page.tsxと同じ構成）。
 // 【Sprint34でデータ取得を共通化】company取得・書類ステータス取得をsrc/lib/workspaceLoader.ts
 // （loadWorkspaceCompany・loadWorkspaceDocumentStatuses）へ切り出した。
+// 【Sprint85で追加】「単なる一覧」ではなく「今年提出した書類の記録」であることが伝わるよう、
+// 既存statusMapから登録済み件数を数えるだけの表示専用の集計を追加した（新しいDB問い合わせ・
+// 新しいステータス種別は追加していない）。
 
 export default async function WorkspaceDocumentsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,31 +30,24 @@ export default async function WorkspaceDocumentsPage({ params }: { params: Promi
   if (!company) notFound();
 
   const { statusMap } = await loadWorkspaceDocumentStatuses(supabase, companyId);
+  const registeredCount = WORKSPACE_DOCUMENT_TYPES.filter((t) => statusMap[t] === 'registered').length;
 
   return (
     <div className="space-y-6">
-      <Link
-        href={`/admin/workspaces/${companyId}`}
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900"
-      >
-        <ChevronLeft className="h-4 w-4" />
-        {company.name} に戻る
-      </Link>
-
-      <div className="flex items-center gap-2.5">
-        <FileStack className="h-6 w-6 text-blue-600" />
-        <h1 className="text-xl font-bold text-gray-900">書類 — {company.name}</h1>
-      </div>
+      <PageHeader
+        backHref={`/admin/workspaces/${companyId}`}
+        backLabel={`${company.name} に戻る`}
+        icon={FileStack}
+        title="今年提出した書類"
+        subtitle={`${company.name}の代表的な書類の登録状況（${registeredCount}/${WORKSPACE_DOCUMENT_TYPES.length}件登録済み）`}
+      />
 
       <WorkspaceSubNav companyId={companyId} />
 
-      <div className="card flex items-start gap-3 border-gray-200 bg-gray-50/60">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-        <p className="text-xs leading-relaxed text-gray-500">
-          決算書・登記簿謄本等、代表的な書類の登録状況を管理する参考情報です（本MVPではファイルの
-          添付は行わず、状態のみを記録します）。「要更新」はDashboardにも件数が表示されます。
-        </p>
-      </div>
+      <InformationCard kind="disclaimer">
+        決算書・登記簿謄本等、代表的な書類の登録状況を記録する参考情報です（本MVPではファイルの
+        添付は行わず、状態のみを記録します）。「要更新」はDashboardにも件数が表示されます。
+      </InformationCard>
 
       <WorkspaceDocumentsView companyId={companyId} statusMap={statusMap} />
     </div>

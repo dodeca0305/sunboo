@@ -148,4 +148,135 @@
     border-color: var(--color-sunboo-morning-sun);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-sunboo-morning-sun) 22%, transparent);
   }
+
+  /*
+   * Sprint83「Interactive Controls & Status Foundation」で追加。
+   * 詳細は docs/SUNBOO_INTERACTIVE_CONTROLS_REVIEW.md を参照。
+   */
+
+  /* Tag修飾子：一般Tag(.tag)は無彩色のまま維持し、Priority（重要度）表示等に限定して
+     色を乗せたい場合だけ .tag と併用する。Status Badge（.status-badge、下記）とは別責務。 */
+  .tag--danger {
+    border-color: var(--color-sunboo-danger);
+    color: var(--color-sunboo-danger);
+  }
+  .tag--caution {
+    border-color: var(--color-sunboo-morning-sun-dark);
+    color: var(--color-sunboo-morning-sun-dark);
+  }
+
+  /* Status Badge：手続きの進行状態・確からしさ専用。カテゴリ分類用の.tag（pill）とは
+     責務を分離し、角丸8px（矩形）で視覚的にも別種のバッジであることを示す。
+     色だけに依存しないよう、常にlucideアイコン＋文言とセットで使う（src/components/StatusBadge.tsx）。 */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: var(--radius-sunboo-badge);
+    border: 1px solid var(--color-sunboo-mist);
+    background-color: var(--color-sunboo-surface);
+    padding: 0.1875rem 0.5rem;
+    font-size: var(--text-sunboo-tiny);
+    font-weight: var(--text-sunboo-tiny--font-weight);
+    letter-spacing: var(--text-sunboo-tiny--letter-spacing);
+    color: var(--color-sunboo-ink-muted);
+    white-space: nowrap;
+  }
+  .status-badge svg {
+    flex: none;
+  }
+  .status-badge--neutral {
+    /* 未着手・保留：既定のまま（Mist border / Ink Muted文字） */
+  }
+  .status-badge--muted {
+    /* 情報不足・推定：既定と同じ配色だがアイコンで意味を区別する（過度な色数を避ける） */
+  }
+  .status-badge--active {
+    /* 進行中：「現在地」を示すMorningSunの用途に該当するため使用可 */
+    border-color: var(--color-sunboo-morning-sun-dark);
+    background-color: color-mix(in srgb, var(--color-sunboo-morning-sun) 14%, var(--color-sunboo-surface));
+    color: var(--color-sunboo-ink);
+  }
+  .status-badge--done {
+    border-color: var(--color-sunboo-moss);
+    background-color: color-mix(in srgb, var(--color-sunboo-moss) 14%, var(--color-sunboo-surface));
+    color: var(--color-sunboo-moss);
+  }
+
+  /* SegmentedControl（トグル・セグメントコントロール共通部品）。
+     選択状態はMorningSun塗り＋Ink文字。色だけに依存しないよう、選択状態は
+     aria-pressed属性でも表現し（src/components/SegmentedControl.tsx）、CSS側もそれをセレクタに使う。 */
+  .segmented-option {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sunboo-control);
+    border: 1px solid var(--color-sunboo-mist);
+    background-color: var(--color-sunboo-surface);
+    color: var(--color-sunboo-ink);
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: var(--transition-sunboo);
+  }
+  .segmented-option:hover {
+    background-color: var(--color-sunboo-warm-paper);
+  }
+  .segmented-option:focus-visible {
+    outline: 2px solid var(--color-sunboo-ink);
+    outline-offset: 2px;
+  }
+  .segmented-option[aria-pressed='true'] {
+    border-color: var(--color-sunboo-morning-sun);
+    background-color: var(--color-sunboo-morning-sun);
+    color: var(--color-sunboo-ink);
+  }
+  .segmented-option[aria-pressed='true']:hover {
+    filter: brightness(0.97);
+    background-color: var(--color-sunboo-morning-sun);
+  }
+
+  /*
+   * Sprint85「SUNBOO Brand Experience」で追加。
+   * 詳細は docs/SUNBOO_BRAND_EXPERIENCE_REVIEW.md を参照。
+   */
+
+  /* Information Card：注意書きをInfo/Caution/Disclaimer/Errorの4種類に統一する
+     （src/components/InformationCard.tsx）。カード全体を強い色で塗らず、
+     境界線・アイコン・見出しでトーンを示す。 */
+  .information-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    border-radius: var(--radius-sunboo-card);
+    padding: var(--spacing-sunboo-3);
+    border: 1px solid var(--color-sunboo-mist);
+    background-color: var(--color-sunboo-surface);
+  }
+  .information-card--info {
+    background-color: var(--color-sunboo-warm-paper);
+  }
+  .information-card--caution {
+    border-color: var(--color-sunboo-morning-sun-dark);
+    background-color: color-mix(in srgb, var(--color-sunboo-morning-sun) 8%, var(--color-sunboo-surface));
+  }
+  .information-card--error {
+    border-color: var(--color-sunboo-danger);
+    background-color: color-mix(in srgb, var(--color-sunboo-danger) 6%, var(--color-sunboo-surface));
+  }
+  .information-card--disclaimer {
+    border: none;
+    background-color: transparent;
+    padding: 0;
+    gap: 0.5rem;
+  }
+
+  /* Page Header：Page Title / Subtitle / Action の3段構成を全画面で統一する
+     （src/components/PageHeader.tsx）。 */
+  .page-header-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--color-sunboo-morning-sun-dark);
+  }
 }

@@ -1,10 +1,11 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ChevronLeft, Share2, Info } from 'lucide-react';
+import { Share2 } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { loadWorkspaceCompany } from '@/lib/workspaceLoader';
 import WorkspaceShareLinksPanel, { type ShareLinkRow } from './WorkspaceShareLinksPanel';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
+import PageHeader from '@/components/PageHeader';
+import InformationCard from '@/components/InformationCard';
 
 // ── Company Workspace — 共有（Sprint 24 Phase24.0・Sprint 34）───────────────
 // workspace_share_links・get_shared_workspace_view（いずれもSprint22.4 MVP migrationで
@@ -34,30 +35,22 @@ export default async function WorkspaceSharePage({ params }: { params: Promise<{
 
   return (
     <div className="space-y-6">
-      <Link
-        href={`/admin/workspaces/${companyId}`}
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900"
-      >
-        <ChevronLeft className="h-4 w-4" />
-        {company.name} に戻る
-      </Link>
-
-      <div className="flex items-center gap-2.5">
-        <Share2 className="h-6 w-6 text-blue-600" />
-        <h1 className="text-xl font-bold text-gray-900">共有 — {company.name}</h1>
-      </div>
+      <PageHeader
+        backHref={`/admin/workspaces/${companyId}`}
+        backLabel={`${company.name} に戻る`}
+        icon={Share2}
+        title="共有"
+        subtitle={`${company.name}の年間ロードマップを、経営者へそのまま渡せる形で共有します。`}
+      />
 
       <WorkspaceSubNav companyId={companyId} />
 
-      <div className="card flex items-start gap-3 border-gray-200 bg-gray-50/60">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-        <p className="text-xs leading-relaxed text-gray-500">
-          発行したリンクを経営者に共有すると、ログイン不要で「会社概要」「年間ロードマップ」を
-          閲覧できます（編集はできません）。AI参謀・書類・会計分析はまだ共有できません。
-          現在、共有リンクに有効期限はありません。発行後は「失効させる」を押すまで有効なままに
-          なりますので、不要になったリンクは速やかに失効させてください。
-        </p>
-      </div>
+      <InformationCard kind="info">
+        発行したリンクを経営者に共有すると、ログイン不要で「会社概要」「年間ロードマップ」を
+        閲覧できます（編集はできません）。AI参謀・書類・会計分析はまだ共有できません。
+        現在、共有リンクに有効期限はありません。発行後は「失効させる」を押すまで有効なままに
+        なりますので、不要になったリンクは速やかに失効させてください。
+      </InformationCard>
 
       <WorkspaceShareLinksPanel companyId={companyId} initialLinks={links} />
     </div>

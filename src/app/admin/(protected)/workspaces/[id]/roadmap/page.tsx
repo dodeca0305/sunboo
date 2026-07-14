@@ -1,6 +1,5 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ChevronLeft, CalendarRange, Info, AlertTriangle } from 'lucide-react';
+import { CalendarRange } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
 import type { RoadmapYear } from '@/lib/roadmap';
 import type { WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
@@ -10,6 +9,8 @@ import AnnualRoadmapView from '@/components/AnnualRoadmapView';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import RoadmapExcelExportButton from '@/components/RoadmapExcelExportButton';
 import RoadmapPdfExportButton from '@/components/RoadmapPdfExportButton';
+import PageHeader from '@/components/PageHeader';
+import InformationCard from '@/components/InformationCard';
 
 // ── Company Workspace — 年間ロードマップ（Sprint 23 Phase23.3・Phase23.4）─────
 // buildAnnualRoadmap（src/lib/roadmap.ts）・buildStateFromTimeline（src/lib/state.ts）は
@@ -71,62 +72,50 @@ export default async function WorkspaceRoadmapPage({ params }: { params: Promise
 
   return (
     <div className="space-y-6">
-      <Link
-        href={`/admin/workspaces/${companyId}`}
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900"
-      >
-        <ChevronLeft className="h-4 w-4" />
-        {company.name} に戻る
-      </Link>
-
-      <div className="flex flex-wrap items-center gap-2.5">
-        <CalendarRange className="h-6 w-6 text-blue-600" />
-        <h1 className="text-xl font-bold text-gray-900">年間ロードマップ — {company.name}</h1>
-        {!computeError && totalItemCount > 0 && (
-          <div className="ml-auto flex flex-wrap items-start gap-2">
-            <RoadmapExcelExportButton
-              roadmapYears={roadmapYears}
-              statusMap={statusMap}
-              companyName={company.name}
-              companyAddress={companyAddress}
-            />
-            <RoadmapPdfExportButton
-              roadmapYears={roadmapYears}
-              statusMap={statusMap}
-              companyName={company.name}
-              companyAddress={companyAddress}
-            />
-          </div>
-        )}
-      </div>
+      <PageHeader
+        backHref={`/admin/workspaces/${companyId}`}
+        backLabel={`${company.name} に戻る`}
+        icon={CalendarRange}
+        brand
+        title="年間ロードマップ"
+        subtitle={`${company.name}が今年行う行政手続き・提出先・期限を一覧で確認できます。`}
+        action={
+          !computeError && totalItemCount > 0 ? (
+            <>
+              <RoadmapExcelExportButton
+                roadmapYears={roadmapYears}
+                statusMap={statusMap}
+                companyName={company.name}
+                companyAddress={companyAddress}
+              />
+              <RoadmapPdfExportButton
+                roadmapYears={roadmapYears}
+                statusMap={statusMap}
+                companyName={company.name}
+                companyAddress={companyAddress}
+              />
+            </>
+          ) : undefined
+        }
+      />
 
       <WorkspaceSubNav companyId={companyId} />
 
-      <p className="text-sm font-medium text-gray-700">
-        会社が今年行う行政手続き・提出先・期限を一覧で確認できます。
-      </p>
-
-      <div className="card flex items-start gap-3 border-gray-200 bg-gray-50/60">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-        <p className="text-xs leading-relaxed text-gray-500">
-          今年度から今後2年分の手続き予定を一覧表示する参考情報です。実際の手続き・期限・提出先は
-          必ず各公式機関の最新情報をご確認ください。「情報不足」「推定」の表示がある手続きは、
-          会社プロフィールや決算実績の登録状況によって内容が変わる可能性があります。
-        </p>
-      </div>
+      <InformationCard kind="info">
+        今年度から今後2年分の手続き予定を一覧表示する参考情報です。実際の手続き・期限・提出先は
+        必ず各公式機関の最新情報をご確認ください。「情報不足」「推定」の表示がある手続きは、
+        会社プロフィールや決算実績の登録状況によって内容が変わる可能性があります。
+      </InformationCard>
 
       {computeError ? (
-        <div className="card flex items-start gap-2 border-red-200 bg-red-50 text-sm text-red-700">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <div>
-            <p className="font-semibold">ロードマップの計算中にエラーが発生しました</p>
-            <p className="mt-1 text-xs text-red-600">{computeError}</p>
-          </div>
-        </div>
+        <InformationCard kind="error" title="ロードマップを計算できませんでした">
+          時間をおいて再度お試しください。解決しない場合は会社プロフィールの登録内容をご確認ください。
+          <span className="mt-1 block text-[11px] text-sunboo-ink-muted">{computeError}</span>
+        </InformationCard>
       ) : totalItemCount === 0 ? (
-        <div className="card border-gray-200 bg-gray-50/60 text-sm text-gray-600">
-          表示できる手続きがありません。会社プロフィールの決算月などの登録状況をご確認ください。
-        </div>
+        <InformationCard kind="info" title="今年の手続き予定はまだ計算できません">
+          会社プロフィールの決算月などを登録すると、年間の手続き予定を自動で作成します。
+        </InformationCard>
       ) : (
         <AnnualRoadmapView roadmapYears={roadmapYears} statusMap={statusMap} companyId={companyId} />
       )}

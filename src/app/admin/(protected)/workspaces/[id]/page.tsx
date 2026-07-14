@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
-  ChevronLeft, Building2, Receipt, CalendarRange, Share2, BarChart3, FileStack,
+  Building2, Receipt, CalendarRange, Share2, BarChart3, FileStack,
 } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
+import PageHeader from '@/components/PageHeader';
 import { type CompanyState } from '@/lib/state';
 import type { WorkspaceDocumentStatusMap } from '@/lib/workspaceDocumentStatus';
 import { generateWorkspaceAdvice, summarizeWorkspaceProgress, type WorkspaceAdvice, type WorkspaceProgressSummary } from '@/lib/workspaceAdvice';
@@ -140,18 +141,19 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
 
   return (
     <div className="space-y-6">
-      <Link href="/admin/workspaces" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900">
-        <ChevronLeft className="h-4 w-4" />
-        顧問先一覧に戻る
-      </Link>
-
-      <div>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <h1 className="text-xl font-bold text-gray-900">{company.name}</h1>
-          <span className="tag">{CORPORATE_TYPE_LABEL[company.corporate_type] ?? company.corporate_type}</span>
-          {company.fiscal_month && <span className="tag">決算月: {company.fiscal_month}月</span>}
-        </div>
-      </div>
+      <PageHeader
+        backHref="/admin/workspaces"
+        backLabel="顧問先一覧に戻る"
+        brand
+        title={
+          <span className="flex flex-wrap items-center gap-2.5">
+            {company.name}
+            <span className="tag">{CORPORATE_TYPE_LABEL[company.corporate_type] ?? company.corporate_type}</span>
+            {company.fiscal_month && <span className="tag">決算月: {company.fiscal_month}月</span>}
+          </span>
+        }
+        subtitle="今日確認すべきことと、今年の手続きの見通しをまとめています。"
+      />
 
       <WorkspaceSubNav companyId={companyId} />
 
@@ -177,13 +179,13 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
         {SECTIONS.map(({ icon: Icon, title, description, hrefSuffix, comingSoon }) => {
           const content = (
             <>
-              <Icon className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+              <Icon className="mt-0.5 h-5 w-5 shrink-0 text-sunboo-ink-muted" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold text-gray-900">{title}</p>
-                  {comingSoon && <span className="tag border-gray-200 text-gray-400">Coming Soon</span>}
+                  <p className="text-sm font-semibold text-sunboo-ink">{title}</p>
+                  {comingSoon && <span className="tag">Coming Soon</span>}
                 </div>
-                <p className="mt-1 text-xs leading-relaxed text-gray-500">{description}</p>
+                <p className="mt-1 text-xs leading-relaxed text-sunboo-ink-muted">{description}</p>
               </div>
             </>
           );
@@ -191,12 +193,12 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
             <Link
               key={title}
               href={`/admin/workspaces/${companyId}${hrefSuffix}`}
-              className="card flex items-start gap-3 transition-colors hover:border-blue-200 hover:bg-blue-50/40"
+              className="card flex min-h-26 items-start gap-3 transition-colors hover:border-sunboo-morning-sun-dark hover:bg-sunboo-warm-paper"
             >
               {content}
             </Link>
           ) : (
-            <div key={title} className="card flex items-start gap-3">
+            <div key={title} className="card flex min-h-26 items-start gap-3">
               {content}
             </div>
           );
