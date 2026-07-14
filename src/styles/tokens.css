@@ -26,6 +26,9 @@
   --color-sunboo-ink: #1F2937;        /* Text */
   --color-sunboo-ink-muted: #6B7280;  /* Muted Text */
   --color-sunboo-morning-sun: #F59E0B;/* Primary（期限・現在地・主要導線のみ） */
+  --color-sunboo-morning-sun-dark: #D97706; /* Sprint83で追加。MorningSunの濃色版。
+    細い枠線・小さなドット等「グラフィックオブジェクト」用途限定（WCAG非text-contrast 3:1対応）。
+    地色としての塗り（選択状態のボタン等）には従来通りMorningSunを使う。 */
   --color-sunboo-moss: #6E8B74;       /* Success */
   --color-sunboo-mist: #E7E5E4;       /* Border */
   --color-sunboo-danger: #DC2626;     /* Danger */

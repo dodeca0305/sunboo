@@ -135,7 +135,7 @@ export default function OfficeList({ offices }: { offices: OfficeItem[] }) {
       </div>
 
       {/* 管轄機関カード */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {filtered.map((office) => {
           const config = OFFICE_TYPE_CONFIG[office.office_type];
 

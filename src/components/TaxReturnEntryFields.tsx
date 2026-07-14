@@ -7,6 +7,7 @@ import type {
   ConsumptionTaxInterimFrequency, ConsumptionTaxStatus, InterimFilingStatus,
   InvoiceRegistrationStatus, TaxationMethod, WithholdingTaxCycle,
 } from '@/lib/companyProfile';
+import SegmentedControl from '@/components/SegmentedControl';
 
 // ── TaxReturnEntry 入力・表示の共通部品（Sprint 35）─────────────────────
 // (site)側（src/app/(site)/profile/tax-returns/page.tsx、localStorage運用）とWorkspace側
@@ -53,34 +54,10 @@ const CONFIDENCE_LABEL: Record<'high' | 'medium' | 'low', string> = {
   low: '未入力',
 };
 
-export function ToggleButtons<T extends string>({
-  options,
-  value,
-  onChange,
-}: {
-  options: { value: T; label: string }[];
-  value: T | null;
-  onChange: (v: T) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {options.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => onChange(opt.value)}
-          className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${
-            value === opt.value
-              ? 'border-blue-600 bg-blue-600 text-white'
-              : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
-          }`}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  );
-}
+// Sprint83「Interactive Controls & Status Foundation」でSegmentedControl（src/components/SegmentedControl.tsx）
+// に実装を集約した。WorkspaceTaxReturnsView.tsx・(site)/profile/tax-returns/page.tsxが
+// 引き続き`ToggleButtons`の名前でimportしているため、後方互換のためこの名前で再エクスポートする。
+export { default as ToggleButtons } from '@/components/SegmentedControl';
 
 export function ConfidenceTag({ amount }: { amount: AmountValue | null }) {
   const level = confidenceOfAmount(amount);
@@ -112,7 +89,7 @@ export function AmountField({
   return (
     <div className="space-y-2">
       <label className="form-label">{label}</label>
-      <ToggleButtons
+      <SegmentedControl
         options={[
           { value: 'exact' as const, label: '正確な金額' },
           { value: 'range' as const, label: 'だいたいの範囲' },
@@ -138,7 +115,7 @@ export function AmountField({
           }
         />
       ) : (
-        <ToggleButtons
+        <SegmentedControl
           options={buckets.map((b) => ({ value: b.id, label: b.label }))}
           value={value?.rangeBucketId ?? null}
           onChange={(id) => onChange({ precision: 'range', exactValue: null, rangeBucketId: id })}

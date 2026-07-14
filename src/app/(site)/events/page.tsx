@@ -16,6 +16,7 @@ import {
   MapPin, Users, Building2, PartyPopper, UserPlus, UserCog,
   ArrowRight, AlertTriangle, CheckCircle2, DatabaseZap, RotateCcw, Pencil, Info,
 } from 'lucide-react';
+import SegmentedControl from '@/components/SegmentedControl';
 
 const CORPORATE_TYPE_LABEL: Record<CorporateType, string> = {
   kabushiki: '株式会社',
@@ -322,25 +323,15 @@ export default function EventsPage() {
               <Building2 className="h-4 w-4 text-gray-400" />
               <h2 className="font-semibold text-gray-800">法人の種類</h2>
             </div>
-            <div className="flex gap-3">
-              {([
+            <SegmentedControl
+              fullWidth
+              options={[
                 { value: 'kabushiki', label: '株式会社' },
                 { value: 'godo', label: '合同会社' },
-              ] as const).map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setCorporateType(opt.value)}
-                  className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
-                    corporateType === opt.value
-                      ? 'border-blue-600 bg-blue-600 text-white'
-                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+              ]}
+              value={corporateType}
+              onChange={setCorporateType}
+            />
             {profileErrors.corp && (
               <p className="flex items-center gap-1 text-xs text-red-500">
                 <AlertTriangle className="h-3.5 w-3.5" />{profileErrors.corp}
@@ -353,22 +344,15 @@ export default function EventsPage() {
               <Users className="h-4 w-4 text-gray-400" />
               <h2 className="font-semibold text-gray-800">従業員はいますか？</h2>
             </div>
-            <div className="flex gap-3">
-              {([true, false] as const).map((val) => (
-                <button
-                  key={String(val)}
-                  type="button"
-                  onClick={() => setHasEmployees(val)}
-                  className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
-                    hasEmployees === val
-                      ? 'border-blue-600 bg-blue-600 text-white'
-                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {val ? 'あり' : 'なし'}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              fullWidth
+              options={[
+                { value: 'true', label: 'あり' },
+                { value: 'false', label: 'なし' },
+              ]}
+              value={hasEmployees === null ? null : String(hasEmployees)}
+              onChange={(v) => setHasEmployees(v === 'true')}
+            />
             {profileErrors.emp && (
               <p className="flex items-center gap-1 text-xs text-red-500">
                 <AlertTriangle className="h-3.5 w-3.5" />{profileErrors.emp}
@@ -419,14 +403,15 @@ export default function EventsPage() {
                 key={et.code}
                 type="button"
                 onClick={() => setSelectedCode(et.code)}
+                aria-pressed={isSelected}
                 className={`flex flex-col items-center gap-2 rounded-xl border px-4 py-5 text-center transition-colors ${
                   isSelected
-                    ? 'border-blue-600 bg-blue-50'
+                    ? 'border-[var(--color-sunboo-morning-sun)] bg-[color-mix(in_srgb,var(--color-sunboo-morning-sun)_12%,white)]'
                     : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
-                <Icon className={`h-6 w-6 ${isSelected ? 'text-blue-600' : 'text-gray-400'}`} />
-                <span className={`text-sm font-semibold ${isSelected ? 'text-blue-700' : 'text-gray-800'}`}>
+                <Icon className={`h-6 w-6 ${isSelected ? 'text-[var(--color-sunboo-ink)]' : 'text-gray-400'}`} />
+                <span className={`text-sm font-semibold ${isSelected ? 'text-[var(--color-sunboo-ink)]' : 'text-gray-800'}`}>
                   {et.name}
                 </span>
               </button>

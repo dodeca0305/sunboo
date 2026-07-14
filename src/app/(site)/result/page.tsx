@@ -155,7 +155,7 @@ export default async function ResultPage({
             </span>
           </h2>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {result.offices.map((office) => (
               <div key={office.id} className="card flex gap-4">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-50">

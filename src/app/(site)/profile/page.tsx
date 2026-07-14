@@ -17,6 +17,7 @@ import {
   MapPin, Banknote, CalendarClock, Receipt, FileClock,
   ShieldCheck, Send, Briefcase, ArrowRight, AlertTriangle, CheckCircle2, Sparkles,
 } from 'lucide-react';
+import SegmentedControl from '@/components/SegmentedControl';
 
 const CORPORATE_TYPE_LABEL: Record<CorporateType, string> = {
   kabushiki: '株式会社',
@@ -125,35 +126,6 @@ const EMPTY_DRAFT: ProfileDraft = {
     administrativeScrivener: false,
   },
 };
-
-function ToggleButtons<T extends string>({
-  options,
-  value,
-  onChange,
-}: {
-  options: { value: T; label: string }[];
-  value: T | null;
-  onChange: (v: T) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {options.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => onChange(opt.value)}
-          className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${
-            value === opt.value
-              ? 'border-blue-600 bg-blue-600 text-white'
-              : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
-          }`}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function SectionHeader({ icon: Icon, title }: { icon: typeof MapPin; title: string }) {
   return (
@@ -374,7 +346,7 @@ export default function ProfilePage() {
 
           <div>
             <label className="form-label">法人の種類</label>
-            <ToggleButtons
+            <SegmentedControl
               options={(['kabushiki', 'godo'] as const).map((v) => ({ value: v, label: CORPORATE_TYPE_LABEL[v] }))}
               value={draft.corporateType}
               onChange={(v) => set('corporateType', v)}
@@ -453,7 +425,7 @@ export default function ProfilePage() {
           <HintText>
             設立日・決算月から自動設定されています（手動での変更も可能です）
           </HintText>
-          <ToggleButtons
+          <SegmentedControl
             options={(['pre_establishment', 'first_term', 'second_term_or_later'] as const).map((v) => ({
               value: v,
               label: STAGE_LABEL[v],
@@ -475,7 +447,7 @@ export default function ProfilePage() {
                 （資本金・会社ステージから。最終判断は顧問税理士にご確認ください）
               </HintText>
             )}
-            <ToggleButtons
+            <SegmentedControl
               options={(['exempt', 'taxable'] as const).map((v) => ({ value: v, label: CONSUMPTION_TAX_LABEL[v] }))}
               value={draft.consumptionTaxStatus}
               onChange={(v) => set('consumptionTaxStatus', v)}
@@ -484,7 +456,7 @@ export default function ProfilePage() {
 
           <div className="space-y-2">
             <label className="form-label">インボイス登録</label>
-            <ToggleButtons
+            <SegmentedControl
               options={(['not_registered', 'registered'] as const).map((v) => ({
                 value: v,
                 label: INVOICE_LABEL[v],
@@ -497,7 +469,7 @@ export default function ProfilePage() {
           {draft.consumptionTaxStatus === 'taxable' && (
             <div className="space-y-2">
               <label className="form-label">消費税の課税方式</label>
-              <ToggleButtons
+              <SegmentedControl
                 options={(['principle', 'simplified'] as const).map((v) => ({
                   value: v,
                   label: TAXATION_METHOD_LABEL[v],
@@ -513,7 +485,7 @@ export default function ProfilePage() {
             {draft.stage === 'first_term' ? (
               <p className="tag inline-flex">なし（1期目のため前年実績がありません）</p>
             ) : (
-              <ToggleButtons
+              <SegmentedControl
                 options={(['none', 'has'] as const).map((v) => ({ value: v, label: INTERIM_FILING_LABEL[v] }))}
                 value={draft.corporateTaxInterimFiling}
                 onChange={(v) => set('corporateTaxInterimFiling', v)}
@@ -545,7 +517,7 @@ export default function ProfilePage() {
 
           <div className="space-y-2">
             <label className="form-label">源泉所得税の納期</label>
-            <ToggleButtons
+            <SegmentedControl
               options={(['unset', 'monthly', 'special_exception'] as const).map((v) => ({
                 value: v,
                 label: WITHHOLDING_CYCLE_LABEL[v],
@@ -562,7 +534,7 @@ export default function ProfilePage() {
                 自動判定の目安：{LOCAL_TAX_LABEL[suggestedLocalTax]}（従業員がいる場合の原則）
               </HintText>
             )}
-            <ToggleButtons
+            <SegmentedControl
               options={(['special_collection', 'general_collection'] as const).map((v) => ({
                 value: v,
                 label: LOCAL_TAX_LABEL[v],
@@ -575,7 +547,7 @@ export default function ProfilePage() {
           {draft.localTaxCollectionMethod === 'special_collection' && (
             <div className="space-y-2">
               <label className="form-label">住民税特別徴収の納期</label>
-              <ToggleButtons
+              <SegmentedControl
                 options={(['unknown', 'monthly', 'special'] as const).map((v) => ({
                   value: v,
                   label: RESIDENT_TAX_CYCLE_LABEL[v],
@@ -596,7 +568,7 @@ export default function ProfilePage() {
           <SectionHeader icon={Send} title="電子申告" />
           <div className="space-y-2">
             <label className="form-label">国税（e-Tax）開始届出</label>
-            <ToggleButtons
+            <SegmentedControl
               options={[{ value: 'false', label: '未実施' }, { value: 'true', label: '実施済み' }]}
               value={String(draft.eTaxEnabled)}
               onChange={(v) => set('eTaxEnabled', v === 'true')}
@@ -604,7 +576,7 @@ export default function ProfilePage() {
           </div>
           <div className="space-y-2">
             <label className="form-label">地方税（eLTAX）開始届出</label>
-            <ToggleButtons
+            <SegmentedControl
               options={[{ value: 'false', label: '未実施' }, { value: 'true', label: '実施済み' }]}
               value={String(draft.eLTaxEnabled)}
               onChange={(v) => set('eLTaxEnabled', v === 'true')}
@@ -622,12 +594,9 @@ export default function ProfilePage() {
                 <button
                   key={item.key}
                   type="button"
+                  aria-pressed={isOn}
                   onClick={() => set('advisors', { ...draft.advisors, [item.key]: !isOn })}
-                  className={`flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
-                    isOn
-                      ? 'border-blue-600 bg-blue-600 text-white'
-                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
-                  }`}
+                  className="segmented-option justify-between"
                 >
                   {item.label}
                   {isOn && <ShieldCheck className="h-4 w-4" />}

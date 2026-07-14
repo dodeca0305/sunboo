@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { prefectures as staticPrefectures } from '@/data/prefectures';
 import { MapPin, Users, Calendar, ArrowRight, AlertTriangle, Building2, UserCog } from 'lucide-react';
 import type { CorporateType } from '@/lib/types';
+import SegmentedControl from '@/components/SegmentedControl';
 
 const FALLBACK_MUNICIPALITIES: Record<string, { code: string; name: string }[]> = {
   '13': [{ code: '13113', name: '渋谷区' }],
@@ -228,22 +229,15 @@ export default function StartPage() {
               <h2 className="font-semibold text-gray-800">従業員はいますか？</h2>
             </div>
           </div>
-          <div className="flex gap-3">
-            {([true, false] as const).map((val) => (
-              <button
-                key={String(val)}
-                type="button"
-                onClick={() => setHasEmployees(val)}
-                className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
-                  hasEmployees === val
-                    ? 'border-blue-600 bg-blue-600 text-white'
-                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                {val ? 'あり' : 'なし'}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            fullWidth
+            options={[
+              { value: 'true', label: 'あり' },
+              { value: 'false', label: 'なし' },
+            ]}
+            value={hasEmployees === null ? null : String(hasEmployees)}
+            onChange={(v) => setHasEmployees(v === 'true')}
+          />
           {errors.emp && (
             <p className="flex items-center gap-1 text-xs text-red-500">
               <AlertTriangle className="h-3.5 w-3.5" />
@@ -301,28 +295,18 @@ export default function StartPage() {
               <h2 className="font-semibold text-gray-800">法人の種類</h2>
             </div>
           </div>
-          <div className="flex gap-3">
-            {([
+          <SegmentedControl
+            fullWidth
+            options={[
               { value: 'kabushiki', label: '株式会社' },
               { value: 'godo', label: '合同会社' },
-            ] as const).map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => {
-                  setCorporateType(opt.value);
-                  if (opt.value === 'godo') setHasOfficerTerm(null);
-                }}
-                className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
-                  corporateType === opt.value
-                    ? 'border-blue-600 bg-blue-600 text-white'
-                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+            ]}
+            value={corporateType}
+            onChange={(v) => {
+              setCorporateType(v);
+              if (v === 'godo') setHasOfficerTerm(null);
+            }}
+          />
           {errors.corp && (
             <p className="flex items-center gap-1 text-xs text-red-500">
               <AlertTriangle className="h-3.5 w-3.5" />
@@ -343,22 +327,15 @@ export default function StartPage() {
                 <h2 className="font-semibold text-gray-800">役員に任期の定めがありますか？</h2>
               </div>
             </div>
-            <div className="flex gap-3">
-              {([true, false] as const).map((val) => (
-                <button
-                  key={String(val)}
-                  type="button"
-                  onClick={() => setHasOfficerTerm(val)}
-                  className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
-                    hasOfficerTerm === val
-                      ? 'border-blue-600 bg-blue-600 text-white'
-                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {val ? 'あり' : 'なし'}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              fullWidth
+              options={[
+                { value: 'true', label: 'あり' },
+                { value: 'false', label: 'なし' },
+              ]}
+              value={hasOfficerTerm === null ? null : String(hasOfficerTerm)}
+              onChange={(v) => setHasOfficerTerm(v === 'true')}
+            />
             {errors.officerTerm && (
               <p className="flex items-center gap-1 text-xs text-red-500">
                 <AlertTriangle className="h-3.5 w-3.5" />

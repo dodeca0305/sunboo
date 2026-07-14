@@ -16,6 +16,7 @@ import {
   MapPin, Send, Sun, CalendarDays, CalendarRange, Calendar, Star, Sparkles, MessageSquareText, CalendarClock, ShieldAlert, Bell, Info, X, Lightbulb, UserCheck,
 } from 'lucide-react';
 import ProcedureDetailExtra from '@/components/ProcedureDetailExtra';
+import StatusBadge from '@/components/StatusBadge';
 
 export type { ProcedureStatus } from '@/lib/scheduleProcedure';
 export type { ScheduleProcedure } from '@/lib/scheduleProcedure';
@@ -167,14 +168,14 @@ function StatusButton({ status, onClick }: { status: ProcedureStatus; onClick: (
       aria-label={`ステータス: ${STATUS_LABEL[status]}（クリックで変更）`}
       className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors sm:mt-0 ${
         isDone
-          ? 'border-blue-600 bg-blue-600'
+          ? 'border-[var(--color-sunboo-moss)] bg-[var(--color-sunboo-moss)]'
           : isInProgress
-            ? 'border-blue-600 bg-white'
-            : 'border-gray-300 bg-white hover:border-gray-400'
+            ? 'border-[var(--color-sunboo-morning-sun-dark)] bg-white'
+            : 'border-[var(--color-sunboo-mist)] bg-white hover:border-gray-400'
       }`}
     >
       {isDone && <Check className="h-3.5 w-3.5 text-white" />}
-      {isInProgress && <span className="h-2 w-2 rounded-full bg-blue-600" />}
+      {isInProgress && <span className="h-2 w-2 rounded-full bg-[var(--color-sunboo-morning-sun-dark)]" />}
     </button>
   );
 }
@@ -230,7 +231,7 @@ function ProcedureRow({
               {proc.name}
             </h3>
             <span className="tag">{CATEGORY_LABEL[proc.category] ?? 'その他'}</span>
-            {isInProgress && <span className="tag border-blue-200 text-blue-600">進行中</span>}
+            {isInProgress && <StatusBadge kind="in_progress" />}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
             {proc.office && (
