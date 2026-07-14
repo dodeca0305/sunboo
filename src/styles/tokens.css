@@ -1,18 +1,18 @@
 /*
- * SUNBOO Design Tokens — Sprint81 "Design Tokens Foundation"
+ * SUNBOO Design Tokens
+ * Sprint81 "Design Tokens Foundation" で追加、Sprint82 "Shared UI Foundation Migration" で
+ * タイポグラフィ・Modal Shadowの正式値を確定。
  *
  * docs/SUNBOO_DESIGN_GUIDELINES.md（Sprint80）で定義した正式仕様を、
  * Tailwind v4のCSS-firstテーマ変数として実装したもの。
  *
- * 重要：このファイルはトークンの「追加」のみを行う。
- * 既存の `.card` / `.btn-primary` / `.btn-secondary` / `.tag` / `.form-input` / `.form-select`
- * 等（src/app/globals.css）は一切変更していない。ここで定義するユーティリティは
- * `sunboo-` プレフィックス付きの新規クラス（例: bg-sunboo-warm-paper, rounded-sunboo-card）
- * としてのみ生成され、既存コンポーネントのどこからも参照されていないため、
- * 本ファイルの追加による画面表示への影響はゼロである。
- *
- * 各画面への実際の適用（既存クラスの置き換え）はSprint82以降で段階的に行う。
- * 詳細な監査・優先順位は docs/SUNBOO_DESIGN_TOKEN_AUDIT.md を参照。
+ * Sprint82時点のステータス：
+ * 本ファイルのトークンは、src/app/globals.css の
+ * `.card` / `.btn-primary` / `.btn-secondary` / `.tag` / `.form-input` / `.form-select`
+ * から実際に参照されるようになった（詳細は docs/SUNBOO_SHARED_UI_MIGRATION_REVIEW.md）。
+ * 画面固有のJSX（個別コンポーネントのclassName）はこのスプリントでは変更していない。
+ * `sunboo-` プレフィックス付きの個別ユーティリティ（例: bg-sunboo-warm-paper）自体は
+ * 依然としてどのコンポーネントからも直接使用されていない（共通クラス経由でのみ反映される）。
  */
 
 @theme {
@@ -31,7 +31,7 @@
   --color-sunboo-danger: #DC2626;     /* Danger */
 
   /* ============================================================
-   * Phase 2 — Typography Tokens（同§5）
+   * Phase 2 — Typography Tokens（同§5、Sprint82で正式値に確定）
    * font-size / line-height / font-weight / letter-spacing を
    * 1ロール1ユーティリティ（例: text-sunboo-page-title）に統合。
    * Tailwind v4の `--text-*--line-height` 等のペア指定機能を使用。
@@ -39,17 +39,17 @@
   --text-sunboo-hero: 3rem;              /* 48px */
   --text-sunboo-hero--line-height: 1.15;
   --text-sunboo-hero--font-weight: 700;
-  --text-sunboo-hero--letter-spacing: -0.01em;
+  --text-sunboo-hero--letter-spacing: -0.02em;
 
   --text-sunboo-page-title: 2.25rem;     /* 36px */
-  --text-sunboo-page-title--line-height: 1.25;
+  --text-sunboo-page-title--line-height: 1.2;
   --text-sunboo-page-title--font-weight: 700;
-  --text-sunboo-page-title--letter-spacing: -0.01em;
+  --text-sunboo-page-title--letter-spacing: -0.015em;
 
   --text-sunboo-section-title: 1.75rem;  /* 28px */
   --text-sunboo-section-title--line-height: 1.3;
-  --text-sunboo-section-title--font-weight: 700;
-  --text-sunboo-section-title--letter-spacing: -0.005em;
+  --text-sunboo-section-title--font-weight: 600;
+  --text-sunboo-section-title--letter-spacing: -0.01em;
 
   --text-sunboo-card-title: 1.375rem;    /* 22px */
   --text-sunboo-card-title--line-height: 1.4;
@@ -57,7 +57,7 @@
   --text-sunboo-card-title--letter-spacing: 0em;
 
   --text-sunboo-body: 1rem;              /* 16px */
-  --text-sunboo-body--line-height: 1.7;
+  --text-sunboo-body--line-height: 1.75;
   --text-sunboo-body--font-weight: 400;
   --text-sunboo-body--letter-spacing: 0em;
 
@@ -68,8 +68,8 @@
 
   --text-sunboo-tiny: 0.75rem;           /* 12px */
   --text-sunboo-tiny--line-height: 1.5;
-  --text-sunboo-tiny--font-weight: 400;
-  --text-sunboo-tiny--letter-spacing: 0.01em;
+  --text-sunboo-tiny--font-weight: 500;
+  --text-sunboo-tiny--letter-spacing: 0.02em;
 
   /* ============================================================
    * Phase 3 — Spacing Tokens（同§6、8pxグリッド）
@@ -93,14 +93,15 @@
   --radius-sunboo-control: 0.75rem; /* 12px（Button/Inputレンジ10-12pxの上限。
                                         既存 .btn-primary/.form-input と同値のため
                                         置換時の見た目変化はゼロ想定） */
-  --radius-sunboo-badge: 0.5rem;    /* 8px（角丸バッジ用。pillバッジは既存 rounded-full を継続使用） */
+  --radius-sunboo-badge: 0.5rem;    /* 8px（角丸バッジ用。矩形Status Badge用、今回は未使用） */
+  --radius-sunboo-pill: 9999px;     /* Tagのpill形状。既存 rounded-full と同値 */
 
   /* ============================================================
    * Phase 5 — Shadow Tokens（同§7）
    * ============================================================ */
   --shadow-sunboo-card: 0 4px 12px rgba(15, 23, 42, 0.05);
   --shadow-sunboo-card-important: 0 6px 20px rgba(15, 23, 42, 0.06);
-  --shadow-sunboo-modal: 0 2px 8px rgba(15, 23, 42, 0.08); /* 「必要最小限」の暫定値。要レビュー */
+  --shadow-sunboo-modal: 0 20px 48px rgba(15, 23, 42, 0.14), 0 4px 12px rgba(15, 23, 42, 0.08); /* Sprint82で正式確定 */
 
   /* ============================================================
    * Phase 6 — Transition Tokens

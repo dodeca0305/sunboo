@@ -21,25 +21,37 @@
 }
 
 @layer components {
+  /*
+   * Sprint82「Shared UI Foundation Migration」
+   * 以下6クラスを src/styles/tokens.css の正式Tokenへ接続した。
+   * 詳細な移行判断・視覚差・二重指定監査は docs/SUNBOO_SHARED_UI_MIGRATION_REVIEW.md を参照。
+   */
   .btn-primary {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.375rem;
-    border-radius: 0.75rem;
-    background-color: #2563EB;
+    border-radius: var(--radius-sunboo-control);
+    background-color: var(--color-sunboo-morning-sun);
     padding: 0.625rem 1.5rem;
     font-size: 0.875rem;
     font-weight: 600;
-    color: #ffffff;
+    /* Ink採用の理由：MorningSun(#F59E0B)上の白文字はコントラスト比 約2.15:1（WCAG AA未達）。
+       Ink(#1F2937)なら約6.83:1でAA(4.5:1)を満たすため、白ではなくInkを選択した。 */
+    color: var(--color-sunboo-ink);
     text-decoration: none;
-    transition: background-color 0.15s ease, transform 0.15s ease;
+    transition: var(--transition-sunboo);
   }
   .btn-primary:hover {
-    background-color: #1D4ED8;
+    /* 「hoverは明度差だけに留める」指示に基づき、新規の色トークンを増やさずbrightnessのみで表現 */
+    filter: brightness(0.95);
   }
   .btn-primary:active {
     transform: scale(0.98);
+  }
+  .btn-primary:focus-visible {
+    outline: 2px solid var(--color-sunboo-ink);
+    outline-offset: 2px;
   }
 
   /* 主要なCTA（フォーム送信・ヒーローボタン等）に付与し高さ44pxを明示 */
@@ -54,41 +66,50 @@
     align-items: center;
     justify-content: center;
     gap: 0.375rem;
-    border-radius: 0.75rem;
-    border: 1px solid #E5E7EB;
-    background-color: #ffffff;
+    border-radius: var(--radius-sunboo-control);
+    border: 1px solid var(--color-sunboo-mist);
+    background-color: var(--color-sunboo-surface);
     padding: 0.625rem 1.25rem;
     font-size: 0.875rem;
     font-weight: 500;
-    color: #111111;
+    color: var(--color-sunboo-ink);
     text-decoration: none;
-    transition: background-color 0.15s ease, border-color 0.15s ease;
+    transition: var(--transition-sunboo);
   }
   .btn-secondary:hover {
-    background-color: #F9FAFB;
-    border-color: #D1D5DB;
+    /* WarmPaperは既定のページ背景色でもあり、Surfaceのボタンが紙面に沈むような自然な変化として採用 */
+    background-color: var(--color-sunboo-warm-paper);
   }
   .btn-secondary:active {
     transform: scale(0.98);
   }
+  .btn-secondary:focus-visible {
+    outline: 2px solid var(--color-sunboo-ink);
+    outline-offset: 2px;
+  }
 
   .card {
-    border-radius: 0.75rem;
-    background-color: #ffffff;
-    padding: 1.5rem;
-    border: 1px solid #E5E7EB;
+    border-radius: var(--radius-sunboo-card);
+    background-color: var(--color-sunboo-surface);
+    padding: var(--spacing-sunboo-3);
+    border: 1px solid var(--color-sunboo-mist);
+    box-shadow: var(--shadow-sunboo-card);
+    transition: var(--transition-sunboo);
   }
 
   .tag {
     display: inline-flex;
     align-items: center;
-    border-radius: 9999px;
-    border: 1px solid #E5E7EB;
-    background-color: #ffffff;
+    border-radius: var(--radius-sunboo-pill);
+    border: 1px solid var(--color-sunboo-mist);
+    background-color: var(--color-sunboo-surface);
     padding: 0.125rem 0.625rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: #4B5563;
+    /* Tiny Tokenのうちfont-size/font-weightは現状値(12px/500)と完全一致。
+       line-height(1.5)はpillの高さを増やす回帰要因になるため今回は採用しない（要レビュー）。 */
+    font-size: var(--text-sunboo-tiny);
+    font-weight: var(--text-sunboo-tiny--font-weight);
+    letter-spacing: var(--text-sunboo-tiny--letter-spacing);
+    color: var(--color-sunboo-ink-muted);
     white-space: nowrap;
   }
 
@@ -104,20 +125,27 @@
   .form-input {
     display: block;
     width: 100%;
-    border-radius: 0.75rem;
-    border: 1px solid #E5E7EB;
-    background-color: #ffffff;
+    border-radius: var(--radius-sunboo-control);
+    border: 1px solid var(--color-sunboo-mist);
+    background-color: var(--color-sunboo-surface);
     padding: 0.75rem 1rem;
     font-size: 0.875rem;
-    color: #111111;
+    color: var(--color-sunboo-ink);
     outline: none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: var(--transition-sunboo);
     appearance: none;
     -webkit-appearance: none;
   }
+  .form-select::placeholder,
+  .form-input::placeholder {
+    color: var(--color-sunboo-ink-muted);
+  }
   .form-select:focus,
   .form-input:focus {
-    border-color: #2563EB;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    /* MorningSun focus ring（指示通り）。#F59E0B の境界線単体はSurface背景に対し約2:1で
+       WCAG非text-contrast推奨値(3:1)をやや下回るため、box-shadowの不透明度を高めに設定し
+       視認性を補っている。次スプリントでの再評価対象（詳細はMIGRATION_REVIEW.md）。 */
+    border-color: var(--color-sunboo-morning-sun);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-sunboo-morning-sun) 22%, transparent);
   }
 }
