@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle2, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
+import { CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import type { CorporateType } from '@/lib/types';
 import type {
@@ -58,6 +59,12 @@ const RESIDENT_TAX_CYCLE_LABEL: Record<ResidentTaxPaymentCycle, string> = {
 };
 
 const FISCAL_MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
+
+// 「この情報を◯◯の判定に利用します」という統一パターンで入力理由を表示する（Sprint61）。
+// 各項目の説明文言をここで揃え、フォーム側で個別にクラス名・トーンを書き分けない。
+function FieldHint({ children }: { children: React.ReactNode }) {
+  return <p className="mt-1.5 text-xs leading-relaxed text-gray-400">{children}</p>;
+}
 
 export default function WorkspaceProfileForm({
   companyId,
@@ -134,6 +141,7 @@ export default function WorkspaceProfileForm({
               <option key={v} value={v}>{CORPORATE_TYPE_LABEL[v]}</option>
             ))}
           </select>
+          <FieldHint>この情報は提出先・登記関連手続きの判定に利用します。</FieldHint>
         </div>
         <div>
           <label className="form-label">決算月</label>
@@ -147,14 +155,17 @@ export default function WorkspaceProfileForm({
               <option key={m} value={m}>{m}月</option>
             ))}
           </select>
+          <FieldHint>この情報はすべての手続きの期限計算に利用します。</FieldHint>
         </div>
       </div>
 
-      <p className="text-xs leading-relaxed text-gray-400">
-        都道府県・市区町村（{profile.municipalityName || '未設定'}）は会社登録時に確定し、
-        提出先（税務署・市区町村役場等）の判定に使用しています。登録内容を変更する機能は
-        現在準備中です。
-      </p>
+      <div>
+        <p className="text-xs leading-relaxed text-gray-400">
+          都道府県・市区町村（{profile.municipalityName || '未設定'}）は会社登録時に確定しています。
+          登録内容を変更する機能は現在準備中です。
+        </p>
+        <FieldHint>この情報は提出先（税務署・市区町村役場等）の判定に利用します。</FieldHint>
+      </div>
 
       <div>
         <label className="form-label">番地・建物名（任意）</label>
@@ -165,10 +176,10 @@ export default function WorkspaceProfileForm({
           onChange={(e) => set('address', e.target.value || null)}
           className="form-input"
         />
-        <p className="mt-1.5 text-xs leading-relaxed text-gray-400">
-          Excel・PDF・共有ページでの本店所在地の表示にのみ使用します。提出先の判定には
-          使用しません（判定は都道府県・市区町村のみで行います）。
-        </p>
+        <FieldHint>
+          この情報はExcel・PDF・共有ページでの本店所在地の表示にのみ利用します。提出先の判定には
+          利用しません（判定は都道府県・市区町村のみで行います）。
+        </FieldHint>
       </div>
 
       {profile.corporateType === 'kabushiki' && (
@@ -180,11 +191,11 @@ export default function WorkspaceProfileForm({
             onChange={(e) => set('nextOfficerChangeDate', e.target.value || null)}
             className="form-input"
           />
-          <p className="mt-1.5 text-xs leading-relaxed text-gray-400">
-            この日から2週間以内の登記申請期限を計算します。登記期限そのものではなく、
-            任期満了に伴う重任・交代が効力を生じる日（株主総会での重任決議日等）を
-            入力してください。未定の場合は空欄のままにしてください。
-          </p>
+          <FieldHint>
+            この情報は役員変更登記の期限判定に利用します（登記期限そのものではなく、この日から
+            2週間以内が登記申請期限になります）。任期満了に伴う重任・交代が効力を生じる日
+            （株主総会での重任決議日等）を入力してください。未定の場合は空欄のままにしてください。
+          </FieldHint>
         </div>
       )}
 
@@ -197,6 +208,7 @@ export default function WorkspaceProfileForm({
             onChange={(e) => set('establishedDate', e.target.value || null)}
             className="form-input"
           />
+          <FieldHint>この情報は会社ステージ（1期目/2期目以降）の判定に利用します。</FieldHint>
         </div>
         <div>
           <label className="form-label">資本金（円）</label>
@@ -209,6 +221,9 @@ export default function WorkspaceProfileForm({
             onChange={(e) => set('capital', e.target.value === '' ? null : Number(e.target.value))}
             className="form-input"
           />
+          <FieldHint>
+            この情報は消費税の課税事業者判定に利用します（1,000万円以上は設立初年度から課税事業者）。
+          </FieldHint>
         </div>
       </div>
 
@@ -221,6 +236,7 @@ export default function WorkspaceProfileForm({
           onChange={(e) => set('employeeCount', Math.max(0, Number(e.target.value) || 0))}
           className="form-input"
         />
+        <FieldHint>この情報は源泉所得税・社会保険関連手続きの判定に利用します。</FieldHint>
       </div>
 
       <div>
@@ -234,6 +250,9 @@ export default function WorkspaceProfileForm({
             <option key={v} value={v}>{STAGE_LABEL[v]}</option>
           ))}
         </select>
+        <FieldHint>
+          この情報は設立系手続きの表示可否の判定に利用します（設立日・決算月から自動設定されます）。
+        </FieldHint>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -248,6 +267,7 @@ export default function WorkspaceProfileForm({
               <option key={v} value={v}>{CONSUMPTION_TAX_LABEL[v]}</option>
             ))}
           </select>
+          <FieldHint>この情報は消費税確定申告の要否判定に利用します。</FieldHint>
         </div>
         <div>
           <label className="form-label">インボイス登録状況</label>
@@ -260,6 +280,7 @@ export default function WorkspaceProfileForm({
               <option key={v} value={v}>{INVOICE_LABEL[v]}</option>
             ))}
           </select>
+          <FieldHint>この情報は消費税確定申告の要否判定に利用します。</FieldHint>
         </div>
       </div>
 
@@ -274,6 +295,7 @@ export default function WorkspaceProfileForm({
             <option key={v} value={v}>{WITHHOLDING_CYCLE_LABEL[v]}</option>
           ))}
         </select>
+        <FieldHint>この情報は源泉所得税の納付期限の判定に利用します。</FieldHint>
       </div>
 
       {profile.localTaxCollectionMethod === 'special_collection' && (
@@ -288,6 +310,7 @@ export default function WorkspaceProfileForm({
               <option key={v} value={v}>{RESIDENT_TAX_CYCLE_LABEL[v]}</option>
             ))}
           </select>
+          <FieldHint>この情報は住民税特別徴収の納付期限の判定に利用します。</FieldHint>
           <p className="mt-1.5 text-xs leading-relaxed text-amber-700">
             「年2回納付」は、市区町村への申請が承認されている場合にのみ選択してください。従業員数だけで
             自動的に対象になるものではありません。未承認・未確認の場合は「未設定」のままにしてください。
@@ -305,17 +328,27 @@ export default function WorkspaceProfileForm({
           />
           顧問税理士がいる
         </label>
+        <FieldHint>この情報はAI参謀の案内文言に利用します（手続きの判定には利用しません）。</FieldHint>
       </div>
 
-      <div className="flex items-center gap-3 border-t border-gray-100 pt-5">
+      <div className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-5">
         <button type="submit" disabled={saving} className="btn-primary disabled:opacity-60">
           {saving ? '保存中…' : '保存する'}
         </button>
         {saved && (
-          <span className="flex items-center gap-1 text-xs font-medium text-blue-600">
-            <CheckCircle2 className="h-4 w-4" />
-            保存しました
-          </span>
+          <>
+            <span className="flex items-center gap-1 text-xs font-medium text-blue-600">
+              <CheckCircle2 className="h-4 w-4" />
+              会社情報を保存しました
+            </span>
+            <Link
+              href={`/admin/workspaces/${companyId}/roadmap`}
+              className="btn-secondary ml-auto inline-flex items-center gap-1 px-3 py-1.5 text-xs"
+            >
+              年間ロードマップを見る
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </>
         )}
       </div>
     </form>

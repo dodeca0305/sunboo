@@ -102,6 +102,10 @@ export default async function WorkspaceRoadmapPage({ params }: { params: Promise
 
       <WorkspaceSubNav companyId={companyId} />
 
+      <p className="text-sm font-medium text-gray-700">
+        会社が今年行う行政手続き・提出先・期限を一覧で確認できます。
+      </p>
+
       <div className="card flex items-start gap-3 border-gray-200 bg-gray-50/60">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
         <p className="text-xs leading-relaxed text-gray-500">

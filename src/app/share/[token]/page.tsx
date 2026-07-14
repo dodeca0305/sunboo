@@ -94,6 +94,10 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
         <span className="tag border-blue-200 text-blue-600">共有ページ（閲覧専用）</span>
       </div>
 
+      <p className="mb-6 text-sm font-medium text-gray-700">
+        このページはSUNBOOが作成した年間行政ロードマップです。
+      </p>
+
       <div className="card mb-6 flex items-start gap-3">
         <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
         <div className="min-w-0 flex-1">
@@ -119,7 +123,8 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
         <p className="text-xs leading-relaxed text-gray-500">
           今年度から今後2年分の手続き予定を一覧表示する参考情報です。実際の手続き・期限・提出先は
-          必ず顧問の専門家・各公式機関の最新情報をご確認ください。
+          必ず顧問の専門家・各公式機関の最新情報をご確認ください。「情報不足」「推定」のタグが
+          付いた手続きは、会社情報の登録状況によって内容が変わる可能性があるという意味です。
         </p>
       </div>
 

@@ -149,6 +149,26 @@ export default function WorkspaceDashboard({
 }) {
   return (
     <div className="space-y-4">
+      {progress.total === 0 && (
+        <div className="card flex items-start gap-3 border-blue-100 bg-blue-50/40">
+          <Compass className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-gray-900">次に行うこと</p>
+            <p className="mt-1 text-xs leading-relaxed text-gray-600">
+              {company.fiscalMonth === null
+                ? '決算月が未設定のため、年間ロードマップを作成できません。会社プロフィールで決算月を設定してください。'
+                : '会社プロフィールを入力すると、年間ロードマップが自動作成されます。'}
+            </p>
+          </div>
+          <Link
+            href={`/admin/workspaces/${companyId}/profile`}
+            className="btn-secondary shrink-0 px-3 py-1.5 text-xs whitespace-nowrap"
+          >
+            会社プロフィールを入力する
+          </Link>
+        </div>
+      )}
+
       <div className="card space-y-2">
         <div className="flex items-center gap-2 text-xs font-semibold text-gray-500">
           <Bell className="h-3.5 w-3.5 text-blue-600" />
