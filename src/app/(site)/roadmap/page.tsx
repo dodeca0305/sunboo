@@ -98,7 +98,7 @@ export default function RoadmapPage() {
       </div>
 
       <div className="card mb-6 flex items-start gap-3 border-gray-200 bg-gray-50/60">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-sunboo-ink-muted" />
         <p className="text-xs leading-relaxed text-gray-500">
           今年度から今後2年分の手続き予定を一覧表示する参考情報です。実際の手続き・期限・提出先は
           必ず各公式機関の最新情報をご確認ください。「情報不足」「推定」の表示がある手続きは、
@@ -106,7 +106,7 @@ export default function RoadmapPage() {
         </p>
       </div>
 
-      {!profileLoaded && <p className="text-sm text-gray-400">読み込み中です…</p>}
+      {!profileLoaded && <p className="text-sm text-sunboo-ink-muted">読み込み中です…</p>}
 
       {profileLoaded && !profile && <ProfileGuidanceCard />}
 
@@ -115,7 +115,7 @@ export default function RoadmapPage() {
       )}
 
       {profileLoaded && profile && !errorMessage && loading && (
-        <p className="text-sm text-gray-400">計算中です…</p>
+        <p className="text-sm text-sunboo-ink-muted">計算中です…</p>
       )}
 
       {profileLoaded && profile && !errorMessage && !loading && roadmapYears !== null && totalItemCount === 0 && (

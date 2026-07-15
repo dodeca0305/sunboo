@@ -102,7 +102,7 @@ export default function SiteLayout({
                 </span>
                 <p className="font-bold text-gray-900">SUNBOO経営ナビ</p>
               </div>
-              <p className="mt-1 text-xs text-gray-400">法人設立・行政手続きの情報サービス</p>
+              <p className="mt-1 text-xs text-sunboo-ink-muted">法人設立・行政手続きの情報サービス</p>
             </div>
             <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
               <Link href="/procedures" className="text-gray-500 transition-colors hover:text-gray-900">
@@ -132,7 +132,7 @@ export default function SiteLayout({
               <FeedbackLink className="inline-flex items-center gap-1 text-gray-500 transition-colors hover:text-gray-900" />
             </nav>
           </div>
-          <div className="mt-8 border-t border-gray-100 pt-6 text-xs text-gray-400">
+          <div className="mt-8 border-t border-gray-100 pt-6 text-xs text-sunboo-ink-muted">
             <p>
               現在は福岡県・東京都渋谷区対応のβ版です。本サービスの情報は一般的な参考情報です。
               実際の手続き・期限・提出先は必ず各公式機関の最新情報をご確認ください。

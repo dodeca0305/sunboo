@@ -236,7 +236,7 @@ export default function EventsPage() {
           <section>
             <h2 className="mb-4 text-lg font-bold text-gray-900">
               必要手続き
-              <span className="ml-2 text-sm font-normal text-gray-400">{result.procedures.length}件</span>
+              <span className="ml-2 text-sm font-normal text-sunboo-ink-muted">{result.procedures.length}件</span>
             </h2>
             <ScheduleList procedures={result.procedures.map(toScheduleProcedure)} />
           </section>
@@ -253,7 +253,7 @@ export default function EventsPage() {
           </button>
         </div>
 
-        <p className="mt-8 flex items-start gap-2 text-xs text-gray-400">
+        <p className="mt-8 flex items-start gap-2 text-xs text-sunboo-ink-muted">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           本サイトの情報は一般的な参考情報です。実際の手続き・期限・提出先は必ず各公式機関の最新情報をご確認ください。
         </p>
@@ -275,7 +275,7 @@ export default function EventsPage() {
         <form onSubmit={handleProfileSubmit} className="space-y-4">
           <div className="card space-y-4">
             <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-gray-400" />
+              <MapPin className="h-4 w-4 text-sunboo-ink-muted" />
               <h2 className="font-semibold text-gray-800">会社の所在地</h2>
             </div>
             <div>
@@ -296,7 +296,7 @@ export default function EventsPage() {
               <div>
                 <label className="form-label">市区町村</label>
                 {loadingMunis ? (
-                  <p className="py-2 text-sm text-gray-400">読み込み中...</p>
+                  <p className="py-2 text-sm text-sunboo-ink-muted">読み込み中...</p>
                 ) : muniList.length === 0 ? (
                   <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
                     <p className="text-sm font-medium text-gray-700">このエリアは現在未対応です</p>
@@ -320,7 +320,7 @@ export default function EventsPage() {
 
           <div className="card space-y-4">
             <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-gray-400" />
+              <Building2 className="h-4 w-4 text-sunboo-ink-muted" />
               <h2 className="font-semibold text-gray-800">法人の種類</h2>
             </div>
             <SegmentedControl
@@ -341,7 +341,7 @@ export default function EventsPage() {
 
           <div className="card space-y-4">
             <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-gray-400" />
+              <Users className="h-4 w-4 text-sunboo-ink-muted" />
               <h2 className="font-semibold text-gray-800">従業員はいますか？</h2>
             </div>
             <SegmentedControl
@@ -382,7 +382,7 @@ export default function EventsPage() {
           <p className="font-medium text-gray-900">
             {profile.prefectureName} {profile.municipalityName}
           </p>
-          <p className="mt-0.5 text-xs text-gray-400">
+          <p className="mt-0.5 text-xs text-sunboo-ink-muted">
             {CORPORATE_TYPE_LABEL[profile.corporateType]} ・ 従業員{profile.employeeCount > 0 ? 'あり' : 'なし'}
           </p>
         </div>
@@ -410,7 +410,7 @@ export default function EventsPage() {
                     : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
-                <Icon className={`h-6 w-6 ${isSelected ? 'text-[var(--color-sunboo-ink)]' : 'text-gray-400'}`} />
+                <Icon className={`h-6 w-6 ${isSelected ? 'text-[var(--color-sunboo-ink)]' : 'text-sunboo-ink-muted'}`} />
                 <span className={`text-sm font-semibold ${isSelected ? 'text-[var(--color-sunboo-ink)]' : 'text-gray-800'}`}>
                   {et.name}
                 </span>
@@ -449,7 +449,7 @@ export default function EventsPage() {
         </button>
       </div>
 
-      <p className="mt-4 text-center text-xs text-gray-400">
+      <p className="mt-4 text-center text-xs text-sunboo-ink-muted">
         <Link href="/start" className="underline hover:text-gray-600">通常の診断はこちら</Link>
       </p>
     </div>

@@ -89,7 +89,7 @@ export default function SearchClient({
   return (
     <div>
       <div className="relative">
-        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-sunboo-ink-muted" />
         <input
           autoFocus
           value={query}
@@ -102,7 +102,7 @@ export default function SearchClient({
             type="button"
             onClick={() => setQuery('')}
             aria-label="検索をクリア"
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-gray-400 hover:bg-gray-50 hover:text-gray-600"
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-sunboo-ink-muted hover:bg-gray-50 hover:text-gray-600"
           >
             <X className="h-4 w-4" />
           </button>
@@ -111,7 +111,7 @@ export default function SearchClient({
 
       <div className="card mt-4 divide-y divide-gray-100 p-0">
         {filtered.length === 0 && (
-          <p className="px-5 py-10 text-center text-sm text-gray-400">該当する結果がありません</p>
+          <p className="px-5 py-10 text-center text-sm text-sunboo-ink-muted">該当する結果がありません</p>
         )}
 
         {filtered.map((row) => {
@@ -132,7 +132,7 @@ export default function SearchClient({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-gray-900">{row.data.name}</span>
-                  <span className="mt-0.5 block truncate text-xs text-gray-400">
+                  <span className="mt-0.5 block truncate text-xs text-sunboo-ink-muted">
                     {row.kind === 'procedure'
                       ? CATEGORY_LABEL[row.data.category]
                       : (OFFICE_TYPE_LABEL[row.data.office_type] ?? row.data.office_type)}

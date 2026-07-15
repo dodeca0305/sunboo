@@ -30,7 +30,7 @@ function OfficialSiteLink({
       {s === 'broken' ? '公式一覧で確認' : '公式サイト'}
       {s !== 'broken' && <ExternalLink className="h-3 w-3" />}
       {s === 'unchecked' && (
-        <span className="ml-0.5 text-[10px] text-gray-400">（未確認）</span>
+        <span className="ml-0.5 text-[10px] text-sunboo-ink-muted">（未確認）</span>
       )}
     </a>
   );
@@ -117,9 +117,9 @@ export default async function ResultPage({
 
       {/* 診断条件サマリー */}
       <div className="mb-8 rounded-xl border border-blue-100 bg-blue-50 p-6">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-500">
+        <h1 className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-500">
           診断結果
-        </p>
+        </h1>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-blue-900">
           <span>{prefName} {muniName}</span>
           <span className="text-blue-300">·</span>
@@ -150,7 +150,7 @@ export default async function ResultPage({
         <section className="mb-10">
           <h2 className="mb-4 text-lg font-bold text-gray-900">
             管轄機関
-            <span className="ml-2 text-sm font-normal text-gray-400">
+            <span className="ml-2 text-sm font-normal text-sunboo-ink-muted">
               {result.offices.length}件
             </span>
           </h2>
@@ -205,7 +205,7 @@ export default async function ResultPage({
         <section>
           <h2 className="mb-4 text-lg font-bold text-gray-900">
             必要手続き
-            <span className="ml-2 text-sm font-normal text-gray-400">
+            <span className="ml-2 text-sm font-normal text-sunboo-ink-muted">
               {result.procedures.length}件
             </span>
           </h2>
@@ -225,7 +225,7 @@ export default async function ResultPage({
 
       {/* 注意書き */}
       {!noData && (
-        <p className="mt-8 flex items-start gap-2 text-xs text-gray-400">
+        <p className="mt-8 flex items-start gap-2 text-xs text-sunboo-ink-muted">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           本サイトの情報は一般的な参考情報です。実際の手続き・期限・提出先は必ず各公式機関の最新情報をご確認ください。法改正等により内容が変更されている場合があります。
         </p>

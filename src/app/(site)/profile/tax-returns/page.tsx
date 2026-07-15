@@ -332,7 +332,7 @@ export default function TaxReturnsPage() {
         <form onSubmit={handleSubmit} className="mb-8 space-y-4">
           <div className="card space-y-4">
             <div className="flex items-center gap-2">
-              <FileClock className="h-4 w-4 text-gray-400" />
+              <FileClock className="h-4 w-4 text-sunboo-ink-muted" />
               <h2 className="font-semibold text-gray-800">{editingId ? '申告実績を編集' : '新しい申告実績'}</h2>
             </div>
 
@@ -538,12 +538,12 @@ export default function TaxReturnsPage() {
         </div>
       )}
 
-      <p className="mt-8 flex items-start gap-2 text-xs text-gray-400">
+      <p className="mt-8 flex items-start gap-2 text-xs text-sunboo-ink-muted">
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         本サイトの情報は一般的な参考情報です。申告内容の最終確認は税理士等の専門家にご確認ください。入力内容はこの端末（ブラウザ）にのみ保存されます。
       </p>
 
-      <p className="mt-4 text-center text-xs text-gray-400">
+      <p className="mt-4 text-center text-xs text-sunboo-ink-muted">
         <Link href="/profile" className="underline hover:text-gray-600">会社プロフィールへ戻る</Link>
       </p>
     </div>

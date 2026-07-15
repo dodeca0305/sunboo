@@ -40,7 +40,7 @@ function OfficialSiteLink({
       {s === 'broken' ? '公式一覧で確認' : '公式サイト'}
       {s !== 'broken' && <ExternalLink className="h-3 w-3" />}
       {s === 'unchecked' && (
-        <span className="ml-0.5 text-[10px] text-gray-400">（未確認）</span>
+        <span className="ml-0.5 text-[10px] text-sunboo-ink-muted">（未確認）</span>
       )}
     </a>
   );
@@ -153,7 +153,7 @@ export default function OfficeList({ offices }: { offices: OfficeItem[] }) {
                 </div>
 
                 {office.municipality_names.length > 0 && (
-                  <p className="mt-0.5 text-xs text-gray-400">
+                  <p className="mt-0.5 text-xs text-sunboo-ink-muted">
                     対応エリア：{office.municipality_names.join('、')}
                   </p>
                 )}
@@ -173,7 +173,7 @@ export default function OfficeList({ offices }: { offices: OfficeItem[] }) {
                 )}
 
                 {config && (
-                  <p className="mt-1.5 text-xs leading-relaxed text-gray-400">
+                  <p className="mt-1.5 text-xs leading-relaxed text-sunboo-ink-muted">
                     {config.duties}
                   </p>
                 )}

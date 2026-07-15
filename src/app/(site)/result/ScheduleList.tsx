@@ -70,7 +70,7 @@ function OnboardingCard({ onDismiss }: { onDismiss: () => void }) {
         type="button"
         onClick={onDismiss}
         aria-label="このメッセージを閉じる"
-        className="shrink-0 rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+        className="shrink-0 rounded-md p-1 text-sunboo-ink-muted transition-colors hover:bg-gray-100 hover:text-gray-600"
       >
         <X className="h-4 w-4" />
       </button>
@@ -125,7 +125,7 @@ function loadStatusMap(): Record<number, ProcedureStatus> {
 
 function RemainingBadge({ days }: { days: number | null }) {
   if (days === null) {
-    return <span className="text-xs font-medium text-gray-400">期限なし</span>;
+    return <span className="text-xs font-medium text-sunboo-ink-muted">期限なし</span>;
   }
   if (days < 0) {
     return <span className="text-xs font-medium text-red-600">期限超過</span>;
@@ -193,7 +193,7 @@ function ProcedureLink({ link }: { link: ScheduleProcedure['official_links'][num
       {s === 'broken' && <AlertTriangle className="h-3 w-3 text-red-600" />}
       {link.label}
       {s !== 'broken' && <ExternalLink className="h-3 w-3" />}
-      {s === 'unchecked' && <span className="ml-0.5 text-[10px] text-gray-400">（未確認）</span>}
+      {s === 'unchecked' && <span className="ml-0.5 text-[10px] text-sunboo-ink-muted">（未確認）</span>}
     </a>
   );
 }
@@ -225,7 +225,7 @@ function ProcedureRow({
           <div className="flex flex-wrap items-center gap-2">
             <h3
               className={`text-sm font-semibold ${
-                isDone ? 'text-gray-400 line-through' : 'text-gray-900'
+                isDone ? 'text-sunboo-ink-muted line-through' : 'text-gray-900'
               }`}
             >
               {proc.name}
@@ -307,7 +307,7 @@ function ProcedureRow({
 
 function SectionLabel({ children, tone = 'gray' }: { children: string; tone?: 'gray' | 'blue' }) {
   return (
-    <p className={`text-xs font-semibold uppercase tracking-widest ${tone === 'blue' ? 'text-blue-500' : 'text-gray-400'}`}>
+    <p className={`text-xs font-semibold uppercase tracking-widest ${tone === 'blue' ? 'text-blue-500' : 'text-sunboo-ink-muted'}`}>
       {children}
     </p>
   );
@@ -497,7 +497,7 @@ function AdviserCard({
         <div className="mt-3">
           <SectionLabel>次に来る予定</SectionLabel>
           <div className="mt-1.5 flex items-start gap-2 rounded-lg border border-gray-100 bg-white px-3 py-2.5 sm:px-4 sm:py-3">
-            <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+            <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-sunboo-ink-muted" />
             <p className="text-sm leading-relaxed text-gray-700">{lookahead}</p>
           </div>
         </div>
@@ -514,7 +514,7 @@ function AdviserCard({
         <div className="mt-4 border-t border-blue-100/70 pt-3">
           <div className="flex items-baseline justify-between gap-2">
             <SectionLabel>優先度</SectionLabel>
-            <span className="text-[11px] text-gray-400">未着手・進行中{incompleteCount}件中の上位{recommendations.length}件</span>
+            <span className="text-[11px] text-sunboo-ink-muted">未着手・進行中{incompleteCount}件中の上位{recommendations.length}件</span>
           </div>
           <div className="mt-2 grid gap-2 sm:grid-cols-3">
             {recommendations.map((rec) => (
@@ -626,7 +626,7 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
       {profileLoaded && !profile && <ProfileGuidanceCard />}
 
       <div className="card">
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+        <p className="text-xs font-semibold uppercase tracking-widest text-sunboo-ink-muted">
           手続き完了率
         </p>
         <div className="mt-2 flex items-end gap-3">
@@ -650,9 +650,9 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
         return (
           <section key={bucket}>
             <h3 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-gray-900">
-              <Icon className="h-4 w-4 text-gray-400" />
+              <Icon className="h-4 w-4 text-sunboo-ink-muted" />
               {BUCKET_LABEL[bucket]}
-              <span className="font-normal text-gray-400">（{items.length}件）</span>
+              <span className="font-normal text-sunboo-ink-muted">（{items.length}件）</span>
             </h3>
             <div className="card divide-y divide-gray-100 p-0">
               {items.map((proc) => (

@@ -61,7 +61,7 @@ export { default as ToggleButtons } from '@/components/SegmentedControl';
 
 export function ConfidenceTag({ amount }: { amount: AmountValue | null }) {
   const level = confidenceOfAmount(amount);
-  const tone = level === 'high' ? 'border-blue-200 text-blue-600' : level === 'medium' ? '' : 'border-gray-200 text-gray-400';
+  const tone = level === 'high' ? 'border-blue-200 text-blue-600' : level === 'medium' ? '' : 'border-gray-200 text-sunboo-ink-muted';
   return <span className={`tag ${tone}`}>{CONFIDENCE_LABEL[level]}</span>;
 }
 
@@ -155,7 +155,7 @@ export function TaxReturnEntryCard({
           </button>
         </div>
       </div>
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-sunboo-ink-muted">
         決算日: {entry.fiscalYearEndDate || '未入力'}
         {entry.filedDate && ` ・ 申告日: ${entry.filedDate}`}
       </p>

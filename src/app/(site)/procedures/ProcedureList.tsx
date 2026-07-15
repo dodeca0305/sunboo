@@ -112,7 +112,7 @@ export default function ProcedureList({ procedures }: { procedures: ProcedureIte
                   {OFFICE_TYPE_LABELS[proc.office_type] ?? proc.office_type}
                 </p>
                 <p className="flex items-center gap-1.5 text-xs text-gray-600">
-                  <Clock className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                  <Clock className="h-3.5 w-3.5 shrink-0 text-sunboo-ink-muted" />
                   <span className="font-medium">期限:</span>&nbsp;{proc.timing_label}
                 </p>
               </div>
@@ -144,7 +144,7 @@ export default function ProcedureList({ procedures }: { procedures: ProcedureIte
                         {link.label}
                         {s !== 'broken' && <ExternalLink className="h-3 w-3" />}
                         {s === 'unchecked' && (
-                          <span className="ml-0.5 text-[10px] text-gray-400">（未確認）</span>
+                          <span className="ml-0.5 text-[10px] text-sunboo-ink-muted">（未確認）</span>
                         )}
                       </a>
                     );

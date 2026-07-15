@@ -143,7 +143,7 @@ export default function StartPage() {
               1
             </span>
             <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-gray-400" />
+              <MapPin className="h-4 w-4 text-sunboo-ink-muted" />
               <h2 className="font-semibold text-gray-800">会社の所在地</h2>
             </div>
           </div>
@@ -163,7 +163,7 @@ export default function StartPage() {
                   </option>
                 ))}
               </select>
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sunboo-ink-muted">
                 ▾
               </span>
             </div>
@@ -179,7 +179,7 @@ export default function StartPage() {
             <div>
               <label className="form-label">市区町村</label>
               {loadingMunis ? (
-                <p className="py-2 text-sm text-gray-400">読み込み中...</p>
+                <p className="py-2 text-sm text-sunboo-ink-muted">読み込み中...</p>
               ) : muniList.length === 0 ? (
                 <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
                   <p className="text-sm font-medium text-gray-700">
@@ -203,7 +203,7 @@ export default function StartPage() {
                       </option>
                     ))}
                   </select>
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sunboo-ink-muted">
                     ▾
                   </span>
                 </div>
@@ -225,7 +225,7 @@ export default function StartPage() {
               2
             </span>
             <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-gray-400" />
+              <Users className="h-4 w-4 text-sunboo-ink-muted" />
               <h2 className="font-semibold text-gray-800">従業員はいますか？</h2>
             </div>
           </div>
@@ -253,7 +253,7 @@ export default function StartPage() {
               3
             </span>
             <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-gray-400" />
+              <Calendar className="h-4 w-4 text-sunboo-ink-muted" />
               <h2 className="font-semibold text-gray-800">決算月</h2>
             </div>
           </div>
@@ -272,7 +272,7 @@ export default function StartPage() {
                 </option>
               ))}
             </select>
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sunboo-ink-muted">
               ▾
             </span>
           </div>
@@ -291,7 +291,7 @@ export default function StartPage() {
               4
             </span>
             <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-gray-400" />
+              <Building2 className="h-4 w-4 text-sunboo-ink-muted" />
               <h2 className="font-semibold text-gray-800">法人の種類</h2>
             </div>
           </div>
@@ -323,7 +323,7 @@ export default function StartPage() {
                 5
               </span>
               <div className="flex items-center gap-2">
-                <UserCog className="h-4 w-4 text-gray-400" />
+                <UserCog className="h-4 w-4 text-sunboo-ink-muted" />
                 <h2 className="font-semibold text-gray-800">役員に任期の定めがありますか？</h2>
               </div>
             </div>
@@ -355,7 +355,7 @@ export default function StartPage() {
         </button>
       </form>
 
-      <p className="mt-4 text-center text-xs text-gray-400">
+      <p className="mt-4 text-center text-xs text-sunboo-ink-muted">
         入力した情報はサーバーに保存されません
       </p>
     </div>

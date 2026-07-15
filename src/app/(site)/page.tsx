@@ -70,7 +70,7 @@ export default function TopPage() {
             </Link>
           </div>
 
-          <p className="mx-auto mt-5 flex max-w-md items-center justify-center gap-1.5 text-center text-xs text-gray-400">
+          <p className="mx-auto mt-5 flex max-w-md items-center justify-center gap-1.5 text-center text-xs text-sunboo-ink-muted">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
             現在は福岡県・東京都渋谷区対応のβ版です。実際の提出前には必ず公式情報をご確認ください。
           </p>
@@ -140,7 +140,7 @@ export default function TopPage() {
       {/* ── 注意書き ───────────────────────────────────── */}
       <section className="bg-white pb-16">
         <div className="mx-auto max-w-2xl px-4">
-          <p className="flex items-center justify-center gap-2 text-center text-xs text-gray-400">
+          <p className="flex items-center justify-center gap-2 text-center text-xs text-sunboo-ink-muted">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
             本サイトの情報は一般的な参考情報です。実際の手続き・期限・提出先は必ず各公式機関の最新情報をご確認ください。
           </p>

@@ -57,7 +57,7 @@ export default function HelpPage() {
 
       <section className="card mt-4">
         <div className="flex items-center gap-2">
-          <HelpCircle className="h-4 w-4 text-gray-400" />
+          <HelpCircle className="h-4 w-4 text-sunboo-ink-muted" />
           <h2 className="font-semibold text-gray-900">画面の見方</h2>
         </div>
         <div className="mt-4 space-y-4">
@@ -98,7 +98,7 @@ export default function HelpPage() {
         </a>
       </section>
 
-      <p className="mt-8 flex items-start justify-center gap-2 text-center text-xs text-gray-400">
+      <p className="mt-8 flex items-start justify-center gap-2 text-center text-xs text-sunboo-ink-muted">
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         本サイトの情報は一般的な参考情報です。実際の手続き・期限・提出先は必ず各公式機関の最新情報をご確認ください。
       </p>

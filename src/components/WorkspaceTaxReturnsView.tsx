@@ -172,7 +172,7 @@ export default function WorkspaceTaxReturnsView({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="card space-y-4">
             <div className="flex items-center gap-2">
-              <FileClock className="h-4 w-4 text-gray-400" />
+              <FileClock className="h-4 w-4 text-sunboo-ink-muted" />
               <h2 className="font-semibold text-gray-800">{editingId ? '申告実績を編集' : '新しい申告実績'}</h2>
             </div>
 

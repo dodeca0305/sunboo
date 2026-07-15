@@ -130,7 +130,7 @@ const EMPTY_DRAFT: ProfileDraft = {
 function SectionHeader({ icon: Icon, title }: { icon: typeof MapPin; title: string }) {
   return (
     <div className="flex items-center gap-2">
-      <Icon className="h-4 w-4 text-gray-400" />
+      <Icon className="h-4 w-4 text-sunboo-ink-muted" />
       <h2 className="font-semibold text-gray-800">{title}</h2>
     </div>
   );
@@ -138,7 +138,7 @@ function SectionHeader({ icon: Icon, title }: { icon: typeof MapPin; title: stri
 
 function HintText({ children }: { children: React.ReactNode }) {
   return (
-    <p className="flex items-start gap-1.5 text-xs leading-relaxed text-gray-400">
+    <p className="flex items-start gap-1.5 text-xs leading-relaxed text-sunboo-ink-muted">
       <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-400" />
       {children}
     </p>
@@ -295,7 +295,7 @@ export default function ProfilePage() {
                 <option key={p.code} value={p.code}>{p.name}</option>
               ))}
             </select>
-            <p className="mt-1.5 text-xs leading-relaxed text-gray-400">
+            <p className="mt-1.5 text-xs leading-relaxed text-sunboo-ink-muted">
               提出先（税務署・市区町村役場等）の判定に使用します。
             </p>
           </div>
@@ -304,7 +304,7 @@ export default function ProfilePage() {
             <div>
               <label className="form-label">市区町村</label>
               {loadingMunis ? (
-                <p className="py-2 text-sm text-gray-400">読み込み中...</p>
+                <p className="py-2 text-sm text-sunboo-ink-muted">読み込み中...</p>
               ) : muniList.length === 0 ? (
                 <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
                   <p className="text-sm font-medium text-gray-700">このエリアは現在未対応です</p>
@@ -321,7 +321,7 @@ export default function ProfilePage() {
                       <option key={m.code} value={m.code}>{m.name}</option>
                     ))}
                   </select>
-                  <p className="mt-1.5 text-xs leading-relaxed text-gray-400">
+                  <p className="mt-1.5 text-xs leading-relaxed text-sunboo-ink-muted">
                     提出先を判定する唯一の情報です。変更すると管轄機関の判定結果が変わります。
                   </p>
                 </>
@@ -338,7 +338,7 @@ export default function ProfilePage() {
               value={draft.address ?? ''}
               onChange={(e) => set('address', e.target.value || null)}
             />
-            <p className="mt-1.5 text-xs leading-relaxed text-gray-400">
+            <p className="mt-1.5 text-xs leading-relaxed text-sunboo-ink-muted">
               Excel・PDF・共有ページでの本店所在地の表示にのみ使用します。提出先の判定には
               使用しません（判定は都道府県・市区町村のみで行います）。
             </p>
@@ -362,7 +362,7 @@ export default function ProfilePage() {
                 value={draft.nextOfficerChangeDate ?? ''}
                 onChange={(e) => set('nextOfficerChangeDate', e.target.value || null)}
               />
-              <p className="text-xs leading-relaxed text-gray-400">
+              <p className="text-xs leading-relaxed text-sunboo-ink-muted">
                 この日から2週間以内の登記申請期限を計算します。登記期限そのものではなく、
                 任期満了に伴う重任・交代が効力を生じる日（株主総会での重任決議日等）を
                 入力してください。未定の場合は空欄のままにしてください。
@@ -632,13 +632,13 @@ export default function ProfilePage() {
         </Link>
       </div>
 
-      <p className="mt-4 text-center text-xs text-gray-400">
+      <p className="mt-4 text-center text-xs text-sunboo-ink-muted">
         <Link href="/events" className="underline hover:text-gray-600">イベント登録はこちら</Link>
         {' '}・{' '}
         <Link href="/start" className="underline hover:text-gray-600">通常の診断はこちら</Link>
       </p>
 
-      <p className="mt-8 flex items-start gap-2 text-xs text-gray-400">
+      <p className="mt-8 flex items-start gap-2 text-xs text-sunboo-ink-muted">
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         本サイトの情報は一般的な参考情報です。税務・労務の最終判断は必ず税理士・社労士等の専門家にご確認ください。入力内容はこの端末（ブラウザ）にのみ保存されます。
       </p>
