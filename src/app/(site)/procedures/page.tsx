@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import type { ProcedureCategory } from '@/lib/types';
@@ -6,6 +7,12 @@ import ProcedureList from './ProcedureList';
 // 手続きデータはSupabase側（管理画面・マイグレーション）で随時更新されるため、
 // ビルド時に静的化せず常に最新状態を取得する。
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: '手続き一覧',
+  description: '法人設立・運営に必要な行政手続きの一覧。提出先・期限・必要書類を確認できます。',
+  alternates: { canonical: '/procedures' },
+};
 
 type ProcedureItem = {
   id: number;

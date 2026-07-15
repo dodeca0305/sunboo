@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import OfficeList from './OfficeList';
@@ -6,6 +7,12 @@ import type { OfficeItem } from './OfficeList';
 // 行政機関データはSupabase側（管理画面・マイグレーション）で随時更新されるため、
 // ビルド時に静的化せず常に最新状態を取得する。
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: '管轄機関一覧',
+  description: '税務署・法務局・年金事務所など、法人設立・運営に関わる行政機関の一覧です。',
+  alternates: { canonical: '/offices' },
+};
 
 type RawOffice = {
   id: number;

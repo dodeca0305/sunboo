@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { runDiagnosis } from '@/lib/diagnosis';
@@ -6,6 +7,13 @@ import { Building2, MapPin, Phone, ExternalLink, ChevronLeft, AlertTriangle, Dat
 import type { CorporateType, LinkStatus } from '@/lib/types';
 import ScheduleList from './ScheduleList';
 import { toScheduleProcedure } from '@/lib/scheduleProcedure';
+
+// クエリパラメータ（pref/muni/emp/fm/corp）依存で内容が変わるページであり、パラメータが
+// 無い/不正な場合は空の結果になる。検索エンジンには索引付けさせない（sitemap.tsからも除外済み）。
+export const metadata: Metadata = {
+  title: '診断結果',
+  robots: { index: false, follow: true },
+};
 
 const CORPORATE_TYPE_LABEL: Record<CorporateType, string> = {
   kabushiki: '株式会社',

@@ -1,8 +1,15 @@
+import type { Metadata } from 'next';
 import { supabase } from '@/lib/supabase';
 import SearchClient, { type SearchOffice, type SearchProcedure } from './SearchClient';
 
 // 手続き・機関データはSupabase側で随時更新されるため、ビルド時に静的化せず常に最新状態を取得する。
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: '検索',
+  description: '手続き名・提出先から、必要な行政手続き・管轄機関をキーワードで検索できます。',
+  alternates: { canonical: '/search' },
+};
 
 type RawProcedure = {
   id: number;

@@ -1,6 +1,13 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { AlertTriangle, Sparkles, Bell, Star, HelpCircle, Mail } from 'lucide-react';
 import { FEEDBACK_MAILTO_HREF } from '@/lib/contact';
+
+export const metadata: Metadata = {
+  title: 'ヘルプ',
+  description: 'SUNBOO経営ナビの画面の見方・よくある質問。AI参謀・通知・優先度の意味を解説します。',
+  alternates: { canonical: '/help' },
+};
 
 const SCREEN_GUIDE = [
   {

@@ -1,6 +1,11 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { FileText, Building2, Clock, ExternalLink, ArrowRight, Search, AlertTriangle, Eye } from 'lucide-react';
 import TrackedLink from '@/components/TrackedLink';
+
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+};
 
 // ユーザーテスト用デモ導線（Sprint 10）。福岡市中央区・合同会社・従業員あり・3月決算の
 // 入力例で /result に直接遷移し、フォーム入力なしで結果画面をすぐに見てもらえるようにする。
