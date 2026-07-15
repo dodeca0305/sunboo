@@ -2,6 +2,7 @@ import pdfMake from 'pdfmake';
 import type { Content, TDocumentDefinitions, CustomTableLayout } from 'pdfmake/interfaces';
 import type { RoadmapExportRow } from '@/lib/roadmapExport';
 import { buildExportFilename } from '@/lib/exportFilename';
+import { BRAND_MARK_RECTS, BRAND_MARK_NAVY, BRAND_MARK_ORANGE } from '@/components/BrandMark';
 
 // ── Roadmap PDF出力 — 文書生成（Sprint 52・Sprint 63で印刷前提のレイアウトへ刷新）───────
 // buildRoadmapExportRows（src/lib/roadmapExport.ts、Sprint51）が組み立てたプレーンな行データを
@@ -75,8 +76,28 @@ async function ensureFontsRegistered(): Promise<void> {
 
 const COLOR_TEXT = '#111827';
 const COLOR_MUTED = '#6B7280';
-const COLOR_LINK = '#2563EB';
+const COLOR_LINK = BRAND_MARK_NAVY; // Brand System v1.0（凍結）準拠。旧ブランドカラーから変更
 const COLOR_RULE = '#D1D5DB';
+
+// 表紙のSUNBOOシンボル。PNG埋め込みではなくcanvasのベクター矩形で描画する
+// （既存のcheckboxCell()と同じ手法。フォント依存が無く、白黒印刷でも輪郭が明瞭に残る。
+// Navy／Orangeとも十分な明度差があるため、モノクロ印刷時も陽だまりの矩形が識別できる）。
+const BRAND_SYMBOL_UNIT = 1.6667; // 24単位グリッド × この値 = 40pt四方
+const BRAND_SYMBOL_SIZE = 24 * BRAND_SYMBOL_UNIT;
+
+function brandSymbolCanvas(xOffset: number, margin: [number, number, number, number]): Content {
+  return {
+    canvas: BRAND_MARK_RECTS.map(({ x, y, w, h, accent }) => ({
+      type: 'rect' as const,
+      x: xOffset + x * BRAND_SYMBOL_UNIT,
+      y: y * BRAND_SYMBOL_UNIT,
+      w: w * BRAND_SYMBOL_UNIT,
+      h: h * BRAND_SYMBOL_UNIT,
+      color: accent ? BRAND_MARK_ORANGE : BRAND_MARK_NAVY,
+    })),
+    margin,
+  };
+}
 
 // 印刷（白黒）でも判別できるよう、色だけに依存しない表現を徹底する（Sprint63要件⑨）。
 // ・重要度は「文字サイズ」「太字」「枠」「余白」で表現する（色の濃淡だけに頼らない）
@@ -364,7 +385,8 @@ function buildDocumentDefinition(
     defaultStyle: { font: FONT_FAMILY, fontSize: 10, color: COLOR_TEXT },
     content: [
       // ── 表紙 ──
-      { text: 'SUNBOO', style: 'coverBrand', margin: [0, 110, 0, 4] },
+      brandSymbolCanvas((PAGE_CONTENT_WIDTH - BRAND_SYMBOL_SIZE) / 2, [0, 110, 0, 8]),
+      { text: 'SUNBOO', style: 'coverBrand', margin: [0, 0, 0, 4] },
       { text: '年間手続きロードマップ', style: 'coverTitle' },
       { text: '印刷して、そのまま1年間ご利用いただけます', style: 'coverSubtitle' },
       { text: companyName, style: 'coverCompany', margin: [0, 24, 0, 0] },

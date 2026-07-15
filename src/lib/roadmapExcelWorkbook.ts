@@ -29,7 +29,8 @@ const COLUMNS: { header: string; key: keyof RoadmapExportRow | 'companyAddress';
   { header: 'メモ', key: 'memo', width: 26 },
 ];
 
-const HYPERLINK_FONT = { color: { argb: 'FF2563EB' }, underline: true } as const;
+// Brand System v1.0（凍結）準拠。旧ブランドカラーから変更。ロゴ画像は挿入しない（色のみの変更）。
+const HYPERLINK_FONT = { color: { argb: 'FF0F172A' }, underline: true } as const;
 
 // 会社名・作成日からファイル名を安全に組み立てる。拡張子は常に.xlsxで固定する。
 // 【Sprint52で共通化】サニタイズ本体はsrc/lib/exportFilename.tsへ移動し、PDF出力と共有する

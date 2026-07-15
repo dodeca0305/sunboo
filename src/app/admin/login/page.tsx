@@ -43,7 +43,7 @@ function LoginForm() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div className="card w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center text-center">
-          <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-white">
+          <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-[#0F172A] text-white">
             <Lock className="h-5 w-5" />
           </span>
           <h1 className="text-lg font-bold text-gray-900">SUNBOO 管理画面</h1>

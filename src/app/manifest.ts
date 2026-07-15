@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { BRAND_MARK_NAVY } from '@/components/BrandMark';
 
 // Android/Chromeの「ホーム画面に追加」用の最小限のWeb Manifest。既存のicon.tsx（64x64）・
 // apple-icon.tsx（180x180）をそのまま流用する。Chromeのインストールバナー表示条件（192x192/512x512の
@@ -12,7 +13,7 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: '/',
     display: 'standalone',
     background_color: '#FFFFFF',
-    theme_color: '#2563EB',
+    theme_color: BRAND_MARK_NAVY,
     icons: [
       { src: '/icon', sizes: '64x64', type: 'image/png' },
       { src: '/apple-icon', sizes: '180x180', type: 'image/png' },

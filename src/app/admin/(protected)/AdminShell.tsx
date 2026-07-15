@@ -19,6 +19,7 @@ import {
   Workflow,
 } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
+import BrandMark from '@/components/BrandMark';
 
 const NAV_ITEMS = [
   { href: '/admin', label: 'ダッシュボード', icon: LayoutDashboard, exact: true },
@@ -79,9 +80,7 @@ export default function AdminShell({
       {/* ── デスクトップ用サイドバー ── */}
       <aside className="hidden w-60 shrink-0 border-r border-gray-100 bg-white lg:flex lg:flex-col">
         <div className="flex h-16 items-center gap-2.5 border-b border-gray-100 px-5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white">
-            S
-          </span>
+          <BrandMark size={32} />
           <span className="text-sm font-bold text-gray-900">SUNBOO 管理画面</span>
         </div>
         {navLinks}

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Search, Zap, UserCircle, CalendarRange, Briefcase } from 'lucide-react';
 import FeedbackLink from '@/components/FeedbackLink';
+import BrandMark from '@/components/BrandMark';
 
 // ── (site)ヘッダー・フッター（Sprint 30 Workspace Navigation & Migration）─────────
 // 税理士・会計事務所向けの管理画面（/admin/workspaces、Sprint29でWorkspace Migration
@@ -18,11 +19,9 @@ export default function SiteLayout({
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white select-none">
-              S
-            </span>
+            <BrandMark size={32} />
             <span className="whitespace-nowrap text-base font-bold tracking-tight text-gray-900">
-              SUNBOO<span className="text-blue-600">経営ナビ</span>
+              SUNBOO経営ナビ
             </span>
             <span className="tag hidden shrink-0 border-blue-200 text-blue-600 sm:inline-flex">β版</span>
           </Link>
@@ -97,9 +96,7 @@ export default function SiteLayout({
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-xs font-bold text-white">
-                  S
-                </span>
+                <BrandMark size={28} />
                 <p className="font-bold text-gray-900">SUNBOO経営ナビ</p>
               </div>
               <p className="mt-1 text-xs text-sunboo-ink-muted">法人設立・行政手続きの情報サービス</p>
