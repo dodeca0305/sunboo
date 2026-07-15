@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Link2, Copy, Check, Ban } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import InformationCard from '@/components/InformationCard';
+import { trackEvent } from '@/lib/analytics';
 
 export type ShareLinkRow = {
   id: number;
@@ -66,6 +67,7 @@ export default function WorkspaceShareLinksPanel({
       return;
     }
     setLinks((prev) => [data as ShareLinkRow, ...prev]);
+    trackEvent('share_created', { workspace_id: companyId, company_id: companyId });
   }
 
   async function handleRevoke(linkId: number) {

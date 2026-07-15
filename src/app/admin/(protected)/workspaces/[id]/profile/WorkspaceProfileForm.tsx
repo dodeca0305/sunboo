@@ -11,6 +11,7 @@ import type {
 } from '@/lib/companyProfile';
 import { companyProfileToWorkspaceUpdatePayload } from '@/lib/workspaceCompanyProfile';
 import InformationCard from '@/components/InformationCard';
+import { trackEvent } from '@/lib/analytics';
 
 // ── Company Workspace — 会社プロフィール編集フォーム（Sprint 23 Phase23.2・Sprint47）───────
 // 既存 src/app/(site)/profile/page.tsx の項目・トーンを参考にしつつ、MVPとして主要項目のみを
@@ -119,6 +120,7 @@ export default function WorkspaceProfileForm({
     }
 
     setSaved(true);
+    trackEvent('profile_completed', { workspace_id: companyId, company_id: companyId });
   }
 
   return (

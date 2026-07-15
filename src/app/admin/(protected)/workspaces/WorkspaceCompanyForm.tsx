@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
+import { trackEvent } from '@/lib/analytics';
 
 // ── Company Workspace — 新規会社登録フォーム（Sprint 23 Phase23.1・Sprint 33）─────
 // 【Sprint33で追加】workspace_companiesのRLSがWorkspace単位のアクセス制御へ変更されたため
@@ -128,6 +129,7 @@ export default function WorkspaceCompanyForm({ prefectures }: { prefectures: Pre
     }
 
     setSaving(false);
+    trackEvent('company_created', { workspace_id: companyId, company_id: companyId });
     router.push(`/admin/workspaces/${companyId}`);
     router.refresh();
   }

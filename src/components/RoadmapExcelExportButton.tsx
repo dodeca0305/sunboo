@@ -5,6 +5,7 @@ import { FileSpreadsheet, AlertTriangle } from 'lucide-react';
 import type { RoadmapYear } from '@/lib/roadmap';
 import type { WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
 import { buildRoadmapExportRows } from '@/lib/roadmapExport';
+import { trackEvent } from '@/lib/analytics';
 
 // ── Workspace Roadmap — Excel出力ボタン（Sprint 51）─────────────────────
 // 管理画面（/admin/workspaces/[id]/roadmap）専用。共有ページ（/share/[token]）には配置しない。
@@ -24,11 +25,13 @@ export default function RoadmapExcelExportButton({
   statusMap,
   companyName,
   companyAddress,
+  companyId,
 }: {
   roadmapYears: RoadmapYear[];
   statusMap: WorkspaceProcedureStatusMap;
   companyName: string;
   companyAddress: string;
+  companyId: number;
 }) {
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +58,7 @@ export default function RoadmapExcelExportButton({
       a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
+      trackEvent('excel_exported', { workspace_id: companyId, company_id: companyId });
     } catch {
       setError('Excelの出力に失敗しました。時間をおいて再度お試しください。');
     } finally {

@@ -11,6 +11,7 @@ import RoadmapExcelExportButton from '@/components/RoadmapExcelExportButton';
 import RoadmapPdfExportButton from '@/components/RoadmapPdfExportButton';
 import PageHeader from '@/components/PageHeader';
 import InformationCard from '@/components/InformationCard';
+import AnalyticsPageEvent from '@/components/AnalyticsPageEvent';
 
 // ── Company Workspace — 年間ロードマップ（Sprint 23 Phase23.3・Phase23.4）─────
 // buildAnnualRoadmap（src/lib/roadmap.ts）・buildStateFromTimeline（src/lib/state.ts）は
@@ -87,12 +88,14 @@ export default async function WorkspaceRoadmapPage({ params }: { params: Promise
                 statusMap={statusMap}
                 companyName={company.name}
                 companyAddress={companyAddress}
+                companyId={companyId}
               />
               <RoadmapPdfExportButton
                 roadmapYears={roadmapYears}
                 statusMap={statusMap}
                 companyName={company.name}
                 companyAddress={companyAddress}
+                companyId={companyId}
               />
             </>
           ) : undefined
@@ -117,7 +120,13 @@ export default async function WorkspaceRoadmapPage({ params }: { params: Promise
           会社プロフィールの決算月などを登録すると、年間の手続き予定を自動で作成します。
         </InformationCard>
       ) : (
-        <AnnualRoadmapView roadmapYears={roadmapYears} statusMap={statusMap} companyId={companyId} />
+        <>
+          <AnalyticsPageEvent
+            event="roadmap_generated"
+            properties={{ workspace_id: companyId, company_id: companyId }}
+          />
+          <AnnualRoadmapView roadmapYears={roadmapYears} statusMap={statusMap} companyId={companyId} />
+        </>
       )}
     </div>
   );

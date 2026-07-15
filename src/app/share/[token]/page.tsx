@@ -9,6 +9,7 @@ import { buildAnnualRoadmap } from '@/lib/roadmap';
 import { workspaceProcedureOccurrenceKey, type WorkspaceProcedureStatus, type WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
 import AnnualRoadmapView from '@/components/AnnualRoadmapView';
 import InformationCard from '@/components/InformationCard';
+import AnalyticsPageEvent from '@/components/AnalyticsPageEvent';
 
 // ── Company Workspace — 経営者向け共有ページ（Sprint 24 Phase24.0・Phase24.1・Sprint 32）───
 // ログイン不要・編集不可の閲覧専用ページ。get_shared_workspace_view（Sprint22.4 MVP migration、
@@ -85,6 +86,10 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+      <AnalyticsPageEvent
+        event="share_opened"
+        properties={{ workspace_id: company.id, company_id: company.id }}
+      />
       {/* SUNBOOは裏方：会社名より前には小さなキャプションのみを置く（Sprint85） */}
       <p className="mb-3 flex items-center gap-1.5 text-sunboo-tiny uppercase text-sunboo-ink-muted">
         SUNBOOが作成した年間行政ロードマップ

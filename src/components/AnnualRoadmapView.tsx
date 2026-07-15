@@ -12,6 +12,7 @@ import { buildRoadmapSubmissionInfo } from '@/lib/roadmapSubmissionInfo';
 import { buildRoadmapDocumentItems, hasAnyRoadmapDocumentItems, type RoadmapDocumentItem } from '@/lib/roadmapDocuments';
 import { AlertTriangle, Building2, ExternalLink, Info, Square } from 'lucide-react';
 import StatusBadge from '@/components/StatusBadge';
+import { trackEvent } from '@/lib/analytics';
 
 // ── 年間ロードマップ — 表示コンポーネント（Sprint 23 Phase23.3・Sprint 24 Phase24.1・Sprint 32・Sprint 84）───
 // src/app/(site)/roadmap/page.tsx と admin/(protected)/workspaces/[id]/roadmap/page.tsx・
@@ -180,7 +181,10 @@ export default function AnnualRoadmapView({
       // 保存に失敗した場合は表示を元に戻す（DB未反映のまま見た目だけ変わった状態にしない）
       setLocalStatusMap((prev) => ({ ...prev, [key]: previous }));
       setStatusError(`保存に失敗しました: ${error.message}`);
+      return;
     }
+
+    trackEvent('procedure_status_changed', { workspace_id: companyId, company_id: companyId });
   }
 
   return (

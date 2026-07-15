@@ -5,6 +5,7 @@ import { FileText, AlertTriangle } from 'lucide-react';
 import type { RoadmapYear } from '@/lib/roadmap';
 import type { WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
 import { buildRoadmapExportRows } from '@/lib/roadmapExport';
+import { trackEvent } from '@/lib/analytics';
 
 // ── Workspace Roadmap — PDF出力ボタン（Sprint 52）───────────────────────
 // 設計はRoadmapExcelExportButton（Sprint51）と同じ。管理画面（/admin/workspaces/[id]/roadmap）
@@ -26,11 +27,13 @@ export default function RoadmapPdfExportButton({
   statusMap,
   companyName,
   companyAddress,
+  companyId,
 }: {
   roadmapYears: RoadmapYear[];
   statusMap: WorkspaceProcedureStatusMap;
   companyName: string;
   companyAddress: string;
+  companyId: number;
 }) {
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +55,7 @@ export default function RoadmapPdfExportButton({
       a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
+      trackEvent('pdf_exported', { workspace_id: companyId, company_id: companyId });
     } catch {
       setError('PDFの出力に失敗しました。時間をおいて再度お試しください。');
     } finally {
