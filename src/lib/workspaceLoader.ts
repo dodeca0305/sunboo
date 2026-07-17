@@ -14,6 +14,7 @@ import {
   type WorkspaceProcedureStatusMap, type WorkspaceProcedureStatusRow,
 } from './workspaceProcedureStatus';
 import type { WorkspaceDocumentStatus, WorkspaceDocumentType, WorkspaceDocumentStatusMap } from './workspaceDocumentStatus';
+import { applyCutoverToRoadmapYears } from './submissionDirectoryCutover';
 
 // ── Company Workspace — データ取得の共通化（Sprint 34）───────────────────
 // Dashboard・Roadmap・Profile・Documents・Shareの各ページが個別に書いていた
@@ -155,7 +156,20 @@ export async function loadWorkspaceRoadmapContext(
   ]);
 
   const state = deriveWorkspaceState(companyProfile, taxReturnProfile);
-  const roadmapYears = await buildAnnualRoadmap(supabase, companyProfile, state, horizonYears);
+  const roadmapYearsBeforeCutover = await buildAnnualRoadmap(supabase, companyProfile, state, horizonYears);
+
+  // 【Phase5-2】buildAnnualRoadmap（roadmap.ts、無変更）が返した結果に対し、Phase5-2対象
+  // （docs/PHASE5_UI_CUTOVER_PLAN.md Part C）の手続きだけを新Resolverの結果で上書きする。
+  // 対象外の手続き・resolved以外の場合は roadmapYearsBeforeCutover と全く同じ内容を返す
+  // （applyCutoverToRoadmapYearsは非破壊、新Resolver未対応の会社・手続きには一切影響しない）。
+  // Workspace Roadmapページ・共有ページ経由ではなくこの関数を経由するPDF/Excel出力にも
+  // 同じ結果が伝播する（roadmapYearsをpropsとしてそのまま渡しているため）。
+  // ロールバックする場合は、この1行を`const roadmapYears = roadmapYearsBeforeCutover;`へ
+  // 戻すだけでよい（旧Resolverのみの挙動に即座に戻る）。
+  const roadmapYears = await applyCutoverToRoadmapYears(supabase, roadmapYearsBeforeCutover, {
+    municipalityCode: company.municipality_code,
+    prefectureCode: company.prefecture_code,
+  });
 
   return { companyProfile, taxReturnProfile, state, roadmapYears, procedureStatusMap };
 }
