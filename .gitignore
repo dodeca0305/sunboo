@@ -23,3 +23,7 @@ Thumbs.db
 # TypeScript ビルドキャッシュ
 *.tsbuildinfo
 next-env.d.ts
+
+# Playwright 認証済みセッション（storageState、認証情報を含むため絶対にコミットしない）
+playwright/.auth/
+test-results/
