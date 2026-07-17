@@ -16,7 +16,7 @@
 | Engine（診断・ルール・Timeline/State） | ✅ 完成 | 診断エンジン・ルールエンジン・Timeline/State Engineはいずれも実装済みで安定稼働（[ARCHITECTURE.md](ARCHITECTURE.md)・[RULE_ENGINE.md](RULE_ENGINE.md)） |
 | Procedure Master | 🟡 Beta改善中 | Phase15.2まで実装済みだが、福岡県の地方税窓口データ・必要書類データ（31手続き中13手続きのみ）に未整備分あり（[BETA_BACKLOG.md](BETA_BACKLOG.md) M-02・L-05） |
 | Deadline Engine | ✅ 完成 | `calculateNextDeadline`はEngine全体で共通利用。既知の表示バグ（源泉所得税サイクルのConfidence）は解消済み（[BETA_BACKLOG.md](BETA_BACKLOG.md) M-01） |
-| Office Resolver | 🟡 Beta改善中 | 東京都渋谷区・福岡県60市区町村に対応。福岡県の一部窓口データが未整備（[BETA_BACKLOG.md](BETA_BACKLOG.md) M-02） |
+| Office Resolver | 🟡 Beta改善中 | 東京都渋谷区・福岡県72判定単位（自治体数60市町村）に対応。福岡県の一部窓口データが未整備（[BETA_BACKLOG.md](BETA_BACKLOG.md) M-02） |
 | Company Profile | ✅ 完成 | [COMPANY_PROFILE_ENGINE.md](COMPANY_PROFILE_ENGINE.md)、Workspace対応済み |
 | Workspace（全体） | ✅ 完成 | 会社別Workspace・アクセス制御（`workspace_members`）まで実装済み。正式系（Primary）として運用中（[COMPANY_WORKSPACE.md](COMPANY_WORKSPACE.md)） |
 | ├ Dashboard | 🟡 Beta改善中 | 優先順位の再構成（今日のポイント）まで完了。通知センターとの役割分担は引き続き検討中（[SUNBOO_BRAND_EXPERIENCE_REVIEW.md](SUNBOO_BRAND_EXPERIENCE_REVIEW.md)） |

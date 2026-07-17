@@ -43,7 +43,8 @@
    5節のRoadmap実装方式の核心的な論点になる。
 
 4. **`municipal_tax`（市区町村税務課）の`jurisdictions`データは東京都渋谷区（`13113`）のみ登録済みで、
-   福岡県60市区町村には1件も無い**（`supabase/migration_organizations.sql` 200-219行を確認。
+   福岡県60市区町村には1件も無い**（注: 福岡県の自治体数は60市町村、Resolverの管轄判定単位は72判定単位。本節は執筆時点の記載を保持）
+   （`supabase/migration_organizations.sql` 200-219行を確認。
    福岡県データは同ファイル110行以降で追加されているが`municipal_tax`の窓口投入は無い）。
    これは**既存の`SALARY_PAYMENT_REPORT`・`MUNICIPAL_RESIDENT_TAX_RETURN`が福岡県の会社に対して
    既に抱えているギャップ**であり、本Sprintで新たに作るものではない。6節で扱う。
@@ -278,7 +279,9 @@ const PERIODIC_CYCLE_OVERRIDES: Record<string, PeriodicCycleOverride> = {
   `localTaxCollectionMethod`による出し分けも会社の状態のみで決まり、自治体には依存しない。
 - **自治体差がある部分**: 窓口（`office_type='municipal_tax'`の`organization_offices`）の実在情報
   （住所・電話・URL）、納付方法の詳細（金融機関窓口・口座振替・eLTAXの対応状況）。前者は0節4項で
-  確認した通り**福岡県60市区町村に窓口データが1件も無いという既存ギャップ**であり、`SALARY_PAYMENT_REPORT`
+  確認した通り**福岡県60市区町村に窓口データが1件も無いという既存ギャップ**（注: 福岡県の自治体数は
+  60市町村、Resolverの管轄判定単位は72判定単位。
+  本節は執筆時点の記載を保持）であり、`SALARY_PAYMENT_REPORT`
   ・`MUNICIPAL_RESIDENT_TAX_RETURN`が既に抱えている問題を`RESIDENT_TAX_WITHHOLDING`が追加で継承する
   だけで、新規に生む問題ではない。後者は既存の`caution_note`パターン（「自治体により扱いが異なる
   場合があります」、`MUNICIPAL_RESIDENT_TAX_RETURN`の`caution_note`と同文言）を踏襲すれば足りる。
