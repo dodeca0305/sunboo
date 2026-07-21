@@ -36,7 +36,6 @@ export function trackEvent(name: AnalyticsEventName, properties?: AnalyticsPrope
 
   // 現時点では外部送信を行わず、開発確認用にconsoleへ出力するのみ。
   if (process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line no-console
     console.debug('[analytics]', payload);
   }
 

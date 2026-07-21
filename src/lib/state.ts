@@ -216,6 +216,7 @@ function deriveCorporateTaxInterimFilingField(
 // 直接参照する方式（本Sprintと同じ）を検討し、それでも足りない場合にのみ
 // timelineProducer.tsのmetadata拡張を検討すること。
 function deriveWithholdingTaxCycleField(_events: TimelineEvent[]): StateField<WithholdingTaxCycle | null> {
+  void _events;
   return incompleteField();
 }
 
