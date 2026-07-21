@@ -31,7 +31,7 @@ export default async function AdminOfficesPage() {
     ]);
 
     const municipalitiesByOffice = new Map<number, string[]>();
-    let prefectureByOffice = new Map<number, string>();
+    const prefectureByOffice = new Map<number, string>();
     for (const j of (jurisdictionData as unknown as RawJurisdiction[] | null) ?? []) {
       const name = j.municipalities?.name;
       if (!name) continue;
