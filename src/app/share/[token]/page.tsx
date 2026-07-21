@@ -7,6 +7,7 @@ import { buildWorkspaceTimelineEvents } from '@/lib/workspaceTimelineProducer';
 import { buildStateFromTimeline } from '@/lib/state';
 import { buildAnnualRoadmap } from '@/lib/roadmap';
 import { workspaceProcedureOccurrenceKey, type WorkspaceProcedureStatus, type WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
+import { applyCutoverToRoadmapYears } from '@/lib/submissionDirectoryCutover';
 import AnnualRoadmapView from '@/components/AnnualRoadmapView';
 import InformationCard from '@/components/InformationCard';
 import AnalyticsPageEvent from '@/components/AnalyticsPageEvent';
@@ -81,6 +82,20 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
     roadmapYears = await buildAnnualRoadmap(supabase, companyProfile, state, 3);
   } catch {
     // ロードマップの計算に失敗しても会社概要は表示を続ける
+  }
+
+  // 【Phase5-2b】Workspace（workspaceLoader.ts）と同じCutoverをShareにも適用する。
+  // buildAnnualRoadmapの戻り値（RoadmapYear[]）はWorkspaceと同一の型のため、既存の
+  // applyCutoverToRoadmapYearsをそのまま再利用する（新しいResolver・新しい判定ロジックは追加しない）。
+  // 対象外の(municipalityCode, procedureId)・resolved以外は無変更のまま返る非破壊的な設計のため、
+  // roadmapYearsが空配列（buildAnnualRoadmap失敗時）でも安全に呼べる。
+  try {
+    roadmapYears = await applyCutoverToRoadmapYears(supabase, roadmapYears, {
+      municipalityCode: company.municipality_code,
+      prefectureCode: company.prefecture_code,
+    });
+  } catch {
+    // Cutoverの失敗時は旧Resolverの結果（buildAnnualRoadmapの戻り値）をそのまま表示する
   }
   const totalItemCount = roadmapYears.reduce((sum, y) => sum + y.items.length, 0);
 

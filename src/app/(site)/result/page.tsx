@@ -7,6 +7,7 @@ import { Building2, MapPin, Phone, ExternalLink, ChevronLeft, AlertTriangle, Dat
 import type { CorporateType, LinkStatus } from '@/lib/types';
 import ScheduleList from './ScheduleList';
 import { toScheduleProcedure } from '@/lib/scheduleProcedure';
+import { applyCutoverToProcedures } from '@/lib/submissionDirectoryCutover';
 
 // クエリパラメータ（pref/muni/emp/fm/corp）依存で内容が変わるページであり、パラメータが
 // 無い/不正な場合は空の結果になる。検索エンジンには索引付けさせない（sitemap.tsからも除外済み）。
@@ -94,6 +95,26 @@ export default async function ResultPage({
     corporateType,
     hasOfficerTerm,
   });
+
+  // 【Phase5-2b】Workspace（workspaceLoader.ts）・Share（share/[token]/page.tsx）と同じCutoverを
+  // 「必要手続き」一覧（result.procedures）にのみ適用する。muniCode/prefCodeはmuniListの
+  // <select>がsupabase.from('municipalities')/('prefectures')から直接取得した値をそのまま
+  // 使っているため（src/app/(site)/start/page.tsx）、canonical 6桁のmunicipalities.codeと
+  // 一致することを確認済み。上部の「管轄機関」グリッド（result.offices）はDiagnosis Summaryの
+  // 責務のため対象外とし、変更しない（docs/PHASE5_2B_PLAN.md 5-3節、意思決定は別途）。
+  // 対象外の(municipalityCode, procedureId)・resolved以外は無変更のまま返る非破壊的な設計のため、
+  // 失敗時は旧Resolverの結果（toScheduleProcedureの戻り値）をそのまま表示する。
+  let scheduleProcedures = result.procedures.map(toScheduleProcedure);
+  if (supabase && scheduleProcedures.length > 0) {
+    try {
+      scheduleProcedures = await applyCutoverToProcedures(supabase, scheduleProcedures, {
+        municipalityCode: muniCode,
+        prefectureCode: prefCode,
+      });
+    } catch {
+      // Cutoverの失敗時は旧Resolverの結果（toScheduleProcedureの戻り値）をそのまま表示する
+    }
+  }
 
   const prefName =
     staticPrefectures.find((p) => p.code === prefCode)?.name ?? prefCode;
@@ -209,16 +230,16 @@ export default async function ResultPage({
       )}
 
       {/* ── 必要手続き（スケジュール） ── */}
-      {result.procedures.length > 0 && (
+      {scheduleProcedures.length > 0 && (
         <section>
           <h2 className="mb-4 text-lg font-bold text-gray-900">
             必要手続き
             <span className="ml-2 text-sm font-normal text-sunboo-ink-muted">
-              {result.procedures.length}件
+              {scheduleProcedures.length}件
             </span>
           </h2>
 
-          <ScheduleList procedures={result.procedures.map(toScheduleProcedure)} />
+          <ScheduleList procedures={scheduleProcedures} />
         </section>
       )}
 

@@ -106,3 +106,46 @@ export async function applyCutoverToRoadmapYears(
     }),
   }));
 }
+
+// runDiagnosis（diagnosis.ts、無変更）→ toScheduleProcedure で得られるフラットな
+// ScheduleProcedure[]（RoadmapYear[]という年展開の入れ子構造を持たない）向けの薄いラッパー
+// （Phase5-2b、/result専用）。applyCutoverToRoadmapYearsと同じ重複排除方針
+// （procedure_id単位で1回だけ新Resolverを呼ぶ）をフラット配列に適用するだけで、
+// 判定ロジック自体（isPhase5_2Target・shouldUseCutoverResult・mergeOfficeOverlay）は
+// applyCutoverToProcedure経由でそのまま再利用する。新しいDecision・新しいResolverは追加しない。
+// 対象手続きが1件も無い場合は元の配列をそのまま返す（新しい配列を作らない、
+// applyCutoverToRoadmapYearsと同じ非破壊的な設計）。
+export async function applyCutoverToProcedures(
+  supabase: SupabaseClient,
+  procedures: ScheduleProcedure[],
+  location: CutoverLocation,
+): Promise<ScheduleProcedure[]> {
+  const uniqueProcedures = new Map<number, ScheduleProcedure>();
+  for (const procedure of procedures) {
+    if (!uniqueProcedures.has(procedure.id)) {
+      uniqueProcedures.set(procedure.id, procedure);
+    }
+  }
+
+  const targetProcedureIds = Array.from(uniqueProcedures.keys()).filter((id) =>
+    isPhase5_2Target(location.municipalityCode, id),
+  );
+  if (targetProcedureIds.length === 0) return procedures;
+
+  const overlaidOfficeByProcedureId = new Map<number, ScheduleProcedure['office']>();
+  for (const procedureId of targetProcedureIds) {
+    const procedure = uniqueProcedures.get(procedureId)!;
+    const overlaid = await applyCutoverToProcedure(supabase, procedure, location);
+    if (overlaid.office !== procedure.office) {
+      overlaidOfficeByProcedureId.set(procedureId, overlaid.office);
+    }
+  }
+
+  if (overlaidOfficeByProcedureId.size === 0) return procedures;
+
+  return procedures.map((procedure) => {
+    const newOffice = overlaidOfficeByProcedureId.get(procedure.id);
+    if (newOffice === undefined) return procedure;
+    return { ...procedure, office: newOffice };
+  });
+}
