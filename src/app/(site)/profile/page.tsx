@@ -209,7 +209,6 @@ export default function ProfilePage() {
     }
     load();
     // draft.prefectureCode が変わったときだけ市区町村一覧を再取得する
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.prefectureCode]);
 
   // 設立日・決算月から一意に決まる事実のため、変更のたびに自動反映する
@@ -217,7 +216,6 @@ export default function ProfilePage() {
   // ボタンでの手動選択はそのまま上書き可能。
   useEffect(() => {
     setDraft((d) => ({ ...d, stage: deriveStage(d.establishedDate || null, d.fiscalMonth) }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.establishedDate, draft.fiscalMonth]);
 
   // 1期目は前年実績が無いため中間申告は確実に「なし」になる（設計書 ③）

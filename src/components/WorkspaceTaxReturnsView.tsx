@@ -78,6 +78,8 @@ export default function WorkspaceTaxReturnsView({
 
   function openEditForm(entry: TaxReturnEntry) {
     const { id, createdAt, updatedAt, ...rest } = entry;
+    void createdAt;
+    void updatedAt;
     setDraft(rest);
     setEditingId(id);
     setError(null);
