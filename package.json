@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:submission-directory": "node --test src/lib/submissionDirectoryAdapter/index.test.ts src/lib/submissionDirectoryCutover/index.test.ts"
+    "test:submission-directory": "node --test src/lib/submissionDirectory/resolve.test.ts src/lib/submissionDirectoryAdapter/index.test.ts src/lib/submissionDirectoryCutover/index.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

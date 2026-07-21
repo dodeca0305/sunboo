@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildPublicVerificationLabel, buildReason, buildRequiredAction } from './explain';
-import { matchSubmissionOfficeCandidate } from './resolve';
-import { decideStatus, decideVerification } from './stateModel';
+import { buildPublicVerificationLabel, buildReason, buildRequiredAction } from './explain.ts';
+import { matchSubmissionOfficeCandidate } from './resolve.ts';
+import { decideStatus, decideVerification } from './stateModel.ts';
 import type {
   OfficeSource,
   ProcedureSubmissionRule,
