@@ -6,7 +6,11 @@
 実行してください。
 
 対象テーブル: `workspace_companies`・`workspace_company_profiles`（任意）のみ。
-`workspace_members`・`workspace_share_links`は作らない（0-9節の通り不要）。
+`workspace_members` はWorkspace表示のみの検証では不要。
+
+ただし、Share画面で共有リンクを発行する場合は、
+`workspace_share_links` のRLSポリシーが対象会社の
+`workspace_members` にowner権限を要求するため、メンバー登録が必要。
 
 `workspace_id`・`user_id`・`auth_user_id`に相当する実値は本ドキュメントに一切埋め込んでいません
 （`workspace_companies`自体がそれらの列を持たないため、埋め込む対象が存在しません）。
@@ -50,7 +54,36 @@ RETURNING id, name, prefecture_code, municipality_code;
 
 COMMIT;
 ```
+### 1-1. Share検証用のworkspace_members追加
 
+Share画面で共有リンクを発行する場合のみ実行する。
+
+`{admin_email}` は、`admin_users` に登録されている実際の管理者メールアドレスへ
+置き換えること。プレースホルダーのまま実行しないこと。
+
+```sql
+INSERT INTO workspace_members (
+  company_id,
+  email,
+  role
+)
+SELECT
+  c.id,
+  '{admin_email}',
+  'owner'
+FROM workspace_companies c
+WHERE c.name IN (
+  '[E2E] 札幌提出先検証株式会社',
+  '[E2E] 福岡提出先検証株式会社',
+  '[E2E] 北九州提出先検証株式会社'
+)
+AND NOT EXISTS (
+  SELECT 1
+  FROM workspace_members wm
+  WHERE wm.company_id = c.id
+    AND LOWER(wm.email) = LOWER('{admin_email}')
+)
+RETURNING company_id, email, role;
 **municipality_code / prefecture_codeについて**: [PHASE5_3_MANUAL_BROWSER_VERIFICATION.md](PHASE5_3_MANUAL_BROWSER_VERIFICATION.md)
 0-13節で確認した実在の`municipalities.code`（ADR D14準拠、canonical 6桁）をそのまま使用している。
 推測・仮の値は使っていない。

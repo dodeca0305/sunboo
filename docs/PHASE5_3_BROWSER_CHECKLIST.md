@@ -75,3 +75,18 @@
 
 - ロールバックSQL実行日時: _____________
 - 削除後の確認: _____________
+## 実機検証結果
+
+実施日: 2026-07-21
+
+- Preview: PASS
+- Workspace: PASS
+  - 札幌 法人市民税申告
+  - 札幌 償却資産申告
+  - 福岡 法人市民税申告
+  - 北九州 not_supported fallback
+- Share: PASS
+- Result: PASS
+- PDF: PASS
+- Excel: PASS
+- Test data cleanup: PASS
