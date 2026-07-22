@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { prefectures as staticPrefectures } from '@/data/prefectures';
@@ -39,9 +39,17 @@ function todayIso(): string {
 type PrefItem = { code: string; name: string };
 type MuniItem = { code: string; name: string };
 
+const subscribeNoop = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 export default function EventsPage() {
-  const [profile, setProfile] = useState<CompanyProfile | null>(null);
-  const [profileLoaded, setProfileLoaded] = useState(false);
+  const isClient = useSyncExternalStore(
+    subscribeNoop,
+    getClientSnapshot,
+    getServerSnapshot,
+  );
+  const [profile, setProfile] = useState<CompanyProfile | null>(() => loadCompanyProfile());
 
   // ── 会社情報登録フォーム（プロフィール未登録時のみ表示） ──
   const [prefList, setPrefList] = useState<PrefItem[]>([]);
@@ -62,11 +70,6 @@ export default function EventsPage() {
   const [result, setResult] = useState<EventRegistrationResult | null>(null);
 
   useEffect(() => {
-    setProfile(loadCompanyProfile());
-    setProfileLoaded(true);
-  }, []);
-
-  useEffect(() => {
     async function load() {
       if (!supabase) {
         setPrefList(staticPrefectures.map((p) => ({ code: p.code, name: p.name })));
@@ -85,14 +88,10 @@ export default function EventsPage() {
   }, []);
 
   useEffect(() => {
-    if (!prefCode) {
-      setMuniList([]);
-      setMuniCode('');
-      return;
-    }
+    if (!prefCode) return;
+
     async function load() {
       setLoadingMunis(true);
-      setMuniCode('');
       if (!supabase) {
         setMuniList([]);
         setLoadingMunis(false);
@@ -115,6 +114,12 @@ export default function EventsPage() {
     }
     load();
   }, [prefCode]);
+
+  function handlePrefectureChange(nextPrefCode: string) {
+    setPrefCode(nextPrefCode);
+    setMuniList([]);
+    setMuniCode('');
+  }
 
   function handleProfileSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -180,7 +185,7 @@ export default function EventsPage() {
     setEventDate(todayIso());
   }
 
-  if (!profileLoaded) return null;
+  if (!isClient) return null;
 
   if (!supabase) {
     return (
@@ -280,7 +285,7 @@ export default function EventsPage() {
             </div>
             <div>
               <label className="form-label">都道府県</label>
-              <select className="form-select" value={prefCode} onChange={(e) => setPrefCode(e.target.value)}>
+              <select className="form-select" value={prefCode} onChange={(e) => handlePrefectureChange(e.target.value)}>
                 <option value="">選択してください</option>
                 {prefList.map((p) => (
                   <option key={p.code} value={p.code}>{p.name}</option>
