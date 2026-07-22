@@ -51,15 +51,10 @@ export default function StartPage() {
   }, []);
 
   useEffect(() => {
-    if (!prefCode) {
-      setMuniList([]);
-      setMuniCode('');
-      return;
-    }
+    if (!prefCode) return;
 
     async function load() {
       setLoadingMunis(true);
-      setMuniCode('');
 
       if (!supabase) {
         setMuniList(FALLBACK_MUNICIPALITIES[prefCode] ?? []);
@@ -108,6 +103,12 @@ export default function StartPage() {
     return Object.keys(errs).length === 0;
   }
 
+  function handlePrefectureChange(nextPrefCode: string) {
+    setPrefCode(nextPrefCode);
+    setMuniList([]);
+    setMuniCode('');
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
@@ -154,7 +155,7 @@ export default function StartPage() {
               <select
                 className="form-select pr-9"
                 value={prefCode}
-                onChange={(e) => setPrefCode(e.target.value)}
+                onChange={(e) => handlePrefectureChange(e.target.value)}
               >
                 <option value="">選択してください</option>
                 {prefList.map((p) => (
