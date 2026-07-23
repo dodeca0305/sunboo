@@ -536,10 +536,20 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
   const [profileLoaded, setProfileLoaded] = useState(false);
 
   useEffect(() => {
-    setStatusMap(loadStatusMap());
-    setOnboardingDismissed(window.localStorage.getItem(ONBOARDING_KEY) === 'true');
-    setProfile(loadCompanyProfile());
-    setProfileLoaded(true);
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (cancelled) return;
+
+      setStatusMap(loadStatusMap());
+      setOnboardingDismissed(window.localStorage.getItem(ONBOARDING_KEY) === 'true');
+      setProfile(loadCompanyProfile());
+      setProfileLoaded(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function dismissOnboarding() {
