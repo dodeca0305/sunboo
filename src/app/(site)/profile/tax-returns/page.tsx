@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import {
   deriveConsumptionTaxStatus, deriveCorporateTaxInterimFiling, deriveConsumptionTaxInterimFrequency,
@@ -185,10 +185,20 @@ function MismatchCard({
   );
 }
 
+const subscribeNoop = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 export default function TaxReturnsPage() {
-  const [profile, setProfile] = useState<CompanyProfile | null>(null);
-  const [taxReturnProfile, setTaxReturnProfile] = useState<TaxReturnProfile>({ entries: [] });
-  const [loaded, setLoaded] = useState(false);
+  const isClient = useSyncExternalStore(
+    subscribeNoop,
+    getClientSnapshot,
+    getServerSnapshot,
+  );
+  const [profile, setProfile] = useState<CompanyProfile | null>(() => loadCompanyProfile());
+  const [taxReturnProfile, setTaxReturnProfile] = useState<TaxReturnProfile>(
+    () => loadTaxReturnProfile(),
+  );
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -198,12 +208,6 @@ export default function TaxReturnsPage() {
   // Change Interview開始時点のプロフィールを保持し、全件解決後に決算更新サマリーの before/after 比較に使う
   const [profileBeforeReview, setProfileBeforeReview] = useState<CompanyProfile | null>(null);
   const [closingSummary, setClosingSummary] = useState<string[] | null>(null);
-
-  useEffect(() => {
-    setProfile(loadCompanyProfile());
-    setTaxReturnProfile(loadTaxReturnProfile());
-    setLoaded(true);
-  }, []);
 
   function set<K extends keyof EntryDraft>(key: K, value: EntryDraft[K]) {
     setDraft((d) => ({ ...d, [key]: value }));
@@ -278,7 +282,7 @@ export default function TaxReturnsPage() {
     }
   }
 
-  if (!loaded) return null;
+  if (!isClient) return null;
 
   const sortedEntries = [...taxReturnProfile.entries].reverse(); // 新しい順に表示
 
