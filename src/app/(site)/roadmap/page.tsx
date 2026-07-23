@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { loadCompanyProfile, type CompanyProfile } from '@/lib/companyProfile';
@@ -37,24 +37,24 @@ function ProfileGuidanceCard() {
   );
 }
 
+const subscribeNoop = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 export default function RoadmapPage() {
-  const [profile, setProfile] = useState<CompanyProfile | null>(null);
-  const [profileLoaded, setProfileLoaded] = useState(false);
+  const isClient = useSyncExternalStore(
+    subscribeNoop,
+    getClientSnapshot,
+    getServerSnapshot,
+  );
+  const [profile] = useState<CompanyProfile | null>(() => loadCompanyProfile());
   const [roadmapYears, setRoadmapYears] = useState<RoadmapYear[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    setProfile(loadCompanyProfile());
-    setProfileLoaded(true);
-  }, []);
+    if (!isClient || !profile || !supabase) return;
 
-  useEffect(() => {
-    if (!profileLoaded || !profile) return;
-    if (!supabase) {
-      setErrorMessage('データベースに接続できませんでした。');
-      return;
-    }
     let cancelled = false;
 
     async function load() {
@@ -82,7 +82,11 @@ export default function RoadmapPage() {
     return () => {
       cancelled = true;
     };
-  }, [profile, profileLoaded]);
+  }, [isClient, profile]);
+
+  const connectionError =
+    isClient && profile && !supabase ? 'データベースに接続できませんでした。' : null;
+  const displayedError = connectionError ?? errorMessage;
 
   const totalItemCount = useMemo(
     () => roadmapYears?.reduce((sum, y) => sum + y.items.length, 0) ?? 0,
@@ -106,19 +110,21 @@ export default function RoadmapPage() {
         </p>
       </div>
 
-      {!profileLoaded && <p className="text-sm text-sunboo-ink-muted">読み込み中です…</p>}
+      {!isClient && <p className="text-sm text-sunboo-ink-muted">読み込み中です…</p>}
 
-      {profileLoaded && !profile && <ProfileGuidanceCard />}
+      {isClient && !profile && <ProfileGuidanceCard />}
 
-      {profileLoaded && profile && errorMessage && (
-        <div className="card border-gray-200 bg-gray-50/60 text-sm text-gray-600">{errorMessage}</div>
+      {isClient && profile && displayedError && (
+        <div className="card border-gray-200 bg-gray-50/60 text-sm text-gray-600">
+          {displayedError}
+        </div>
       )}
 
-      {profileLoaded && profile && !errorMessage && loading && (
+      {isClient && profile && !displayedError && loading && (
         <p className="text-sm text-sunboo-ink-muted">計算中です…</p>
       )}
 
-      {profileLoaded && profile && !errorMessage && !loading && roadmapYears !== null && totalItemCount === 0 && (
+      {isClient && profile && !displayedError && !loading && roadmapYears !== null && totalItemCount === 0 && (
         <div className="card border-gray-200 bg-gray-50/60 text-sm text-gray-600">
           表示できる手続きがありません。プロフィールの決算月などの登録状況をご確認ください。
         </div>
