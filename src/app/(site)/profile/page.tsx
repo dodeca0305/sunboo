@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { prefectures as staticPrefectures } from '@/data/prefectures';
@@ -127,6 +127,30 @@ const EMPTY_DRAFT: ProfileDraft = {
   },
 };
 
+const subscribeNoop = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
+function loadInitialDraft(): ProfileDraft {
+  const existing = loadCompanyProfile();
+  const draft: ProfileDraft = existing
+    ? { ...existing, establishedDate: existing.establishedDate ?? '' }
+    : { ...EMPTY_DRAFT };
+
+  const stage = deriveStage(draft.establishedDate || null, draft.fiscalMonth);
+  const normalized = { ...draft, stage };
+
+  if (stage !== 'first_term') {
+    return normalized;
+  }
+
+  return {
+    ...normalized,
+    corporateTaxInterimFiling: 'none',
+    consumptionTaxInterimFrequency: 'none',
+  };
+}
+
 function SectionHeader({ icon: Icon, title }: { icon: typeof MapPin; title: string }) {
   return (
     <div className="flex items-center gap-2">
@@ -146,22 +170,18 @@ function HintText({ children }: { children: React.ReactNode }) {
 }
 
 export default function ProfilePage() {
-  const [draft, setDraft] = useState<ProfileDraft>(EMPTY_DRAFT);
-  const [loaded, setLoaded] = useState(false);
+  const isClient = useSyncExternalStore(
+    subscribeNoop,
+    getClientSnapshot,
+    getServerSnapshot,
+  );
+  const [draft, setDraft] = useState<ProfileDraft>(loadInitialDraft);
   const [saved, setSaved] = useState(false);
 
   const [prefList, setPrefList] = useState<PrefItem[]>([]);
   const [muniList, setMuniList] = useState<MuniItem[]>([]);
   const [loadingMunis, setLoadingMunis] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const existing = loadCompanyProfile();
-    if (existing) {
-      setDraft({ ...existing, establishedDate: existing.establishedDate ?? '' });
-    }
-    setLoaded(true);
-  }, []);
 
   useEffect(() => {
     async function load() {
@@ -178,9 +198,9 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!draft.prefectureCode) {
-      setMuniList([]);
       return;
     }
+
     async function load() {
       setLoadingMunis(true);
       if (!supabase) {
@@ -211,22 +231,42 @@ export default function ProfilePage() {
     // draft.prefectureCode が変わったときだけ市区町村一覧を再取得する
   }, [draft.prefectureCode]);
 
-  // 設立日・決算月から一意に決まる事実のため、変更のたびに自動反映する
-  // （消費税ステータス等の「目安」と違い、ユーザー確認を挟まなくてよい確定情報）。
-  // ボタンでの手動選択はそのまま上書き可能。
-  useEffect(() => {
-    setDraft((d) => ({ ...d, stage: deriveStage(d.establishedDate || null, d.fiscalMonth) }));
-  }, [draft.establishedDate, draft.fiscalMonth]);
-
-  // 1期目は前年実績が無いため中間申告は確実に「なし」になる（設計書 ③）
-  useEffect(() => {
-    if (draft.stage === 'first_term') {
-      setDraft((d) => ({ ...d, corporateTaxInterimFiling: 'none', consumptionTaxInterimFrequency: 'none' }));
-    }
-  }, [draft.stage]);
-
   function set<K extends keyof ProfileDraft>(key: K, value: ProfileDraft[K]) {
-    setDraft((d) => ({ ...d, [key]: value }));
+    if (key === 'prefectureCode') {
+      setMuniList([]);
+      setLoadingMunis(false);
+    }
+
+    setDraft((current) => {
+      let next: ProfileDraft = { ...current, [key]: value };
+
+      if (key === 'prefectureCode') {
+        next = {
+          ...next,
+          municipalityCode: '',
+          municipalityName: '',
+        };
+      }
+
+      // 設立日・決算月から一意に決まる会社ステージを同時に更新する。
+      if (key === 'establishedDate' || key === 'fiscalMonth') {
+        next = {
+          ...next,
+          stage: deriveStage(next.establishedDate || null, next.fiscalMonth),
+        };
+      }
+
+      // 1期目になった時点では前年実績がないため、中間申告は「なし」にする。
+      if (current.stage !== 'first_term' && next.stage === 'first_term') {
+        next = {
+          ...next,
+          corporateTaxInterimFiling: 'none',
+          consumptionTaxInterimFrequency: 'none',
+        };
+      }
+
+      return next;
+    });
     setSaved(false);
   }
 
@@ -265,7 +305,7 @@ export default function ProfilePage() {
     setSaved(true);
   }
 
-  if (!loaded) return null;
+  if (!isClient) return null;
 
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
