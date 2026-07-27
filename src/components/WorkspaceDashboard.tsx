@@ -213,17 +213,28 @@ export default function WorkspaceDashboard({
         <div>
           <p className="mb-1.5 text-xs font-semibold text-sunboo-ink-muted">今日やること</p>
           {todayActionItems.length > 0 ? (
-            <ul className="space-y-1.5">
-              {todayActionItems.map((item, idx) => (
-                <AdviceItemRow
-                  key={`${item.procedureId}-${idx}`}
-                  item={item}
-                  tone={isOverdue(item) ? 'red' : 'neutral'}
-                />
-              ))}
-            </ul>
+            <div className="space-y-3">
+              <ul className="space-y-1.5">
+                {todayActionItems.map((item, idx) => (
+                  <AdviceItemRow
+                    key={`${item.procedureId}-${idx}`}
+                    item={item}
+                    tone={isOverdue(item) ? 'red' : 'neutral'}
+                  />
+                ))}
+              </ul>
+
+              <Link
+                href={`/admin/workspaces/${companyId}/roadmap`}
+                className="btn-secondary inline-flex px-3 py-2 text-xs"
+              >
+                対応内容を確認する
+              </Link>
+            </div>
           ) : (
-            <p className="text-sm text-sunboo-ink-muted">直近で対応が必要な手続きはありません。安心して本業に集中してください。</p>
+            <p className="text-sm text-sunboo-ink-muted">
+              直近で対応が必要な手続きはありません。安心して本業に集中してください。
+            </p>
           )}
         </div>
 
