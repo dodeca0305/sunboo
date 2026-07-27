@@ -2,6 +2,7 @@ import type { RoadmapItem, RoadmapYear } from './roadmap';
 import type { CompanyState } from './state';
 import { workspaceProcedureOccurrenceKey, type WorkspaceProcedureStatus, type WorkspaceProcedureStatusMap } from './workspaceProcedureStatus';
 import type { ProcedureCategory } from './types';
+import { buildWorkspaceAdviceSummary } from './workspaceAdvicePresentation';
 
 // ── Workspace AI Adviser — ルールベースMVP（Sprint 24 Phase24.2・Sprint 32）─────────
 // Advice = f( Annual Roadmap, Procedure Status, State )。既存Engine（診断エンジン・State Engine・
@@ -134,15 +135,7 @@ export function generateWorkspaceAdvice(
     });
   }
 
-  const overdueCount = warnings.filter((w) => w.detail.startsWith('期限超過')).length;
-  const summary =
-    overdueCount > 0
-      ? `期限超過が${overdueCount}件あります。至急ご確認ください。`
-      : warnings.length > 0
-        ? `${warnings.length}件、期限が迫っている手続きがあります。`
-        : priority.length > 0
-          ? `直近${PRIORITY_WINDOW_DAYS}日以内に${priority.length}件の手続きがあります。`
-          : '直近の手続きに遅れはありません。';
+    const summary = buildWorkspaceAdviceSummary(warnings, priority, PRIORITY_WINDOW_DAYS);
 
   return { priority, warnings, opportunities, summary };
 }
