@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import {
-  Sunrise, ListChecks, AlertTriangle, PieChart, Sparkles, Building2, Compass,
+  Sunrise, ListChecks, PieChart, Sparkles, Building2, Compass,
   Bell, Clock, PauseCircle, FileStack, Receipt, Info,
 } from 'lucide-react';
 import type {
@@ -253,19 +253,6 @@ export default function WorkspaceDashboard({
           </div>
         ) : (
           <p className="text-sm text-sunboo-ink-muted">今、確認が必要なことはありません。安心して本業に集中してください。</p>
-        )}
-      </div>
-
-      <div className="card space-y-3">
-        <CardEyebrow icon={AlertTriangle}>期限警告</CardEyebrow>
-        {advice.warnings.length > 0 ? (
-          <ul className="space-y-1.5">
-            {advice.warnings.map((item, idx) => (
-              <AdviceItemRow key={`${item.procedureId}-${idx}`} item={item} tone={isOverdue(item) ? 'red' : 'amber'} />
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-sunboo-ink-muted">期限が近い手続きや期限超過はありません。</p>
         )}
       </div>
 
