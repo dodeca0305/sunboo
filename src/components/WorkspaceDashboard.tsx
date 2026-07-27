@@ -3,7 +3,12 @@ import {
   Sunrise, ListChecks, AlertTriangle, PieChart, Sparkles, Building2, Compass,
   Bell, Clock, PauseCircle, FileStack, Receipt, Info,
 } from 'lucide-react';
-import type { WorkspaceAdvice, WorkspaceAdviceItem, WorkspaceProgressSummary } from '@/lib/workspaceAdvice';
+import type {
+  WorkspaceAdvice,
+  WorkspaceAdviceItem,
+  WorkspaceProgressSummary,
+} from '@/lib/workspaceAdvice';
+import { selectTodayActionItems } from '@/lib/workspaceAdvicePresentation';
 import type { WorkspaceDecisions, DecisionPriority } from '@/lib/workspaceDecisions';
 import type {
   WorkspaceNotification, WorkspaceNotificationCategory, WorkspaceNotificationSeverity,
@@ -155,6 +160,7 @@ export default function WorkspaceDashboard({
     ? upcoming.reduce((soonest, item) => (item.dueDate < soonest.dueDate ? item : soonest))
     : null;
   const remainingCount = Math.max(progress.total - progress.done, 0);
+  const todayActionItems = selectTodayActionItems(advice);
 
   return (
     <div className="space-y-4">
@@ -206,10 +212,14 @@ export default function WorkspaceDashboard({
 
         <div>
           <p className="mb-1.5 text-xs font-semibold text-sunboo-ink-muted">今日やること</p>
-          {advice.priority.length > 0 ? (
+          {todayActionItems.length > 0 ? (
             <ul className="space-y-1.5">
-              {advice.priority.map((item, idx) => (
-                <AdviceItemRow key={`${item.procedureId}-${idx}`} item={item} tone="neutral" />
+              {todayActionItems.map((item, idx) => (
+                <AdviceItemRow
+                  key={`${item.procedureId}-${idx}`}
+                  item={item}
+                  tone={isOverdue(item) ? 'red' : 'neutral'}
+                />
               ))}
             </ul>
           ) : (
