@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test:submission-directory": "node --test src/lib/submissionDirectory/resolve.test.ts src/lib/submissionDirectoryAdapter/index.test.ts src/lib/submissionDirectoryCutover/index.test.ts"
+    "test:submission-directory": "node --test src/lib/submissionDirectory/resolve.test.ts src/lib/submissionDirectoryAdapter/index.test.ts src/lib/submissionDirectoryCutover/index.test.ts",
+    "test": "node --test src/lib/submissionDirectory/resolve.test.ts src/lib/submissionDirectoryAdapter/index.test.ts src/lib/submissionDirectoryCutover/index.test.ts src/lib/workspaceAdvice.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
