@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { RoadmapItem, RoadmapYear } from '@/lib/roadmap';
 import type { ProcedureCategory } from '@/lib/types';
 import {
@@ -148,18 +148,49 @@ function DocumentGroup({ label, items }: { label: string; items: RoadmapDocument
   );
 }
 
+function roadmapCardId(
+  procedureId: number,
+  dueDate: string,
+): string {
+  return `roadmap-procedure-${procedureId}-${dueDate}`;
+}
+
 export default function AnnualRoadmapView({
   roadmapYears,
   statusMap,
   companyId,
+  focusProcedureId,
+  focusDueDate,
 }: {
   roadmapYears: RoadmapYear[];
   statusMap?: WorkspaceProcedureStatusMap;
   companyId?: number;
+  focusProcedureId?: number;
+  focusDueDate?: string;
 }) {
   const [localStatusMap, setLocalStatusMap] = useState<WorkspaceProcedureStatusMap>(statusMap ?? {});
   const [statusError, setStatusError] = useState<string | null>(null);
   const editable = statusMap !== undefined && companyId !== undefined;
+
+  useEffect(() => {
+    if (focusProcedureId === undefined || focusDueDate === undefined) {
+      return;
+    }
+
+    const element = document.getElementById(
+      roadmapCardId(focusProcedureId, focusDueDate),
+    );
+
+    if (!element) {
+      return;
+    }
+
+    element.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    });
+    element.focus({ preventScroll: true });
+  }, [focusProcedureId, focusDueDate]);
 
   async function handleStatusChange(procedureId: number, dueDate: string, status: WorkspaceProcedureStatus) {
     if (!companyId) return;
@@ -209,12 +240,21 @@ export default function AnnualRoadmapView({
                     const docGroups = buildRoadmapDocumentItems(item.procedure);
                     const hasDocGuide = hasAnyRoadmapDocumentItems(docGroups);
                     const isConfidenceLow = item.confidence === 'estimated' || item.confidence === 'incomplete';
+                      const isFocused =
+                        focusProcedureId === item.procedure.id &&
+                        focusDueDate === item.dueDate;
 
                     return (
-                      <li
-                        key={`${item.procedure.id}-${item.dueDate}-${idx}`}
-                        className="card overflow-hidden p-0 break-inside-avoid"
-                      >
+                        <li
+                          id={roadmapCardId(item.procedure.id, item.dueDate)}
+                          key={`${item.procedure.id}-${item.dueDate}-${idx}`}
+                          tabIndex={isFocused ? -1 : undefined}
+                          className={`card scroll-mt-24 overflow-hidden p-0 break-inside-avoid transition-shadow ${
+                            isFocused
+                              ? 'ring-2 ring-sunboo-morning-sun-dark ring-offset-2'
+                              : ''
+                          }`}
+                        >
                         <div className="flex flex-col sm:flex-row">
                           {/* 1. 期限（最も目立つ情報。Desktop:左カラム／Mobile:上部） */}
                           <DeadlineColumn dueDate={item.dueDate} />

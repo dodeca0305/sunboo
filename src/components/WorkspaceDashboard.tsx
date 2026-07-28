@@ -52,12 +52,36 @@ function isOverdue(item: WorkspaceAdviceItem): boolean {
   return item.detail.startsWith('期限超過');
 }
 
-function AdviceItemRow({ item, tone }: { item: WorkspaceAdviceItem; tone: 'neutral' | 'amber' | 'red' }) {
-  const toneClass = tone === 'red' ? 'text-sunboo-danger' : tone === 'amber' ? 'text-sunboo-morning-sun-dark' : 'text-sunboo-ink-muted';
+function AdviceItemRow({
+  item,
+  tone,
+  actionHref,
+}: {
+  item: WorkspaceAdviceItem;
+  tone: 'neutral' | 'amber' | 'red';
+  actionHref?: string;
+}) {
+  const toneClass = tone === 'red'
+    ? 'text-sunboo-danger'
+    : tone === 'amber'
+      ? 'text-sunboo-morning-sun-dark'
+      : 'text-sunboo-ink-muted';
+
   return (
-    <li className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
-      <span className="font-medium text-sunboo-ink">{item.title}</span>
-      <span className={`text-xs ${toneClass}`}>{item.detail}</span>
+    <li className="flex flex-wrap items-center justify-between gap-2 text-sm">
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <span className="font-medium text-sunboo-ink">{item.title}</span>
+        <span className={`text-xs ${toneClass}`}>{item.detail}</span>
+      </div>
+
+      {actionHref && (
+        <Link
+          href={actionHref}
+          className="btn-secondary shrink-0 px-3 py-1.5 text-xs"
+        >
+          対応内容を確認
+        </Link>
+      )}
     </li>
   );
 }
@@ -213,30 +237,27 @@ export default function WorkspaceDashboard({
         <div>
           <p className="mb-1.5 text-xs font-semibold text-sunboo-ink-muted">今日やること</p>
           {todayActionItems.length > 0 ? (
-            <div className="space-y-3">
-              <ul className="space-y-1.5">
-                {todayActionItems.map((item, idx) => (
-                  <AdviceItemRow
-                    key={`${item.procedureId}-${idx}`}
-                    item={item}
-                    tone={isOverdue(item) ? 'red' : 'neutral'}
-                  />
-                ))}
-              </ul>
-
-              <Link
-                href={`/admin/workspaces/${companyId}/roadmap`}
-                className="btn-secondary inline-flex px-3 py-2 text-xs"
-              >
-                対応内容を確認する
-              </Link>
-            </div>
+            <ul className="space-y-2">
+              {todayActionItems.map((item, idx) => (
+                <AdviceItemRow
+                  key={`${item.procedureId}-${idx}`}
+                  item={item}
+                  tone={isOverdue(item) ? 'red' : 'neutral'}
+                  actionHref={
+                    item.procedureId !== undefined && item.dueDate !== null
+                      ? `/admin/workspaces/${companyId}/roadmap?procedureId=${item.procedureId}&dueDate=${encodeURIComponent(item.dueDate)}`
+                      : `/admin/workspaces/${companyId}/roadmap`
+                  }
+                />
+              ))}
+            </ul>
           ) : (
             <p className="text-sm text-sunboo-ink-muted">
               直近で対応が必要な手続きはありません。安心して本業に集中してください。
             </p>
           )}
         </div>
+
 
         {decisions.completed.length > 0 && (
           <div className="border-t border-sunboo-mist pt-3">

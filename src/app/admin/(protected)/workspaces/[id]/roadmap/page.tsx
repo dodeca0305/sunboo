@@ -43,9 +43,38 @@ import AnalyticsPageEvent from '@/components/AnalyticsPageEvent';
 // src/lib/workspaceLoader.ts（loadWorkspaceCompany・loadWorkspaceRoadmapContext）へ切り出し、
 // 両ページから共通利用する。Engine自体は無変更。
 
-export default async function WorkspaceRoadmapPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function WorkspaceRoadmapPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{
+    procedureId?: string;
+    dueDate?: string;
+  }>;
+}) {
   const { id } = await params;
+  const {
+    procedureId: procedureIdParam,
+    dueDate: dueDateParam,
+  } = await searchParams;
+
   const companyId = Number(id);
+  const parsedProcedureId = Number(procedureIdParam);
+
+  const focusProcedureId =
+    procedureIdParam !== undefined &&
+    Number.isInteger(parsedProcedureId) &&
+    parsedProcedureId > 0
+      ? parsedProcedureId
+      : undefined;
+
+  const focusDueDate =
+    dueDateParam !== undefined &&
+    /^\d{4}-\d{2}-\d{2}$/.test(dueDateParam)
+      ? dueDateParam
+      : undefined;
+
   if (!Number.isInteger(companyId)) notFound();
 
   const supabase = await createServerSupabase();
@@ -125,7 +154,13 @@ export default async function WorkspaceRoadmapPage({ params }: { params: Promise
             event="roadmap_generated"
             properties={{ workspace_id: companyId, company_id: companyId }}
           />
-          <AnnualRoadmapView roadmapYears={roadmapYears} statusMap={statusMap} companyId={companyId} />
+          <AnnualRoadmapView
+            roadmapYears={roadmapYears}
+            statusMap={statusMap}
+            companyId={companyId}
+            focusProcedureId={focusProcedureId}
+            focusDueDate={focusDueDate}
+          />
         </>
       )}
     </div>
