@@ -216,6 +216,10 @@ export default function AnnualRoadmapView({
     }
 
     trackEvent('procedure_status_changed', { workspace_id: companyId, company_id: companyId });
+
+    if (status === 'done') {
+      window.location.assign(`/admin/workspaces/${companyId}`);
+    }
   }
 
   return (
