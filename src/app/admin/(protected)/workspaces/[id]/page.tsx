@@ -13,6 +13,7 @@ import { buildWorkspaceNotifications, type WorkspaceNotification } from '@/lib/w
 import { loadWorkspaceCompany, loadWorkspaceDocumentStatuses, loadWorkspaceRoadmapContext } from '@/lib/workspaceLoader';
 import WorkspaceDashboard from '@/components/WorkspaceDashboard';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
+import WorkspaceCompletionFeedback from '@/components/WorkspaceCompletionFeedback';
 import WorkspaceDeleteButton from './WorkspaceDeleteButton';
 
 // ── Company Workspace Shell（Sprint23.1〜23.4・Sprint24.0・Sprint24.2・Sprint25・Sprint26・Sprint27・Sprint35）─
@@ -156,6 +157,8 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
       />
 
       <WorkspaceSubNav companyId={companyId} />
+
+      <WorkspaceCompletionFeedback companyId={companyId} />
 
       {advice && progress && decisions && state && (
         <WorkspaceDashboard

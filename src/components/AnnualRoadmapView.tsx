@@ -13,6 +13,7 @@ import { buildRoadmapDocumentItems, hasAnyRoadmapDocumentItems, type RoadmapDocu
 import { AlertTriangle, Building2, ExternalLink, Info, Square } from 'lucide-react';
 import StatusBadge from '@/components/StatusBadge';
 import { trackEvent } from '@/lib/analytics';
+import { workspaceCompletionFeedbackKey } from '@/components/WorkspaceCompletionFeedback';
 
 // ── 年間ロードマップ — 表示コンポーネント（Sprint 23 Phase23.3・Sprint 24 Phase24.1・Sprint 32・Sprint 84）───
 // src/app/(site)/roadmap/page.tsx と admin/(protected)/workspaces/[id]/roadmap/page.tsx・
@@ -192,7 +193,12 @@ export default function AnnualRoadmapView({
     element.focus({ preventScroll: true });
   }, [focusProcedureId, focusDueDate]);
 
-  async function handleStatusChange(procedureId: number, dueDate: string, status: WorkspaceProcedureStatus) {
+  async function handleStatusChange(
+    procedureId: number,
+    dueDate: string,
+    procedureName: string,
+    status: WorkspaceProcedureStatus,
+  ) {
     if (!companyId) return;
     const key = workspaceProcedureOccurrenceKey(procedureId, dueDate);
     const previous = localStatusMap[key] ?? 'not_started';
@@ -218,6 +224,15 @@ export default function AnnualRoadmapView({
     trackEvent('procedure_status_changed', { workspace_id: companyId, company_id: companyId });
 
     if (status === 'done') {
+      try {
+        window.sessionStorage.setItem(
+          workspaceCompletionFeedbackKey(companyId),
+          procedureName,
+        );
+      } catch {
+        // sessionStorageを利用できない環境でも画面遷移は継続する。
+      }
+
       window.location.assign(`/admin/workspaces/${companyId}`);
     }
   }
@@ -329,7 +344,14 @@ export default function AnnualRoadmapView({
                                     <select
                                       value={status}
                                       aria-label={`${item.procedure.name}のステータス`}
-                                      onChange={(e) => handleStatusChange(item.procedure.id, item.dueDate, e.target.value as WorkspaceProcedureStatus)}
+                                      onChange={(e) =>
+                                          handleStatusChange(
+                                            item.procedure.id,
+                                            item.dueDate,
+                                            item.procedure.name,
+                                            e.target.value as WorkspaceProcedureStatus,
+                                          )
+                                        }
                                       className="form-select min-h-11 w-auto py-1 text-xs sm:min-h-0"
                                     >
                                       {WORKSPACE_PROCEDURE_STATUSES.map((s) => (
