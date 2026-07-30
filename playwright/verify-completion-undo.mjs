@@ -2,6 +2,7 @@ import { chromium } from 'playwright-core';
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { ensureAppServerAvailable } from './ensure-app-server.mjs';
 
 const APP_URL =
   process.env.PREVIEW_APP_URL ?? 'http://localhost:3000';
@@ -118,6 +119,10 @@ async function main() {
 
   if (!Number.isInteger(WORKSPACE_ID)) {
     throw new Error('WORKSPACE_IDが整数ではありません。');
+  }
+
+  if (!(await ensureAppServerAvailable(APP_URL))) {
+    process.exit(1);
   }
 
   await mkdir(path.dirname(SCREENSHOT_PATH), {
