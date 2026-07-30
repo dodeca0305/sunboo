@@ -14,9 +14,10 @@ import { AlertTriangle, Building2, ExternalLink, Info, Square } from 'lucide-rea
 import StatusBadge from '@/components/StatusBadge';
 import { trackEvent } from '@/lib/analytics';
 import {
+  serializeWorkspaceCompletionFeedback,
   workspaceCompletionFeedbackKey,
   type WorkspaceCompletionFeedbackPayload,
-} from '@/components/WorkspaceCompletionFeedback';
+} from '@/lib/workspaceCompletionFeedback';
 
 // ── 年間ロードマップ — 表示コンポーネント（Sprint 23 Phase23.3・Sprint 24 Phase24.1・Sprint 32・Sprint 84）───
 // src/app/(site)/roadmap/page.tsx と admin/(protected)/workspaces/[id]/roadmap/page.tsx・
@@ -237,7 +238,7 @@ export default function AnnualRoadmapView({
 
         window.sessionStorage.setItem(
           workspaceCompletionFeedbackKey(companyId),
-          JSON.stringify(feedback),
+          serializeWorkspaceCompletionFeedback(feedback),
         );
       } catch {
         // sessionStorageを利用できない環境でも画面遷移は継続する。
