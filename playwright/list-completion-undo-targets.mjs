@@ -1,6 +1,7 @@
 import { chromium } from 'playwright-core';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { ensureAppServerAvailable } from './ensure-app-server.mjs';
 
 const APP_URL =
   process.env.PREVIEW_APP_URL ?? 'http://localhost:3000';
@@ -17,6 +18,10 @@ async function main() {
     console.error(
       `storageStateが見つかりません: ${STORAGE_STATE_PATH}`,
     );
+    process.exit(1);
+  }
+
+  if (!(await ensureAppServerAvailable(APP_URL))) {
     process.exit(1);
   }
 
