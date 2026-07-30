@@ -3,44 +3,12 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, RotateCcw } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
-import {
-  WORKSPACE_PROCEDURE_STATUSES,
-  type WorkspaceProcedureStatus,
-} from '@/lib/workspaceProcedureStatus';
 import { trackEvent } from '@/lib/analytics';
-
-export type WorkspaceCompletionFeedbackPayload = {
-  procedureId: number;
-  dueDate: string;
-  procedureName: string;
-  previousStatus: WorkspaceProcedureStatus;
-};
-
-export function workspaceCompletionFeedbackKey(companyId: number): string {
-  return `sunboo:workspace:${companyId}:completion-feedback`;
-}
-
-function isCompletionFeedbackPayload(
-  value: unknown,
-): value is WorkspaceCompletionFeedbackPayload {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-
-  const candidate = value as Partial<WorkspaceCompletionFeedbackPayload>;
-
-  return (
-    Number.isInteger(candidate.procedureId) &&
-    typeof candidate.dueDate === 'string' &&
-    /^\d{4}-\d{2}-\d{2}$/.test(candidate.dueDate) &&
-    typeof candidate.procedureName === 'string' &&
-    candidate.procedureName.trim().length > 0 &&
-    typeof candidate.previousStatus === 'string' &&
-    WORKSPACE_PROCEDURE_STATUSES.includes(
-      candidate.previousStatus as WorkspaceProcedureStatus,
-    )
-  );
-}
+import {
+  parseWorkspaceCompletionFeedback,
+  workspaceCompletionFeedbackKey,
+  type WorkspaceCompletionFeedbackPayload,
+} from '@/lib/workspaceCompletionFeedback';
 
 export default function WorkspaceCompletionFeedback({
   companyId,
@@ -62,17 +30,14 @@ export default function WorkspaceCompletionFeedback({
         // 一度表示したら、再読み込みでは繰り返さない。
         window.sessionStorage.removeItem(key);
 
-        if (!storedFeedback) {
-          return;
-        }
+        const parsedFeedback =
+          parseWorkspaceCompletionFeedback(storedFeedback);
 
-        const parsed: unknown = JSON.parse(storedFeedback);
-
-        if (isCompletionFeedbackPayload(parsed)) {
-          setFeedback(parsed);
+        if (parsedFeedback) {
+          setFeedback(parsedFeedback);
         }
       } catch {
-        // 不正な保存値やsessionStorageを利用できない環境では通知を省略する。
+        // sessionStorageを利用できない環境では通知を省略する。
       }
     }, 0);
 
