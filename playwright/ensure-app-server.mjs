@@ -62,7 +62,23 @@ export async function ensureAppServerAvailable(appUrl) {
     }
 
     return true;
-  } catch {
+  } catch (error) {
+    if (
+      error?.name === 'TimeoutError' ||
+      error?.name === 'AbortError'
+    ) {
+      console.error(
+        `開発サーバーへの接続がタイムアウトしました: ${healthCheckUrl}`,
+      );
+      console.error(
+        `PREVIEW_APP_TIMEOUT_MS=${timeoutMs}ミリ秒以内に応答がありませんでした。`,
+      );
+      console.error(
+        '必要に応じて PREVIEW_APP_TIMEOUT_MS を大きくしてください。',
+      );
+      return false;
+    }
+
     console.error(`開発サーバーへ接続できません: ${appUrl}`);
     console.error(
       '別ターミナルで npm run dev を実行してから再試行してください。',
