@@ -251,6 +251,60 @@ DELETE FROM admin_users WHERE email = 'former-admin@example.com';
 
 ---
 
+## E2Eテスト（管理画面）
+
+管理画面の完了・Undo操作と、E2E実行前のサーバー接続確認をPlaywrightで検証できます。
+
+### 前提条件
+
+1. `npm install` を実行済みであること
+2. 別ターミナルで `npm run dev` を実行していること
+3. 管理者としてログインできること
+4. 認証済みのstorageStateを保存していること
+
+### 管理者の認証状態を保存する
+
+`node playwright/save-admin-storage-state.mjs` を実行するとブラウザが開きます。
+
+ブラウザ上で管理者としてログインし、`/admin` 配下へ移動した後、元のターミナルでEnterキーを押してください。
+
+認証状態は `playwright/.auth/admin.json` に保存されます。このファイルにはCookieやトークンが含まれるため、Gitへコミットしないでください。
+
+### E2E関連コマンド
+
+| コマンド | 内容 |
+|---|---|
+| `npm run test:e2e-server-preflight` | サーバー接続確認ヘルパーの自動テスト |
+| `npm run test:e2e:list-completion-targets` | 操作対象のWorkspaceと手続き一覧を表示 |
+| `npm run test:e2e:completion-undo` | 完了通知とUndo操作をヘッドレスで検証 |
+| `npm run test:e2e:completion-undo:headed` | ブラウザを表示して完了・Undoを検証 |
+
+完了・Undo検証ではステータスを一時的に変更しますが、終了時のcleanupで元へ戻します。
+
+### E2E用環境変数
+
+| 環境変数 | 既定値 | 内容 |
+|---|---|---|
+| `PREVIEW_APP_URL` | `http://localhost:3000` | 検証対象アプリのURL |
+| `PREVIEW_APP_TIMEOUT_MS` | `5000` | 接続確認の待ち時間（ミリ秒） |
+
+これらはE2E用のNode.jsスクリプトが直接読み取ります。`.env.local`からは自動で読み込まれないため、コマンド実行時に指定するか、事前にシェルへexportしてください。
+
+実行例:
+
+`PREVIEW_APP_URL=https://preview.example.com PREVIEW_APP_TIMEOUT_MS=15000 npm run test:e2e:completion-undo`
+
+### トラブルシューティング
+
+| 表示 | 対処 |
+|---|---|
+| `storageStateが見つかりません` | 認証状態を保存するスクリプトを実行 |
+| `認証状態が期限切れです` | 再ログインしてstorageStateを作り直す |
+| `開発サーバーへ接続できません` | 別ターミナルで`npm run dev`を実行 |
+| `接続がタイムアウトしました` | `PREVIEW_APP_TIMEOUT_MS`を大きくして再実行 |
+
+---
+
 ## Vercel デプロイ手順
 
 ### 前提条件

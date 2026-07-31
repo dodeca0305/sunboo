@@ -11,9 +11,8 @@
 // 実行方法（開発者本人のローカル環境で、npm run dev を別ターミナルで起動した状態で実行）:
 //   node playwright/save-admin-storage-state.mjs
 //
-// 前提: playwright-core が実行環境にインストールされていること
-// （本プロジェクトの node_modules には現状インストールされていない。要install、詳細は
-// このスクリプトを追加した際の報告を参照）。
+// 前提: npm install 済みであること。
+// playwright-core は本プロジェクトの devDependencies に含まれる。
 
 import { chromium } from 'playwright-core';
 import { mkdir } from 'node:fs/promises';
