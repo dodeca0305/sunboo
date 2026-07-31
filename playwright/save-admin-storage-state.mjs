@@ -9,7 +9,7 @@
 // .gitignore 対象であり、コミットしない・ログにも出力しない。
 //
 // 実行方法（開発者本人のローカル環境で、npm run dev を別ターミナルで起動した状態で実行）:
-//   node playwright/save-admin-storage-state.mjs
+//   npm run test:e2e:save-admin-storage-state
 //
 // 前提: npm install 済みであること。
 // playwright-core は本プロジェクトの devDependencies に含まれる。
