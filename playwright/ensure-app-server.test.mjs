@@ -204,3 +204,57 @@ test('不正な環境変数ならfalseを返して設定方法を案内する', 
     }
   }
 });
+
+test('応答が遅い場合はタイムアウトとして案内する', async () => {
+  const server = createServer((_request, response) => {
+    setTimeout(() => {
+      if (!response.destroyed) {
+        response.writeHead(204);
+        response.end();
+      }
+    }, 100);
+  });
+
+  const appUrl = await listen(server);
+  const originalValue =
+    process.env.PREVIEW_APP_TIMEOUT_MS;
+
+  process.env.PREVIEW_APP_TIMEOUT_MS = '20';
+
+  try {
+    const { result, messages } =
+      await captureConsoleError(() =>
+        ensureAppServerAvailable(appUrl),
+      );
+
+    assert.equal(result, false);
+    assert.ok(
+      messages.some(
+        (message) =>
+          message.includes(
+            '開発サーバーへの接続がタイムアウトしました:',
+          ) &&
+          message.includes('/admin/login'),
+      ),
+    );
+    assert.ok(
+      messages.includes(
+        'PREVIEW_APP_TIMEOUT_MS=20ミリ秒以内に応答がありませんでした。',
+      ),
+    );
+    assert.ok(
+      messages.includes(
+        '必要に応じて PREVIEW_APP_TIMEOUT_MS を大きくしてください。',
+      ),
+    );
+  } finally {
+    if (originalValue === undefined) {
+      delete process.env.PREVIEW_APP_TIMEOUT_MS;
+    } else {
+      process.env.PREVIEW_APP_TIMEOUT_MS =
+        originalValue;
+    }
+
+    await close(server);
+  }
+});
