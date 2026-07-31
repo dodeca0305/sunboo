@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import test from 'node:test';
 
-import { ensureAppServerAvailable } from './ensure-app-server.mjs';
+import {
+  DEFAULT_APP_SERVER_TIMEOUT_MS,
+  ensureAppServerAvailable,
+  resolveAppServerTimeoutMs,
+} from './ensure-app-server.mjs';
 
 function listen(server) {
   return new Promise((resolve, reject) => {
@@ -142,4 +146,61 @@ test('接続できなければfalseを返して開発サーバー起動を案内
       '別ターミナルで npm run dev を実行してから再試行してください。',
     ),
   );
+});
+
+test('タイムアウト未指定なら既定値を返す', () => {
+  assert.equal(
+    resolveAppServerTimeoutMs(undefined),
+    DEFAULT_APP_SERVER_TIMEOUT_MS,
+  );
+});
+
+test('正の整数文字列をタイムアウト値として返す', () => {
+  assert.equal(resolveAppServerTimeoutMs('15000'), 15000);
+  assert.equal(resolveAppServerTimeoutMs('1'), 1);
+});
+
+test('不正なタイムアウト値ならnullを返す', () => {
+  for (const value of ['', '0', '-1', '1.5', 'abc']) {
+    assert.equal(
+      resolveAppServerTimeoutMs(value),
+      null,
+      `value=${JSON.stringify(value)}`,
+    );
+  }
+});
+
+test('不正な環境変数ならfalseを返して設定方法を案内する', async () => {
+  const originalValue =
+    process.env.PREVIEW_APP_TIMEOUT_MS;
+
+  process.env.PREVIEW_APP_TIMEOUT_MS = '0';
+
+  try {
+    const { result, messages } =
+      await captureConsoleError(() =>
+        ensureAppServerAvailable(
+          'http://127.0.0.1:3000',
+        ),
+      );
+
+    assert.equal(result, false);
+    assert.ok(
+      messages.includes(
+        'PREVIEW_APP_TIMEOUT_MSが不正です: 0',
+      ),
+    );
+    assert.ok(
+      messages.includes(
+        '1以上の整数（ミリ秒）を指定してください。',
+      ),
+    );
+  } finally {
+    if (originalValue === undefined) {
+      delete process.env.PREVIEW_APP_TIMEOUT_MS;
+    } else {
+      process.env.PREVIEW_APP_TIMEOUT_MS =
+        originalValue;
+    }
+  }
 });
