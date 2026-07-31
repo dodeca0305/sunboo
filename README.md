@@ -264,7 +264,7 @@ DELETE FROM admin_users WHERE email = 'former-admin@example.com';
 
 ### 管理者の認証状態を保存する
 
-`node playwright/save-admin-storage-state.mjs` を実行するとブラウザが開きます。
+`npm run test:e2e:save-admin-storage-state` を実行するとブラウザが開きます。
 
 ブラウザ上で管理者としてログインし、`/admin` 配下へ移動した後、元のターミナルでEnterキーを押してください。
 
