@@ -17,6 +17,7 @@ import {
   CONSUMPTION_TAX_LABEL, TAXATION_METHOD_LABEL, INVOICE_LABEL, INTERIM_FILING_LABEL,
   CONSUMPTION_INTERIM_FREQ_LABEL, WITHHOLDING_CYCLE_LABEL,
 } from '@/components/TaxReturnEntryFields';
+import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import { buildClosingUpdateSummary } from '@/lib/adviserScore';
 import {
   ChevronLeft, FileClock, Plus, AlertTriangle, CheckCircle2,
@@ -385,13 +386,11 @@ export default function TaxReturnsPage() {
 
             <div>
               <label className="form-label">資本金（申告時点・任意）</label>
-              <input
-                type="number"
-                min={0}
-                className="form-input"
-                placeholder="例: 3000000"
-                value={draft.capitalAtFiling ?? ''}
-                onChange={(e) => set('capitalAtFiling', e.target.value === '' ? null : Number(e.target.value))}
+              <FormattedIntegerInput
+                value={draft.capitalAtFiling}
+                onChange={(value) => set('capitalAtFiling', value)}
+                placeholder="例: 3,000,000"
+                ariaLabel="資本金（申告時点）"
               />
             </div>
           </div>

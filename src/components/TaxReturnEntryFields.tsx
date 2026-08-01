@@ -8,6 +8,7 @@ import type {
   InvoiceRegistrationStatus, TaxationMethod, WithholdingTaxCycle,
 } from '@/lib/companyProfile';
 import SegmentedControl from '@/components/SegmentedControl';
+import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 
 // ── TaxReturnEntry 入力・表示の共通部品（Sprint 35）─────────────────────
 // (site)側（src/app/(site)/profile/tax-returns/page.tsx、localStorage運用）とWorkspace側
@@ -100,19 +101,17 @@ export function AmountField({
         }
       />
       {precision === 'exact' ? (
-        <input
-          type="number"
-          min={0}
-          className="form-input"
-          placeholder="円"
-          value={value?.exactValue ?? ''}
-          onChange={(e) =>
+        <FormattedIntegerInput
+          value={value?.exactValue ?? null}
+          onChange={(exactValue) =>
             onChange({
               precision: 'exact',
-              exactValue: e.target.value === '' ? null : Number(e.target.value),
+              exactValue,
               rangeBucketId: null,
             })
           }
+          placeholder="円"
+          ariaLabel={`${label}の正確な金額`}
         />
       ) : (
         <SegmentedControl
