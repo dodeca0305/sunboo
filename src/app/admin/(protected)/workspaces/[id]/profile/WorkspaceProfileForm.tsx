@@ -11,6 +11,7 @@ import type {
 } from '@/lib/companyProfile';
 import { companyProfileToWorkspaceUpdatePayload } from '@/lib/workspaceCompanyProfile';
 import InformationCard from '@/components/InformationCard';
+import ManualDateInput from '@/components/ManualDateInput';
 import { trackEvent } from '@/lib/analytics';
 
 // ── Company Workspace — 会社プロフィール編集フォーム（Sprint 23 Phase23.2・Sprint47）───────
@@ -76,6 +77,9 @@ export default function WorkspaceProfileForm({
   initialProfile: CompanyProfile;
 }) {
   const [profile, setProfile] = useState<CompanyProfile>(initialProfile);
+  const [employeeCountText, setEmployeeCountText] = useState(
+    String(initialProfile.employeeCount),
+  );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -183,11 +187,10 @@ export default function WorkspaceProfileForm({
       {profile.corporateType === 'kabushiki' && (
         <div>
           <label className="form-label">次回の役員変更予定日（任意）</label>
-          <input
-            type="date"
-            value={profile.nextOfficerChangeDate ?? ''}
-            onChange={(e) => set('nextOfficerChangeDate', e.target.value || null)}
-            className="form-input"
+          <ManualDateInput
+            value={profile.nextOfficerChangeDate}
+            onChange={(value) => set('nextOfficerChangeDate', value)}
+            label="次回の役員変更予定日"
           />
           <FieldHint>
             この情報は役員変更登記の期限判定に利用します（登記期限そのものではなく、この日から
@@ -200,11 +203,10 @@ export default function WorkspaceProfileForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="form-label">設立日</label>
-          <input
-            type="date"
-            value={profile.establishedDate ?? ''}
-            onChange={(e) => set('establishedDate', e.target.value || null)}
-            className="form-input"
+          <ManualDateInput
+            value={profile.establishedDate}
+            onChange={(value) => set('establishedDate', value)}
+            label="設立日"
           />
           <FieldHint>この情報は会社ステージ（1期目/2期目以降）の判定に利用します。</FieldHint>
         </div>
@@ -228,10 +230,31 @@ export default function WorkspaceProfileForm({
       <div>
         <label className="form-label">従業員数</label>
         <input
-          type="number"
-          min={0}
-          value={profile.employeeCount}
-          onChange={(e) => set('employeeCount', Math.max(0, Number(e.target.value) || 0))}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder="例: 5"
+          value={employeeCountText}
+          onChange={(event) => {
+            const normalized = event.target.value
+              .replace(/[０-９]/g, (character) =>
+                String.fromCharCode(character.charCodeAt(0) - 0xfee0),
+              )
+              .replace(/\D/g, '');
+
+            setEmployeeCountText(normalized);
+            setSaved(false);
+
+            if (normalized !== '') {
+              set('employeeCount', Number(normalized));
+            }
+          }}
+          onBlur={() => {
+            if (employeeCountText === '') {
+              setEmployeeCountText('0');
+              set('employeeCount', 0);
+            }
+          }}
           className="form-input"
         />
         <FieldHint>この情報は源泉所得税・社会保険関連手続きの判定に利用します。</FieldHint>
