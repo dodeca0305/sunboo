@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { CalendarDays } from 'lucide-react';
 
 type ManualDateInputProps = {
@@ -102,10 +102,6 @@ export default function ManualDateInput({
   const [error, setError] = useState<string | null>(
     null,
   );
-
-  useEffect(() => {
-    setText(isoToDisplay(value));
-  }, [value]);
 
   function setValidationError(message: string | null) {
     textInputRef.current?.setCustomValidity(message ?? '');
