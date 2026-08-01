@@ -80,6 +80,11 @@ export default function WorkspaceProfileForm({
   const [employeeCountText, setEmployeeCountText] = useState(
     String(initialProfile.employeeCount),
   );
+  const [capitalText, setCapitalText] = useState(
+    initialProfile.capital === null
+      ? ''
+      : initialProfile.capital.toLocaleString('ja-JP'),
+  );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -213,12 +218,30 @@ export default function WorkspaceProfileForm({
         <div>
           <label className="form-label">資本金（円）</label>
           <input
-            type="number"
-            min={0}
-            step={10000}
-            placeholder="例: 5000000"
-            value={profile.capital ?? ''}
-            onChange={(e) => set('capital', e.target.value === '' ? null : Number(e.target.value))}
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="例: 5,000,000"
+            value={capitalText}
+            onChange={(event) => {
+              const digits = event.target.value
+                .replace(/[０-９]/g, (character) =>
+                  String.fromCharCode(character.charCodeAt(0) - 0xfee0),
+                )
+                .replace(/\D/g, '')
+                .replace(/^0+(?=\d)/, '');
+
+              if (digits === '') {
+                setCapitalText('');
+                set('capital', null);
+                return;
+              }
+
+              const capital = Number(digits);
+
+              setCapitalText(capital.toLocaleString('ja-JP'));
+              set('capital', capital);
+            }}
             className="form-input"
           />
           <FieldHint>
