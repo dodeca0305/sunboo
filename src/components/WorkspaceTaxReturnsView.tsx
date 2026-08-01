@@ -17,6 +17,7 @@ import {
   CONSUMPTION_INTERIM_FREQ_LABEL,
 } from '@/components/TaxReturnEntryFields';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
+import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 
 // ── Company Workspace — 決算実績（Sprint 35 Tax Return Profile）─────────────
 // workspace_tax_return_profiles（Sprint35 migration）のCRUD。(site)側の
@@ -221,13 +222,11 @@ export default function WorkspaceTaxReturnsView({
 
             <div>
               <label className="form-label">資本金（申告時点・任意）</label>
-              <input
-                type="number"
-                min={0}
-                className="form-input"
-                placeholder="例: 3000000"
-                value={draft.capitalAtFiling ?? ''}
-                onChange={(e) => set('capitalAtFiling', e.target.value === '' ? null : Number(e.target.value))}
+              <FormattedIntegerInput
+                value={draft.capitalAtFiling}
+                onChange={(value) => set('capitalAtFiling', value)}
+                placeholder="例: 3,000,000"
+                ariaLabel="資本金（申告時点）"
               />
             </div>
           </div>
