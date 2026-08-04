@@ -157,3 +157,28 @@ export function validateManualDateInput(
     error: null,
   };
 }
+
+export type DateInputValueSyncResult =
+  | {
+      shouldSync: false;
+    }
+  | {
+      shouldSync: true;
+      displayValue: string;
+    };
+
+export function resolveDateInputValueSync(
+  value: string | null,
+  lastEmittedValue: string | null,
+): DateInputValueSyncResult {
+  if (value === lastEmittedValue) {
+    return {
+      shouldSync: false,
+    };
+  }
+
+  return {
+    shouldSync: true,
+    displayValue: isoToDisplay(value),
+  };
+}
