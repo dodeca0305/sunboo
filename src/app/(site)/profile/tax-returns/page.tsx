@@ -18,6 +18,7 @@ import {
   CONSUMPTION_INTERIM_FREQ_LABEL, WITHHOLDING_CYCLE_LABEL,
 } from '@/components/TaxReturnEntryFields';
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
+import ManualDateInput from '@/components/ManualDateInput';
 import { buildClosingUpdateSummary } from '@/lib/adviserScore';
 import {
   ChevronLeft, FileClock, Plus, AlertTriangle, CheckCircle2,
@@ -356,31 +357,32 @@ export default function TaxReturnsPage() {
 
             <div>
               <label className="form-label">決算日（必須）</label>
-              <input
-                type="date"
-                className="form-input"
-                value={draft.fiscalYearEndDate}
-                onChange={(e) => set('fiscalYearEndDate', e.target.value)}
+              <ManualDateInput
+                value={draft.fiscalYearEndDate || null}
+                onChange={(value) =>
+                  set('fiscalYearEndDate', value ?? '')
+                }
+                label="決算日"
               />
             </div>
 
             <div>
               <label className="form-label">事業年度開始日（任意）</label>
-              <input
-                type="date"
-                className="form-input"
-                value={draft.fiscalYearStartDate ?? ''}
-                onChange={(e) => set('fiscalYearStartDate', e.target.value || null)}
+              <ManualDateInput
+                value={draft.fiscalYearStartDate}
+                onChange={(value) =>
+                  set('fiscalYearStartDate', value)
+                }
+                label="事業年度開始日"
               />
             </div>
 
             <div>
               <label className="form-label">申告日（任意）</label>
-              <input
-                type="date"
-                className="form-input"
-                value={draft.filedDate ?? ''}
-                onChange={(e) => set('filedDate', e.target.value || null)}
+              <ManualDateInput
+                value={draft.filedDate}
+                onChange={(value) => set('filedDate', value)}
+                label="申告日"
               />
             </div>
 
