@@ -337,12 +337,11 @@ export default function WorkspaceTaxReturnsView({
 
             <div>
               <label className="form-label">期末時点の従業員数（任意）</label>
-              <input
-                type="number"
-                min={0}
-                className="form-input"
-                value={draft.employeeCountAtFiscalYearEnd ?? ''}
-                onChange={(e) => set('employeeCountAtFiscalYearEnd', e.target.value === '' ? null : Number(e.target.value))}
+              <FormattedIntegerInput
+                value={draft.employeeCountAtFiscalYearEnd}
+                onChange={(value) => set('employeeCountAtFiscalYearEnd', value)}
+                placeholder="例: 5"
+                ariaLabel="期末時点の従業員数"
               />
             </div>
           </div>
