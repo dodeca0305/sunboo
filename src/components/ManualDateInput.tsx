@@ -2,7 +2,12 @@
 
 import { useRef, useState } from 'react';
 import { CalendarDays } from 'lucide-react';
-import { toHalfWidthDigits } from '@/lib/inputNormalization';
+import {
+  extractDateDigits,
+  getMaxDateError,
+  isoToDisplay,
+  validateManualDateInput,
+} from '@/lib/dateInputValidation';
 
 type ManualDateInputProps = {
   value: string | null;
@@ -11,79 +16,6 @@ type ManualDateInputProps = {
   max?: string;
   required?: boolean;
 };
-
-function extractDateDigits(value: string): string {
-  return toHalfWidthDigits(value)
-    .replace(/\D/g, '')
-    .slice(0, 8);
-}
-
-function formatDateDigits(digits: string): string {
-  if (digits.length <= 4) {
-    return digits;
-  }
-
-  if (digits.length <= 6) {
-    return `${digits.slice(0, 4)}/${digits.slice(4)}`;
-  }
-
-  return (
-    `${digits.slice(0, 4)}/` +
-    `${digits.slice(4, 6)}/` +
-    digits.slice(6, 8)
-  );
-}
-
-function isoToDisplay(value: string | null): string {
-  if (!value) {
-    return '';
-  }
-
-  return value.replaceAll('-', '/');
-}
-
-function digitsToIso(digits: string): string {
-  return (
-    `${digits.slice(0, 4)}-` +
-    `${digits.slice(4, 6)}-` +
-    digits.slice(6, 8)
-  );
-}
-
-function isValidDateDigits(digits: string): boolean {
-  if (!/^\d{8}$/.test(digits)) {
-    return false;
-  }
-
-  const year = Number(digits.slice(0, 4));
-  const month = Number(digits.slice(4, 6));
-  const day = Number(digits.slice(6, 8));
-
-  if (month < 1 || month > 12 || day < 1) {
-    return false;
-  }
-
-  const leapYear =
-    year % 400 === 0 ||
-    (year % 4 === 0 && year % 100 !== 0);
-
-  const daysInMonth = [
-    31,
-    leapYear ? 29 : 28,
-    31,
-    30,
-    31,
-    30,
-    31,
-    31,
-    30,
-    31,
-    30,
-    31,
-  ];
-
-  return day <= daysInMonth[month - 1];
-}
 
 export default function ManualDateInput({
   value,
@@ -108,43 +40,14 @@ export default function ManualDateInput({
   }
 
   function handleTextChange(rawValue: string) {
-    const digits = extractDateDigits(rawValue);
-    const formattedValue = formatDateDigits(digits);
+    const result = validateManualDateInput(
+      rawValue,
+      max,
+    );
 
-    setText(formattedValue);
-
-    if (digits.length === 0) {
-      setValidationError(null);
-      onChange(null);
-      return;
-    }
-
-    if (digits.length < 8) {
-      setValidationError(null);
-      onChange(null);
-      return;
-    }
-
-    if (!isValidDateDigits(digits)) {
-      setValidationError(
-        '実在する年月日を入力してください。',
-      );
-      onChange(null);
-      return;
-    }
-
-    const nextValue = digitsToIso(digits);
-
-    if (max && nextValue > max) {
-      setValidationError(
-        `${isoToDisplay(max)}以前の日付を入力してください。`,
-      );
-      onChange(null);
-      return;
-    }
-
-    setValidationError(null);
-    onChange(nextValue);
+    setText(result.displayValue);
+    setValidationError(result.error);
+    onChange(result.isoValue);
   }
 
   function handleBlur() {
@@ -175,10 +78,10 @@ export default function ManualDateInput({
       return;
     }
 
-    if (max && nextValue > max) {
-      setValidationError(
-        `${isoToDisplay(max)}以前の日付を入力してください。`,
-      );
+    const maxError = getMaxDateError(nextValue, max);
+
+    if (maxError) {
+      setValidationError(maxError);
       onChange(null);
       return;
     }
