@@ -1,11 +1,12 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CalendarDays } from 'lucide-react';
 import {
   extractDateDigits,
   getMaxDateError,
   isoToDisplay,
+  resolveDateInputValueSync,
   validateManualDateInput,
 } from '@/lib/dateInputValidation';
 
@@ -26,6 +27,9 @@ export default function ManualDateInput({
 }: ManualDateInputProps) {
   const textInputRef = useRef<HTMLInputElement>(null);
   const pickerRef = useRef<HTMLInputElement>(null);
+  const lastEmittedValueRef = useRef<string | null>(
+    value,
+  );
 
   const [text, setText] = useState(() =>
     isoToDisplay(value),
@@ -33,6 +37,27 @@ export default function ManualDateInput({
   const [error, setError] = useState<string | null>(
     null,
   );
+
+  useEffect(() => {
+    const syncResult = resolveDateInputValueSync(
+      value,
+      lastEmittedValueRef.current,
+    );
+
+    if (!syncResult.shouldSync) {
+      return;
+    }
+
+    setText(syncResult.displayValue);
+    textInputRef.current?.setCustomValidity('');
+    setError(null);
+    lastEmittedValueRef.current = value;
+  }, [value]);
+
+  function emitChange(nextValue: string | null) {
+    lastEmittedValueRef.current = nextValue;
+    onChange(nextValue);
+  }
 
   function setValidationError(message: string | null) {
     textInputRef.current?.setCustomValidity(message ?? '');
@@ -47,7 +72,7 @@ export default function ManualDateInput({
 
     setText(result.displayValue);
     setValidationError(result.error);
-    onChange(result.isoValue);
+    emitChange(result.isoValue);
   }
 
   function handleBlur() {
@@ -74,7 +99,7 @@ export default function ManualDateInput({
       setValidationError(
         required ? '年月日を入力してください。' : null,
       );
-      onChange(null);
+      emitChange(null);
       return;
     }
 
@@ -82,12 +107,12 @@ export default function ManualDateInput({
 
     if (maxError) {
       setValidationError(maxError);
-      onChange(null);
+      emitChange(null);
       return;
     }
 
     setValidationError(null);
-    onChange(nextValue);
+    emitChange(nextValue);
   }
 
   function openPicker() {

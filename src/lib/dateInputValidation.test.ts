@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  resolveDateInputValueSync,
   validateManualDateInput,
 } from './dateInputValidation.ts';
 
@@ -66,4 +67,39 @@ test('最大日付より後の日付は無効と判定する', () => {
     result.error,
     '2026/08/01以前の日付を入力してください。',
   );
+});
+
+test('親が同じ値を返した場合は入力表示を上書きしない', () => {
+  const result = resolveDateInputValueSync(
+    null,
+    null,
+  );
+
+  assert.deepEqual(result, {
+    shouldSync: false,
+  });
+});
+
+test('外部から別の日付が渡された場合は表示を同期する', () => {
+  const result = resolveDateInputValueSync(
+    '2026-08-04',
+    '2026-08-01',
+  );
+
+  assert.deepEqual(result, {
+    shouldSync: true,
+    displayValue: '2026/08/04',
+  });
+});
+
+test('外部から日付がクリアされた場合は表示を空にする', () => {
+  const result = resolveDateInputValueSync(
+    null,
+    '2026-08-04',
+  );
+
+  assert.deepEqual(result, {
+    shouldSync: true,
+    displayValue: '',
+  });
 });
