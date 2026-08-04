@@ -1,6 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from 'react';
 import { CalendarDays } from 'lucide-react';
 import {
   extractDateDigits,
@@ -25,6 +30,7 @@ export default function ManualDateInput({
   max,
   required = false,
 }: ManualDateInputProps) {
+  const errorId = useId();
   const textInputRef = useRef<HTMLInputElement>(null);
   const pickerRef = useRef<HTMLInputElement>(null);
   const lastEmittedValueRef = useRef<string | null>(
@@ -147,6 +153,7 @@ export default function ManualDateInput({
           onBlur={handleBlur}
           aria-label={label}
           aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
           aria-required={required}
           required={required}
           className="form-input"
@@ -176,7 +183,10 @@ export default function ManualDateInput({
       </div>
 
       {error && (
-        <p className="mt-1.5 text-xs text-red-600">
+        <p
+          id={errorId}
+          className="mt-1.5 text-xs text-red-600"
+        >
           {error}
         </p>
       )}
