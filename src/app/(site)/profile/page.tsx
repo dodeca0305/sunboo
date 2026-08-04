@@ -18,6 +18,8 @@ import {
   ShieldCheck, Send, Briefcase, ArrowRight, AlertTriangle, CheckCircle2, Sparkles,
 } from 'lucide-react';
 import SegmentedControl from '@/components/SegmentedControl';
+import ManualDateInput from '@/components/ManualDateInput';
+import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 
 const CORPORATE_TYPE_LABEL: Record<CorporateType, string> = {
   kabushiki: '株式会社',
@@ -394,11 +396,12 @@ export default function ProfilePage() {
           {draft.corporateType === 'kabushiki' && (
             <div className="space-y-2">
               <label className="form-label">次回の役員変更予定日（任意）</label>
-              <input
-                type="date"
-                className="form-input"
-                value={draft.nextOfficerChangeDate ?? ''}
-                onChange={(e) => set('nextOfficerChangeDate', e.target.value || null)}
+              <ManualDateInput
+                value={draft.nextOfficerChangeDate}
+                onChange={(value) =>
+                  set('nextOfficerChangeDate', value)
+                }
+                label="次回の役員変更予定日"
               />
               <p className="text-xs leading-relaxed text-sunboo-ink-muted">
                 この日から2週間以内の登記申請期限を計算します。登記期限そのものではなく、
@@ -410,35 +413,34 @@ export default function ProfilePage() {
 
           <div>
             <label className="form-label">従業員数</label>
-            <input
-              type="number"
-              min={0}
-              className="form-input"
+            <FormattedIntegerInput
               value={draft.employeeCount}
-              onChange={(e) => set('employeeCount', Math.max(0, Number(e.target.value) || 0))}
+              onChange={(value) =>
+                set('employeeCount', value ?? 0)
+              }
+              placeholder="例: 5"
+              ariaLabel="従業員数"
             />
           </div>
 
           <div>
             <label className="form-label">資本金（円・任意）</label>
-            <input
-              type="number"
-              min={0}
-              step={10000}
-              placeholder="例: 5000000"
-              className="form-input"
-              value={draft.capital ?? ''}
-              onChange={(e) => set('capital', e.target.value === '' ? null : Number(e.target.value))}
+            <FormattedIntegerInput
+              value={draft.capital}
+              onChange={(value) => set('capital', value)}
+              placeholder="例: 5,000,000"
+              ariaLabel="資本金"
             />
           </div>
 
           <div>
             <label className="form-label">設立日（任意）</label>
-            <input
-              type="date"
-              className="form-input"
-              value={draft.establishedDate}
-              onChange={(e) => set('establishedDate', e.target.value)}
+            <ManualDateInput
+              value={draft.establishedDate || null}
+              onChange={(value) =>
+                set('establishedDate', value ?? '')
+              }
+              label="設立日"
             />
           </div>
 
