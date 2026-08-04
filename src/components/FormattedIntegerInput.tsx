@@ -1,5 +1,7 @@
 'use client';
 
+import { toHalfWidthDigits } from '@/lib/inputNormalization';
+
 type FormattedIntegerInputProps = {
   value: number | null;
   onChange: (value: number | null) => void;
@@ -9,10 +11,7 @@ type FormattedIntegerInputProps = {
 };
 
 function normalizeDigits(value: string): string {
-  return value
-    .replace(/[０-９]/g, (character) =>
-      String.fromCharCode(character.charCodeAt(0) - 0xfee0),
-    )
+  return toHalfWidthDigits(value)
     .replace(/\D/g, '')
     .replace(/^0+(?=\d)/, '');
 }
