@@ -1,6 +1,6 @@
 'use client';
 
-import { toHalfWidthDigits } from '@/lib/inputNormalization';
+import { parseIntegerInput } from '@/lib/integerInputValidation';
 
 type FormattedIntegerInputProps = {
   value: number | null;
@@ -9,12 +9,6 @@ type FormattedIntegerInputProps = {
   ariaLabel?: string;
   onBlur?: () => void;
 };
-
-function normalizeDigits(value: string): string {
-  return toHalfWidthDigits(value)
-    .replace(/\D/g, '')
-    .replace(/^0+(?=\d)/, '');
-}
 
 export default function FormattedIntegerInput({
   value,
@@ -32,18 +26,15 @@ export default function FormattedIntegerInput({
       aria-label={ariaLabel}
       value={value === null ? '' : value.toLocaleString('ja-JP')}
       onChange={(event) => {
-        const digits = normalizeDigits(event.target.value);
+        const result = parseIntegerInput(
+          event.target.value,
+        );
 
-        if (digits === '') {
-          onChange(null);
+        if (result.status === 'unsafe') {
           return;
         }
 
-        const nextValue = Number(digits);
-
-        if (Number.isSafeInteger(nextValue)) {
-          onChange(nextValue);
-        }
+        onChange(result.value);
       }}
       onBlur={onBlur}
       className="form-input"
