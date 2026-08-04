@@ -7,6 +7,8 @@ type ManualDateInputProps = {
   value: string | null;
   onChange: (value: string | null) => void;
   label: string;
+  max?: string;
+  required?: boolean;
 };
 
 function toHalfWidthDigits(value: string): string {
@@ -92,6 +94,8 @@ export default function ManualDateInput({
   value,
   onChange,
   label,
+  max,
+  required = false,
 }: ManualDateInputProps) {
   const textInputRef = useRef<HTMLInputElement>(null);
   const pickerRef = useRef<HTMLInputElement>(null);
@@ -122,6 +126,7 @@ export default function ManualDateInput({
 
     if (digits.length < 8) {
       setValidationError(null);
+      onChange(null);
       return;
     }
 
@@ -129,15 +134,33 @@ export default function ManualDateInput({
       setValidationError(
         '実在する年月日を入力してください。',
       );
+      onChange(null);
+      return;
+    }
+
+    const nextValue = digitsToIso(digits);
+
+    if (max && nextValue > max) {
+      setValidationError(
+        `${isoToDisplay(max)}以前の日付を入力してください。`,
+      );
+      onChange(null);
       return;
     }
 
     setValidationError(null);
-    onChange(digitsToIso(digits));
+    onChange(nextValue);
   }
 
   function handleBlur() {
     const digits = extractDateDigits(text);
+
+    if (digits.length === 0 && required) {
+      setValidationError(
+        '年月日を入力してください。',
+      );
+      return;
+    }
 
     if (digits.length > 0 && digits.length < 8) {
       setValidationError(
@@ -147,9 +170,26 @@ export default function ManualDateInput({
   }
 
   function handlePickerChange(nextValue: string) {
-    setValidationError(null);
     setText(isoToDisplay(nextValue || null));
-    onChange(nextValue || null);
+
+    if (!nextValue) {
+      setValidationError(
+        required ? '年月日を入力してください。' : null,
+      );
+      onChange(null);
+      return;
+    }
+
+    if (max && nextValue > max) {
+      setValidationError(
+        `${isoToDisplay(max)}以前の日付を入力してください。`,
+      );
+      onChange(null);
+      return;
+    }
+
+    setValidationError(null);
+    onChange(nextValue);
   }
 
   function openPicker() {
@@ -184,6 +224,8 @@ export default function ManualDateInput({
           onBlur={handleBlur}
           aria-label={label}
           aria-invalid={Boolean(error)}
+          aria-required={required}
+          required={required}
           className="form-input"
         />
 
@@ -200,6 +242,7 @@ export default function ManualDateInput({
           ref={pickerRef}
           type="date"
           value={value ?? ''}
+          max={max}
           onChange={(event) =>
             handlePickerChange(event.target.value)
           }
