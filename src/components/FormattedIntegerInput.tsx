@@ -6,7 +6,7 @@ type FormattedIntegerInputProps = {
   value: number | null;
   onChange: (value: number | null) => void;
   placeholder?: string;
-  ariaLabel?: string;
+  ariaLabel: string;
   onBlur?: () => void;
 };
 
