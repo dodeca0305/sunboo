@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { CalendarDays } from 'lucide-react';
+import { toHalfWidthDigits } from '@/lib/inputNormalization';
 
 type ManualDateInputProps = {
   value: string | null;
@@ -10,12 +11,6 @@ type ManualDateInputProps = {
   max?: string;
   required?: boolean;
 };
-
-function toHalfWidthDigits(value: string): string {
-  return value.replace(/[０-９]/g, (character) =>
-    String.fromCharCode(character.charCodeAt(0) - 0xfee0),
-  );
-}
 
 function extractDateDigits(value: string): string {
   return toHalfWidthDigits(value)

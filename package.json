@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test:submission-directory": "node --test src/lib/submissionDirectory/resolve.test.ts src/lib/submissionDirectoryAdapter/index.test.ts src/lib/submissionDirectoryCutover/index.test.ts",
-    "test": "node --test src/lib/submissionDirectory/resolve.test.ts src/lib/submissionDirectoryAdapter/index.test.ts src/lib/submissionDirectoryCutover/index.test.ts src/lib/workspaceAdvice.test.ts src/lib/workspaceCompletionFeedback.test.ts playwright/ensure-app-server.test.mjs",
+    "test": "node --test src/lib/submissionDirectory/resolve.test.ts src/lib/submissionDirectoryAdapter/index.test.ts src/lib/submissionDirectoryCutover/index.test.ts src/lib/inputNormalization.test.ts src/lib/workspaceAdvice.test.ts src/lib/workspaceCompletionFeedback.test.ts playwright/ensure-app-server.test.mjs",
     "test:e2e-server-preflight": "node --test playwright/ensure-app-server.test.mjs",
     "test:e2e:save-admin-storage-state": "node playwright/save-admin-storage-state.mjs",
     "test:e2e:list-completion-targets": "node playwright/list-completion-undo-targets.mjs",
