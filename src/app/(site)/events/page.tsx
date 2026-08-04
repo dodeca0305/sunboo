@@ -17,6 +17,7 @@ import {
   ArrowRight, AlertTriangle, CheckCircle2, DatabaseZap, RotateCcw, Pencil, Info,
 } from 'lucide-react';
 import SegmentedControl from '@/components/SegmentedControl';
+import ManualDateInput from '@/components/ManualDateInput';
 
 const CORPORATE_TYPE_LABEL: Record<CorporateType, string> = {
   kabushiki: '株式会社',
@@ -154,7 +155,7 @@ export default function EventsPage() {
   }
 
   async function handleRegister() {
-    if (!profile || !selectedCode || !supabase) return;
+    if (!profile || !selectedCode || !eventDate || !supabase) return;
     setSubmitting(true);
     setSubmitError(null);
     const browserId = getBrowserId();
@@ -427,12 +428,12 @@ export default function EventsPage() {
         {selectedCode && (
           <div>
             <label className="form-label">発生日</label>
-            <input
-              type="date"
-              className="form-input"
-              value={eventDate}
+            <ManualDateInput
+              value={eventDate || null}
+              onChange={(value) => setEventDate(value ?? '')}
+              label="発生日"
               max={todayIso()}
-              onChange={(e) => setEventDate(e.target.value)}
+              required
             />
           </div>
         )}
@@ -445,7 +446,7 @@ export default function EventsPage() {
 
         <button
           type="button"
-          disabled={!selectedCode || submitting}
+          disabled={!selectedCode || !eventDate || submitting}
           onClick={handleRegister}
           className="btn-primary btn-primary-lg w-full text-base disabled:cursor-not-allowed disabled:opacity-40"
         >
