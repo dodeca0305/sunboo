@@ -12,6 +12,7 @@ import type {
 import { companyProfileToWorkspaceUpdatePayload } from '@/lib/workspaceCompanyProfile';
 import InformationCard from '@/components/InformationCard';
 import ManualDateInput from '@/components/ManualDateInput';
+import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import { trackEvent } from '@/lib/analytics';
 
 // ── Company Workspace — 会社プロフィール編集フォーム（Sprint 23 Phase23.2・Sprint47）───────
@@ -79,11 +80,6 @@ export default function WorkspaceProfileForm({
   const [profile, setProfile] = useState<CompanyProfile>(initialProfile);
   const [employeeCountText, setEmployeeCountText] = useState(
     String(initialProfile.employeeCount),
-  );
-  const [capitalText, setCapitalText] = useState(
-    initialProfile.capital === null
-      ? ''
-      : initialProfile.capital.toLocaleString('ja-JP'),
   );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -217,32 +213,11 @@ export default function WorkspaceProfileForm({
         </div>
         <div>
           <label className="form-label">資本金（円）</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
+          <FormattedIntegerInput
+            value={profile.capital}
+            onChange={(value) => set('capital', value)}
             placeholder="例: 5,000,000"
-            value={capitalText}
-            onChange={(event) => {
-              const digits = event.target.value
-                .replace(/[０-９]/g, (character) =>
-                  String.fromCharCode(character.charCodeAt(0) - 0xfee0),
-                )
-                .replace(/\D/g, '')
-                .replace(/^0+(?=\d)/, '');
-
-              if (digits === '') {
-                setCapitalText('');
-                set('capital', null);
-                return;
-              }
-
-              const capital = Number(digits);
-
-              setCapitalText(capital.toLocaleString('ja-JP'));
-              set('capital', capital);
-            }}
-            className="form-input"
+            ariaLabel="資本金"
           />
           <FieldHint>
             この情報は消費税の課税事業者判定に利用します（1,000万円以上は設立初年度から課税事業者）。
@@ -252,25 +227,21 @@ export default function WorkspaceProfileForm({
 
       <div>
         <label className="form-label">従業員数</label>
-        <input
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          placeholder="例: 5"
-          value={employeeCountText}
-          onChange={(event) => {
-            const normalized = event.target.value
-              .replace(/[０-９]/g, (character) =>
-                String.fromCharCode(character.charCodeAt(0) - 0xfee0),
-              )
-              .replace(/\D/g, '');
-
-            setEmployeeCountText(normalized);
-            setSaved(false);
-
-            if (normalized !== '') {
-              set('employeeCount', Number(normalized));
+        <FormattedIntegerInput
+          value={
+            employeeCountText === ''
+              ? null
+              : Number(employeeCountText)
+          }
+          onChange={(value) => {
+            if (value === null) {
+              setEmployeeCountText('');
+              setSaved(false);
+              return;
             }
+
+            setEmployeeCountText(String(value));
+            set('employeeCount', value);
           }}
           onBlur={() => {
             if (employeeCountText === '') {
@@ -278,7 +249,8 @@ export default function WorkspaceProfileForm({
               set('employeeCount', 0);
             }
           }}
-          className="form-input"
+          placeholder="例: 5"
+          ariaLabel="従業員数"
         />
         <FieldHint>この情報は源泉所得税・社会保険関連手続きの判定に利用します。</FieldHint>
       </div>
