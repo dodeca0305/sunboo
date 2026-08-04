@@ -5,6 +5,7 @@ type FormattedIntegerInputProps = {
   onChange: (value: number | null) => void;
   placeholder?: string;
   ariaLabel?: string;
+  onBlur?: () => void;
 };
 
 function normalizeDigits(value: string): string {
@@ -21,6 +22,7 @@ export default function FormattedIntegerInput({
   onChange,
   placeholder = '円',
   ariaLabel,
+  onBlur,
 }: FormattedIntegerInputProps) {
   return (
     <input
@@ -44,6 +46,7 @@ export default function FormattedIntegerInput({
           onChange(nextValue);
         }
       }}
+      onBlur={onBlur}
       className="form-input"
     />
   );
