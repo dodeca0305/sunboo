@@ -26,12 +26,26 @@ jobs:
           node-version-file: '.nvmrc'
           cache: npm
 
+      - name: Install pinned npm
+        run: |
+          NPM_VERSION="$(node -p "require('./package.json').engines.npm")"
+          npm install --global --no-audit --no-fund "npm@$NPM_VERSION"
+
+      - name: Verify tool versions
+        run: |
+          node --version
+          npm --version
+          test "$(node --version)" = "v$(cat .nvmrc)"
+          test "$(npm --version)" = "$(node -p "require('./package.json').engines.npm")"
+
       - name: Install dependencies
         run: npm ci
+
       - name: Run lint
         run: npm run lint
 
       - name: Run tests
         run: npm test
+
       - name: Build application
         run: npm run build
