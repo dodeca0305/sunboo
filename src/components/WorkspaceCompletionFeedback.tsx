@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { CheckCircle2, RotateCcw } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import { trackEvent } from '@/lib/analytics';
@@ -15,6 +16,7 @@ export default function WorkspaceCompletionFeedback({
 }: {
   companyId: number;
 }) {
+  const router = useRouter();
   const [feedback, setFeedback] =
     useState<WorkspaceCompletionFeedbackPayload | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
@@ -87,7 +89,9 @@ export default function WorkspaceCompletionFeedback({
       company_id: companyId,
     });
 
-    window.location.assign(`/admin/workspaces/${companyId}`);
+    setFeedback(null);
+    setIsRestoring(false);
+    router.refresh();
   }
 
   if (!feedback) {

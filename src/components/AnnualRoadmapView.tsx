@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { RoadmapItem, RoadmapYear } from '@/lib/roadmap';
 import type { ProcedureCategory } from '@/lib/types';
 import {
@@ -173,6 +174,7 @@ export default function AnnualRoadmapView({
   focusProcedureId?: number;
   focusDueDate?: string;
 }) {
+  const router = useRouter();
   const [localStatusMap, setLocalStatusMap] = useState<WorkspaceProcedureStatusMap>(statusMap ?? {});
   const [statusError, setStatusError] = useState<string | null>(null);
   const editable = statusMap !== undefined && companyId !== undefined;
@@ -244,7 +246,7 @@ export default function AnnualRoadmapView({
         // sessionStorageを利用できない環境でも画面遷移は継続する。
       }
 
-      window.location.assign(`/admin/workspaces/${companyId}`);
+      router.push(`/admin/workspaces/${companyId}`);
     }
   }
 
