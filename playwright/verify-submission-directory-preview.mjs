@@ -11,12 +11,13 @@
 // 【重要】このスクリプトは Cookie・トークン・認証ヘッダーの値そのものをログへ出力しない。
 // storageState はファイルパスの読み込み元として使うのみで、内容を console.log しない。
 //
-// 前提: playwright-core が実行環境にインストールされていること
-// （本プロジェクトの node_modules には現状インストールされていない。要install）。
+// 前提: playwright-core が実行環境にインストールされていること。
+// 本プロジェクトの devDependencies に含まれる。
 
 import { chromium } from 'playwright-core';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { ensureAppServerAvailable } from './ensure-app-server.mjs';
 
 const APP_URL = process.env.PREVIEW_APP_URL ?? 'http://localhost:3000';
 const PREVIEW_PATH = '/admin/submission-directory-preview';
@@ -31,6 +32,10 @@ const EXPECTED_CASES = [
 ];
 
 async function main() {
+  if (!(await ensureAppServerAvailable(APP_URL))) {
+    process.exit(1);
+  }
+
   if (!existsSync(STORAGE_STATE_PATH)) {
     console.error(`storageStateが見つかりません: ${STORAGE_STATE_PATH}`);
     console.error('先に node playwright/save-admin-storage-state.mjs を実行してください。');
