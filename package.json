@@ -14,7 +14,8 @@
     "test:e2e:save-admin-storage-state": "node playwright/save-admin-storage-state.mjs",
     "test:e2e:list-completion-targets": "node playwright/list-completion-undo-targets.mjs",
     "test:e2e:completion-undo": "node playwright/verify-completion-undo.mjs",
-    "test:e2e:completion-undo:headed": "HEADED=1 node playwright/verify-completion-undo.mjs"
+    "test:e2e:completion-undo:headed": "HEADED=1 node playwright/verify-completion-undo.mjs",
+    "test:e2e:submission-directory-preview": "node playwright/verify-submission-directory-preview.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
