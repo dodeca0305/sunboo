@@ -15,7 +15,9 @@
     "test:e2e:list-completion-targets": "node playwright/list-completion-undo-targets.mjs",
     "test:e2e:completion-undo": "node playwright/verify-completion-undo.mjs",
     "test:e2e:completion-undo:headed": "HEADED=1 node playwright/verify-completion-undo.mjs",
-    "test:e2e:submission-directory-preview": "node playwright/verify-submission-directory-preview.mjs"
+    "test:e2e:submission-directory-preview": "node playwright/verify-submission-directory-preview.mjs",
+    "test:e2e:profile-roadmap": "node playwright/verify-profile-roadmap.mjs",
+    "test:e2e:profile-roadmap:headed": "HEADED=1 node playwright/verify-profile-roadmap.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
