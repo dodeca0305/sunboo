@@ -52,6 +52,7 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
   const view = viewData as {
     company?: WorkspaceCompanyRow;
     profile?: WorkspaceCompanyProfileRow | null;
+    shared_sections?: string[];
     statuses?: { procedure_id: number; occurrence_key: string; status: WorkspaceProcedureStatus }[];
   } | null;
 
@@ -61,9 +62,16 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
 
   const company = view.company;
   const profile = view.profile ?? null;
+
+  // 共有範囲が取得できない場合は安全側に倒し、何も追加共有しない。
+  const sharedSections = view.shared_sections ?? [];
+  const roadmapShared = sharedSections.includes('roadmap');
+
   const statusMap: WorkspaceProcedureStatusMap = {};
-  for (const row of view.statuses ?? []) {
-    statusMap[workspaceProcedureOccurrenceKey(row.procedure_id, row.occurrence_key)] = row.status;
+  if (roadmapShared) {
+    for (const row of view.statuses ?? []) {
+      statusMap[workspaceProcedureOccurrenceKey(row.procedure_id, row.occurrence_key)] = row.status;
+    }
   }
 
   const [{ data: prefData }, { data: muniData }] = await Promise.all([
@@ -76,26 +84,25 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
   const companyProfile = workspaceRowsToCompanyProfile(company, profile, prefectureName, municipalityName);
 
   let roadmapYears: Awaited<ReturnType<typeof buildAnnualRoadmap>> = [];
-  try {
-    const timelineEvents = buildWorkspaceTimelineEvents(companyProfile);
-    const state = buildStateFromTimeline(timelineEvents);
-    roadmapYears = await buildAnnualRoadmap(supabase, companyProfile, state, 3);
-  } catch {
-    // ロードマップの計算に失敗しても会社概要は表示を続ける
-  }
 
-  // 【Phase5-2b】Workspace（workspaceLoader.ts）と同じCutoverをShareにも適用する。
-  // buildAnnualRoadmapの戻り値（RoadmapYear[]）はWorkspaceと同一の型のため、既存の
-  // applyCutoverToRoadmapYearsをそのまま再利用する（新しいResolver・新しい判定ロジックは追加しない）。
-  // 対象外の(municipalityCode, procedureId)・resolved以外は無変更のまま返る非破壊的な設計のため、
-  // roadmapYearsが空配列（buildAnnualRoadmap失敗時）でも安全に呼べる。
-  try {
-    roadmapYears = await applyCutoverToRoadmapYears(supabase, roadmapYears, {
-      municipalityCode: company.municipality_code,
-      prefectureCode: company.prefecture_code,
-    });
-  } catch {
-    // Cutoverの失敗時は旧Resolverの結果（buildAnnualRoadmapの戻り値）をそのまま表示する
+  if (roadmapShared) {
+    try {
+      const timelineEvents = buildWorkspaceTimelineEvents(companyProfile);
+      const state = buildStateFromTimeline(timelineEvents);
+      roadmapYears = await buildAnnualRoadmap(supabase, companyProfile, state, 3);
+    } catch {
+      // ロードマップの計算に失敗しても会社概要は表示を続ける
+    }
+
+    // 【Phase5-2b】Workspace（workspaceLoader.ts）と同じCutoverをShareにも適用する。
+    try {
+      roadmapYears = await applyCutoverToRoadmapYears(supabase, roadmapYears, {
+        municipalityCode: company.municipality_code,
+        prefectureCode: company.prefecture_code,
+      });
+    } catch {
+      // Cutoverの失敗時は旧Resolverの結果をそのまま表示する
+    }
   }
   const totalItemCount = roadmapYears.reduce((sum, y) => sum + y.items.length, 0);
 
@@ -127,24 +134,28 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
         </div>
       </div>
 
-      <div className="mb-4 flex items-center gap-2">
-        <CalendarRange className="h-5 w-5 text-sunboo-ink-muted" />
-        <h2 className="text-sm font-bold text-sunboo-ink">年間ロードマップ</h2>
-      </div>
+      {roadmapShared && (
+        <>
+          <div className="mb-4 flex items-center gap-2">
+            <CalendarRange className="h-5 w-5 text-sunboo-ink-muted" />
+            <h2 className="text-sm font-bold text-sunboo-ink">年間ロードマップ</h2>
+          </div>
 
-      {/* Confidence（情報不足・推定タグ）の説明は控えめなDisclaimerとして小さく表示する */}
-      <InformationCard kind="disclaimer" className="mb-6">
-        今年度から今後2年分の手続き予定を一覧表示する参考情報です。実際の手続き・期限・提出先は
-        必ず顧問の専門家・各公式機関の最新情報をご確認ください。「情報不足」「推定」のタグが
-        付いた手続きは、会社情報の登録状況によって内容が変わる可能性があるという意味です。
-      </InformationCard>
+          {/* Confidence（情報不足・推定タグ）の説明は控えめなDisclaimerとして小さく表示する */}
+          <InformationCard kind="disclaimer" className="mb-6">
+            今年度から今後2年分の手続き予定を一覧表示する参考情報です。実際の手続き・期限・提出先は
+            必ず顧問の専門家・各公式機関の最新情報をご確認ください。「情報不足」「推定」のタグが
+            付いた手続きは、会社情報の登録状況によって内容が変わる可能性があるという意味です。
+          </InformationCard>
 
-      {totalItemCount === 0 ? (
-        <InformationCard kind="info">
-          今年の手続き予定はまだ登録されていません。
-        </InformationCard>
-      ) : (
-        <AnnualRoadmapView roadmapYears={roadmapYears} statusMap={statusMap} />
+          {totalItemCount === 0 ? (
+            <InformationCard kind="info">
+              今年の手続き予定はまだ登録されていません。
+            </InformationCard>
+          ) : (
+            <AnnualRoadmapView roadmapYears={roadmapYears} statusMap={statusMap} />
+          )}
+        </>
       )}
 
       <InformationCard kind="disclaimer" className="mt-10">
