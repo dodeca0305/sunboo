@@ -67,6 +67,7 @@
 | `migration_workspace_procedure_statuses.sql` | Workspace | Workspace Procedure Status（Sprint24） |
 | `migration_workspace_procedure_statuses_occurrence.sql` | Workspace | Procedure Status 出現回単位化（Sprint32） |
 | `migration_workspace_tax_returns.sql` | Workspace | Workspace Tax Return Profile（Sprint35） |
+| `migration_shared_workspace_view_hardening.sql` | Workspace | 共有Workspace RPCの公開列・共有範囲・実行権限ハードニング（PR #51） |
 | `admin_schema.sql` | Admin | 管理画面用スキーマ（`admin_users`等） |
 | `seed.sql` | 基盤シード | 初期データ（MVP: 東京都渋谷区）※Geographyにも一部該当 |
 | `reset_and_seed.sql` | 基盤シード | リセット＆初期データ投入（一括実行用）※Geographyにも一部該当 |
