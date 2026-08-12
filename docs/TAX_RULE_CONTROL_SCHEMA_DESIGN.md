@@ -69,7 +69,7 @@ TaxRule:
 TaxControl:
 - SUNBOOが何を入力として読むか
 - どの決定論的Evaluatorを実行するか
-- どの条件で PASS / FAIL / UNKNOWN を返すか
+- どの条件で PASS / REVIEW / UNKNOWN を返すか
 - 既定の重要度をどう扱うか
 
 法的意味とプログラム実装を同一レコードへ混ぜない。
@@ -113,7 +113,7 @@ TaxControlは入力不足・根拠不足を安全扱いしない。
 評価契約は将来の `ControlResult` で:
 
 - PASS
-- FAIL
+- REVIEW
 - UNKNOWN
 
 を返す。
