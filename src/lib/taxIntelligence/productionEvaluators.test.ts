@@ -238,29 +238,87 @@ test('TI_TAX_001は最新決算期を使う', () => {
   assert.equal(result.observedInputs.entryId, 'new');
 });
 
-test('Production evaluator registryから実行でき、SourceVersion snapshotを持つ', () => {
+test('Production evaluator registryはruntime SourceVersion snapshotを結果へ固定する', () => {
+  const runtimeSourceVersionSnapshot = [
+    {
+      provider: 'e_gov',
+      canonicalLocator:
+        'egov:law:340AC0000000034:articles-74-75-3',
+      versionLabel: 'runtime-egov-v2',
+      contentHash:
+        '1111111111111111111111111111111111111111111111111111111111111111',
+    },
+    {
+      provider: 'nta',
+      canonicalLocator:
+        'https://www.nta.go.jp/taxes/tetsuzuki/shinsei/annai/hojin/shinkoku/01.htm',
+      versionLabel: 'runtime-nta-v2',
+      contentHash:
+        '2222222222222222222222222222222222222222222222222222222222222222',
+    },
+  ];
+
   const result = evaluateProductionTaxControl(
     PRODUCTION_CONTROL_EVALUATOR_KEYS.TI_TAX_001,
     {
       companyProfile: company(),
-    corporateTaxFilingContext: {
-      liquidationResidualAssetsCase: 'not_applicable',
-    },
+      corporateTaxFilingContext: {
+        liquidationResidualAssetsCase: 'not_applicable',
+      },
       taxReturnProfile: profile([entry('1')]),
+    },
+    {
+      sourceVersionSnapshot:
+        runtimeSourceVersionSnapshot,
     },
   );
 
-  assert.equal(result.evaluatorVersion, 'ti-0.8-production-v1');
-  assert.deepEqual(result.sourceVersionSnapshot, [
-    E_GOV_CORPORATE_TAX_FILING_SOURCE_VERSION_SNAPSHOT,
-    NTA_C1_1_SOURCE_VERSION_SNAPSHOT,
-  ]);
   assert.equal(
-    result.sourceVersionSnapshot[0].contentHash,
-    'ad289727a57263365d1e64d3931f7f0960e2501384c6da22fead723334474183',
+    result.evaluatorVersion,
+    'ti-0.8-production-v1',
   );
-  assert.equal(
-    result.sourceVersionSnapshot[1].contentHash,
-    'bb1824ef6cb588a16f2cf2047c021f79ea5dce8136d94f52397a18d744053cc5',
+
+  assert.deepEqual(
+    result.sourceVersionSnapshot,
+    runtimeSourceVersionSnapshot,
+  );
+
+  assert.notDeepEqual(
+    result.sourceVersionSnapshot,
+    [
+      E_GOV_CORPORATE_TAX_FILING_SOURCE_VERSION_SNAPSHOT,
+      NTA_C1_1_SOURCE_VERSION_SNAPSHOT,
+    ],
+  );
+
+  assert.notStrictEqual(
+    result.sourceVersionSnapshot,
+    runtimeSourceVersionSnapshot,
+  );
+
+  assert.notStrictEqual(
+    result.sourceVersionSnapshot[0],
+    runtimeSourceVersionSnapshot[0],
+  );
+});
+
+test('Production evaluator registryはSourceVersion snapshotなしの実行を拒否する', () => {
+  assert.throws(
+    () =>
+      evaluateProductionTaxControl(
+        PRODUCTION_CONTROL_EVALUATOR_KEYS.TI_TAX_001,
+        {
+          companyProfile: company(),
+          corporateTaxFilingContext: {
+            liquidationResidualAssetsCase:
+              'not_applicable',
+          },
+          taxReturnProfile: profile([entry('1')]),
+        },
+        {
+          sourceVersionSnapshot: [],
+        },
+      ),
+    /SourceVersion snapshotが必要/,
   );
 });

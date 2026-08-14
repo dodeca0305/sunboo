@@ -49,6 +49,10 @@ export type ProductionTaxControlInput = TaxControlInput & {
   corporateTaxFilingContext?: CorporateTaxFilingContext;
 };
 
+export type ProductionTaxControlExecutionContext = {
+  sourceVersionSnapshot: TaxSourceVersionSnapshot[];
+};
+
 export type ProductionTaxControlEvaluator = (
   input: ProductionTaxControlInput,
 ) => ProductionTaxControlEvaluation;
