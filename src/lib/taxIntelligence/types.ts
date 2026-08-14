@@ -3,23 +3,52 @@ import type { TaxReturnProfile } from '../taxReturnProfile';
 
 export type TaxControlResultStatus = 'pass' | 'review' | 'unknown';
 
-export type SmokeControlObservedInputs = Record<string, unknown>;
+export type TaxControlObservedInputs = Record<string, unknown>;
 
-export type SmokeControlEvaluation = {
+export type TaxSourceVersionSnapshot = {
+  provider: string;
+  canonicalLocator: string;
+  versionLabel: string | null;
+  contentHash: string;
+};
+
+export type TaxControlEvaluation = {
   applicable: boolean;
   status: TaxControlResultStatus | null;
   reasonCode: string;
   reasonSummary: string;
-  observedInputs: SmokeControlObservedInputs;
-  sourceVersionSnapshot: [];
+  observedInputs: TaxControlObservedInputs;
+  sourceVersionSnapshot: TaxSourceVersionSnapshot[];
   evaluatorVersion: string;
 };
 
-export type SmokeControlInput = {
+export type TaxControlInput = {
   companyProfile: CompanyProfile;
   taxReturnProfile: TaxReturnProfile;
 };
 
-export type SmokeControlEvaluator = (
-  input: SmokeControlInput,
-) => SmokeControlEvaluation;
+export type TaxControlEvaluator = (
+  input: TaxControlInput,
+) => TaxControlEvaluation;
+
+export type SmokeControlObservedInputs = TaxControlObservedInputs;
+export type SmokeControlEvaluation = TaxControlEvaluation;
+export type SmokeControlInput = TaxControlInput;
+export type SmokeControlEvaluator = TaxControlEvaluator;
+
+export type ProductionTaxControlEvaluation = TaxControlEvaluation;
+
+export type CorporateTaxFilingContext = {
+  liquidationResidualAssetsCase:
+    | 'not_applicable'
+    | 'applicable'
+    | 'unknown';
+};
+
+export type ProductionTaxControlInput = TaxControlInput & {
+  corporateTaxFilingContext?: CorporateTaxFilingContext;
+};
+
+export type ProductionTaxControlEvaluator = (
+  input: ProductionTaxControlInput,
+) => ProductionTaxControlEvaluation;
