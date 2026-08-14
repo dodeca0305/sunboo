@@ -152,6 +152,13 @@ SELECT
   source_rows.citation_note
 FROM rule_row
 CROSS JOIN source_rows
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM tax_rule_source_versions existing
+  WHERE existing.tax_rule_id = rule_row.id
+    AND existing.tax_source_version_id =
+      source_rows.tax_source_version_id
+)
 ON CONFLICT (
   tax_rule_id,
   tax_source_version_id
@@ -233,6 +240,12 @@ SELECT
   'primary'
 FROM control_row
 CROSS JOIN rule_row
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM tax_control_rules existing
+  WHERE existing.tax_control_id = control_row.id
+    AND existing.tax_rule_id = rule_row.id
+)
 ON CONFLICT (
   tax_control_id,
   tax_rule_id
