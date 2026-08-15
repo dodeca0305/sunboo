@@ -2,6 +2,7 @@ import type { TaxReturnEntry } from '../taxReturnProfile';
 import type {
   ProductionTaxControlEvaluation,
   ProductionTaxControlEvaluator,
+  ProductionTaxControlExecutionContext,
   ProductionTaxControlInput,
   TaxSourceVersionSnapshot,
 } from './types';
@@ -349,6 +350,22 @@ export const PRODUCTION_CONTROL_EVALUATORS: Readonly<
 export function evaluateProductionTaxControl(
   evaluatorKey: ProductionControlEvaluatorKey,
   input: ProductionTaxControlInput,
+  executionContext: ProductionTaxControlExecutionContext,
 ): ProductionTaxControlEvaluation {
-  return PRODUCTION_CONTROL_EVALUATORS[evaluatorKey](input);
+  if (executionContext.sourceVersionSnapshot.length === 0) {
+    throw new Error(
+      'Production Tax Control実行にはSourceVersion snapshotが必要です。',
+    );
+  }
+
+  const evaluation =
+    PRODUCTION_CONTROL_EVALUATORS[evaluatorKey](input);
+
+  return {
+    ...evaluation,
+    sourceVersionSnapshot:
+      executionContext.sourceVersionSnapshot.map(
+        (sourceVersion) => ({ ...sourceVersion }),
+      ),
+  };
 }
