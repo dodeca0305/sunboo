@@ -70,3 +70,194 @@ test('既存NTA seedと同じcontent_hashを生成する', () => {
     'bb1824ef6cb588a16f2cf2047c021f79ea5dce8136d94f52397a18d744053cc5',
   );
 });
+
+import {
+  ingestTaxSourceVersion,
+  type TaxSourceVersionIngestionInput,
+} from './sourceVersionIngestion.ts';
+
+type RpcFixtureResult = {
+  data: unknown;
+  error: { message: string } | null;
+};
+
+function createRpcFixture(
+  result: RpcFixtureResult,
+  calls: Array<{
+    functionName: string;
+    parameters: Record<string, unknown>;
+  }>,
+): Parameters<typeof ingestTaxSourceVersion>[0] {
+  return {
+    async rpc(
+      functionName: string,
+      parameters: Record<string, unknown>,
+    ) {
+      calls.push({ functionName, parameters });
+      return result;
+    },
+  } as unknown as Parameters<
+    typeof ingestTaxSourceVersion
+  >[0];
+}
+
+function validIngestionInput():
+  TaxSourceVersionIngestionInput {
+  return {
+    provider: 'nta',
+    canonicalLocator: 'https://example.test/source',
+    versionLabel: 'v2',
+    rawText: 'first  \r\nsecond\n\n',
+    publishedAt: '2026-08-15',
+    effectiveFrom: '2026-04-01',
+    effectiveTo: null,
+    observedAt: '2026-08-15T01:00:00.000Z',
+    retrievedAt: '2026-08-15T02:00:00.000Z',
+    rawReference: 'https://example.test/raw',
+  };
+}
+
+test('正規化済み本文とhashをRPCへ渡す', async () => {
+  const calls: Array<{
+    functionName: string;
+    parameters: Record<string, unknown>;
+  }> = [];
+
+  const expected =
+    prepareTaxSourceContent('first  \r\nsecond\n\n');
+
+  const result = await ingestTaxSourceVersion(
+    createRpcFixture(
+      {
+        data: [
+          {
+            tax_source_version_id: 12,
+            tax_source_id: 3,
+            content_hash: expected.contentHash,
+            supersedes_version_id: 11,
+            was_inserted: true,
+          },
+        ],
+        error: null,
+      },
+      calls,
+    ),
+    validIngestionInput(),
+  );
+
+  assert.equal(calls.length, 1);
+  assert.equal(
+    calls[0].functionName,
+    'ingest_tax_source_version',
+  );
+  assert.equal(
+    calls[0].parameters.p_normalized_text,
+    'first\nsecond',
+  );
+  assert.equal(
+    calls[0].parameters.p_content_hash,
+    expected.contentHash,
+  );
+  assert.equal(
+    calls[0].parameters.p_observed_at,
+    '2026-08-15T01:00:00.000Z',
+  );
+
+  assert.deepEqual(result, {
+    taxSourceVersionId: 12,
+    taxSourceId: 3,
+    contentHash: expected.contentHash,
+    supersedesVersionId: 11,
+    wasInserted: true,
+  });
+});
+
+test('既存versionが返された場合はwasInserted=falseを保持する', async () => {
+  const expected =
+    prepareTaxSourceContent('first  \r\nsecond\n\n');
+
+  const result = await ingestTaxSourceVersion(
+    createRpcFixture(
+      {
+        data: [
+          {
+            tax_source_version_id: 11,
+            tax_source_id: 3,
+            content_hash: expected.contentHash,
+            supersedes_version_id: 10,
+            was_inserted: false,
+          },
+        ],
+        error: null,
+      },
+      [],
+    ),
+    validIngestionInput(),
+  );
+
+  assert.equal(result.wasInserted, false);
+  assert.equal(result.taxSourceVersionId, 11);
+});
+
+test('RPCエラーを取り込みエラーとして通知する', async () => {
+  await assert.rejects(
+    () =>
+      ingestTaxSourceVersion(
+        createRpcFixture(
+          {
+            data: null,
+            error: {
+              message: 'permission denied',
+            },
+          },
+          [],
+        ),
+        validIngestionInput(),
+      ),
+    /取り込みに失敗しました: permission denied/,
+  );
+});
+
+test('RPC結果が空なら拒否する', async () => {
+  await assert.rejects(
+    () =>
+      ingestTaxSourceVersion(
+        createRpcFixture(
+          {
+            data: [],
+            error: null,
+          },
+          [],
+        ),
+        validIngestionInput(),
+      ),
+    /取り込み結果が不正です: 0件/,
+  );
+});
+
+test('不正な日時はRPC呼び出し前に拒否する', async () => {
+  const calls: Array<{
+    functionName: string;
+    parameters: Record<string, unknown>;
+  }> = [];
+
+  await assert.rejects(
+    () =>
+      ingestTaxSourceVersion(
+        createRpcFixture(
+          {
+            data: [],
+            error: null,
+          },
+          calls,
+        ),
+        {
+          ...validIngestionInput(),
+          observedAt: 'not-a-date',
+        },
+      ),
+    /observedAtが有効な日時ではありません/,
+  );
+
+  assert.equal(calls.length, 0);
+});
