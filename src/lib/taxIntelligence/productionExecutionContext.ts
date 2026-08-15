@@ -10,6 +10,8 @@ import {
 
 type TaxControlRow = {
   id: number;
+  control_code: string;
+  title: string;
   control_kind: string;
   status: 'draft' | 'approved' | 'retired';
   is_enabled: boolean;
@@ -46,6 +48,8 @@ type TaxSourceRow = {
 
 export type ProductionTaxControlRuntime = {
   taxControlId: number;
+  controlCode: string;
+  controlTitle: string;
   evaluatorKey: ProductionControlEvaluatorKey;
   executionContext: ProductionTaxControlExecutionContext;
 };
@@ -79,7 +83,7 @@ export async function loadProductionTaxControlRuntime(
     await supabase
       .from('tax_controls')
       .select(
-        'id, control_kind, status, is_enabled, evaluator_key',
+        'id, control_code, title, control_kind, status, is_enabled, evaluator_key',
       )
       .eq('id', taxControlId)
       .maybeSingle();
@@ -333,6 +337,8 @@ export async function loadProductionTaxControlRuntime(
 
   return {
     taxControlId: control.id,
+    controlCode: control.control_code,
+    controlTitle: control.title,
     evaluatorKey,
     executionContext: {
       sourceVersionSnapshot,

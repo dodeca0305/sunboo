@@ -73,6 +73,8 @@ function validTables(): FixtureTables {
     tax_controls: [
       {
         id: 10,
+        control_code: 'TI_TAX_001',
+        title: '法人税確定申告の提出時期確認',
         control_kind: 'tax_rule',
         status: 'approved',
         is_enabled: true,
@@ -139,6 +141,11 @@ test('approved+enabled Controlからexact SourceVersion snapshotを構築する'
     );
 
   assert.equal(runtime.taxControlId, 10);
+  assert.equal(runtime.controlCode, 'TI_TAX_001');
+  assert.equal(
+    runtime.controlTitle,
+    '法人税確定申告の提出時期確認',
+  );
   assert.equal(
     runtime.evaluatorKey,
     PRODUCTION_CONTROL_EVALUATOR_KEYS.TI_TAX_001,
