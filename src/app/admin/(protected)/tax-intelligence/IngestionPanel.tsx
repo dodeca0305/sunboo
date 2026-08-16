@@ -9,6 +9,8 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
+import ImpactSummary from './ImpactSummary';
+
 import {
   ingestCurrentEgovAction,
   type TaxSourceIngestionActionState,
@@ -96,7 +98,8 @@ export default function IngestionPanel() {
               </p>
 
               {state.status === 'success' && (
-                <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                <>
+                  <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                   <div>
                     <dt className="text-gray-500">改正ID</dt>
                     <dd className="mt-1 break-all font-mono text-xs text-gray-800">
@@ -134,6 +137,12 @@ export default function IngestionPanel() {
                     </dd>
                   </div>
                 </dl>
+
+              <ImpactSummary
+                impact={state.impact}
+                wasInserted={state.wasInserted}
+              />
+                </>
               )}
             </div>
           </div>
