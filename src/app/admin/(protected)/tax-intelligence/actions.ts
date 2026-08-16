@@ -10,11 +10,21 @@ import {
   type TaxControlImpactCandidate,
   type TaxRuleImpactCandidate,
 } from '@/lib/taxIntelligence/impactDiscovery';
+import {
+  ensureTaxSourceChangeReview,
+  type TaxSourceChangeReviewStatus,
+} from '@/lib/taxIntelligence/sourceChangeReviews';
 
 export type TaxSourceImpactSummary = {
   supersedesSourceVersionId: number | null;
   ruleCandidates: TaxRuleImpactCandidate[];
   controlCandidates: TaxControlImpactCandidate[];
+};
+
+export type TaxSourceReviewSummary = {
+  reviewId: number;
+  status: TaxSourceChangeReviewStatus;
+  wasCreated: boolean;
 };
 
 export type TaxSourceIngestionActionState = {
@@ -26,7 +36,34 @@ export type TaxSourceIngestionActionState = {
   supersedesVersionId?: number | null;
   wasInserted?: boolean;
   impact?: TaxSourceImpactSummary;
+  review?: TaxSourceReviewSummary;
 };
+
+function successMessage({
+  wasInserted,
+  review,
+}: {
+  wasInserted: boolean;
+  review?: TaxSourceReviewSummary;
+}): string {
+  if (wasInserted && review) {
+    return 'e-Govの新版と変更レビュー案件を登録しました。';
+  }
+
+  if (wasInserted) {
+    return 'e-Govの初回SourceVersionを登録しました。';
+  }
+
+  if (review?.wasCreated) {
+    return '既存SourceVersionの未作成レビュー案件を回復しました。';
+  }
+
+  if (review) {
+    return 'e-Govの内容に変更はありません。既存レビュー案件を表示します。';
+  }
+
+  return 'e-Govの内容に変更はありません。';
+}
 
 export async function ingestCurrentEgovAction(
   _previousState: TaxSourceIngestionActionState,
@@ -61,18 +98,41 @@ export async function ingestCurrentEgovAction(
         supabase,
       );
 
-    const impact = result.ingestion.wasInserted
-      ? await discoverTaxSourceVersionImpact(
-          supabase,
-          result.ingestion.taxSourceVersionId,
-        )
+    /*
+     * wasInserted=falseでもImpact Discoveryを行う。
+     * SourceVersion登録後にレビュー保存だけ失敗した場合、
+     * 次回実行で未作成レビューを回復するため。
+     */
+    const discoveredImpact =
+      await discoverTaxSourceVersionImpact(
+        supabase,
+        result.ingestion.taxSourceVersionId,
+      );
+
+    const reviewReference =
+      discoveredImpact.supersedesSourceVersionId !==
+      null
+        ? await ensureTaxSourceChangeReview(
+            supabase,
+            discoveredImpact,
+          )
+        : undefined;
+
+    const review = reviewReference
+      ? {
+          reviewId: reviewReference.reviewId,
+          status: reviewReference.status,
+          wasCreated: reviewReference.wasCreated,
+        }
       : undefined;
 
     return {
       status: 'success',
-      message: result.ingestion.wasInserted
-        ? 'e-Govの新版を登録しました。影響候補を確認してください。'
-        : 'e-Govの内容に変更はありません。',
+      message: successMessage({
+        wasInserted:
+          result.ingestion.wasInserted,
+        review,
+      }),
       revisionId: result.source.revisionId,
       contentHash: result.source.contentHash,
       taxSourceVersionId:
@@ -80,16 +140,18 @@ export async function ingestCurrentEgovAction(
       supersedesVersionId:
         result.ingestion.supersedesVersionId,
       wasInserted: result.ingestion.wasInserted,
-      impact: impact
+      impact: review
         ? {
             supersedesSourceVersionId:
-              impact.supersedesSourceVersionId,
+              discoveredImpact
+                .supersedesSourceVersionId,
             ruleCandidates:
-              impact.ruleCandidates,
+              discoveredImpact.ruleCandidates,
             controlCandidates:
-              impact.controlCandidates,
+              discoveredImpact.controlCandidates,
           }
         : undefined,
+      review,
     };
   } catch (error) {
     return {
