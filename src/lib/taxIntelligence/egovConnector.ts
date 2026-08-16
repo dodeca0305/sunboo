@@ -342,3 +342,238 @@ export function parseEgovCorporateTaxSource(
     contentHash,
   };
 }
+
+import type { SupabaseClient } from '../supabase';
+import {
+  ingestTaxSourceVersion,
+  type TaxSourceVersionIngestionResult,
+} from './sourceVersionIngestion.ts';
+
+const EGOV_LAW_DATA_BASE_URL =
+  'https://laws.e-gov.go.jp/api/2/law_data';
+
+export type EgovFetch = typeof fetch;
+
+export type FetchEgovCorporateTaxSourceOptions = {
+  revisionId: string;
+  lawId?: string;
+  fetchImpl?: EgovFetch;
+};
+
+export type IngestEgovCorporateTaxSourceOptions =
+  FetchEgovCorporateTaxSourceOptions & {
+    observedAt?: Date | string;
+    retrievedAt?: Date | string;
+  };
+
+export type IngestEgovCorporateTaxSourceResult = {
+  source: EgovCorporateTaxSource;
+  ingestion: TaxSourceVersionIngestionResult;
+};
+
+export async function fetchEgovCorporateTaxSource(
+  options: FetchEgovCorporateTaxSourceOptions,
+): Promise<EgovCorporateTaxSource> {
+  const lawId =
+    options.lawId ?? '340AC0000000034';
+  const revisionId = options.revisionId.trim();
+
+  if (
+    !/^[0-9A-Z]+_[0-9]{8}_[0-9A-Z]+$/.test(
+      revisionId,
+    )
+  ) {
+    throw new Error(
+      `e-Gov改正IDの形式が不正です: ${revisionId}`,
+    );
+  }
+
+  const url =
+    `${EGOV_LAW_DATA_BASE_URL}/` +
+    `${encodeURIComponent(revisionId)}` +
+    '?law_full_text_format=xml&response_format=xml';
+
+  const response = await (
+    options.fetchImpl ?? globalThis.fetch
+  )(url, {
+    headers: {
+      accept: 'application/xml, text/xml',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `e-Gov法令APIの取得に失敗しました: HTTP ${response.status}`,
+    );
+  }
+
+  const xml = await response.text();
+
+  if (xml.trim().length === 0) {
+    throw new Error(
+      'e-Gov法令APIから空のレスポンスが返されました。',
+    );
+  }
+
+  return parseEgovCorporateTaxSource(xml, {
+    expectedLawId: lawId,
+    expectedRevisionId: revisionId,
+  });
+}
+
+export async function ingestEgovCorporateTaxSource(
+  supabase: SupabaseClient,
+  options: IngestEgovCorporateTaxSourceOptions,
+): Promise<IngestEgovCorporateTaxSourceResult> {
+  const source =
+    await fetchEgovCorporateTaxSource(options);
+
+  const ingestion = await ingestTaxSourceVersion(
+    supabase,
+    {
+      provider: 'e_gov',
+      canonicalLocator:
+        'egov:law:340AC0000000034:articles-74-75-3',
+      versionLabel: source.revisionId,
+      rawText: source.normalizedText,
+      publishedAt: null,
+      effectiveFrom:
+        source.amendmentEnforcementDate,
+      effectiveTo: null,
+      observedAt: options.observedAt,
+      retrievedAt: options.retrievedAt,
+      rawReference: source.rawReference,
+    },
+  );
+
+  return { source, ingestion };
+}
+
+export type FetchCurrentEgovCorporateTaxSourceOptions = {
+  lawId?: string;
+  fetchImpl?: EgovFetch;
+};
+
+export type IngestCurrentEgovCorporateTaxSourceOptions =
+  FetchCurrentEgovCorporateTaxSourceOptions & {
+    observedAt?: Date | string;
+    retrievedAt?: Date | string;
+  };
+
+async function fetchEgovXml(
+  locator: string,
+  fetchImpl: EgovFetch,
+): Promise<string> {
+  const url =
+    `${EGOV_LAW_DATA_BASE_URL}/` +
+    `${encodeURIComponent(locator)}` +
+    '?law_full_text_format=xml&response_format=xml';
+
+  const response = await fetchImpl(url, {
+    headers: {
+      accept: 'application/xml, text/xml',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `e-Gov法令APIの取得に失敗しました: HTTP ${response.status}`,
+    );
+  }
+
+  const xml = await response.text();
+
+  if (xml.trim().length === 0) {
+    throw new Error(
+      'e-Gov法令APIから空のレスポンスが返されました。',
+    );
+  }
+
+  return xml;
+}
+
+function readRevisionIdFromEgovXml(
+  xml: string,
+): string {
+  const parser = new XMLParser({
+    ignoreAttributes: false,
+    attributesGroupName: '@attributes',
+    attributeNamePrefix: '',
+    parseTagValue: false,
+    trimValues: true,
+  });
+
+  const parsed = requiredRecord(
+    parser.parse(xml),
+    'root',
+  );
+  const response = requiredRecord(
+    parsed.law_data_response,
+    'law_data_response',
+  );
+  const revisionInfo = requiredRecord(
+    response.revision_info,
+    'revision_info',
+  );
+  const revisionId = scalarText(
+    revisionInfo.law_revision_id,
+  );
+
+  if (revisionId.length === 0) {
+    throw new Error(
+      'e-Govレスポンスにlaw_revision_idがありません。',
+    );
+  }
+
+  return revisionId;
+}
+
+export async function fetchCurrentEgovCorporateTaxSource(
+  options:
+    FetchCurrentEgovCorporateTaxSourceOptions = {},
+): Promise<EgovCorporateTaxSource> {
+  const lawId =
+    options.lawId ?? '340AC0000000034';
+  const xml = await fetchEgovXml(
+    lawId,
+    options.fetchImpl ?? globalThis.fetch,
+  );
+  const revisionId =
+    readRevisionIdFromEgovXml(xml);
+
+  return parseEgovCorporateTaxSource(xml, {
+    expectedLawId: lawId,
+    expectedRevisionId: revisionId,
+  });
+}
+
+export async function ingestCurrentEgovCorporateTaxSource(
+  supabase: SupabaseClient,
+  options:
+    IngestCurrentEgovCorporateTaxSourceOptions = {},
+): Promise<IngestEgovCorporateTaxSourceResult> {
+  const source =
+    await fetchCurrentEgovCorporateTaxSource(
+      options,
+    );
+
+  const ingestion = await ingestTaxSourceVersion(
+    supabase,
+    {
+      provider: 'e_gov',
+      canonicalLocator:
+        'egov:law:340AC0000000034:articles-74-75-3',
+      versionLabel: source.revisionId,
+      rawText: source.normalizedText,
+      publishedAt: null,
+      effectiveFrom:
+        source.amendmentEnforcementDate,
+      effectiveTo: null,
+      observedAt: options.observedAt,
+      retrievedAt: options.retrievedAt,
+      rawReference: source.rawReference,
+    },
+  );
+
+  return { source, ingestion };
+}

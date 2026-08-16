@@ -110,3 +110,211 @@ test('対象Articleが不足していれば拒否する', () => {
     /Article 75_3は1件必要です: 0件/,
   );
 });
+
+import {
+  fetchEgovCorporateTaxSource,
+  ingestEgovCorporateTaxSource,
+} from './egovConnector.ts';
+
+test('指定した改正IDをe-Gov APIから取得する', async () => {
+  const requestedUrls: string[] = [];
+
+  const source = await fetchEgovCorporateTaxSource({
+    revisionId: REVISION_ID,
+    fetchImpl: (async (input) => {
+      requestedUrls.push(String(input));
+
+      return new Response(fixtureXml(), {
+        status: 200,
+        headers: {
+          'content-type': 'application/xml',
+        },
+      });
+    }) as typeof fetch,
+  });
+
+  assert.equal(requestedUrls.length, 1);
+  assert.equal(
+    requestedUrls[0],
+    `https://laws.e-gov.go.jp/api/2/law_data/${REVISION_ID}?law_full_text_format=xml&response_format=xml`,
+  );
+  assert.equal(source.revisionId, REVISION_ID);
+});
+
+test('e-Gov APIのHTTPエラーを通知する', async () => {
+  await assert.rejects(
+    () =>
+      fetchEgovCorporateTaxSource({
+        revisionId: REVISION_ID,
+        fetchImpl: (async () =>
+          new Response('not found', {
+            status: 404,
+          })) as typeof fetch,
+      }),
+    /取得に失敗しました: HTTP 404/,
+  );
+});
+
+test('取得したSourceを既存の原子的取り込みへ渡す', async () => {
+  const rpcCalls: Array<{
+    functionName: string;
+    parameters: Record<string, unknown>;
+  }> = [];
+
+  const parsed = parseEgovCorporateTaxSource(
+    fixtureXml(),
+    {
+      expectedLawId: LAW_ID,
+      expectedRevisionId: REVISION_ID,
+    },
+  );
+
+  const supabase = {
+    async rpc(
+      functionName: string,
+      parameters: Record<string, unknown>,
+    ) {
+      rpcCalls.push({ functionName, parameters });
+
+      return {
+        data: [
+          {
+            tax_source_version_id: 2,
+            tax_source_id: 1,
+            content_hash: parsed.contentHash,
+            supersedes_version_id: 1,
+            was_inserted: true,
+          },
+        ],
+        error: null,
+      };
+    },
+  } as unknown as Parameters<
+    typeof ingestEgovCorporateTaxSource
+  >[0];
+
+  const result =
+    await ingestEgovCorporateTaxSource(
+      supabase,
+      {
+        revisionId: REVISION_ID,
+        observedAt:
+          '2026-08-16T01:00:00.000Z',
+        retrievedAt:
+          '2026-08-16T01:01:00.000Z',
+        fetchImpl: (async () =>
+          new Response(fixtureXml(), {
+            status: 200,
+          })) as typeof fetch,
+      },
+    );
+
+  assert.equal(rpcCalls.length, 1);
+  assert.equal(
+    rpcCalls[0].functionName,
+    'ingest_tax_source_version',
+  );
+  assert.equal(
+    rpcCalls[0].parameters.p_provider,
+    'e_gov',
+  );
+  assert.equal(
+    rpcCalls[0].parameters.p_canonical_locator,
+    'egov:law:340AC0000000034:articles-74-75-3',
+  );
+  assert.equal(
+    rpcCalls[0].parameters.p_version_label,
+    REVISION_ID,
+  );
+  assert.equal(
+    rpcCalls[0].parameters.p_effective_from,
+    '2026-08-12',
+  );
+  assert.equal(
+    rpcCalls[0].parameters.p_content_hash,
+    parsed.contentHash,
+  );
+  assert.equal(result.ingestion.wasInserted, true);
+});
+
+import {
+  fetchCurrentEgovCorporateTaxSource,
+  ingestCurrentEgovCorporateTaxSource,
+} from './egovConnector.ts';
+
+test('法令IDだけで現在の改正Versionを発見する', async () => {
+  const requestedUrls: string[] = [];
+
+  const source =
+    await fetchCurrentEgovCorporateTaxSource({
+      fetchImpl: (async (input) => {
+        requestedUrls.push(String(input));
+
+        return new Response(fixtureXml(), {
+          status: 200,
+        });
+      }) as typeof fetch,
+    });
+
+  assert.deepEqual(requestedUrls, [
+    'https://laws.e-gov.go.jp/api/2/law_data/340AC0000000034?law_full_text_format=xml&response_format=xml',
+  ]);
+  assert.equal(source.revisionId, REVISION_ID);
+});
+
+test('現在Versionを発見して原子的取り込みへ渡す', async () => {
+  const parsed = parseEgovCorporateTaxSource(
+    fixtureXml(),
+    {
+      expectedLawId: LAW_ID,
+      expectedRevisionId: REVISION_ID,
+    },
+  );
+  const rpcCalls: Record<string, unknown>[] = [];
+
+  const supabase = {
+    async rpc(
+      _functionName: string,
+      parameters: Record<string, unknown>,
+    ) {
+      rpcCalls.push(parameters);
+
+      return {
+        data: [
+          {
+            tax_source_version_id: 1,
+            tax_source_id: 1,
+            content_hash: parsed.contentHash,
+            supersedes_version_id: null,
+            was_inserted: false,
+          },
+        ],
+        error: null,
+      };
+    },
+  } as unknown as Parameters<
+    typeof ingestCurrentEgovCorporateTaxSource
+  >[0];
+
+  const result =
+    await ingestCurrentEgovCorporateTaxSource(
+      supabase,
+      {
+        observedAt:
+          '2026-08-16T02:00:00.000Z',
+        retrievedAt:
+          '2026-08-16T02:01:00.000Z',
+        fetchImpl: (async () =>
+          new Response(fixtureXml(), {
+            status: 200,
+          })) as typeof fetch,
+      },
+    );
+
+  assert.equal(rpcCalls.length, 1);
+  assert.equal(
+    rpcCalls[0].p_version_label,
+    REVISION_ID,
+  );
+  assert.equal(result.ingestion.wasInserted, false);
+});
