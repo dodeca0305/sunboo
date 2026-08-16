@@ -1,6 +1,35 @@
-import IngestionPanel from './IngestionPanel';
+import { createServerSupabase } from '@/lib/supabase/server';
+import {
+  loadTaxSourceChangeReviewItems,
+  type TaxSourceChangeReviewItem,
+} from '@/lib/taxIntelligence/sourceChangeReviews';
 
-export default function TaxIntelligencePage() {
+import IngestionPanel from './IngestionPanel';
+import SourceReviewList from './SourceReviewList';
+
+export default async function TaxIntelligencePage() {
+  const supabase = await createServerSupabase();
+
+  let items: TaxSourceChangeReviewItem[] = [];
+  let loadError: string | null = null;
+
+  if (!supabase) {
+    loadError =
+      'Supabaseの環境変数が設定されていません。';
+  } else {
+    try {
+      items =
+        await loadTaxSourceChangeReviewItems(
+          supabase,
+        );
+    } catch (error) {
+      loadError =
+        error instanceof Error
+          ? error.message
+          : 'TaxSource変更レビューの取得に失敗しました。';
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -13,6 +42,14 @@ export default function TaxIntelligencePage() {
       </div>
 
       <IngestionPanel />
+
+      {loadError ? (
+        <div className="card border border-red-200 bg-red-50 p-5 text-sm text-red-800">
+          {loadError}
+        </div>
+      ) : (
+        <SourceReviewList items={items} />
+      )}
     </div>
   );
 }

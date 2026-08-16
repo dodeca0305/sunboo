@@ -1,5 +1,7 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
+
 import { getAdminSession } from '@/lib/admin';
 import { createServerSupabase } from '@/lib/supabase/server';
 import {
@@ -11,6 +13,7 @@ import {
   type TaxRuleImpactCandidate,
 } from '@/lib/taxIntelligence/impactDiscovery';
 import {
+  closeTaxSourceChangeReview,
   ensureTaxSourceChangeReview,
   type TaxSourceChangeReviewStatus,
 } from '@/lib/taxIntelligence/sourceChangeReviews';
@@ -160,6 +163,122 @@ export async function ingestCurrentEgovAction(
         error instanceof Error
           ? error.message
           : 'e-Gov TaxSourceの取り込みに失敗しました。',
+    };
+  }
+}
+
+export type CloseTaxSourceReviewActionState = {
+  status: 'idle' | 'success' | 'error';
+  message: string;
+  reviewId?: number;
+  reviewStatus?: 'resolved' | 'dismissed';
+  resolutionSummary?: string;
+  resolvedBy?: string;
+  resolvedAt?: string;
+};
+
+export async function closeTaxSourceReviewAction(
+  _previousState: CloseTaxSourceReviewActionState,
+  formData: FormData,
+): Promise<CloseTaxSourceReviewActionState> {
+  void _previousState;
+
+  const session = await getAdminSession();
+
+  if (!session) {
+    return {
+      status: 'error',
+      message:
+        '管理者セッションを確認できません。再ログインしてください。',
+    };
+  }
+
+  const reviewId = Number(
+    formData.get('reviewId'),
+  );
+  const requestedStatus =
+    formData.get('status');
+  const resolutionSummary =
+    String(
+      formData.get('resolutionSummary') ?? '',
+    ).trim();
+
+  if (
+    !Number.isSafeInteger(reviewId)
+    || reviewId <= 0
+  ) {
+    return {
+      status: 'error',
+      message:
+        'TaxSource変更レビューIDが不正です。',
+    };
+  }
+
+  if (
+    requestedStatus !== 'resolved'
+    && requestedStatus !== 'dismissed'
+  ) {
+    return {
+      status: 'error',
+      message:
+        '終了状態が不正です。',
+    };
+  }
+
+  if (!resolutionSummary) {
+    return {
+      status: 'error',
+      message:
+        '判断内容を入力してください。',
+    };
+  }
+
+  const supabase =
+    await createServerSupabase();
+
+  if (!supabase) {
+    return {
+      status: 'error',
+      message:
+        'Supabaseの環境変数が設定されていません。',
+    };
+  }
+
+  try {
+    const closed =
+      await closeTaxSourceChangeReview(
+        supabase,
+        {
+          reviewId,
+          status: requestedStatus,
+          resolutionSummary,
+        },
+      );
+
+    revalidatePath(
+      '/admin/tax-intelligence',
+    );
+
+    return {
+      status: 'success',
+      message:
+        closed.status === 'resolved'
+          ? '変更レビューを解決済みにしました。'
+          : '変更レビューを対象外にしました。',
+      reviewId: closed.reviewId,
+      reviewStatus: closed.status,
+      resolutionSummary:
+        closed.resolutionSummary,
+      resolvedBy: closed.resolvedBy,
+      resolvedAt: closed.resolvedAt,
+    };
+  } catch (error) {
+    return {
+      status: 'error',
+      message:
+        error instanceof Error
+          ? error.message
+          : 'TaxSource変更レビューの終了に失敗しました。',
     };
   }
 }
