@@ -140,7 +140,7 @@ export default function IngestionPanel() {
 
               <ImpactSummary
                 impact={state.impact}
-                wasInserted={state.wasInserted}
+                review={state.review}
               />
                 </>
               )}

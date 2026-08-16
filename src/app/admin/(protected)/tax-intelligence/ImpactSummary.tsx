@@ -1,15 +1,16 @@
 import type {
   TaxSourceImpactSummary,
+  TaxSourceReviewSummary,
 } from './actions';
 
 export default function ImpactSummary({
   impact,
-  wasInserted,
+  review,
 }: {
   impact?: TaxSourceImpactSummary;
-  wasInserted?: boolean;
+  review?: TaxSourceReviewSummary;
 }) {
-  if (!wasInserted || !impact) {
+  if (!review || !impact) {
     return null;
   }
 
@@ -19,9 +20,15 @@ export default function ImpactSummary({
 
   return (
     <section className="mt-5 border-t border-green-200 pt-5">
-      <h3 className="font-semibold text-gray-900">
-        影響候補
-      </h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-semibold text-gray-900">
+          影響候補
+        </h3>
+        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-gray-600">
+          ReviewCase {review.reviewId} / {review.status}
+        </span>
+      </div>
+
       <p className="mt-1 text-sm text-gray-600">
         直前版とその祖先版を参照しているルール・
         コントロールです。自動実行はされません。
