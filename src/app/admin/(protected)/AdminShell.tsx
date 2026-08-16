@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Tags,
   Workflow,
+  Database,
 } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import BrandMark from '@/components/BrandMark';
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { href: '/admin/organization-types', label: '機関種別', icon: Tags },
   { href: '/admin/procedures', label: '手続き', icon: ClipboardList },
   { href: '/admin/rules', label: 'ルール', icon: Workflow },
+  { href: '/admin/tax-intelligence', label: '税務ソース', icon: Database },
   { href: '/admin/links', label: 'リンクチェック', icon: Link2 },
   { href: '/admin/import', label: 'CSVインポート', icon: Upload },
   { href: '/admin/export', label: 'CSVエクスポート', icon: Download },
