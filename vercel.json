@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/tax-intelligence",
+      "schedule": "15 0 * * *"
+    }
+  ]
+}
