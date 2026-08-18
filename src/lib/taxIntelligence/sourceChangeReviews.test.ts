@@ -282,6 +282,7 @@ function reviewListTables():
         tax_source_id: 40,
         version_label: 'revision-1',
         content_hash: 'hash-1',
+        normalized_text: '[Article Num="74"]\n第七十四条 旧本文',
         published_at: '2026-07-01',
         effective_from: '2026-07-01',
         observed_at:
@@ -294,6 +295,7 @@ function reviewListTables():
         tax_source_id: 40,
         version_label: 'revision-2',
         content_hash: 'hash-2',
+        normalized_text: '[Article Num="74"]\n第七十四条 新本文',
         published_at: '2026-08-01',
         effective_from: '2026-08-01',
         observed_at:
@@ -306,6 +308,7 @@ function reviewListTables():
         tax_source_id: 40,
         version_label: 'revision-3',
         content_hash: 'hash-3',
+        normalized_text: '[Article Num="74"]\n第七十四条 最新本文',
         published_at: '2026-08-16',
         effective_from: '2026-08-16',
         observed_at:
@@ -356,6 +359,23 @@ test('保存済み変更レビューへSource情報を結合する', async () =>
   assert.deepEqual(
     openItem.impact,
     impactFixture(),
+  );
+  assert.equal(
+    openItem.sourceDiff.hasChanges,
+    true,
+  );
+  assert.equal(
+    openItem.sourceDiff.changedCount,
+    1,
+  );
+  assert.deepEqual(
+    openItem.sourceDiff.articles[0],
+    {
+      articleNumber: '74',
+      status: 'changed',
+      beforeText: '第七十四条 旧本文',
+      afterText: '第七十四条 新本文',
+    },
   );
 });
 
