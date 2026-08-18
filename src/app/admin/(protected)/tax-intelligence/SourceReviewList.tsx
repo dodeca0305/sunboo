@@ -12,6 +12,8 @@ import {
 import type {
   TaxSourceChangeReviewItem,
 } from '@/lib/taxIntelligence/sourceChangeReviews';
+import SourceVersionDiffPanel from './SourceVersionDiffPanel';
+
 import {
   closeTaxSourceReviewAction,
   type CloseTaxSourceReviewActionState,
@@ -162,6 +164,8 @@ function ReviewCard({
             </dd>
           </div>
         </dl>
+
+        <SourceVersionDiffPanel diff={item.sourceDiff} />
 
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-lg border border-gray-200 p-4">

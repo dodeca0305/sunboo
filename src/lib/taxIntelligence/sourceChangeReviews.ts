@@ -2,6 +2,10 @@ import type { SupabaseClient } from '../supabase';
 import type {
   TaxSourceVersionImpact,
 } from './impactDiscovery.ts';
+import {
+  buildTaxSourceVersionDiff,
+  type TaxSourceVersionDiff,
+} from './sourceVersionDiff.ts';
 
 export type TaxSourceChangeReviewStatus =
   | 'open'
@@ -114,6 +118,7 @@ export type TaxSourceChangeReviewItem = {
   supersedesVersionLabel: string | null;
   supersedesContentHash: string;
 
+  sourceDiff: TaxSourceVersionDiff;
   impact: TaxSourceVersionImpact;
 };
 
@@ -150,6 +155,7 @@ type SourceVersionRow = {
   effective_from: string | null;
   observed_at: string;
   retrieved_at: string;
+  normalized_text: string;
 };
 
 type SourceRow = {
@@ -246,7 +252,7 @@ export async function loadTaxSourceChangeReviewItems(
     await supabase
       .from('tax_source_versions')
       .select(
-        'id, tax_source_id, version_label, content_hash, published_at, effective_from, observed_at, retrieved_at',
+        'id, tax_source_id, version_label, content_hash, published_at, effective_from, observed_at, retrieved_at, normalized_text',
       )
       .in('id', versionIds);
 
@@ -360,6 +366,10 @@ export async function loadTaxSourceChangeReviewItems(
         supersedesContentHash:
           supersedesVersion.content_hash,
 
+        sourceDiff: buildTaxSourceVersionDiff(
+          supersedesVersion.normalized_text,
+          version.normalized_text,
+        ),
         impact: parseImpactSnapshot(
           review.impact_snapshot,
           review,
