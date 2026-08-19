@@ -124,6 +124,24 @@ export async function handleScheduledMonitoringRequest(
                 result.review.wasCreated,
             }
           : null,
+        notification: result.notification
+          ? {
+              persistence: 'ready',
+              notificationEventId:
+                result.notification
+                  .notificationEventId,
+              deliveryStatus:
+                result.notification
+                  .deliveryStatus,
+              wasCreated:
+                result.notification
+                  .wasCreated,
+            }
+          : result.notificationError
+            ? {
+                persistence: 'deferred',
+              }
+            : null,
       },
       200,
     );

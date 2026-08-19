@@ -42,6 +42,15 @@ function successResult() {
       status: 'open' as const,
       wasCreated: true,
     },
+    notification: {
+      notificationEventId: 50,
+      reviewId: 30,
+      eventType:
+        'tax_source_change_review_opened' as const,
+      deliveryStatus: 'pending' as const,
+      wasCreated: true,
+    },
+    notificationError: null,
   };
 }
 
@@ -139,6 +148,12 @@ test('正しいBearer認証で監視結果を返す', async () => {
       status: 'open',
       wasCreated: true,
     },
+    notification: {
+      persistence: 'ready',
+      notificationEventId: 50,
+      deliveryStatus: 'pending',
+      wasCreated: true,
+    },
   });
 });
 
@@ -181,4 +196,41 @@ test('監視処理失敗時は詳細を公開せず500を返す', async () => {
     console.error =
       originalConsoleError;
   }
+});
+
+test('通知保存失敗は詳細を公開せず200で保留を返す', async () => {
+  const response =
+    await handleScheduledMonitoringRequest(
+      request('Bearer correct-secret'),
+      {
+        cronSecret: 'correct-secret',
+        createSupabase() {
+          return fakeSupabase;
+        },
+        async runMonitoring() {
+          return {
+            ...successResult(),
+            notification: null,
+            notificationError:
+              'database secret detail',
+          };
+        },
+      },
+    );
+
+  assert.equal(response.status, 200);
+
+  const body =
+    await response.json();
+
+  assert.deepEqual(body.notification, {
+    persistence: 'deferred',
+  });
+
+  assert.equal(
+    JSON.stringify(body).includes(
+      'database secret detail',
+    ),
+    false,
+  );
 });

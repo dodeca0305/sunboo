@@ -102,6 +102,16 @@ test('新版を取り込み影響レビューを冪等作成する', async () =>
             wasCreated: true,
           };
         },
+        async ensureNotification() {
+          return {
+            notificationEventId: 50,
+            reviewId: 30,
+            eventType:
+              'tax_source_change_review_opened' as const,
+            deliveryStatus: 'pending' as const,
+            wasCreated: true,
+          };
+        },
       },
     );
 
@@ -115,6 +125,14 @@ test('新版を取り込み影響レビューを冪等作成する', async () =>
   assert.equal(
     result.impact,
     impact,
+  );
+  assert.equal(
+    result.notification?.notificationEventId,
+    50,
+  );
+  assert.equal(
+    result.notificationError,
+    null,
   );
 });
 
@@ -137,6 +155,16 @@ test('既存版でも未作成レビューを回復できる', async () => {
             wasCreated: false,
           };
         },
+        async ensureNotification() {
+          return {
+            notificationEventId: 50,
+            reviewId: 30,
+            eventType:
+              'tax_source_change_review_opened' as const,
+            deliveryStatus: 'pending' as const,
+            wasCreated: true,
+          };
+        },
       },
     );
 
@@ -144,6 +172,10 @@ test('既存版でも未作成レビューを回復できる', async () => {
   assert.equal(
     result.review?.wasCreated,
     false,
+  );
+  assert.equal(
+    result.notification?.wasCreated,
+    true,
   );
 });
 
@@ -164,11 +196,23 @@ test('初回SourceVersionではレビューを作成しない', async () => {
           ensureWasCalled = true;
           throw new Error('呼ばれない');
         },
+        async ensureNotification() {
+          return {
+            notificationEventId: 50,
+            reviewId: 30,
+            eventType:
+              'tax_source_change_review_opened' as const,
+            deliveryStatus: 'pending' as const,
+            wasCreated: true,
+          };
+        },
       },
     );
 
   assert.equal(result.review, null);
   assert.equal(ensureWasCalled, false);
+  assert.equal(result.notification, null);
+  assert.equal(result.notificationError, null);
 });
 
 test('取り込み失敗を呼び出し元へ伝播する', async () => {
@@ -191,5 +235,90 @@ test('取り込み失敗を呼び出し元へ伝播する', async () => {
         },
       ),
     /e-Gov unavailable/,
+  );
+});
+
+test('通知イベント保存失敗でも監視結果を返して次回回復可能にする', async () => {
+  const result =
+    await runScheduledEgovMonitoring(
+      supabase,
+      {
+        async ingestCurrent() {
+          return ingestionFixture(true, 1);
+        },
+        async discoverImpact() {
+          return impactFixture(1);
+        },
+        async ensureReview() {
+          return {
+            reviewId: 30,
+            taxSourceVersionId: 2,
+            status: 'open',
+            wasCreated: true,
+          };
+        },
+        async ensureNotification() {
+          throw new Error(
+            'notification unavailable',
+          );
+        },
+      },
+    );
+
+  assert.equal(result.review?.reviewId, 30);
+  assert.equal(result.notification, null);
+  assert.match(
+    result.notificationError ?? '',
+    /notification unavailable/,
+  );
+});
+
+test('既存レビューでも通知イベント作成を再試行する', async () => {
+  let receivedReviewId: number | null = null;
+
+  const result =
+    await runScheduledEgovMonitoring(
+      supabase,
+      {
+        async ingestCurrent() {
+          return ingestionFixture(false, 1);
+        },
+        async discoverImpact() {
+          return impactFixture(1);
+        },
+        async ensureReview() {
+          return {
+            reviewId: 30,
+            taxSourceVersionId: 2,
+            status: 'open',
+            wasCreated: false,
+          };
+        },
+        async ensureNotification(
+          _supabase,
+          reviewId,
+        ) {
+          receivedReviewId = reviewId;
+
+          return {
+            notificationEventId: 50,
+            reviewId,
+            eventType:
+              'tax_source_change_review_opened',
+            deliveryStatus: 'pending',
+            wasCreated: false,
+          };
+        },
+      },
+    );
+
+  assert.equal(receivedReviewId, 30);
+  assert.equal(
+    result.notification?.notificationEventId,
+    50,
+  );
+  assert.equal(
+    result.notification?.wasCreated,
+    false,
   );
 });
