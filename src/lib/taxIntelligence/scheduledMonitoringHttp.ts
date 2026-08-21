@@ -6,6 +6,13 @@ import type { SupabaseClient } from '../supabase';
 import {
   runScheduledEgovMonitoring,
 } from './scheduledMonitoring.ts';
+import {
+  deliverNextTaxSourceChangeEmail,
+  type TaxSourceEmailDeliveryResult,
+} from './taxSourceEmailDelivery.ts';
+import type {
+  ResendTaxSourceEmailConfig,
+} from './resendTaxSourceEmail.ts';
 
 type ScheduledMonitoringHttpDependencies = {
   cronSecret: string | undefined;
@@ -13,6 +20,10 @@ type ScheduledMonitoringHttpDependencies = {
     () => SupabaseClient | null;
   runMonitoring:
     typeof runScheduledEgovMonitoring;
+  deliverEmail?:
+    typeof deliverNextTaxSourceChangeEmail;
+  emailConfig?:
+    ResendTaxSourceEmailConfig;
 };
 
 function secretsMatch(
@@ -29,6 +40,45 @@ function secretsMatch(
   }
 
   return timingSafeEqual(expected, received);
+}
+
+function emailDeliveryResponse(
+  result:
+    TaxSourceEmailDeliveryResult | null,
+): Record<string, unknown> {
+  if (!result) {
+    return {
+      outcome: 'deferred',
+    };
+  }
+
+  if (result.outcome === 'idle') {
+    return {
+      outcome: 'idle',
+    };
+  }
+
+  if (result.outcome === 'delivered') {
+    return {
+      outcome: 'delivered',
+      notificationEventId:
+        result.notificationEventId,
+      reviewId: result.reviewId,
+      deliveryAttempts:
+        result.deliveryAttempts,
+    };
+  }
+
+  return {
+    outcome: 'failed',
+    notificationEventId:
+      result.notificationEventId,
+    reviewId: result.reviewId,
+    deliveryAttempts:
+      result.deliveryAttempts,
+    failureRecorded:
+      result.failureRecorded,
+  };
 }
 
 function jsonResponse(
@@ -97,6 +147,34 @@ export async function handleScheduledMonitoringRequest(
         supabase,
       );
 
+    const deliveryIsConfigured =
+      dependencies.deliverEmail !==
+        undefined &&
+      dependencies.emailConfig !==
+        undefined;
+
+    let emailDelivery:
+      TaxSourceEmailDeliveryResult | null =
+        null;
+
+    if (
+      dependencies.deliverEmail &&
+      dependencies.emailConfig
+    ) {
+      try {
+        emailDelivery =
+          await dependencies.deliverEmail(
+            supabase,
+            dependencies.emailConfig,
+          );
+      } catch (error) {
+        console.error(
+          'TaxSource notification delivery failed.',
+          error,
+        );
+      }
+    }
+
     return jsonResponse(
       {
         ok: true,
@@ -142,6 +220,14 @@ export async function handleScheduledMonitoringRequest(
                 persistence: 'deferred',
               }
             : null,
+        ...(deliveryIsConfigured
+          ? {
+              emailDelivery:
+                emailDeliveryResponse(
+                  emailDelivery,
+                ),
+            }
+          : {}),
       },
       200,
     );
