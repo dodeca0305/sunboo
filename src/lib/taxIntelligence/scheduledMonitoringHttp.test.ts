@@ -234,3 +234,151 @@ test('通知保存失敗は詳細を公開せず200で保留を返す', async ()
     false,
   );
 });
+
+test('設定済みなら通知メールを配送して結果を返す', async () => {
+  let deliveryWasCalled = false;
+
+  const response =
+    await handleScheduledMonitoringRequest(
+      request('Bearer correct-secret'),
+      {
+        cronSecret: 'correct-secret',
+        createSupabase() {
+          return fakeSupabase;
+        },
+        async runMonitoring() {
+          return successResult();
+        },
+        emailConfig: {
+          apiKey: 're_test_key',
+          from:
+            'SUNBOO <notice@example.com>',
+          to: 'admin@example.com',
+          appBaseUrl:
+            'https://sunboo.example.com',
+        },
+        async deliverEmail(
+          receivedSupabase,
+        ) {
+          deliveryWasCalled = true;
+          assert.equal(
+            receivedSupabase,
+            fakeSupabase,
+          );
+
+          return {
+            outcome:
+              'delivered' as const,
+            notificationEventId: 50,
+            reviewId: 30,
+            deliveryAttempts: 1,
+            recipient:
+              'admin@example.com',
+            providerMessageId:
+              'resend-message-1',
+          };
+        },
+      },
+    );
+
+  assert.equal(response.status, 200);
+  assert.equal(
+    deliveryWasCalled,
+    true,
+  );
+
+  const body =
+    await response.json();
+
+  assert.deepEqual(
+    body.emailDelivery,
+    {
+      outcome: 'delivered',
+      notificationEventId: 50,
+      reviewId: 30,
+      deliveryAttempts: 1,
+    },
+  );
+
+  assert.equal(
+    JSON.stringify(body).includes(
+      'admin@example.com',
+    ),
+    false,
+  );
+  assert.equal(
+    JSON.stringify(body).includes(
+      'resend-message-1',
+    ),
+    false,
+  );
+});
+
+test('配送基盤の例外でも監視結果は200で保留になる', async () => {
+  const originalConsoleError =
+    console.error;
+  const errors: unknown[][] = [];
+
+  console.error = (
+    ...values: unknown[]
+  ) => {
+    errors.push(values);
+  };
+
+  try {
+    const response =
+      await handleScheduledMonitoringRequest(
+        request('Bearer correct-secret'),
+        {
+          cronSecret:
+            'correct-secret',
+          createSupabase() {
+            return fakeSupabase;
+          },
+          async runMonitoring() {
+            return successResult();
+          },
+          emailConfig: {
+            apiKey: 're_test_key',
+            from:
+              'SUNBOO <notice@example.com>',
+            to:
+              'admin@example.com',
+            appBaseUrl:
+              'https://sunboo.example.com',
+          },
+          async deliverEmail() {
+            throw new Error(
+              'database secret detail',
+            );
+          },
+        },
+      );
+
+    assert.equal(
+      response.status,
+      200,
+    );
+
+    const body =
+      await response.json();
+
+    assert.deepEqual(
+      body.emailDelivery,
+      {
+        outcome: 'deferred',
+      },
+    );
+
+    assert.equal(
+      JSON.stringify(body).includes(
+        'database secret detail',
+      ),
+      false,
+    );
+    assert.equal(errors.length, 1);
+  } finally {
+    console.error =
+      originalConsoleError;
+  }
+});
