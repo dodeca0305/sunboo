@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { AlertTriangle, Sparkles, Bell, Star, HelpCircle, Mail } from 'lucide-react';
-import { FEEDBACK_MAILTO_HREF } from '@/lib/contact';
+import { FEEDBACK_FORM_HREF } from '@/lib/contact';
 
 export const metadata: Metadata = {
   title: 'ヘルプ',
@@ -99,10 +99,10 @@ export default function HelpPage() {
         <p className="mt-2 text-sm leading-relaxed text-gray-500">
           β版のため、使いにくい点・分かりにくい点などお気づきの点があればぜひお知らせください。
         </p>
-        <a href={FEEDBACK_MAILTO_HREF} className="btn-primary mt-4 inline-flex text-sm">
+        <Link href={FEEDBACK_FORM_HREF} className="btn-primary mt-4 inline-flex text-sm">
           <Mail className="h-4 w-4" />
           ご意見を送る
-        </a>
+        </Link>
       </section>
 
       <p className="mt-8 flex items-start justify-center gap-2 text-center text-xs text-sunboo-ink-muted">
