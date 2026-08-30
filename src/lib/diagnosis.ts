@@ -7,6 +7,7 @@ import {
   ProcedureResult,
 } from './types';
 import type { SupabaseClient } from './supabase';
+import { calculateEventDeadline } from './deadline';
 
 const VALID_DOCUMENT_ITEM_TYPES: ProcedureDocumentItemType[] = ['document', 'preparation', 'checklist'];
 
@@ -78,15 +79,7 @@ export function calculateNextDeadline(
     case 'at_establishment':
     case 'hiring_event':
     case 'event_based': {
-      if (!eventDate) return { label: null, date: null }; // 起算日不明の場合は計算不可
-      const daysFromEvent = timingData?.days_from_event as number | undefined;
-      if (daysFromEvent === undefined) return { label: null, date: null };
-      const base = new Date(`${eventDate}T00:00:00`);
-      const deadline = new Date(base.getTime() + daysFromEvent * 86400000);
-      return {
-        label: `${deadline.getFullYear()}年${deadline.getMonth() + 1}月${deadline.getDate()}日`,
-        date: toIsoDate(deadline),
-      };
+      return calculateEventDeadline(timingData, eventDate);
     }
 
     case 'fiscal_offset': {
@@ -233,6 +226,13 @@ export async function runDiagnosis(
 
   const procedures: ProcedureResult[] = ((procsRaw as Record<string, unknown>[] | null) ?? [])
     .filter((p) => {
+      const code = p.code as string;
+      // 地方税の設立届は自治体ごとに期限・提出要否が異なるため、確認済み地域だけ表示する。
+      if (code === 'FUKUOKA_PREFECTURAL_ESTABLISHMENT_NOTICE' && input.prefectureCode !== '40') return false;
+      if (
+        code === 'FUKUOKA_CITY_ESTABLISHMENT_NOTICE' &&
+        !['401315', '401323', '401331', '401340', '401358', '401366', '401374'].includes(input.municipalityCode)
+      ) return false;
       // 法人形態が指定された手続きは一致するものだけ表示
       const corporateType = p.corporate_type as string | null;
       if (corporateType && corporateType !== input.corporateType) return false;
@@ -245,6 +245,7 @@ export async function runDiagnosis(
         p.timing_type as string,
         p.timing_data as Record<string, unknown> | null,
         input.fiscalMonth,
+        input.establishedDate,
       );
       return {
         ...(p as ProcedureResult),

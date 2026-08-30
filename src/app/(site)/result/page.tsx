@@ -8,6 +8,8 @@ import type { CorporateType, LinkStatus } from '@/lib/types';
 import ScheduleList from './ScheduleList';
 import { toScheduleProcedure } from '@/lib/scheduleProcedure';
 import { applyCutoverToProcedures } from '@/lib/submissionDirectoryCutover';
+import { mergeOfficeOverlay } from '@/lib/submissionDirectoryCutover';
+import { resolveSubmissionOfficeForCompany } from '@/lib/submissionDirectory';
 
 // クエリパラメータ（pref/muni/emp/fm/corp）依存で内容が変わるページであり、パラメータが
 // 無い/不正な場合は空の結果になる。検索エンジンには索引付けさせない（sitemap.tsからも除外済み）。
@@ -59,6 +61,7 @@ export default async function ResultPage({
     fm?: string;
     corp?: string;
     officerTerm?: string;
+    est?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -69,8 +72,9 @@ export default async function ResultPage({
   const fiscalMonth = Number(sp.fm) || 0;
   const corporateType: CorporateType = sp.corp === 'godo' ? 'godo' : 'kabushiki';
   const hasOfficerTerm = sp.officerTerm === 'true';
+  const establishedDate = /^\d{4}-\d{2}-\d{2}$/.test(sp.est ?? '') ? sp.est! : '';
 
-  if (!prefCode || !muniCode || fiscalMonth < 1 || fiscalMonth > 12) {
+  if (!prefCode || !muniCode || !establishedDate || fiscalMonth < 1 || fiscalMonth > 12) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
         <div className="card space-y-4">
@@ -94,6 +98,7 @@ export default async function ResultPage({
     fiscalMonth,
     corporateType,
     hasOfficerTerm,
+    establishedDate,
   });
 
   // 【Phase5-2b】Workspace（workspaceLoader.ts）・Share（share/[token]/page.tsx）と同じCutoverを
@@ -115,6 +120,36 @@ export default async function ResultPage({
       // Cutoverの失敗時は旧Resolverの結果（toScheduleProcedureの戻り値）をそのまま表示する
     }
   }
+
+  // 地方税の提出先は新Submission Directoryを正本として解決する。
+  // resolved以外は推測せず、従来値を維持する。
+  if (supabase) {
+    const directoryClient = supabase;
+    const localCodes = new Set([
+      'PREFECTURAL_RESIDENT_TAX_RETURN', 'PREFECTURAL_BUSINESS_TAX_RETURN',
+      'MUNICIPAL_RESIDENT_TAX_RETURN', 'FUKUOKA_PREFECTURAL_ESTABLISHMENT_NOTICE',
+      'FUKUOKA_CITY_ESTABLISHMENT_NOTICE',
+    ]);
+    scheduleProcedures = await Promise.all(scheduleProcedures.map(async (procedure) => {
+      if (!localCodes.has(procedure.code)) return procedure;
+      const resolution = await resolveSubmissionOfficeForCompany(directoryClient, {
+        procedureId: procedure.id, municipalityCode: muniCode, prefectureCode: prefCode,
+      });
+      if (resolution.status !== 'resolved' || !resolution.primaryOffice) return procedure;
+      return { ...procedure, office: mergeOfficeOverlay(procedure.office, resolution.primaryOffice, resolution.verificationStatus) };
+    }));
+  }
+
+  const displayedOffices = [
+    ...result.offices,
+    ...scheduleProcedures.flatMap((p) => p.office ? [{
+      id: -p.id, municipality_id: 0, office_type: p.code, name: p.office.name,
+      address: null, phone: null, website_url: p.office.website_url ?? null,
+      map_url: p.office.map_url ?? null, official_url: p.office.official_url ?? null,
+      official_url_status: p.office.official_url_status,
+      fallback_url: p.office.fallback_url ?? null,
+    }] : []),
+  ].filter((office, index, all) => all.findIndex((x) => x.name === office.name) === index);
 
   const prefName =
     staticPrefectures.find((p) => p.code === prefCode)?.name ?? prefCode;
@@ -157,6 +192,8 @@ export default async function ResultPage({
           <span>従業員{hasEmployees ? 'あり' : 'なし'}</span>
           <span className="text-blue-300">·</span>
           <span>{fiscalMonth}月決算</span>
+          <span className="text-blue-300">·</span>
+          <span>{establishedDate.replace(/-/g, '/')}設立</span>
         </div>
       </div>
 
@@ -175,17 +212,17 @@ export default async function ResultPage({
       )}
 
       {/* ── 管轄機関 ── */}
-      {result.offices.length > 0 && (
+      {displayedOffices.length > 0 && (
         <section className="mb-10">
           <h2 className="mb-4 text-lg font-bold text-gray-900">
             管轄機関
             <span className="ml-2 text-sm font-normal text-sunboo-ink-muted">
-              {result.offices.length}件
+              {displayedOffices.length}件
             </span>
           </h2>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {result.offices.map((office) => (
+            {displayedOffices.map((office) => (
               <div key={office.id} className="card flex gap-4">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-50">
                   <Building2 className="h-5 w-5 text-gray-500" />
