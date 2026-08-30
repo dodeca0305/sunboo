@@ -29,9 +29,10 @@ export default function StartPage() {
   const [fiscalMonth, setFiscalMonth] = useState<number | null>(null);
   const [corporateType, setCorporateType] = useState<CorporateType | null>(null);
   const [hasOfficerTerm, setHasOfficerTerm] = useState<boolean | null>(null);
+  const [establishedDate, setEstablishedDate] = useState('');
 
   const [loadingMunis, setLoadingMunis] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm', string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate', string>>>({});
 
   useEffect(() => {
     async function load() {
@@ -96,6 +97,7 @@ export default function StartPage() {
     if (hasEmployees === null) errs.emp = '従業員の有無を選択してください';
     if (!fiscalMonth) errs.fm = '決算月を選択してください';
     if (!corporateType) errs.corp = '法人の種類を選択してください';
+    if (!establishedDate) errs.establishedDate = '設立日を入力してください';
     if (corporateType === 'kabushiki' && hasOfficerTerm === null) {
       errs.officerTerm = '役員任期の有無を選択してください';
     }
@@ -118,6 +120,7 @@ export default function StartPage() {
       emp: String(hasEmployees),
       fm: String(fiscalMonth),
       corp: String(corporateType),
+      est: establishedDate,
     });
     if (corporateType === 'kabushiki') {
       params.set('officerTerm', String(hasOfficerTerm));
@@ -131,11 +134,32 @@ export default function StartPage() {
       <div className="mb-8 text-center">
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">会社情報を入力</h1>
         <p className="mt-2 text-sm text-gray-500">
-          3項目を入力するだけで、提出書類・期限・提出先を一覧表示します
+          会社情報から、提出書類・期限・提出先を一覧表示します
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+
+        <div className="card space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">1</span>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-sunboo-ink-muted" />
+              <h2 className="font-semibold text-gray-800">会社の設立日</h2>
+            </div>
+          </div>
+          <input
+            type="date"
+            className="form-input"
+            value={establishedDate}
+            max={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => setEstablishedDate(e.target.value)}
+          />
+          <p className="text-xs text-gray-500">登記事項証明書に記載された会社成立の年月日</p>
+          {errors.establishedDate && (
+            <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.establishedDate}</p>
+          )}
+        </div>
 
         {/* ① 所在地 */}
         <div className="card space-y-4">
