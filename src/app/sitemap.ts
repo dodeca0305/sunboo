@@ -17,6 +17,7 @@ const STATIC_PAGES: { path: string; changeFrequency: MetadataRoute.Sitemap[numbe
   { path: '/profile/tax-returns', changeFrequency: 'monthly', priority: 0.5 },
   { path: '/search', changeFrequency: 'weekly', priority: 0.5 },
   { path: '/help', changeFrequency: 'monthly', priority: 0.4 },
+  { path: '/privacy', changeFrequency: 'yearly', priority: 0.2 },
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

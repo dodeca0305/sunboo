@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Inter, Noto_Sans_JP } from 'next/font/google';
 import { SITE_URL } from '@/lib/siteUrl';
+import AnalyticsConsent from '@/components/AnalyticsConsent';
+import GoogleAnalytics from '@/components/GoogleAnalytics';
 import './globals.css';
 
 const inter = Inter({
@@ -49,7 +51,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja" className={`${inter.variable} ${notoSansJP.variable}`}>
-      <body className="flex min-h-screen flex-col bg-white">{children}</body>
+      <body className="flex min-h-screen flex-col bg-white">
+        {children}
+        <GoogleAnalytics />
+        <AnalyticsConsent />
+      </body>
     </html>
   );
 }
