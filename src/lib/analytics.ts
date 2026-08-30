@@ -1,8 +1,6 @@
 // ── 利用状況計測の土台（Sprint 11 Phase9.1 MVP）─────────────
-// 外部の計測サービス（Google Analytics / Plausible / PostHog 等）にはまだ接続していない。
-// どのサービスを使うか・Cookie同意をどう扱うかはプライバシーに関わる別途の意思決定が必要なため、
-// 今回は「呼び出し側は具体的な送信先を意識しない」というインターフェースだけを用意する。
-// 実際の送信先を決めたら、この関数の内部実装だけを差し替えればよい。
+// 送信先はGA4。利用者がアクセス解析を許可した場合だけイベントを送信する。
+// 顧問先を識別し得るworkspace_id/company_id等はGA4へ渡さず、イベント名だけを集計する。
 
 export type AnalyticsEventName =
   | 'demo_view_clicked'
@@ -34,12 +32,25 @@ export function trackEvent(name: AnalyticsEventName, properties?: AnalyticsPrope
     timestamp: new Date().toISOString(),
   };
 
-  // 現時点では外部送信を行わず、開発確認用にconsoleへ出力するのみ。
   if (process.env.NODE_ENV !== 'production') {
     console.debug('[analytics]', payload);
   }
 
-  // TODO: 実際の計測サービス（PostHog / GA4 / Mixpanel等）と接続する際はここで送信する
-  // （本番でも無害に動くよう try/catch で囲むこと）。payloadは既にevent_name/timestampを
-  // 含むフラットなオブジェクトのため、送信先SDKの共通イベント形式にそのまま渡せる想定。
+  try {
+    if (
+      window.localStorage.getItem('sunboo:analytics-consent') === 'granted' &&
+      typeof window.gtag === 'function'
+    ) {
+      window.gtag('event', name);
+    }
+  } catch {
+    // 計測の失敗で本体機能を止めない。
+  }
+}
+
+declare global {
+  interface Window {
+    dataLayer?: unknown[];
+    gtag?: (...args: unknown[]) => void;
+  }
 }

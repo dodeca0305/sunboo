@@ -123,6 +123,9 @@ export default function SiteLayout({
               <Link href="/help" className="text-gray-500 transition-colors hover:text-gray-900">
                 ヘルプ
               </Link>
+              <Link href="/privacy" className="text-gray-500 transition-colors hover:text-gray-900">
+                プライバシー
+              </Link>
               <Link href="/admin/login" className="text-gray-500 transition-colors hover:text-gray-900">
                 税理士・会計事務所の方
               </Link>
