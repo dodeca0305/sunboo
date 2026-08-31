@@ -50,6 +50,69 @@ const LEGACY_COMPLETED_KEY = 'sunboo:completed-procedures';
 
 // 初回オンボーディング（Sprint 11）。一度閉じたら二度と表示しない。
 const ONBOARDING_KEY = 'sunboo:onboarding-dismissed';
+const STATUS_REVIEW_KEY = 'sunboo:status-review-completed';
+
+type ReviewAnswer = 'done' | 'in_progress' | 'unknown';
+
+function StatusReviewCard({
+  procedures,
+  initialStatusMap,
+  onSave,
+  onDismiss,
+}: {
+  procedures: ScheduleProcedure[];
+  initialStatusMap: Record<number, ProcedureStatus>;
+  onSave: (answers: Record<number, ReviewAnswer>) => void;
+  onDismiss: () => void;
+}) {
+  const [answers, setAnswers] = useState<Record<number, ReviewAnswer>>(() =>
+    Object.fromEntries(procedures.map((procedure) => [
+      procedure.id,
+      initialStatusMap[procedure.id] === 'done'
+        ? 'done'
+        : initialStatusMap[procedure.id] === 'in_progress'
+          ? 'in_progress'
+          : 'unknown',
+    ])),
+  );
+
+  return (
+    <div className="card border-blue-200 bg-blue-50/50">
+      <div className="flex items-start gap-3">
+        <UserCheck className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+        <div>
+          <p className="font-semibold text-gray-900">過去の手続きを確認しよう</p>
+          <p className="mt-1 text-xs leading-relaxed text-gray-600">
+            設立日から見ると期限を過ぎている手続きです。現在の状況を選ぶと、AI参謀が本当に必要な手続きだけを案内します。
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 divide-y divide-blue-100 rounded-xl border border-blue-100 bg-white">
+        {procedures.map((procedure) => (
+          <label key={procedure.id} className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-sm font-medium text-gray-800">{procedure.name}</span>
+            <select
+              className="form-select min-w-36 py-1.5 text-sm"
+              value={answers[procedure.id] ?? 'unknown'}
+              onChange={(event) => setAnswers((current) => ({
+                ...current,
+                [procedure.id]: event.target.value as ReviewAnswer,
+              }))}
+            >
+              <option value="unknown">分からない・要確認</option>
+              <option value="done">提出済み</option>
+              <option value="in_progress">対応中</option>
+            </select>
+          </label>
+        ))}
+      </div>
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <button type="button" className="btn-secondary px-4 py-2 text-sm" onClick={onDismiss}>あとで確認</button>
+        <button type="button" className="btn-primary px-4 py-2 text-sm" onClick={() => onSave(answers)}>状況を反映する</button>
+      </div>
+    </div>
+  );
+}
 
 function OnboardingCard({ onDismiss }: { onDismiss: () => void }) {
   return (
@@ -534,6 +597,7 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
   const [onboardingDismissed, setOnboardingDismissed] = useState<boolean | null>(null);
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [statusReviewCompleted, setStatusReviewCompleted] = useState<boolean | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -545,6 +609,7 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
       setOnboardingDismissed(window.localStorage.getItem(ONBOARDING_KEY) === 'true');
       setProfile(loadCompanyProfile());
       setProfileLoaded(true);
+      setStatusReviewCompleted(window.localStorage.getItem(STATUS_REVIEW_KEY) === 'true');
     });
 
     return () => {
@@ -565,6 +630,25 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
       window.localStorage.setItem(STATUS_KEY, JSON.stringify(updated));
       return updated;
     });
+  }
+
+  function completeStatusReview(answers: Record<number, ReviewAnswer>) {
+    setStatusMap((previous) => {
+      const updated = { ...previous };
+      Object.entries(answers).forEach(([id, answer]) => {
+        updated[Number(id)] = answer === 'done' ? 'done' : answer === 'in_progress' ? 'in_progress' : 'not_started';
+      });
+      window.localStorage.setItem(STATUS_KEY, JSON.stringify(updated));
+      return updated;
+    });
+    window.localStorage.setItem(STATUS_REVIEW_KEY, 'true');
+    setStatusReviewCompleted(true);
+    trackEvent('procedure_status_changed', { source: 'initial_status_review' });
+  }
+
+  function dismissStatusReview() {
+    window.localStorage.setItem(STATUS_REVIEW_KEY, 'true');
+    setStatusReviewCompleted(true);
   }
 
   // CompanyProfile（会社ステージ・源泉所得税の納期特例）を反映した手続き一覧。
@@ -617,10 +701,26 @@ export default function ScheduleList({ procedures }: { procedures: ScheduleProce
     [effectiveProcedures, statusMap],
   );
   const profileAdvisories = useMemo(() => buildProfileAdvisories(profile), [profile]);
+  const overdueProcedures = useMemo(
+    () => effectiveProcedures.filter((procedure) => {
+      const days = daysRemaining(procedure.next_deadline_date);
+      return days !== null && days < 0 && statusMap[procedure.id] !== 'done';
+    }),
+    [effectiveProcedures, statusMap],
+  );
 
   return (
     <div className="space-y-8">
       {onboardingDismissed === false && <OnboardingCard onDismiss={dismissOnboarding} />}
+
+      {statusReviewCompleted === false && overdueProcedures.length > 0 && (
+        <StatusReviewCard
+          procedures={overdueProcedures}
+          initialStatusMap={statusMap}
+          onSave={completeStatusReview}
+          onDismiss={dismissStatusReview}
+        />
+      )}
 
       <NotificationCard notifications={notifications} />
 
