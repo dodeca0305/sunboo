@@ -29,10 +29,11 @@ export default function StartPage() {
   const [fiscalMonth, setFiscalMonth] = useState<number | null>(null);
   const [corporateType, setCorporateType] = useState<CorporateType | null>(null);
   const [hasOfficerTerm, setHasOfficerTerm] = useState<boolean | null>(null);
+  const [paysOfficerCompensation, setPaysOfficerCompensation] = useState<boolean | null>(null);
   const [establishedDate, setEstablishedDate] = useState('');
 
   const [loadingMunis, setLoadingMunis] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate', string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay', string>>>({});
 
   useEffect(() => {
     async function load() {
@@ -95,6 +96,7 @@ export default function StartPage() {
     if (prefCode && muniList.length === 0) errs.muni = '現在未対応のエリアです';
     else if (!muniCode) errs.muni = '市区町村を選択してください';
     if (hasEmployees === null) errs.emp = '従業員の有無を選択してください';
+    if (paysOfficerCompensation === null) errs.officerPay = '役員報酬の有無を選択してください';
     if (!fiscalMonth) errs.fm = '決算月を選択してください';
     if (!corporateType) errs.corp = '法人の種類を選択してください';
     if (!establishedDate) errs.establishedDate = '設立日を入力してください';
@@ -118,6 +120,7 @@ export default function StartPage() {
       pref: prefCode,
       muni: muniCode,
       emp: String(hasEmployees),
+      officerPay: String(paysOfficerCompensation),
       fm: String(fiscalMonth),
       corp: String(corporateType),
       est: establishedDate,
@@ -161,11 +164,11 @@ export default function StartPage() {
           )}
         </div>
 
-        {/* ① 所在地 */}
+        {/* ② 所在地 */}
         <div className="card space-y-4">
           <div className="flex items-center gap-3">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
-              1
+              2
             </span>
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-sunboo-ink-muted" />
@@ -243,11 +246,11 @@ export default function StartPage() {
           )}
         </div>
 
-        {/* ② 従業員 */}
+        {/* ③ 従業員 */}
         <div className="card space-y-4">
           <div className="flex items-center gap-3">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
-              2
+              3
             </span>
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-sunboo-ink-muted" />
@@ -271,11 +274,30 @@ export default function StartPage() {
           )}
         </div>
 
-        {/* ③ 決算月 */}
+        {/* ④ 役員報酬 */}
+        <div className="card space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">4</span>
+            <div className="flex items-center gap-2">
+              <UserCog className="h-4 w-4 text-sunboo-ink-muted" />
+              <h2 className="font-semibold text-gray-800">役員報酬を支払いますか？</h2>
+            </div>
+          </div>
+          <SegmentedControl
+            fullWidth
+            options={[{ value: 'true', label: '支払う' }, { value: 'false', label: '支払わない' }]}
+            value={paysOfficerCompensation === null ? null : String(paysOfficerCompensation)}
+            onChange={(value) => setPaysOfficerCompensation(value === 'true')}
+          />
+          <p className="text-xs text-gray-500">代表者・役員に毎月の報酬を支給する場合は「支払う」</p>
+          {errors.officerPay && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.officerPay}</p>}
+        </div>
+
+        {/* ⑤ 決算月 */}
         <div className="card space-y-4">
           <div className="flex items-center gap-3">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
-              3
+              5
             </span>
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-sunboo-ink-muted" />
@@ -309,11 +331,11 @@ export default function StartPage() {
           )}
         </div>
 
-        {/* ④ 法人の種類 */}
+        {/* ⑥ 法人の種類 */}
         <div className="card space-y-4">
           <div className="flex items-center gap-3">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
-              4
+              6
             </span>
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-sunboo-ink-muted" />
@@ -340,12 +362,12 @@ export default function StartPage() {
           )}
         </div>
 
-        {/* ⑤ 役員任期（株式会社のみ） */}
+        {/* ⑦ 役員任期（株式会社のみ） */}
         {corporateType === 'kabushiki' && (
           <div className="card space-y-4">
             <div className="flex items-center gap-3">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
-                5
+                7
               </span>
               <div className="flex items-center gap-2">
                 <UserCog className="h-4 w-4 text-sunboo-ink-muted" />

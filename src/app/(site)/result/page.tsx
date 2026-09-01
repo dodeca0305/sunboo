@@ -62,6 +62,7 @@ export default async function ResultPage({
     corp?: string;
     officerTerm?: string;
     est?: string;
+    officerPay?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -73,6 +74,7 @@ export default async function ResultPage({
   const corporateType: CorporateType = sp.corp === 'godo' ? 'godo' : 'kabushiki';
   const hasOfficerTerm = sp.officerTerm === 'true';
   const establishedDate = /^\d{4}-\d{2}-\d{2}$/.test(sp.est ?? '') ? sp.est! : '';
+  const paysOfficerCompensation = sp.officerPay === 'true';
 
   if (!prefCode || !muniCode || !establishedDate || fiscalMonth < 1 || fiscalMonth > 12) {
     return (
@@ -99,6 +101,7 @@ export default async function ResultPage({
     corporateType,
     hasOfficerTerm,
     establishedDate,
+    paysOfficerCompensation,
   });
 
   // 【Phase5-2b】Workspace（workspaceLoader.ts）・Share（share/[token]/page.tsx）と同じCutoverを
@@ -190,6 +193,8 @@ export default async function ResultPage({
           <span>{CORPORATE_TYPE_LABEL[corporateType]}</span>
           <span className="text-blue-300">·</span>
           <span>従業員{hasEmployees ? 'あり' : 'なし'}</span>
+          <span className="text-blue-300">·</span>
+          <span>役員報酬{paysOfficerCompensation ? 'あり' : 'なし'}</span>
           <span className="text-blue-300">·</span>
           <span>{fiscalMonth}月決算</span>
           <span className="text-blue-300">·</span>

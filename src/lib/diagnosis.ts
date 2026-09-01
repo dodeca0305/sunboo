@@ -8,6 +8,7 @@ import {
 } from './types';
 import type { SupabaseClient } from './supabase';
 import { calculateEventDeadline } from './deadline';
+import { isProcedureApplicableByPeople } from './peopleApplicability';
 
 const VALID_DOCUMENT_ITEM_TYPES: ProcedureDocumentItemType[] = ['document', 'preparation', 'checklist'];
 
@@ -212,11 +213,6 @@ export async function runDiagnosis(
     .eq('include_in_diagnosis', true)
     .order('priority');
 
-  // 従業員なしの場合は requires_employees=false の手続きのみ
-  if (!input.hasEmployees) {
-    query = query.eq('requires_employees', false);
-  }
-
   const { data: procsRaw } = await query;
 
   // 4. 各手続きに管轄機関を紐づけ・期限計算
@@ -227,6 +223,12 @@ export async function runDiagnosis(
   const procedures: ProcedureResult[] = ((procsRaw as Record<string, unknown>[] | null) ?? [])
     .filter((p) => {
       const code = p.code as string;
+      if (!isProcedureApplicableByPeople({
+        code,
+        requiresEmployees: Boolean(p.requires_employees),
+        hasEmployees: input.hasEmployees,
+        paysOfficerCompensation: input.paysOfficerCompensation ?? false,
+      })) return false;
       // 地方税の設立届は自治体ごとに期限・提出要否が異なるため、確認済み地域だけ表示する。
       if (code === 'FUKUOKA_PREFECTURAL_ESTABLISHMENT_NOTICE' && input.prefectureCode !== '40') return false;
       if (
