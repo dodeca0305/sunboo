@@ -204,7 +204,7 @@ export async function runDiagnosis(
   const offices = await resolveOffices(client, muni.id);
 
   // 3. 手続きを取得・フィルタ
-  let query = client
+  const query = client
     .from('procedures')
     .select(
       '*, official_links(label, url, status, fallback_url), procedure_documents(name, form_number, is_required, notes, item_type, sort_order)',
