@@ -164,6 +164,7 @@ export type DiagnosisInput = {
   prefectureCode: string;    // '13'
   municipalityCode: string;  // '13113'
   hasEmployees: boolean;
+  payrollRecipientCount?: number; // 給与を支払う人数（役員を含む）
   paysOfficerCompensation?: boolean;
   fiscalMonth: number;       // 1〜12
   industryCode?: string;     // 将来用

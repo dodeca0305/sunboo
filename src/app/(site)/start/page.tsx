@@ -30,10 +30,11 @@ export default function StartPage() {
   const [corporateType, setCorporateType] = useState<CorporateType | null>(null);
   const [hasOfficerTerm, setHasOfficerTerm] = useState<boolean | null>(null);
   const [paysOfficerCompensation, setPaysOfficerCompensation] = useState<boolean | null>(null);
+  const [payrollRecipientCount, setPayrollRecipientCount] = useState<number | null>(null);
   const [establishedDate, setEstablishedDate] = useState('');
 
   const [loadingMunis, setLoadingMunis] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay', string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount', string>>>({});
 
   useEffect(() => {
     async function load() {
@@ -97,6 +98,14 @@ export default function StartPage() {
     else if (!muniCode) errs.muni = '市区町村を選択してください';
     if (hasEmployees === null) errs.emp = '従業員の有無を選択してください';
     if (paysOfficerCompensation === null) errs.officerPay = '役員報酬の有無を選択してください';
+    if (
+      payrollRecipientCount === null ||
+      payrollRecipientCount < 0 ||
+      !Number.isInteger(payrollRecipientCount) ||
+      ((hasEmployees === true || paysOfficerCompensation === true) && payrollRecipientCount < 1)
+    ) {
+      errs.payrollCount = '給与を支払う人数を0以上の整数で入力してください';
+    }
     if (!fiscalMonth) errs.fm = '決算月を選択してください';
     if (!corporateType) errs.corp = '法人の種類を選択してください';
     if (!establishedDate) errs.establishedDate = '設立日を入力してください';
@@ -120,6 +129,7 @@ export default function StartPage() {
       pref: prefCode,
       muni: muniCode,
       emp: String(hasEmployees),
+      payrollCount: String(payrollRecipientCount),
       officerPay: String(paysOfficerCompensation),
       fm: String(fiscalMonth),
       corp: String(corporateType),
@@ -291,6 +301,24 @@ export default function StartPage() {
           />
           <p className="text-xs text-gray-500">代表者・役員に毎月の報酬を支給する場合は「支払う」</p>
           {errors.officerPay && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.officerPay}</p>}
+          <div>
+            <label className="form-label">給与を支払う人数（役員を含む）</label>
+            <div className="relative">
+              <input
+                type="number"
+                min="0"
+                step="1"
+                inputMode="numeric"
+                className="form-input pr-12"
+                value={payrollRecipientCount ?? ''}
+                onChange={(e) => setPayrollRecipientCount(e.target.value === '' ? null : Number(e.target.value))}
+                placeholder="0"
+              />
+              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">人</span>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">源泉所得税の納期の特例（常時10人未満）の判定に使います</p>
+            {errors.payrollCount && <p className="mt-1 flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.payrollCount}</p>}
+          </div>
         </div>
 
         {/* ⑤ 決算月 */}
