@@ -22,3 +22,10 @@ export function isProcedureApplicableByPeople(params: {
   if (hasEmployees) return true;
   return paysOfficerCompensation && OFFICER_COMPENSATION_CODES.has(code);
 }
+
+export function isWithholdingSpecialExceptionApplicable(payrollRecipientCount?: number): boolean {
+  return typeof payrollRecipientCount === 'number' &&
+    Number.isInteger(payrollRecipientCount) &&
+    payrollRecipientCount > 0 &&
+    payrollRecipientCount < 10;
+}

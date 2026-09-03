@@ -58,6 +58,7 @@ export default async function ResultPage({
     pref?: string;
     muni?: string;
     emp?: string;
+    payrollCount?: string;
     fm?: string;
     corp?: string;
     officerTerm?: string;
@@ -75,6 +76,10 @@ export default async function ResultPage({
   const hasOfficerTerm = sp.officerTerm === 'true';
   const establishedDate = /^\d{4}-\d{2}-\d{2}$/.test(sp.est ?? '') ? sp.est! : '';
   const paysOfficerCompensation = sp.officerPay === 'true';
+  const parsedPayrollCount = Number(sp.payrollCount);
+  const payrollRecipientCount = Number.isInteger(parsedPayrollCount) && parsedPayrollCount >= 0
+    ? parsedPayrollCount
+    : undefined;
 
   if (!prefCode || !muniCode || !establishedDate || fiscalMonth < 1 || fiscalMonth > 12) {
     return (
@@ -97,6 +102,7 @@ export default async function ResultPage({
     prefectureCode: prefCode,
     municipalityCode: muniCode,
     hasEmployees,
+    payrollRecipientCount,
     fiscalMonth,
     corporateType,
     hasOfficerTerm,
@@ -193,6 +199,7 @@ export default async function ResultPage({
           <span>{CORPORATE_TYPE_LABEL[corporateType]}</span>
           <span className="text-blue-300">·</span>
           <span>従業員{hasEmployees ? 'あり' : 'なし'}</span>
+          {payrollRecipientCount !== undefined && <span>給与支給{payrollRecipientCount}人</span>}
           <span className="text-blue-300">·</span>
           <span>役員報酬{paysOfficerCompensation ? 'あり' : 'なし'}</span>
           <span className="text-blue-300">·</span>

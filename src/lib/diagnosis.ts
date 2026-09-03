@@ -8,7 +8,10 @@ import {
 } from './types';
 import type { SupabaseClient } from './supabase';
 import { calculateEventDeadline } from './deadline';
-import { isProcedureApplicableByPeople } from './peopleApplicability';
+import {
+  isProcedureApplicableByPeople,
+  isWithholdingSpecialExceptionApplicable,
+} from './peopleApplicability';
 
 const VALID_DOCUMENT_ITEM_TYPES: ProcedureDocumentItemType[] = ['document', 'preparation', 'checklist'];
 
@@ -229,6 +232,12 @@ export async function runDiagnosis(
         hasEmployees: input.hasEmployees,
         paysOfficerCompensation: input.paysOfficerCompensation ?? false,
       })) return false;
+      // 納期の特例は給与の支給人員が常時10人未満の場合のみ対象。
+      // 旧URLで人数が不明な場合は、誤案内を避けるため表示しない。
+      if (
+        code === 'WITHHOLDING_SPECIAL_EXCEPTION' &&
+        !isWithholdingSpecialExceptionApplicable(input.payrollRecipientCount)
+      ) return false;
       // 地方税の設立届は自治体ごとに期限・提出要否が異なるため、確認済み地域だけ表示する。
       if (code === 'FUKUOKA_PREFECTURAL_ESTABLISHMENT_NOTICE' && input.prefectureCode !== '40') return false;
       if (
