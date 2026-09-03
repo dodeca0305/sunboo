@@ -164,6 +164,7 @@ export type DiagnosisInput = {
   prefectureCode: string;    // '13'
   municipalityCode: string;  // '13113'
   hasEmployees: boolean;
+  paysOfficerCompensation?: boolean;
   fiscalMonth: number;       // 1〜12
   industryCode?: string;     // 将来用
   corporateType: CorporateType;
