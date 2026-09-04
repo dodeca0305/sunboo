@@ -6,7 +6,7 @@ import {
 } from './peopleApplicability.ts';
 
 test('従業員なしでも役員報酬ありなら給与・源泉・社会保険手続きを表示する', () => {
-  for (const code of ['PAYROLL_OFFICE_OPEN', 'WITHHOLDING_TAX', 'SOCIAL_INS_SANTEIKISO', 'YEAR_END_ADJUSTMENT']) {
+  for (const code of ['PAYROLL_OFFICE_OPEN', 'WITHHOLDING_TAX', 'SOCIAL_INS_SANTEIKISO', 'YEAR_END_ADJUSTMENT', 'WITHHOLDING_SPECIAL_EXCEPTION']) {
     assert.equal(isProcedureApplicableByPeople({ code, requiresEmployees: true, hasEmployees: false, paysOfficerCompensation: true }), true);
   }
   assert.equal(isProcedureApplicableByPeople({ code: 'SOCIAL_INS_NEW', requiresEmployees: false, hasEmployees: false, paysOfficerCompensation: true }), true);
