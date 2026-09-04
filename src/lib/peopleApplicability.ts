@@ -5,6 +5,7 @@ const OFFICER_COMPENSATION_CODES = new Set([
   'YEAR_END_ADJUSTMENT',
   'SALARY_PAYMENT_REPORT',
   'RESIDENT_TAX_WITHHOLDING',
+  'WITHHOLDING_SPECIAL_EXCEPTION',
 ]);
 
 export function isProcedureApplicableByPeople(params: {
