@@ -22,3 +22,10 @@ test('設立日が無ければ設立系期限を断定しない', () => {
     { label: null, date: null },
   );
 });
+
+test('最初の雇用日から10日後の労働保険期限を計算する', () => {
+  assert.deepEqual(
+    calculateEventDeadline({ days_from_event: 10 }, '2026-09-01'),
+    { label: '2026年9月11日', date: '2026-09-11' },
+  );
+});

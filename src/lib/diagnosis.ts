@@ -256,7 +256,7 @@ export async function runDiagnosis(
         p.timing_type as string,
         p.timing_data as Record<string, unknown> | null,
         input.fiscalMonth,
-        input.establishedDate,
+        p.timing_type === 'hiring_event' ? input.firstEmployeeHireDate : input.establishedDate,
       );
       return {
         ...(p as ProcedureResult),

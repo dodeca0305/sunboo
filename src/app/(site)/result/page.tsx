@@ -59,6 +59,7 @@ export default async function ResultPage({
     muni?: string;
     emp?: string;
     payrollCount?: string;
+    hired?: string;
     fm?: string;
     corp?: string;
     officerTerm?: string;
@@ -80,6 +81,7 @@ export default async function ResultPage({
   const payrollRecipientCount = Number.isInteger(parsedPayrollCount) && parsedPayrollCount >= 0
     ? parsedPayrollCount
     : undefined;
+  const firstEmployeeHireDate = /^\d{4}-\d{2}-\d{2}$/.test(sp.hired ?? '') ? sp.hired : undefined;
 
   if (!prefCode || !muniCode || !establishedDate || fiscalMonth < 1 || fiscalMonth > 12) {
     return (
@@ -103,6 +105,7 @@ export default async function ResultPage({
     municipalityCode: muniCode,
     hasEmployees,
     payrollRecipientCount,
+    firstEmployeeHireDate,
     fiscalMonth,
     corporateType,
     hasOfficerTerm,
@@ -200,6 +203,7 @@ export default async function ResultPage({
           <span className="text-blue-300">·</span>
           <span>従業員{hasEmployees ? 'あり' : 'なし'}</span>
           {payrollRecipientCount !== undefined && <span>給与支給{payrollRecipientCount}人</span>}
+          {firstEmployeeHireDate && <span>{firstEmployeeHireDate.replace(/-/g, '/')}初回雇用</span>}
           <span className="text-blue-300">·</span>
           <span>役員報酬{paysOfficerCompensation ? 'あり' : 'なし'}</span>
           <span className="text-blue-300">·</span>

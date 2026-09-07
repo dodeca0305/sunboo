@@ -32,9 +32,10 @@ export default function StartPage() {
   const [paysOfficerCompensation, setPaysOfficerCompensation] = useState<boolean | null>(null);
   const [payrollRecipientCount, setPayrollRecipientCount] = useState<number | null>(null);
   const [establishedDate, setEstablishedDate] = useState('');
+  const [firstEmployeeHireDate, setFirstEmployeeHireDate] = useState('');
 
   const [loadingMunis, setLoadingMunis] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount', string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate', string>>>({});
 
   useEffect(() => {
     async function load() {
@@ -97,6 +98,7 @@ export default function StartPage() {
     if (prefCode && muniList.length === 0) errs.muni = '現在未対応のエリアです';
     else if (!muniCode) errs.muni = '市区町村を選択してください';
     if (hasEmployees === null) errs.emp = '従業員の有無を選択してください';
+    if (hasEmployees === true && !firstEmployeeHireDate) errs.hireDate = '最初の従業員を雇った日を入力してください';
     if (paysOfficerCompensation === null) errs.officerPay = '役員報酬の有無を選択してください';
     if (
       payrollRecipientCount === null ||
@@ -137,6 +139,9 @@ export default function StartPage() {
     });
     if (corporateType === 'kabushiki') {
       params.set('officerTerm', String(hasOfficerTerm));
+    }
+    if (hasEmployees && firstEmployeeHireDate) {
+      params.set('hired', firstEmployeeHireDate);
     }
     router.push(`/result?${params.toString()}`);
   }
@@ -281,6 +286,21 @@ export default function StartPage() {
               <AlertTriangle className="h-3.5 w-3.5" />
               {errors.emp}
             </p>
+          )}
+          {hasEmployees === true && (
+            <div>
+              <label className="form-label">最初の従業員を雇った日</label>
+              <input
+                type="date"
+                className="form-input"
+                value={firstEmployeeHireDate}
+                min={establishedDate || undefined}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setFirstEmployeeHireDate(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-gray-500">労働保険・雇用保険の提出期限を計算します</p>
+              {errors.hireDate && <p className="mt-1 flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.hireDate}</p>}
+            </div>
           )}
         </div>
 

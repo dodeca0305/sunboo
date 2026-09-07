@@ -171,6 +171,7 @@ export type DiagnosisInput = {
   corporateType: CorporateType;
   hasOfficerTerm?: boolean;  // 株式会社のときのみ意味を持つ
   establishedDate?: string;  // ISO (YYYY-MM-DD)。設立系手続きの期限計算に使用
+  firstEmployeeHireDate?: string; // ISO (YYYY-MM-DD)。労働・雇用保険の期限計算に使用
 };
 
 // procedure_documents.item_type（Sprint53設計・Sprint54実装）。書類そのもの（document）に加え、
