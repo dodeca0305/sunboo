@@ -13,11 +13,21 @@ export function isProcedureApplicableByPeople(params: {
   requiresEmployees: boolean;
   hasEmployees: boolean;
   paysOfficerCompensation: boolean;
+  hasEmploymentInsuranceEligibleEmployee?: boolean;
 }): boolean {
-  const { code, requiresEmployees, hasEmployees, paysOfficerCompensation } = params;
+  const {
+    code,
+    requiresEmployees,
+    hasEmployees,
+    paysOfficerCompensation,
+    hasEmploymentInsuranceEligibleEmployee,
+  } = params;
 
   if (code === 'SOCIAL_INS_NEW') {
     return hasEmployees || paysOfficerCompensation;
+  }
+  if (code === 'EMPLOY_INS_OFFICE') {
+    return hasEmploymentInsuranceEligibleEmployee ?? hasEmployees;
   }
   if (!requiresEmployees) return true;
   if (hasEmployees) return true;
