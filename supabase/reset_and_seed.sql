@@ -124,7 +124,7 @@ INSERT INTO procedures (
  'labor', TRUE,
  'labor_standards', 'one_time',
  '保険関係成立の翌日から10日以内',
- 'at_establishment', '{"days_from_event": 10}',
+ 'hiring_event', '{"days_from_event": 10}',
  5),
 
 ('EMPLOY_INS_OFFICE',
@@ -133,7 +133,7 @@ INSERT INTO procedures (
  'labor', TRUE,
  'hello_work', 'one_time',
  '設置後10日以内',
- 'at_establishment', '{"days_from_event": 10}',
+ 'hiring_event', '{"days_from_event": 10}',
  6),
 
 ('WITHHOLDING_TAX',
