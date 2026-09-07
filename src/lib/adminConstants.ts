@@ -27,6 +27,7 @@ export const PROCEDURE_CATEGORIES: { value: string; label: string }[] = [
 export const TIMING_TYPES: { value: string; label: string }[] = [
   { value: 'at_establishment', label: '設立時イベント起算（期限自動計算なし）' },
   { value: 'hiring_event', label: '雇用日から起算' },
+  { value: 'event_next_month_day', label: 'イベント発生月の翌月指定日' },
   { value: 'event_based', label: '任意イベント起算（期限自動計算なし）' },
   { value: 'fiscal_offset', label: '決算月からのオフセット（{"months": 数値}）' },
   { value: 'fixed_date', label: '毎年固定日（{"month": 月, "day": 日}）' },

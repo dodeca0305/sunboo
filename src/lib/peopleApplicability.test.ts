@@ -52,3 +52,21 @@ test('雇用保険の対象者がいる場合は適用事業所設置届を表�
     hasEmploymentInsuranceEligibleEmployee: true,
   }), true);
 });
+
+test('雇用保険の対象者条件は資格取得届にも適用する', () => {
+  assert.equal(isProcedureApplicableByPeople({
+    code: 'EMPLOY_INS_QUALIFICATION', requiresEmployees: true, hasEmployees: true,
+    paysOfficerCompensation: false, hasEmploymentInsuranceEligibleEmployee: false,
+  }), false);
+});
+
+test('社会保険の対象者がいる場合だけ資格取得届を表示する', () => {
+  assert.equal(isProcedureApplicableByPeople({
+    code: 'SOCIAL_INS_QUALIFICATION', requiresEmployees: true, hasEmployees: true,
+    paysOfficerCompensation: false, hasSocialInsuranceEligibleEmployee: true,
+  }), true);
+  assert.equal(isProcedureApplicableByPeople({
+    code: 'SOCIAL_INS_QUALIFICATION', requiresEmployees: true, hasEmployees: true,
+    paysOfficerCompensation: false, hasSocialInsuranceEligibleEmployee: false,
+  }), false);
+});

@@ -7,7 +7,7 @@ import {
   ProcedureResult,
 } from './types';
 import type { SupabaseClient } from './supabase';
-import { calculateEventDeadline } from './deadline';
+import { calculateEventDeadline, calculateEventNextMonthDeadline } from './deadline';
 import {
   isProcedureApplicableByPeople,
   isWithholdingSpecialExceptionApplicable,
@@ -108,6 +108,10 @@ export function calculateNextDeadline(
       let d = new Date(year, m - 1, day);
       if (d < today) d = new Date(year + 1, m - 1, day);
       return { label: `${d.getFullYear()}年${m}月${day}日`, date: toIsoDate(d) };
+    }
+
+    case 'event_next_month_day': {
+      return calculateEventNextMonthDeadline(timingData, eventDate);
     }
 
     case 'period': {
@@ -232,6 +236,7 @@ export async function runDiagnosis(
         hasEmployees: input.hasEmployees,
         paysOfficerCompensation: input.paysOfficerCompensation ?? false,
         hasEmploymentInsuranceEligibleEmployee: input.hasEmploymentInsuranceEligibleEmployee,
+        hasSocialInsuranceEligibleEmployee: input.hasSocialInsuranceEligibleEmployee,
       })) return false;
       // 納期の特例は給与の支給人員が常時10人未満の場合のみ対象。
       // 旧URLで人数が不明な場合は、誤案内を避けるため表示しない。
@@ -257,8 +262,10 @@ export async function runDiagnosis(
         p.timing_type as string,
         p.timing_data as Record<string, unknown> | null,
         input.fiscalMonth,
-        p.code === 'EMPLOY_INS_OFFICE'
+        p.code === 'EMPLOY_INS_OFFICE' || p.code === 'EMPLOY_INS_QUALIFICATION'
           ? input.firstEmploymentInsuranceEligibleHireDate
+          : p.code === 'SOCIAL_INS_QUALIFICATION'
+            ? input.firstSocialInsuranceEligibleHireDate
           : p.timing_type === 'hiring_event'
             ? input.firstEmployeeHireDate
             : input.establishedDate,
