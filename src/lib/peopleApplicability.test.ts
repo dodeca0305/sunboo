@@ -32,3 +32,23 @@ test('給与支給人員が0人・10人以上・不明なら納期の特例を�
   assert.equal(isWithholdingSpecialExceptionApplicable(10), false);
   assert.equal(isWithholdingSpecialExceptionApplicable(undefined), false);
 });
+
+test('雇用保険の対象者がいない場合は適用事業所設置届を表示しない', () => {
+  assert.equal(isProcedureApplicableByPeople({
+    code: 'EMPLOY_INS_OFFICE',
+    requiresEmployees: true,
+    hasEmployees: true,
+    paysOfficerCompensation: false,
+    hasEmploymentInsuranceEligibleEmployee: false,
+  }), false);
+});
+
+test('雇用保険の対象者がいる場合は適用事業所設置届を表示する', () => {
+  assert.equal(isProcedureApplicableByPeople({
+    code: 'EMPLOY_INS_OFFICE',
+    requiresEmployees: true,
+    hasEmployees: true,
+    paysOfficerCompensation: false,
+    hasEmploymentInsuranceEligibleEmployee: true,
+  }), true);
+});

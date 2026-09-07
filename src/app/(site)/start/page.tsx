@@ -33,9 +33,11 @@ export default function StartPage() {
   const [payrollRecipientCount, setPayrollRecipientCount] = useState<number | null>(null);
   const [establishedDate, setEstablishedDate] = useState('');
   const [firstEmployeeHireDate, setFirstEmployeeHireDate] = useState('');
+  const [hasEmploymentInsuranceEligibleEmployee, setHasEmploymentInsuranceEligibleEmployee] = useState<boolean | null>(null);
+  const [firstEmploymentInsuranceEligibleHireDate, setFirstEmploymentInsuranceEligibleHireDate] = useState('');
 
   const [loadingMunis, setLoadingMunis] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate', string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate', string>>>({});
 
   useEffect(() => {
     async function load() {
@@ -99,6 +101,12 @@ export default function StartPage() {
     else if (!muniCode) errs.muni = '市区町村を選択してください';
     if (hasEmployees === null) errs.emp = '従業員の有無を選択してください';
     if (hasEmployees === true && !firstEmployeeHireDate) errs.hireDate = '最初の従業員を雇った日を入力してください';
+    if (hasEmployees === true && hasEmploymentInsuranceEligibleEmployee === null) {
+      errs.employmentIns = '雇用保険の対象者の有無を選択してください';
+    }
+    if (hasEmploymentInsuranceEligibleEmployee === true && !firstEmploymentInsuranceEligibleHireDate) {
+      errs.employmentInsDate = '最初の対象者を雇った日を入力してください';
+    }
     if (paysOfficerCompensation === null) errs.officerPay = '役員報酬の有無を選択してください';
     if (
       payrollRecipientCount === null ||
@@ -142,6 +150,10 @@ export default function StartPage() {
     }
     if (hasEmployees && firstEmployeeHireDate) {
       params.set('hired', firstEmployeeHireDate);
+      params.set('employmentIns', String(hasEmploymentInsuranceEligibleEmployee));
+      if (hasEmploymentInsuranceEligibleEmployee && firstEmploymentInsuranceEligibleHireDate) {
+        params.set('employmentInsHired', firstEmploymentInsuranceEligibleHireDate);
+      }
     }
     router.push(`/result?${params.toString()}`);
   }
@@ -288,7 +300,8 @@ export default function StartPage() {
             </p>
           )}
           {hasEmployees === true && (
-            <div>
+            <div className="space-y-4">
+              <div>
               <label className="form-label">最初の従業員を雇った日</label>
               <input
                 type="date"
@@ -300,6 +313,32 @@ export default function StartPage() {
               />
               <p className="mt-1 text-xs text-gray-500">労働保険・雇用保険の提出期限を計算します</p>
               {errors.hireDate && <p className="mt-1 flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.hireDate}</p>}
+              </div>
+              <div>
+                <label className="form-label">週20時間以上かつ31日以上雇う予定の従業員はいますか？</label>
+                <SegmentedControl
+                  fullWidth
+                  options={[{ value: 'true', label: 'いる' }, { value: 'false', label: 'いない' }]}
+                  value={hasEmploymentInsuranceEligibleEmployee === null ? null : String(hasEmploymentInsuranceEligibleEmployee)}
+                  onChange={(value) => setHasEmploymentInsuranceEligibleEmployee(value === 'true')}
+                />
+                <p className="mt-1 text-xs text-gray-500">雇用保険の原則的な加入基準です</p>
+                {errors.employmentIns && <p className="mt-1 flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.employmentIns}</p>}
+              </div>
+              {hasEmploymentInsuranceEligibleEmployee === true && (
+                <div>
+                  <label className="form-label">最初の雇用保険対象者を雇った日</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={firstEmploymentInsuranceEligibleHireDate}
+                    min={establishedDate || undefined}
+                    max={new Date().toISOString().slice(0, 10)}
+                    onChange={(e) => setFirstEmploymentInsuranceEligibleHireDate(e.target.value)}
+                  />
+                  {errors.employmentInsDate && <p className="mt-1 flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.employmentInsDate}</p>}
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -231,6 +231,7 @@ export async function runDiagnosis(
         requiresEmployees: Boolean(p.requires_employees),
         hasEmployees: input.hasEmployees,
         paysOfficerCompensation: input.paysOfficerCompensation ?? false,
+        hasEmploymentInsuranceEligibleEmployee: input.hasEmploymentInsuranceEligibleEmployee,
       })) return false;
       // 納期の特例は給与の支給人員が常時10人未満の場合のみ対象。
       // 旧URLで人数が不明な場合は、誤案内を避けるため表示しない。
@@ -256,7 +257,11 @@ export async function runDiagnosis(
         p.timing_type as string,
         p.timing_data as Record<string, unknown> | null,
         input.fiscalMonth,
-        p.timing_type === 'hiring_event' ? input.firstEmployeeHireDate : input.establishedDate,
+        p.code === 'EMPLOY_INS_OFFICE'
+          ? input.firstEmploymentInsuranceEligibleHireDate
+          : p.timing_type === 'hiring_event'
+            ? input.firstEmployeeHireDate
+            : input.establishedDate,
       );
       return {
         ...(p as ProcedureResult),
