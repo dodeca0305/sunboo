@@ -250,6 +250,7 @@ export async function runDiagnosis(
         !isConsumptionTaxReturnRequired({
           capitalAmount: input.capitalAmount,
           isInvoiceRegistered: input.isInvoiceRegistered,
+          isConsumptionTaxElectionEffective: input.isConsumptionTaxElectionEffective,
         })
       ) return false;
       // 地方税の設立届は自治体ごとに期限・提出要否が異なるため、確認済み地域だけ表示する。

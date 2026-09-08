@@ -39,9 +39,10 @@ export default function StartPage() {
   const [firstSocialInsuranceEligibleHireDate, setFirstSocialInsuranceEligibleHireDate] = useState('');
   const [capitalAmount, setCapitalAmount] = useState<number | null>(null);
   const [isInvoiceRegistered, setIsInvoiceRegistered] = useState<boolean | null>(null);
+  const [isConsumptionTaxElectionEffective, setIsConsumptionTaxElectionEffective] = useState<boolean | null>(null);
 
   const [loadingMunis, setLoadingMunis] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate' | 'socialIns' | 'socialInsDate' | 'capital' | 'invoice', string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate' | 'socialIns' | 'socialInsDate' | 'capital' | 'invoice' | 'taxElection', string>>>({});
 
   useEffect(() => {
     async function load() {
@@ -132,6 +133,7 @@ export default function StartPage() {
       errs.capital = '資本金を1円以上の整数で入力してください';
     }
     if (isInvoiceRegistered === null) errs.invoice = 'インボイス登録の有無を選択してください';
+    if (isConsumptionTaxElectionEffective === null) errs.taxElection = '課税事業者選択の状況を選択してください';
     if (!establishedDate) errs.establishedDate = '設立日を入力してください';
     if (corporateType === 'kabushiki' && hasOfficerTerm === null) {
       errs.officerTerm = '役員任期の有無を選択してください';
@@ -160,6 +162,7 @@ export default function StartPage() {
       est: establishedDate,
       capital: String(capitalAmount),
       invoiceRegistered: String(isInvoiceRegistered),
+      taxElectionEffective: String(isConsumptionTaxElectionEffective),
     });
     if (corporateType === 'kabushiki') {
       params.set('officerTerm', String(hasOfficerTerm));
@@ -543,12 +546,34 @@ export default function StartPage() {
           {errors.invoice && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.invoice}</p>}
         </div>
 
-        {/* ⑨ 役員任期（株式会社のみ） */}
+        {/* ⑨ 消費税課税事業者選択 */}
+        <div className="card space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">9</span>
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-sunboo-ink-muted" />
+              <h2 className="font-semibold text-gray-800">課税事業者選択届出書が現在有効ですか？</h2>
+            </div>
+          </div>
+          <SegmentedControl
+            fullWidth
+            options={[
+              { value: 'true', label: '有効' },
+              { value: 'false', label: '有効ではない' },
+            ]}
+            value={isConsumptionTaxElectionEffective === null ? null : String(isConsumptionTaxElectionEffective)}
+            onChange={(v) => setIsConsumptionTaxElectionEffective(v === 'true')}
+          />
+          <p className="text-xs text-gray-500">提出済みでも適用開始前の場合があります。不明な場合は税務署または税理士に確認してください</p>
+          {errors.taxElection && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.taxElection}</p>}
+        </div>
+
+        {/* ⑩ 役員任期（株式会社のみ） */}
         {corporateType === 'kabushiki' && (
           <div className="card space-y-4">
             <div className="flex items-center gap-3">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
-                9
+                10
               </span>
               <div className="flex items-center gap-2">
                 <UserCog className="h-4 w-4 text-sunboo-ink-muted" />

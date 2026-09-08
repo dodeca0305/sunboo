@@ -178,6 +178,7 @@ export type DiagnosisInput = {
   firstSocialInsuranceEligibleHireDate?: string; // ISO (YYYY-MM-DD)。社会保険資格取得の期限計算に使用
   capitalAmount?: number; // 資本金・出資金（円）
   isInvoiceRegistered?: boolean; // 適格請求書発行事業者（インボイス）の登録有無
+  isConsumptionTaxElectionEffective?: boolean; // 消費税課税事業者選択届出書が現在の課税期間に有効か
 };
 
 // procedure_documents.item_type（Sprint53設計・Sprint54実装）。書類そのもの（document）に加え、
