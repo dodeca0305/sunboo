@@ -37,9 +37,10 @@ export default function StartPage() {
   const [firstEmploymentInsuranceEligibleHireDate, setFirstEmploymentInsuranceEligibleHireDate] = useState('');
   const [hasSocialInsuranceEligibleEmployee, setHasSocialInsuranceEligibleEmployee] = useState<boolean | null>(null);
   const [firstSocialInsuranceEligibleHireDate, setFirstSocialInsuranceEligibleHireDate] = useState('');
+  const [capitalAmount, setCapitalAmount] = useState<number | null>(null);
 
   const [loadingMunis, setLoadingMunis] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate' | 'socialIns' | 'socialInsDate', string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate' | 'socialIns' | 'socialInsDate' | 'capital', string>>>({});
 
   useEffect(() => {
     async function load() {
@@ -126,6 +127,9 @@ export default function StartPage() {
     }
     if (!fiscalMonth) errs.fm = '決算月を選択してください';
     if (!corporateType) errs.corp = '法人の種類を選択してください';
+    if (capitalAmount === null || capitalAmount < 1 || !Number.isSafeInteger(capitalAmount)) {
+      errs.capital = '資本金を1円以上の整数で入力してください';
+    }
     if (!establishedDate) errs.establishedDate = '設立日を入力してください';
     if (corporateType === 'kabushiki' && hasOfficerTerm === null) {
       errs.officerTerm = '役員任期の有無を選択してください';
@@ -152,6 +156,7 @@ export default function StartPage() {
       fm: String(fiscalMonth),
       corp: String(corporateType),
       est: establishedDate,
+      capital: String(capitalAmount),
     });
     if (corporateType === 'kabushiki') {
       params.set('officerTerm', String(hasOfficerTerm));
@@ -487,12 +492,38 @@ export default function StartPage() {
           )}
         </div>
 
-        {/* ⑦ 役員任期（株式会社のみ） */}
+        {/* ⑦ 資本金 */}
+        <div className="card space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">7</span>
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-sunboo-ink-muted" />
+              <h2 className="font-semibold text-gray-800">資本金・出資金</h2>
+            </div>
+          </div>
+          <div className="relative">
+            <input
+              type="number"
+              min="1"
+              step="1"
+              inputMode="numeric"
+              className="form-input pr-12"
+              value={capitalAmount ?? ''}
+              onChange={(e) => setCapitalAmount(e.target.value === '' ? null : Number(e.target.value))}
+              placeholder="1000000"
+            />
+            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">円</span>
+          </div>
+          <p className="text-xs text-gray-500">登記事項証明書に記載された金額。1,000万円以上は設立期から消費税の課税事業者です</p>
+          {errors.capital && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.capital}</p>}
+        </div>
+
+        {/* ⑧ 役員任期（株式会社のみ） */}
         {corporateType === 'kabushiki' && (
           <div className="card space-y-4">
             <div className="flex items-center gap-3">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
-                7
+                8
               </span>
               <div className="flex items-center gap-2">
                 <UserCog className="h-4 w-4 text-sunboo-ink-muted" />
