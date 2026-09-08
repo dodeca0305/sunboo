@@ -24,6 +24,22 @@ test('インボイス未登録かつ資本金1,000万円未満なら対象と断
   }), false);
 });
 
+test('課税事業者選択届出書が現在有効なら資本金1,000万円未満でも消費税申告対象', () => {
+  assert.equal(isConsumptionTaxReturnRequired({
+    capitalAmount: 1_000_000,
+    isInvoiceRegistered: false,
+    isConsumptionTaxElectionEffective: true,
+  }), true);
+});
+
+test('課税事業者選択が無効なら他の該当条件がない限り対象と断定しない', () => {
+  assert.equal(isConsumptionTaxReturnRequired({
+    capitalAmount: 9_999_999,
+    isInvoiceRegistered: false,
+    isConsumptionTaxElectionEffective: false,
+  }), false);
+});
+
 test('資本金1,000万円未満・不明なら資本金だけでは消費税申告対象と断定しない', () => {
   assert.equal(isConsumptionTaxReturnRequiredByCapital(9_999_999), false);
   assert.equal(isConsumptionTaxReturnRequiredByCapital(undefined), false);

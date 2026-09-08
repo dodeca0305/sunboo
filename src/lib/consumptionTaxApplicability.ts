@@ -9,9 +9,13 @@ export function isConsumptionTaxReturnRequiredByCapital(capitalAmount?: number):
 export function isConsumptionTaxReturnRequired({
   capitalAmount,
   isInvoiceRegistered,
+  isConsumptionTaxElectionEffective,
 }: {
   capitalAmount?: number;
   isInvoiceRegistered?: boolean;
+  isConsumptionTaxElectionEffective?: boolean;
 }): boolean {
-  return isInvoiceRegistered === true || isConsumptionTaxReturnRequiredByCapital(capitalAmount);
+  return isInvoiceRegistered === true ||
+    isConsumptionTaxElectionEffective === true ||
+    isConsumptionTaxReturnRequiredByCapital(capitalAmount);
 }

@@ -66,6 +66,7 @@ export default async function ResultPage({
     socialInsHired?: string;
     capital?: string;
     invoiceRegistered?: string;
+    taxElectionEffective?: string;
     fm?: string;
     corp?: string;
     officerTerm?: string;
@@ -105,6 +106,7 @@ export default async function ResultPage({
     ? parsedCapitalAmount
     : undefined;
   const isInvoiceRegistered = sp.invoiceRegistered === 'true';
+  const isConsumptionTaxElectionEffective = sp.taxElectionEffective === 'true';
 
   if (!prefCode || !muniCode || !establishedDate || fiscalMonth < 1 || fiscalMonth > 12) {
     return (
@@ -135,6 +137,7 @@ export default async function ResultPage({
     firstSocialInsuranceEligibleHireDate,
     capitalAmount,
     isInvoiceRegistered,
+    isConsumptionTaxElectionEffective,
     fiscalMonth,
     corporateType,
     hasOfficerTerm,
@@ -237,6 +240,7 @@ export default async function ResultPage({
           {hasEmployees && <span>社会保険対象者{hasSocialInsuranceEligibleEmployee ? 'あり' : 'なし'}</span>}
           {capitalAmount !== undefined && <span>資本金{capitalAmount.toLocaleString('ja-JP')}円</span>}
           <span>インボイス{isInvoiceRegistered ? '登録済み' : '未登録'}</span>
+          <span>課税事業者選択{isConsumptionTaxElectionEffective ? '有効' : 'なし'}</span>
           <span className="text-blue-300">·</span>
           <span>役員報酬{paysOfficerCompensation ? 'あり' : 'なし'}</span>
           <span className="text-blue-300">·</span>
