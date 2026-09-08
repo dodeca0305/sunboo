@@ -38,9 +38,10 @@ export default function StartPage() {
   const [hasSocialInsuranceEligibleEmployee, setHasSocialInsuranceEligibleEmployee] = useState<boolean | null>(null);
   const [firstSocialInsuranceEligibleHireDate, setFirstSocialInsuranceEligibleHireDate] = useState('');
   const [capitalAmount, setCapitalAmount] = useState<number | null>(null);
+  const [isInvoiceRegistered, setIsInvoiceRegistered] = useState<boolean | null>(null);
 
   const [loadingMunis, setLoadingMunis] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate' | 'socialIns' | 'socialInsDate' | 'capital', string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate' | 'socialIns' | 'socialInsDate' | 'capital' | 'invoice', string>>>({});
 
   useEffect(() => {
     async function load() {
@@ -130,6 +131,7 @@ export default function StartPage() {
     if (capitalAmount === null || capitalAmount < 1 || !Number.isSafeInteger(capitalAmount)) {
       errs.capital = '資本金を1円以上の整数で入力してください';
     }
+    if (isInvoiceRegistered === null) errs.invoice = 'インボイス登録の有無を選択してください';
     if (!establishedDate) errs.establishedDate = '設立日を入力してください';
     if (corporateType === 'kabushiki' && hasOfficerTerm === null) {
       errs.officerTerm = '役員任期の有無を選択してください';
@@ -157,6 +159,7 @@ export default function StartPage() {
       corp: String(corporateType),
       est: establishedDate,
       capital: String(capitalAmount),
+      invoiceRegistered: String(isInvoiceRegistered),
     });
     if (corporateType === 'kabushiki') {
       params.set('officerTerm', String(hasOfficerTerm));
@@ -518,12 +521,34 @@ export default function StartPage() {
           {errors.capital && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.capital}</p>}
         </div>
 
-        {/* ⑧ 役員任期（株式会社のみ） */}
+        {/* ⑧ インボイス登録 */}
+        <div className="card space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">8</span>
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-sunboo-ink-muted" />
+              <h2 className="font-semibold text-gray-800">インボイス登録をしていますか？</h2>
+            </div>
+          </div>
+          <SegmentedControl
+            fullWidth
+            options={[
+              { value: 'true', label: '登録済み' },
+              { value: 'false', label: '未登録' },
+            ]}
+            value={isInvoiceRegistered === null ? null : String(isInvoiceRegistered)}
+            onChange={(v) => setIsInvoiceRegistered(v === 'true')}
+          />
+          <p className="text-xs text-gray-500">適格請求書発行事業者として登録済みの場合、消費税の申告が必要です</p>
+          {errors.invoice && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.invoice}</p>}
+        </div>
+
+        {/* ⑨ 役員任期（株式会社のみ） */}
         {corporateType === 'kabushiki' && (
           <div className="card space-y-4">
             <div className="flex items-center gap-3">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
-                8
+                9
               </span>
               <div className="flex items-center gap-2">
                 <UserCog className="h-4 w-4 text-sunboo-ink-muted" />

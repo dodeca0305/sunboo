@@ -1,10 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isConsumptionTaxReturnRequiredByCapital } from './consumptionTaxApplicability.ts';
+import {
+  isConsumptionTaxReturnRequired,
+  isConsumptionTaxReturnRequiredByCapital,
+} from './consumptionTaxApplicability.ts';
 
 test('資本金1,000万円以上なら新設法人の消費税申告対象', () => {
   assert.equal(isConsumptionTaxReturnRequiredByCapital(10_000_000), true);
   assert.equal(isConsumptionTaxReturnRequiredByCapital(30_000_000), true);
+});
+
+test('インボイス登録済みなら資本金1,000万円未満でも消費税申告対象', () => {
+  assert.equal(isConsumptionTaxReturnRequired({
+    capitalAmount: 1_000_000,
+    isInvoiceRegistered: true,
+  }), true);
+});
+
+test('インボイス未登録かつ資本金1,000万円未満なら対象と断定しない', () => {
+  assert.equal(isConsumptionTaxReturnRequired({
+    capitalAmount: 9_999_999,
+    isInvoiceRegistered: false,
+  }), false);
 });
 
 test('資本金1,000万円未満・不明なら資本金だけでは消費税申告対象と断定しない', () => {
