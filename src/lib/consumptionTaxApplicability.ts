@@ -5,3 +5,13 @@ export function isConsumptionTaxReturnRequiredByCapital(capitalAmount?: number):
     Number.isSafeInteger(capitalAmount) &&
     capitalAmount >= NEW_CORPORATION_CAPITAL_THRESHOLD;
 }
+
+export function isConsumptionTaxReturnRequired({
+  capitalAmount,
+  isInvoiceRegistered,
+}: {
+  capitalAmount?: number;
+  isInvoiceRegistered?: boolean;
+}): boolean {
+  return isInvoiceRegistered === true || isConsumptionTaxReturnRequiredByCapital(capitalAmount);
+}
