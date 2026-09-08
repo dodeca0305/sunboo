@@ -62,6 +62,8 @@ export default async function ResultPage({
     hired?: string;
     employmentIns?: string;
     employmentInsHired?: string;
+    socialIns?: string;
+    socialInsHired?: string;
     fm?: string;
     corp?: string;
     officerTerm?: string;
@@ -90,6 +92,12 @@ export default async function ResultPage({
   const firstEmploymentInsuranceEligibleHireDate = /^\d{4}-\d{2}-\d{2}$/.test(sp.employmentInsHired ?? '')
     ? sp.employmentInsHired
     : sp.employmentIns === undefined ? firstEmployeeHireDate : undefined;
+  const hasSocialInsuranceEligibleEmployee = sp.socialIns === undefined
+    ? hasEmployees
+    : sp.socialIns === 'true';
+  const firstSocialInsuranceEligibleHireDate = /^\d{4}-\d{2}-\d{2}$/.test(sp.socialInsHired ?? '')
+    ? sp.socialInsHired
+    : sp.socialIns === undefined ? firstEmployeeHireDate : undefined;
 
   if (!prefCode || !muniCode || !establishedDate || fiscalMonth < 1 || fiscalMonth > 12) {
     return (
@@ -116,6 +124,8 @@ export default async function ResultPage({
     firstEmployeeHireDate,
     hasEmploymentInsuranceEligibleEmployee,
     firstEmploymentInsuranceEligibleHireDate,
+    hasSocialInsuranceEligibleEmployee,
+    firstSocialInsuranceEligibleHireDate,
     fiscalMonth,
     corporateType,
     hasOfficerTerm,
@@ -215,6 +225,7 @@ export default async function ResultPage({
           {payrollRecipientCount !== undefined && <span>給与支給{payrollRecipientCount}人</span>}
           {firstEmployeeHireDate && <span>{firstEmployeeHireDate.replace(/-/g, '/')}初回雇用</span>}
           {hasEmployees && <span>雇用保険対象者{hasEmploymentInsuranceEligibleEmployee ? 'あり' : 'なし'}</span>}
+          {hasEmployees && <span>社会保険対象者{hasSocialInsuranceEligibleEmployee ? 'あり' : 'なし'}</span>}
           <span className="text-blue-300">·</span>
           <span>役員報酬{paysOfficerCompensation ? 'あり' : 'なし'}</span>
           <span className="text-blue-300">·</span>

@@ -174,6 +174,8 @@ export type DiagnosisInput = {
   firstEmployeeHireDate?: string; // ISO (YYYY-MM-DD)。労働・雇用保険の期限計算に使用
   hasEmploymentInsuranceEligibleEmployee?: boolean;
   firstEmploymentInsuranceEligibleHireDate?: string; // ISO (YYYY-MM-DD)。雇用保険の期限計算に使用
+  hasSocialInsuranceEligibleEmployee?: boolean;
+  firstSocialInsuranceEligibleHireDate?: string; // ISO (YYYY-MM-DD)。社会保険資格取得の期限計算に使用
 };
 
 // procedure_documents.item_type（Sprint53設計・Sprint54実装）。書類そのもの（document）に加え、

@@ -35,9 +35,11 @@ export default function StartPage() {
   const [firstEmployeeHireDate, setFirstEmployeeHireDate] = useState('');
   const [hasEmploymentInsuranceEligibleEmployee, setHasEmploymentInsuranceEligibleEmployee] = useState<boolean | null>(null);
   const [firstEmploymentInsuranceEligibleHireDate, setFirstEmploymentInsuranceEligibleHireDate] = useState('');
+  const [hasSocialInsuranceEligibleEmployee, setHasSocialInsuranceEligibleEmployee] = useState<boolean | null>(null);
+  const [firstSocialInsuranceEligibleHireDate, setFirstSocialInsuranceEligibleHireDate] = useState('');
 
   const [loadingMunis, setLoadingMunis] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate', string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate' | 'socialIns' | 'socialInsDate', string>>>({});
 
   useEffect(() => {
     async function load() {
@@ -107,6 +109,12 @@ export default function StartPage() {
     if (hasEmploymentInsuranceEligibleEmployee === true && !firstEmploymentInsuranceEligibleHireDate) {
       errs.employmentInsDate = '最初の対象者を雇った日を入力してください';
     }
+    if (hasEmployees === true && hasSocialInsuranceEligibleEmployee === null) {
+      errs.socialIns = '社会保険の対象者の有無を選択してください';
+    }
+    if (hasSocialInsuranceEligibleEmployee === true && !firstSocialInsuranceEligibleHireDate) {
+      errs.socialInsDate = '最初の対象者を雇った日を入力してください';
+    }
     if (paysOfficerCompensation === null) errs.officerPay = '役員報酬の有無を選択してください';
     if (
       payrollRecipientCount === null ||
@@ -153,6 +161,10 @@ export default function StartPage() {
       params.set('employmentIns', String(hasEmploymentInsuranceEligibleEmployee));
       if (hasEmploymentInsuranceEligibleEmployee && firstEmploymentInsuranceEligibleHireDate) {
         params.set('employmentInsHired', firstEmploymentInsuranceEligibleHireDate);
+      }
+      params.set('socialIns', String(hasSocialInsuranceEligibleEmployee));
+      if (hasSocialInsuranceEligibleEmployee && firstSocialInsuranceEligibleHireDate) {
+        params.set('socialInsHired', firstSocialInsuranceEligibleHireDate);
       }
     }
     router.push(`/result?${params.toString()}`);
@@ -337,6 +349,32 @@ export default function StartPage() {
                     onChange={(e) => setFirstEmploymentInsuranceEligibleHireDate(e.target.value)}
                   />
                   {errors.employmentInsDate && <p className="mt-1 flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.employmentInsDate}</p>}
+                </div>
+              )}
+              <div>
+                <label className="form-label">社会保険の加入対象となる従業員はいますか？</label>
+                <SegmentedControl
+                  fullWidth
+                  options={[{ value: 'true', label: 'いる' }, { value: 'false', label: 'いない' }]}
+                  value={hasSocialInsuranceEligibleEmployee === null ? null : String(hasSocialInsuranceEligibleEmployee)}
+                  onChange={(value) => setHasSocialInsuranceEligibleEmployee(value === 'true')}
+                />
+                <p className="mt-1 text-xs text-gray-500">原則、正社員または正社員の所定労働時間・日数の4分の3以上働く人</p>
+                {errors.socialIns && <p className="mt-1 flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.socialIns}</p>}
+              </div>
+              {hasSocialInsuranceEligibleEmployee === true && (
+                <div>
+                  <label className="form-label">最初の社会保険対象者を雇った日</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={firstSocialInsuranceEligibleHireDate}
+                    min={establishedDate || undefined}
+                    max={new Date().toISOString().slice(0, 10)}
+                    onChange={(e) => setFirstSocialInsuranceEligibleHireDate(e.target.value)}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">短時間労働者には別の加入要件があります</p>
+                  {errors.socialInsDate && <p className="mt-1 flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.socialInsDate}</p>}
                 </div>
               )}
             </div>
