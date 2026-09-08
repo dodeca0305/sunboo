@@ -64,6 +64,7 @@ export default async function ResultPage({
     employmentInsHired?: string;
     socialIns?: string;
     socialInsHired?: string;
+    capital?: string;
     fm?: string;
     corp?: string;
     officerTerm?: string;
@@ -98,6 +99,10 @@ export default async function ResultPage({
   const firstSocialInsuranceEligibleHireDate = /^\d{4}-\d{2}-\d{2}$/.test(sp.socialInsHired ?? '')
     ? sp.socialInsHired
     : sp.socialIns === undefined ? firstEmployeeHireDate : undefined;
+  const parsedCapitalAmount = Number(sp.capital);
+  const capitalAmount = Number.isSafeInteger(parsedCapitalAmount) && parsedCapitalAmount >= 1
+    ? parsedCapitalAmount
+    : undefined;
 
   if (!prefCode || !muniCode || !establishedDate || fiscalMonth < 1 || fiscalMonth > 12) {
     return (
@@ -126,6 +131,7 @@ export default async function ResultPage({
     firstEmploymentInsuranceEligibleHireDate,
     hasSocialInsuranceEligibleEmployee,
     firstSocialInsuranceEligibleHireDate,
+    capitalAmount,
     fiscalMonth,
     corporateType,
     hasOfficerTerm,
@@ -226,6 +232,7 @@ export default async function ResultPage({
           {firstEmployeeHireDate && <span>{firstEmployeeHireDate.replace(/-/g, '/')}初回雇用</span>}
           {hasEmployees && <span>雇用保険対象者{hasEmploymentInsuranceEligibleEmployee ? 'あり' : 'なし'}</span>}
           {hasEmployees && <span>社会保険対象者{hasSocialInsuranceEligibleEmployee ? 'あり' : 'なし'}</span>}
+          {capitalAmount !== undefined && <span>資本金{capitalAmount.toLocaleString('ja-JP')}円</span>}
           <span className="text-blue-300">·</span>
           <span>役員報酬{paysOfficerCompensation ? 'あり' : 'なし'}</span>
           <span className="text-blue-300">·</span>

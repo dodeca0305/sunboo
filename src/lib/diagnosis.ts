@@ -12,6 +12,7 @@ import {
   isProcedureApplicableByPeople,
   isWithholdingSpecialExceptionApplicable,
 } from './peopleApplicability';
+import { isConsumptionTaxReturnRequiredByCapital } from './consumptionTaxApplicability';
 
 const VALID_DOCUMENT_ITEM_TYPES: ProcedureDocumentItemType[] = ['document', 'preparation', 'checklist'];
 
@@ -243,6 +244,10 @@ export async function runDiagnosis(
       if (
         code === 'WITHHOLDING_SPECIAL_EXCEPTION' &&
         !isWithholdingSpecialExceptionApplicable(input.payrollRecipientCount)
+      ) return false;
+      if (
+        code === 'CONSUMPTION_TAX_RETURN' &&
+        !isConsumptionTaxReturnRequiredByCapital(input.capitalAmount)
       ) return false;
       // 地方税の設立届は自治体ごとに期限・提出要否が異なるため、確認済み地域だけ表示する。
       if (code === 'FUKUOKA_PREFECTURAL_ESTABLISHMENT_NOTICE' && input.prefectureCode !== '40') return false;
