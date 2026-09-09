@@ -16,6 +16,7 @@ const FISCAL_MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 
 type PrefItem = { code: string; name: string };
 type MuniItem = { code: string; name: string };
+type SpecificPeriodThresholdStatus = 'both_over' | 'either_not_over' | 'not_applicable_or_unknown';
 
 export default function StartPage() {
   const router = useRouter();
@@ -40,9 +41,10 @@ export default function StartPage() {
   const [capitalAmount, setCapitalAmount] = useState<number | null>(null);
   const [isInvoiceRegistered, setIsInvoiceRegistered] = useState<boolean | null>(null);
   const [isConsumptionTaxElectionEffective, setIsConsumptionTaxElectionEffective] = useState<boolean | null>(null);
+  const [specificPeriodThresholdStatus, setSpecificPeriodThresholdStatus] = useState<SpecificPeriodThresholdStatus | null>(null);
 
   const [loadingMunis, setLoadingMunis] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate' | 'socialIns' | 'socialInsDate' | 'capital' | 'invoice' | 'taxElection', string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate' | 'socialIns' | 'socialInsDate' | 'capital' | 'invoice' | 'taxElection' | 'specificPeriod', string>>>({});
 
   useEffect(() => {
     async function load() {
@@ -134,6 +136,7 @@ export default function StartPage() {
     }
     if (isInvoiceRegistered === null) errs.invoice = 'インボイス登録の有無を選択してください';
     if (isConsumptionTaxElectionEffective === null) errs.taxElection = '課税事業者選択の状況を選択してください';
+    if (specificPeriodThresholdStatus === null) errs.specificPeriod = '特定期間の状況を選択してください';
     if (!establishedDate) errs.establishedDate = '設立日を入力してください';
     if (corporateType === 'kabushiki' && hasOfficerTerm === null) {
       errs.officerTerm = '役員任期の有無を選択してください';
@@ -163,6 +166,7 @@ export default function StartPage() {
       capital: String(capitalAmount),
       invoiceRegistered: String(isInvoiceRegistered),
       taxElectionEffective: String(isConsumptionTaxElectionEffective),
+      specificPeriod: String(specificPeriodThresholdStatus),
     });
     if (corporateType === 'kabushiki') {
       params.set('officerTerm', String(hasOfficerTerm));
@@ -568,12 +572,35 @@ export default function StartPage() {
           {errors.taxElection && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.taxElection}</p>}
         </div>
 
-        {/* ⑩ 役員任期（株式会社のみ） */}
+        {/* ⑩ 特定期間 */}
+        <div className="card space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">10</span>
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-sunboo-ink-muted" />
+              <h2 className="font-semibold text-gray-800">前事業年度の最初の6か月の売上・給与</h2>
+            </div>
+          </div>
+          <SegmentedControl
+            fullWidth
+            options={[
+              { value: 'both_over', label: '両方1,000万円超' },
+              { value: 'either_not_over', label: 'どちらか1,000万円以下' },
+              { value: 'not_applicable_or_unknown', label: '該当期間なし・不明' },
+            ]}
+            value={specificPeriodThresholdStatus}
+            onChange={(v) => setSpecificPeriodThresholdStatus(v as SpecificPeriodThresholdStatus)}
+          />
+          <p className="text-xs text-gray-500">課税売上高と給与等支払額を確認します。前事業年度が1年未満の場合は期間が異なることがあります</p>
+          {errors.specificPeriod && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.specificPeriod}</p>}
+        </div>
+
+        {/* ⑪ 役員任期（株式会社のみ） */}
         {corporateType === 'kabushiki' && (
           <div className="card space-y-4">
             <div className="flex items-center gap-3">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
-                10
+                11
               </span>
               <div className="flex items-center gap-2">
                 <UserCog className="h-4 w-4 text-sunboo-ink-muted" />

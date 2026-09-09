@@ -179,6 +179,7 @@ export type DiagnosisInput = {
   capitalAmount?: number; // 資本金・出資金（円）
   isInvoiceRegistered?: boolean; // 適格請求書発行事業者（インボイス）の登録有無
   isConsumptionTaxElectionEffective?: boolean; // 消費税課税事業者選択届出書が現在の課税期間に有効か
+  specificPeriodThresholdStatus?: 'both_over' | 'either_not_over' | 'not_applicable_or_unknown';
 };
 
 // procedure_documents.item_type（Sprint53設計・Sprint54実装）。書類そのもの（document）に加え、

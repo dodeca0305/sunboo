@@ -10,12 +10,15 @@ export function isConsumptionTaxReturnRequired({
   capitalAmount,
   isInvoiceRegistered,
   isConsumptionTaxElectionEffective,
+  specificPeriodThresholdStatus,
 }: {
   capitalAmount?: number;
   isInvoiceRegistered?: boolean;
   isConsumptionTaxElectionEffective?: boolean;
+  specificPeriodThresholdStatus?: 'both_over' | 'either_not_over' | 'not_applicable_or_unknown';
 }): boolean {
   return isInvoiceRegistered === true ||
     isConsumptionTaxElectionEffective === true ||
+    specificPeriodThresholdStatus === 'both_over' ||
     isConsumptionTaxReturnRequiredByCapital(capitalAmount);
 }
