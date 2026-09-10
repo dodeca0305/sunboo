@@ -67,6 +67,7 @@ export default async function ResultPage({
     capital?: string;
     invoiceRegistered?: string;
     taxElectionEffective?: string;
+    specificPeriod?: string;
     fm?: string;
     corp?: string;
     officerTerm?: string;
@@ -107,6 +108,10 @@ export default async function ResultPage({
     : undefined;
   const isInvoiceRegistered = sp.invoiceRegistered === 'true';
   const isConsumptionTaxElectionEffective = sp.taxElectionEffective === 'true';
+  const specificPeriodThresholdStatus = sp.specificPeriod === 'both_over' ||
+    sp.specificPeriod === 'either_not_over'
+    ? sp.specificPeriod
+    : 'not_applicable_or_unknown';
 
   if (!prefCode || !muniCode || !establishedDate || fiscalMonth < 1 || fiscalMonth > 12) {
     return (
@@ -138,6 +143,7 @@ export default async function ResultPage({
     capitalAmount,
     isInvoiceRegistered,
     isConsumptionTaxElectionEffective,
+    specificPeriodThresholdStatus,
     fiscalMonth,
     corporateType,
     hasOfficerTerm,
@@ -241,6 +247,7 @@ export default async function ResultPage({
           {capitalAmount !== undefined && <span>資本金{capitalAmount.toLocaleString('ja-JP')}円</span>}
           <span>インボイス{isInvoiceRegistered ? '登録済み' : '未登録'}</span>
           <span>課税事業者選択{isConsumptionTaxElectionEffective ? '有効' : 'なし'}</span>
+          <span>特定期間{specificPeriodThresholdStatus === 'both_over' ? '売上・給与とも1,000万円超' : specificPeriodThresholdStatus === 'either_not_over' ? 'いずれか1,000万円以下' : '該当なし・不明'}</span>
           <span className="text-blue-300">·</span>
           <span>役員報酬{paysOfficerCompensation ? 'あり' : 'なし'}</span>
           <span className="text-blue-300">·</span>
