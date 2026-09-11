@@ -18,6 +18,7 @@ type PrefItem = { code: string; name: string };
 type MuniItem = { code: string; name: string };
 type SpecificPeriodThresholdStatus = 'both_over' | 'either_not_over' | 'not_applicable_or_unknown';
 type SpecifiedNewCorporationStatus = 'applies' | 'does_not_apply' | 'needs_review';
+type BasePeriodTaxableSalesStatus = 'over_threshold' | 'at_or_below_threshold' | 'not_applicable' | 'unknown';
 
 export default function StartPage() {
   const router = useRouter();
@@ -44,9 +45,10 @@ export default function StartPage() {
   const [isConsumptionTaxElectionEffective, setIsConsumptionTaxElectionEffective] = useState<boolean | null>(null);
   const [specificPeriodThresholdStatus, setSpecificPeriodThresholdStatus] = useState<SpecificPeriodThresholdStatus | null>(null);
   const [specifiedNewCorporationStatus, setSpecifiedNewCorporationStatus] = useState<SpecifiedNewCorporationStatus | null>(null);
+  const [basePeriodTaxableSalesStatus, setBasePeriodTaxableSalesStatus] = useState<BasePeriodTaxableSalesStatus | null>(null);
 
   const [loadingMunis, setLoadingMunis] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate' | 'socialIns' | 'socialInsDate' | 'capital' | 'invoice' | 'taxElection' | 'specificPeriod' | 'specifiedNewCorp', string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate' | 'socialIns' | 'socialInsDate' | 'capital' | 'invoice' | 'taxElection' | 'specificPeriod' | 'specifiedNewCorp' | 'basePeriodSales', string>>>({});
 
   useEffect(() => {
     async function load() {
@@ -140,6 +142,7 @@ export default function StartPage() {
     if (isConsumptionTaxElectionEffective === null) errs.taxElection = '課税事業者選択の状況を選択してください';
     if (specificPeriodThresholdStatus === null) errs.specificPeriod = '特定期間の状況を選択してください';
     if (specifiedNewCorporationStatus === null) errs.specifiedNewCorp = '特定新規設立法人の状況を選択してください';
+    if (basePeriodTaxableSalesStatus === null) errs.basePeriodSales = '基準期間の課税売上高を選択してください';
     if (!establishedDate) errs.establishedDate = '設立日を入力してください';
     if (corporateType === 'kabushiki' && hasOfficerTerm === null) {
       errs.officerTerm = '役員任期の有無を選択してください';
@@ -171,6 +174,7 @@ export default function StartPage() {
       taxElectionEffective: String(isConsumptionTaxElectionEffective),
       specificPeriod: String(specificPeriodThresholdStatus),
       specifiedNewCorp: String(specifiedNewCorporationStatus),
+      basePeriodSales: String(basePeriodTaxableSalesStatus),
     });
     if (corporateType === 'kabushiki') {
       params.set('officerTerm', String(hasOfficerTerm));
@@ -621,12 +625,35 @@ export default function StartPage() {
           {errors.specifiedNewCorp && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.specifiedNewCorp}</p>}
         </div>
 
-        {/* ⑫ 役員任期（株式会社のみ） */}
+        {/* ⑫ 基準期間 */}
+        <div className="card space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">12</span>
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-sunboo-ink-muted" />
+              <h2 className="font-semibold text-gray-800">基準期間の課税売上高</h2>
+            </div>
+          </div>
+          <SegmentedControl
+            options={[
+              { value: 'over_threshold', label: '1,000万円超' },
+              { value: 'at_or_below_threshold', label: '1,000万円以下' },
+              { value: 'not_applicable', label: '基準期間なし' },
+              { value: 'unknown', label: 'わからない' },
+            ]}
+            value={basePeriodTaxableSalesStatus}
+            onChange={(v) => setBasePeriodTaxableSalesStatus(v as BasePeriodTaxableSalesStatus)}
+          />
+          <p className="text-xs text-gray-500">法人は原則として2期前の事業年度です。設立1期目・2期目は通常「基準期間なし」です</p>
+          {errors.basePeriodSales && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.basePeriodSales}</p>}
+        </div>
+
+        {/* ⑬ 役員任期（株式会社のみ） */}
         {corporateType === 'kabushiki' && (
           <div className="card space-y-4">
             <div className="flex items-center gap-3">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
-                12
+                13
               </span>
               <div className="flex items-center gap-2">
                 <UserCog className="h-4 w-4 text-sunboo-ink-muted" />
