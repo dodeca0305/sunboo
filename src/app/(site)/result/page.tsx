@@ -68,6 +68,7 @@ export default async function ResultPage({
     invoiceRegistered?: string;
     taxElectionEffective?: string;
     specificPeriod?: string;
+    specifiedNewCorp?: string;
     fm?: string;
     corp?: string;
     officerTerm?: string;
@@ -112,6 +113,10 @@ export default async function ResultPage({
     sp.specificPeriod === 'either_not_over'
     ? sp.specificPeriod
     : 'not_applicable_or_unknown';
+  const specifiedNewCorporationStatus = sp.specifiedNewCorp === 'applies' ||
+    sp.specifiedNewCorp === 'does_not_apply'
+    ? sp.specifiedNewCorp
+    : 'needs_review';
 
   if (!prefCode || !muniCode || !establishedDate || fiscalMonth < 1 || fiscalMonth > 12) {
     return (
@@ -144,6 +149,7 @@ export default async function ResultPage({
     isInvoiceRegistered,
     isConsumptionTaxElectionEffective,
     specificPeriodThresholdStatus,
+    specifiedNewCorporationStatus,
     fiscalMonth,
     corporateType,
     hasOfficerTerm,
@@ -248,6 +254,7 @@ export default async function ResultPage({
           <span>インボイス{isInvoiceRegistered ? '登録済み' : '未登録'}</span>
           <span>課税事業者選択{isConsumptionTaxElectionEffective ? '有効' : 'なし'}</span>
           <span>特定期間{specificPeriodThresholdStatus === 'both_over' ? '売上・給与とも1,000万円超' : specificPeriodThresholdStatus === 'either_not_over' ? 'いずれか1,000万円以下' : '該当なし・不明'}</span>
+          <span>特定新規設立法人{specifiedNewCorporationStatus === 'applies' ? '該当' : specifiedNewCorporationStatus === 'does_not_apply' ? '非該当' : '要確認'}</span>
           <span className="text-blue-300">·</span>
           <span>役員報酬{paysOfficerCompensation ? 'あり' : 'なし'}</span>
           <span className="text-blue-300">·</span>
@@ -256,6 +263,13 @@ export default async function ResultPage({
           <span>{establishedDate.replace(/-/g, '/')}設立</span>
         </div>
       </div>
+
+      {specifiedNewCorporationStatus === 'needs_review' && (
+        <div className="mb-8 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <p className="font-semibold">特定新規設立法人の判定を確認してください</p>
+          <p className="mt-1">親会社・出資者との支配関係や、その関係者の売上・収益規模によっては、資本金1,000万円未満でも消費税の申告が必要です。税務署または税理士へ確認してください。</p>
+        </div>
+      )}
 
       {/* Supabase 未設定・データなし */}
       {noData && (

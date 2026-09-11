@@ -60,6 +60,22 @@ test('特定期間のいずれかが1,000万円以下または不明なら対象
   }
 });
 
+test('特定新規設立法人に該当するなら資本金1,000万円未満でも消費税申告対象', () => {
+  assert.equal(isConsumptionTaxReturnRequired({
+    capitalAmount: 1_000_000,
+    specifiedNewCorporationStatus: 'applies',
+  }), true);
+});
+
+test('特定新規設立法人が非該当または要確認ならこの条件だけで対象と断定しない', () => {
+  for (const status of ['does_not_apply', 'needs_review'] as const) {
+    assert.equal(isConsumptionTaxReturnRequired({
+      capitalAmount: 9_999_999,
+      specifiedNewCorporationStatus: status,
+    }), false);
+  }
+});
+
 test('資本金1,000万円未満・不明なら資本金だけでは消費税申告対象と断定しない', () => {
   assert.equal(isConsumptionTaxReturnRequiredByCapital(9_999_999), false);
   assert.equal(isConsumptionTaxReturnRequiredByCapital(undefined), false);
