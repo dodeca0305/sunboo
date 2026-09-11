@@ -17,6 +17,7 @@ const FISCAL_MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 type PrefItem = { code: string; name: string };
 type MuniItem = { code: string; name: string };
 type SpecificPeriodThresholdStatus = 'both_over' | 'either_not_over' | 'not_applicable_or_unknown';
+type SpecifiedNewCorporationStatus = 'applies' | 'does_not_apply' | 'needs_review';
 
 export default function StartPage() {
   const router = useRouter();
@@ -42,9 +43,10 @@ export default function StartPage() {
   const [isInvoiceRegistered, setIsInvoiceRegistered] = useState<boolean | null>(null);
   const [isConsumptionTaxElectionEffective, setIsConsumptionTaxElectionEffective] = useState<boolean | null>(null);
   const [specificPeriodThresholdStatus, setSpecificPeriodThresholdStatus] = useState<SpecificPeriodThresholdStatus | null>(null);
+  const [specifiedNewCorporationStatus, setSpecifiedNewCorporationStatus] = useState<SpecifiedNewCorporationStatus | null>(null);
 
   const [loadingMunis, setLoadingMunis] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate' | 'socialIns' | 'socialInsDate' | 'capital' | 'invoice' | 'taxElection' | 'specificPeriod', string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate' | 'socialIns' | 'socialInsDate' | 'capital' | 'invoice' | 'taxElection' | 'specificPeriod' | 'specifiedNewCorp', string>>>({});
 
   useEffect(() => {
     async function load() {
@@ -137,6 +139,7 @@ export default function StartPage() {
     if (isInvoiceRegistered === null) errs.invoice = 'インボイス登録の有無を選択してください';
     if (isConsumptionTaxElectionEffective === null) errs.taxElection = '課税事業者選択の状況を選択してください';
     if (specificPeriodThresholdStatus === null) errs.specificPeriod = '特定期間の状況を選択してください';
+    if (specifiedNewCorporationStatus === null) errs.specifiedNewCorp = '特定新規設立法人の状況を選択してください';
     if (!establishedDate) errs.establishedDate = '設立日を入力してください';
     if (corporateType === 'kabushiki' && hasOfficerTerm === null) {
       errs.officerTerm = '役員任期の有無を選択してください';
@@ -167,6 +170,7 @@ export default function StartPage() {
       invoiceRegistered: String(isInvoiceRegistered),
       taxElectionEffective: String(isConsumptionTaxElectionEffective),
       specificPeriod: String(specificPeriodThresholdStatus),
+      specifiedNewCorp: String(specifiedNewCorporationStatus),
     });
     if (corporateType === 'kabushiki') {
       params.set('officerTerm', String(hasOfficerTerm));
@@ -595,12 +599,34 @@ export default function StartPage() {
           {errors.specificPeriod && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.specificPeriod}</p>}
         </div>
 
-        {/* ⑪ 役員任期（株式会社のみ） */}
+        {/* ⑪ 特定新規設立法人 */}
+        <div className="card space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">11</span>
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-sunboo-ink-muted" />
+              <h2 className="font-semibold text-gray-800">特定新規設立法人に該当しますか？</h2>
+            </div>
+          </div>
+          <SegmentedControl
+            options={[
+              { value: 'applies', label: '該当する（確認済み）' },
+              { value: 'does_not_apply', label: '該当しない（確認済み）' },
+              { value: 'needs_review', label: 'わからない・要確認' },
+            ]}
+            value={specifiedNewCorporationStatus}
+            onChange={(v) => setSpecifiedNewCorporationStatus(v as SpecifiedNewCorporationStatus)}
+          />
+          <p className="text-xs text-gray-500">他者による支配関係と、判定対象者の課税売上高5億円超または収益合計50億円超などを確認する複雑な判定です</p>
+          {errors.specifiedNewCorp && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.specifiedNewCorp}</p>}
+        </div>
+
+        {/* ⑫ 役員任期（株式会社のみ） */}
         {corporateType === 'kabushiki' && (
           <div className="card space-y-4">
             <div className="flex items-center gap-3">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
-                11
+                12
               </span>
               <div className="flex items-center gap-2">
                 <UserCog className="h-4 w-4 text-sunboo-ink-muted" />
