@@ -254,6 +254,7 @@ export async function runDiagnosis(
           specificPeriodThresholdStatus: input.specificPeriodThresholdStatus,
           specifiedNewCorporationStatus: input.specifiedNewCorporationStatus,
           basePeriodTaxableSalesStatus: input.basePeriodTaxableSalesStatus,
+          reorganizationTaxabilityStatus: input.reorganizationTaxabilityStatus,
         })
       ) return false;
       // 地方税の設立届は自治体ごとに期限・提出要否が異なるため、確認済み地域だけ表示する。

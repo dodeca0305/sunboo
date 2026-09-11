@@ -92,6 +92,22 @@ test('基準期間が1,000万円以下・なし・不明ならこの条件だけ
   }
 });
 
+test('合併・分割の特例で課税対象と確認済みなら消費税申告対象', () => {
+  assert.equal(isConsumptionTaxReturnRequired({
+    capitalAmount: 1_000_000,
+    reorganizationTaxabilityStatus: 'taxable_confirmed',
+  }), true);
+});
+
+test('合併・分割なしまたは要確認ならこの条件だけで対象と断定しない', () => {
+  for (const status of ['none', 'needs_review'] as const) {
+    assert.equal(isConsumptionTaxReturnRequired({
+      capitalAmount: 9_999_999,
+      reorganizationTaxabilityStatus: status,
+    }), false);
+  }
+});
+
 test('資本金1,000万円未満・不明なら資本金だけでは消費税申告対象と断定しない', () => {
   assert.equal(isConsumptionTaxReturnRequiredByCapital(9_999_999), false);
   assert.equal(isConsumptionTaxReturnRequiredByCapital(undefined), false);
