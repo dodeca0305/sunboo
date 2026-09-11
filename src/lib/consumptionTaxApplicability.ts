@@ -12,16 +12,19 @@ export function isConsumptionTaxReturnRequired({
   isConsumptionTaxElectionEffective,
   specificPeriodThresholdStatus,
   specifiedNewCorporationStatus,
+  basePeriodTaxableSalesStatus,
 }: {
   capitalAmount?: number;
   isInvoiceRegistered?: boolean;
   isConsumptionTaxElectionEffective?: boolean;
   specificPeriodThresholdStatus?: 'both_over' | 'either_not_over' | 'not_applicable_or_unknown';
   specifiedNewCorporationStatus?: 'applies' | 'does_not_apply' | 'needs_review';
+  basePeriodTaxableSalesStatus?: 'over_threshold' | 'at_or_below_threshold' | 'not_applicable' | 'unknown';
 }): boolean {
   return isInvoiceRegistered === true ||
     isConsumptionTaxElectionEffective === true ||
     specificPeriodThresholdStatus === 'both_over' ||
     specifiedNewCorporationStatus === 'applies' ||
+    basePeriodTaxableSalesStatus === 'over_threshold' ||
     isConsumptionTaxReturnRequiredByCapital(capitalAmount);
 }

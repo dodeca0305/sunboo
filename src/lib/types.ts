@@ -181,6 +181,7 @@ export type DiagnosisInput = {
   isConsumptionTaxElectionEffective?: boolean; // 消費税課税事業者選択届出書が現在の課税期間に有効か
   specificPeriodThresholdStatus?: 'both_over' | 'either_not_over' | 'not_applicable_or_unknown';
   specifiedNewCorporationStatus?: 'applies' | 'does_not_apply' | 'needs_review';
+  basePeriodTaxableSalesStatus?: 'over_threshold' | 'at_or_below_threshold' | 'not_applicable' | 'unknown';
 };
 
 // procedure_documents.item_type（Sprint53設計・Sprint54実装）。書類そのもの（document）に加え、
