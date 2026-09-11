@@ -19,6 +19,7 @@ type MuniItem = { code: string; name: string };
 type SpecificPeriodThresholdStatus = 'both_over' | 'either_not_over' | 'not_applicable_or_unknown';
 type SpecifiedNewCorporationStatus = 'applies' | 'does_not_apply' | 'needs_review';
 type BasePeriodTaxableSalesStatus = 'over_threshold' | 'at_or_below_threshold' | 'not_applicable' | 'unknown';
+type ReorganizationTaxabilityStatus = 'none' | 'taxable_confirmed' | 'needs_review';
 
 export default function StartPage() {
   const router = useRouter();
@@ -46,9 +47,10 @@ export default function StartPage() {
   const [specificPeriodThresholdStatus, setSpecificPeriodThresholdStatus] = useState<SpecificPeriodThresholdStatus | null>(null);
   const [specifiedNewCorporationStatus, setSpecifiedNewCorporationStatus] = useState<SpecifiedNewCorporationStatus | null>(null);
   const [basePeriodTaxableSalesStatus, setBasePeriodTaxableSalesStatus] = useState<BasePeriodTaxableSalesStatus | null>(null);
+  const [reorganizationTaxabilityStatus, setReorganizationTaxabilityStatus] = useState<ReorganizationTaxabilityStatus | null>(null);
 
   const [loadingMunis, setLoadingMunis] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate' | 'socialIns' | 'socialInsDate' | 'capital' | 'invoice' | 'taxElection' | 'specificPeriod' | 'specifiedNewCorp' | 'basePeriodSales', string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate' | 'socialIns' | 'socialInsDate' | 'capital' | 'invoice' | 'taxElection' | 'specificPeriod' | 'specifiedNewCorp' | 'basePeriodSales' | 'reorganization', string>>>({});
 
   useEffect(() => {
     async function load() {
@@ -143,6 +145,7 @@ export default function StartPage() {
     if (specificPeriodThresholdStatus === null) errs.specificPeriod = '特定期間の状況を選択してください';
     if (specifiedNewCorporationStatus === null) errs.specifiedNewCorp = '特定新規設立法人の状況を選択してください';
     if (basePeriodTaxableSalesStatus === null) errs.basePeriodSales = '基準期間の課税売上高を選択してください';
+    if (reorganizationTaxabilityStatus === null) errs.reorganization = '合併・分割による事業承継の状況を選択してください';
     if (!establishedDate) errs.establishedDate = '設立日を入力してください';
     if (corporateType === 'kabushiki' && hasOfficerTerm === null) {
       errs.officerTerm = '役員任期の有無を選択してください';
@@ -175,6 +178,7 @@ export default function StartPage() {
       specificPeriod: String(specificPeriodThresholdStatus),
       specifiedNewCorp: String(specifiedNewCorporationStatus),
       basePeriodSales: String(basePeriodTaxableSalesStatus),
+      reorganizationTax: String(reorganizationTaxabilityStatus),
     });
     if (corporateType === 'kabushiki') {
       params.set('officerTerm', String(hasOfficerTerm));
@@ -648,12 +652,34 @@ export default function StartPage() {
           {errors.basePeriodSales && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.basePeriodSales}</p>}
         </div>
 
-        {/* ⑬ 役員任期（株式会社のみ） */}
+        {/* ⑬ 合併・分割による事業承継 */}
+        <div className="card space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">13</span>
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-sunboo-ink-muted" />
+              <h2 className="font-semibold text-gray-800">合併・分割による事業承継</h2>
+            </div>
+          </div>
+          <SegmentedControl
+            options={[
+              { value: 'none', label: 'なし' },
+              { value: 'taxable_confirmed', label: '課税対象（確認済み）' },
+              { value: 'needs_review', label: 'あり・要確認' },
+            ]}
+            value={reorganizationTaxabilityStatus}
+            onChange={(v) => setReorganizationTaxabilityStatus(v as ReorganizationTaxabilityStatus)}
+          />
+          <p className="text-xs text-gray-500">新設合併・吸収合併・新設分割・吸収分割では、承継元法人の課税売上高などによる特例があります</p>
+          {errors.reorganization && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.reorganization}</p>}
+        </div>
+
+        {/* ⑭ 役員任期（株式会社のみ） */}
         {corporateType === 'kabushiki' && (
           <div className="card space-y-4">
             <div className="flex items-center gap-3">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
-                13
+                14
               </span>
               <div className="flex items-center gap-2">
                 <UserCog className="h-4 w-4 text-sunboo-ink-muted" />

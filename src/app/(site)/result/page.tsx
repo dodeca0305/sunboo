@@ -70,6 +70,7 @@ export default async function ResultPage({
     specificPeriod?: string;
     specifiedNewCorp?: string;
     basePeriodSales?: string;
+    reorganizationTax?: string;
     fm?: string;
     corp?: string;
     officerTerm?: string;
@@ -123,6 +124,10 @@ export default async function ResultPage({
     sp.basePeriodSales === 'not_applicable'
     ? sp.basePeriodSales
     : 'unknown';
+  const reorganizationTaxabilityStatus = sp.reorganizationTax === 'none' ||
+    sp.reorganizationTax === 'taxable_confirmed'
+    ? sp.reorganizationTax
+    : 'needs_review';
 
   if (!prefCode || !muniCode || !establishedDate || fiscalMonth < 1 || fiscalMonth > 12) {
     return (
@@ -157,6 +162,7 @@ export default async function ResultPage({
     specificPeriodThresholdStatus,
     specifiedNewCorporationStatus,
     basePeriodTaxableSalesStatus,
+    reorganizationTaxabilityStatus,
     fiscalMonth,
     corporateType,
     hasOfficerTerm,
@@ -263,6 +269,7 @@ export default async function ResultPage({
           <span>特定期間{specificPeriodThresholdStatus === 'both_over' ? '売上・給与とも1,000万円超' : specificPeriodThresholdStatus === 'either_not_over' ? 'いずれか1,000万円以下' : '該当なし・不明'}</span>
           <span>特定新規設立法人{specifiedNewCorporationStatus === 'applies' ? '該当' : specifiedNewCorporationStatus === 'does_not_apply' ? '非該当' : '要確認'}</span>
           <span>基準期間{basePeriodTaxableSalesStatus === 'over_threshold' ? '1,000万円超' : basePeriodTaxableSalesStatus === 'at_or_below_threshold' ? '1,000万円以下' : basePeriodTaxableSalesStatus === 'not_applicable' ? 'なし' : '不明'}</span>
+          <span>合併・分割{reorganizationTaxabilityStatus === 'none' ? 'なし' : reorganizationTaxabilityStatus === 'taxable_confirmed' ? '課税確認済み' : '要確認'}</span>
           <span className="text-blue-300">·</span>
           <span>役員報酬{paysOfficerCompensation ? 'あり' : 'なし'}</span>
           <span className="text-blue-300">·</span>
@@ -283,6 +290,13 @@ export default async function ResultPage({
         <div className="mb-8 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           <p className="font-semibold">基準期間の課税売上高を確認してください</p>
           <p className="mt-1">法人は原則として2期前の事業年度の課税売上高で消費税の納税義務を判定します。決算書や申告書を確認し、不明な場合は税務署または税理士へ確認してください。</p>
+        </div>
+      )}
+
+      {reorganizationTaxabilityStatus === 'needs_review' && (
+        <div className="mb-8 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <p className="font-semibold">合併・分割に伴う消費税の判定を確認してください</p>
+          <p className="mt-1">合併・分割の種類、実施時期、承継元法人の対応期間の課税売上高によって納税義務が変わります。税務署または税理士へ確認してください。</p>
         </div>
       )}
 
