@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { prefectures as staticPrefectures } from '@/data/prefectures';
-import { MapPin, Users, Calendar, ArrowRight, AlertTriangle, Building2, UserCog } from 'lucide-react';
+import { MapPin, Users, Calendar, ArrowRight, AlertTriangle, Building2, UserCog, ChevronDown } from 'lucide-react';
 import type { CorporateType } from '@/lib/types';
 import SegmentedControl from '@/components/SegmentedControl';
 
@@ -48,6 +48,7 @@ export default function StartPage() {
   const [specifiedNewCorporationStatus, setSpecifiedNewCorporationStatus] = useState<SpecifiedNewCorporationStatus | null>(null);
   const [basePeriodTaxableSalesStatus, setBasePeriodTaxableSalesStatus] = useState<BasePeriodTaxableSalesStatus | null>(null);
   const [reorganizationTaxabilityStatus, setReorganizationTaxabilityStatus] = useState<ReorganizationTaxabilityStatus | null>(null);
+  const [taxDetailsOpen, setTaxDetailsOpen] = useState(false);
 
   const [loadingMunis, setLoadingMunis] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate' | 'socialIns' | 'socialInsDate' | 'capital' | 'invoice' | 'taxElection' | 'specificPeriod' | 'specifiedNewCorp' | 'basePeriodSales' | 'reorganization', string>>>({});
@@ -146,6 +147,14 @@ export default function StartPage() {
     if (specifiedNewCorporationStatus === null) errs.specifiedNewCorp = '特定新規設立法人の状況を選択してください';
     if (basePeriodTaxableSalesStatus === null) errs.basePeriodSales = '基準期間の課税売上高を選択してください';
     if (reorganizationTaxabilityStatus === null) errs.reorganization = '合併・分割による事業承継の状況を選択してください';
+    if (
+      isInvoiceRegistered === null ||
+      isConsumptionTaxElectionEffective === null ||
+      specificPeriodThresholdStatus === null ||
+      specifiedNewCorporationStatus === null ||
+      basePeriodTaxableSalesStatus === null ||
+      reorganizationTaxabilityStatus === null
+    ) setTaxDetailsOpen(true);
     if (!establishedDate) errs.establishedDate = '設立日を入力してください';
     if (corporateType === 'kabushiki' && hasOfficerTerm === null) {
       errs.officerTerm = '役員任期の有無を選択してください';
@@ -540,6 +549,21 @@ export default function StartPage() {
           {errors.capital && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.capital}</p>}
         </div>
 
+        <details
+          className="group rounded-2xl border border-blue-100 bg-blue-50/40 p-4"
+          open={taxDetailsOpen}
+          onToggle={(e) => setTaxDetailsOpen(e.currentTarget.open)}
+        >
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-gray-800">
+            <span className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-blue-600" />
+              消費税の詳細判定（6項目）
+            </span>
+            <ChevronDown className="h-5 w-5 text-gray-500 transition-transform group-open:rotate-180" />
+          </summary>
+          <p className="mt-2 text-xs text-gray-500">申告が必要かを詳しく判定します。わからない項目には確認用の選択肢があります</p>
+          <div className="mt-4 space-y-4">
+
         {/* ⑧ インボイス登録 */}
         <div className="card space-y-4">
           <div className="flex items-center gap-3">
@@ -673,6 +697,9 @@ export default function StartPage() {
           <p className="text-xs text-gray-500">新設合併・吸収合併・新設分割・吸収分割では、承継元法人の課税売上高などによる特例があります</p>
           {errors.reorganization && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.reorganization}</p>}
         </div>
+
+          </div>
+        </details>
 
         {/* ⑭ 役員任期（株式会社のみ） */}
         {corporateType === 'kabushiki' && (
