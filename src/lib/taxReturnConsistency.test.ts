@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { CompanyProfile } from './companyProfile.ts';
 import type { TaxReturnEntry } from './taxReturnProfile.ts';
-import { detectTaxReturnConsistencyIssues } from './taxReturnConsistency.ts';
+import {
+  detectTaxReturnConsistencyIssues,
+  validateTaxReturnDateOrder,
+} from './taxReturnConsistency.ts';
 
 const profile: CompanyProfile = {
   fiscalMonth: 3,
@@ -57,4 +60,48 @@ test('会社プロフィールの決算月が未入力なら決算月を比較�
   );
 
   assert.deepEqual(issues, []);
+});
+
+test('事業年度開始日・決算日・申告日が正しい順序なら保存できる', () => {
+  assert.equal(
+    validateTaxReturnDateOrder({
+      fiscalYearStartDate: '2025-04-01',
+      fiscalYearEndDate: '2026-03-31',
+      filedDate: '2026-05-31',
+    }),
+    null,
+  );
+});
+
+test('事業年度開始日が決算日より後ならエラーにする', () => {
+  assert.equal(
+    validateTaxReturnDateOrder({
+      fiscalYearStartDate: '2026-04-01',
+      fiscalYearEndDate: '2026-03-31',
+      filedDate: null,
+    }),
+    '事業年度開始日は、決算日以前の日付を入力してください。',
+  );
+});
+
+test('申告日が決算日より前ならエラーにする', () => {
+  assert.equal(
+    validateTaxReturnDateOrder({
+      fiscalYearStartDate: null,
+      fiscalYearEndDate: '2026-03-31',
+      filedDate: '2026-03-30',
+    }),
+    '申告日は、決算日以後の日付を入力してください。',
+  );
+});
+
+test('任意の日付が未入力でも決算日があればエラーにしない', () => {
+  assert.equal(
+    validateTaxReturnDateOrder({
+      fiscalYearStartDate: null,
+      fiscalYearEndDate: '2026-03-31',
+      filedDate: null,
+    }),
+    null,
+  );
 });
