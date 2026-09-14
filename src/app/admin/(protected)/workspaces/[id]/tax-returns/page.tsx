@@ -56,8 +56,7 @@ export default async function WorkspaceTaxReturnsPage({ params }: { params: Prom
       <WorkspaceTaxReturnsView
         companyId={companyId}
         initialEntries={taxReturnProfile.entries}
-        corporateType={companyProfile.corporateType}
-        employeeCount={companyProfile.employeeCount}
+        companyProfile={companyProfile}
       />
     </div>
   );
