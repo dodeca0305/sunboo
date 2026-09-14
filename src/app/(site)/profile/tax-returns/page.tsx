@@ -20,6 +20,7 @@ import {
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import ManualDateInput from '@/components/ManualDateInput';
 import { buildClosingUpdateSummary } from '@/lib/adviserScore';
+import { validateTaxReturnDateOrder } from '@/lib/taxReturnConsistency';
 import {
   ChevronLeft, FileClock, Plus, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
@@ -244,6 +245,11 @@ export default function TaxReturnsPage() {
     }
     if (!draft.fiscalYearEndDate) {
       setError('決算日を入力してください');
+      return;
+    }
+    const dateOrderError = validateTaxReturnDateOrder(draft);
+    if (dateOrderError) {
+      setError(dateOrderError);
       return;
     }
     setError(null);

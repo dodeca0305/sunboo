@@ -23,6 +23,7 @@ import type { CompanyProfile } from '@/lib/companyProfile';
 import {
   detectTaxReturnConsistencyIssues,
   type TaxReturnConsistencyIssue,
+  validateTaxReturnDateOrder,
 } from '@/lib/taxReturnConsistency';
 
 // ── Company Workspace — 決算実績（Sprint 35 Tax Return Profile）─────────────
@@ -116,6 +117,11 @@ export default function WorkspaceTaxReturnsView({
     }
     if (!draft.fiscalYearEndDate) {
       setError('決算日を入力してください');
+      return;
+    }
+    const dateOrderError = validateTaxReturnDateOrder(draft);
+    if (dateOrderError) {
+      setError(dateOrderError);
       return;
     }
     setError(null);

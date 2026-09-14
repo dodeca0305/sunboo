@@ -6,6 +6,11 @@ export type TaxReturnConsistencyIssue = {
   message: string;
 };
 
+export type TaxReturnDateInput = Pick<
+  TaxReturnEntry,
+  'fiscalYearStartDate' | 'fiscalYearEndDate' | 'filedDate'
+>;
+
 const CONSUMPTION_TAX_LABEL = {
   exempt: '免税事業者',
   taxable: '課税事業者',
@@ -15,6 +20,27 @@ const INVOICE_LABEL = {
   not_registered: '未登録',
   registered: '登録済み',
 } as const;
+
+/**
+ * ISO形式の日付文字列は辞書順と日付順が一致するため、タイムゾーン変換をせず比較する。
+ * 任意項目が未入力の場合は、入力済みの日付だけで検証する。
+ */
+export function validateTaxReturnDateOrder(
+  input: TaxReturnDateInput,
+): string | null {
+  if (
+    input.fiscalYearStartDate &&
+    input.fiscalYearStartDate > input.fiscalYearEndDate
+  ) {
+    return '事業年度開始日は、決算日以前の日付を入力してください。';
+  }
+
+  if (input.filedDate && input.filedDate < input.fiscalYearEndDate) {
+    return '申告日は、決算日以後の日付を入力してください。';
+  }
+
+  return null;
+}
 
 /**
  * 会社プロフィールと保存した決算実績の食い違いを検出する。
