@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle2, Circle, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, Circle, AlertTriangle, CalendarClock, FileText } from 'lucide-react';
 import {
   WORKSPACE_DOCUMENT_TYPES, WORKSPACE_DOCUMENT_TYPE_LABEL,
   WORKSPACE_DOCUMENT_STATUSES, WORKSPACE_DOCUMENT_STATUS_LABEL,
@@ -9,6 +9,7 @@ import {
 } from '@/lib/workspaceDocumentStatus';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import InformationCard from '@/components/InformationCard';
+import type { WorkspaceRequiredDocument } from '@/lib/workspaceRequiredDocuments';
 
 // ── Company Workspace — 書類一覧（Sprint 26 Workspace Documents MVP・Sprint 85）─────────
 // workspace_documents（本Sprint新設）のステータスを表示・変更する。ファイルアップロードは
@@ -31,9 +32,11 @@ const STATUS_ICON_CLASS: Record<WorkspaceDocumentStatus, string> = {
 export default function WorkspaceDocumentsView({
   companyId,
   statusMap,
+  requiredDocuments,
 }: {
   companyId: number;
   statusMap: WorkspaceDocumentStatusMap;
+  requiredDocuments: WorkspaceRequiredDocument[];
 }) {
   const [localStatusMap, setLocalStatusMap] = useState<WorkspaceDocumentStatusMap>(statusMap);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +84,44 @@ export default function WorkspaceDocumentsView({
           );
         })}
       </ul>
+
+      <section className="space-y-3 pt-5">
+        <div>
+          <h2 className="text-base font-bold text-sunboo-ink">今後の手続きに必要な書類</h2>
+          <p className="mt-1 text-xs text-sunboo-ink-muted">
+            未完了のロードマップから、必須書類を重複なくまとめています。
+          </p>
+        </div>
+
+        {requiredDocuments.length === 0 ? (
+          <InformationCard kind="info">現在のロードマップに未準備の必須書類はありません。</InformationCard>
+        ) : (
+          <ul className="space-y-2">
+            {requiredDocuments.map((document) => (
+              <li key={document.name} className="card space-y-2 py-3">
+                <div className="flex items-start gap-2">
+                  <FileText className="mt-0.5 h-4 w-4 shrink-0 text-sunboo-moss" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-sunboo-ink">
+                      {document.name}
+                      {document.formNumber && (
+                        <span className="ml-2 text-xs font-normal text-sunboo-ink-muted">様式 {document.formNumber}</span>
+                      )}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-sunboo-ink-muted">
+                      使用する手続き：{document.procedures.join('、')}
+                    </p>
+                  </div>
+                </div>
+                <p className="flex items-center gap-1.5 pl-6 text-xs text-sunboo-morning-sun-dark">
+                  <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
+                  最も近い期限：{document.nearestDueDate}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

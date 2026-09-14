@@ -1,12 +1,13 @@
 import { notFound } from 'next/navigation';
 import { FileStack } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { loadWorkspaceCompany, loadWorkspaceDocumentStatuses } from '@/lib/workspaceLoader';
+import { loadWorkspaceCompany, loadWorkspaceDocumentStatuses, loadWorkspaceRoadmapContext } from '@/lib/workspaceLoader';
 import WorkspaceDocumentsView from '@/components/WorkspaceDocumentsView';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import PageHeader from '@/components/PageHeader';
 import InformationCard from '@/components/InformationCard';
 import { WORKSPACE_DOCUMENT_TYPES } from '@/lib/workspaceDocumentStatus';
+import { buildWorkspaceRequiredDocuments } from '@/lib/workspaceRequiredDocuments';
 
 // ── Company Workspace — 書類（Sprint 26 Workspace Documents MVP・Sprint 34・Sprint 85）───────
 // workspace_documents（Sprint26新設）のステータス（メタデータのみ）を一覧表示・変更する。
@@ -29,8 +30,15 @@ export default async function WorkspaceDocumentsPage({ params }: { params: Promi
   const company = await loadWorkspaceCompany(supabase, companyId);
   if (!company) notFound();
 
-  const { statusMap } = await loadWorkspaceDocumentStatuses(supabase, companyId);
+  const [{ statusMap }, roadmapContext] = await Promise.all([
+    loadWorkspaceDocumentStatuses(supabase, companyId),
+    loadWorkspaceRoadmapContext(supabase, company),
+  ]);
   const registeredCount = WORKSPACE_DOCUMENT_TYPES.filter((t) => statusMap[t] === 'registered').length;
+  const requiredDocuments = buildWorkspaceRequiredDocuments(
+    roadmapContext.roadmapYears,
+    roadmapContext.procedureStatusMap,
+  );
 
   return (
     <div className="space-y-6">
@@ -49,7 +57,11 @@ export default async function WorkspaceDocumentsPage({ params }: { params: Promi
         添付は行わず、状態のみを記録します）。「要更新」はDashboardにも件数が表示されます。
       </InformationCard>
 
-      <WorkspaceDocumentsView companyId={companyId} statusMap={statusMap} />
+      <WorkspaceDocumentsView
+        companyId={companyId}
+        statusMap={statusMap}
+        requiredDocuments={requiredDocuments}
+      />
     </div>
   );
 }
