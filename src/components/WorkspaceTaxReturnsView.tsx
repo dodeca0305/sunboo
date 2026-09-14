@@ -19,6 +19,11 @@ import {
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import ManualDateInput from '@/components/ManualDateInput';
+import type { CompanyProfile } from '@/lib/companyProfile';
+import {
+  detectTaxReturnConsistencyIssues,
+  type TaxReturnConsistencyIssue,
+} from '@/lib/taxReturnConsistency';
 
 // ── Company Workspace — 決算実績（Sprint 35 Tax Return Profile）─────────────
 // workspace_tax_return_profiles（Sprint35 migration）のCRUD。(site)側の
@@ -52,13 +57,11 @@ const EMPTY_ENTRY_DRAFT: EntryDraft = {
 export default function WorkspaceTaxReturnsView({
   companyId,
   initialEntries,
-  corporateType,
-  employeeCount,
+  companyProfile,
 }: {
   companyId: number;
   initialEntries: TaxReturnEntry[];
-  corporateType: string;
-  employeeCount: number;
+  companyProfile: CompanyProfile;
 }) {
   const [entries, setEntries] = useState<TaxReturnEntry[]>(initialEntries);
   const [showForm, setShowForm] = useState(false);
@@ -66,6 +69,9 @@ export default function WorkspaceTaxReturnsView({
   const [draft, setDraft] = useState<EntryDraft>(EMPTY_ENTRY_DRAFT);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [consistencyIssues, setConsistencyIssues] = useState<TaxReturnConsistencyIssue[]>([]);
+
+  const { corporateType, employeeCount } = companyProfile;
 
   function set<K extends keyof EntryDraft>(key: K, value: EntryDraft[K]) {
     setDraft((d) => ({ ...d, [key]: value }));
@@ -75,6 +81,7 @@ export default function WorkspaceTaxReturnsView({
     setDraft(EMPTY_ENTRY_DRAFT);
     setEditingId(null);
     setError(null);
+    setConsistencyIssues([]);
     setShowForm(true);
   }
 
@@ -85,6 +92,7 @@ export default function WorkspaceTaxReturnsView({
     setDraft(rest);
     setEditingId(id);
     setError(null);
+    setConsistencyIssues([]);
     setShowForm(true);
   }
 
@@ -147,6 +155,7 @@ export default function WorkspaceTaxReturnsView({
     }
 
     const savedEntry = workspaceRowsToTaxReturnProfile([result.data as WorkspaceTaxReturnProfileRow]).entries[0];
+    setConsistencyIssues(detectTaxReturnConsistencyIssues(companyProfile, savedEntry));
     setEntries((prev) => {
       const next = editingId ? prev.filter((e) => e.id !== editingId) : prev;
       return [...next, savedEntry].sort((a, b) => a.fiscalYearEndDate.localeCompare(b.fiscalYearEndDate));
@@ -162,6 +171,23 @@ export default function WorkspaceTaxReturnsView({
         <div className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
           {error}
+        </div>
+      )}
+
+      {consistencyIssues.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <div className="space-y-2">
+              <p className="font-semibold">会社プロフィールと異なる内容があります</p>
+              <ul className="list-disc space-y-1 pl-5 text-xs leading-relaxed">
+                {consistencyIssues.map((issue) => (
+                  <li key={issue.field}>{issue.message}</li>
+                ))}
+              </ul>
+              <p className="text-xs">申告書と会社プロフィールを確認し、正しい方へ修正してください。</p>
+            </div>
+          </div>
         </div>
       )}
 
