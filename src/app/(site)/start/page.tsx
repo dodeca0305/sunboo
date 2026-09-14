@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { prefectures as staticPrefectures } from '@/data/prefectures';
 import { MapPin, Users, Calendar, ArrowRight, AlertTriangle, Building2, UserCog, ChevronDown } from 'lucide-react';
 import type { CorporateType } from '@/lib/types';
 import SegmentedControl from '@/components/SegmentedControl';
+import { getBusinessTermNumber } from '@/lib/businessTerm';
 
 const FALLBACK_MUNICIPALITIES: Record<string, { code: string; name: string }[]> = {
   '13': [{ code: '13113', name: '渋谷区' }],
@@ -49,6 +50,19 @@ export default function StartPage() {
   const [basePeriodTaxableSalesStatus, setBasePeriodTaxableSalesStatus] = useState<BasePeriodTaxableSalesStatus | null>(null);
   const [reorganizationTaxabilityStatus, setReorganizationTaxabilityStatus] = useState<ReorganizationTaxabilityStatus | null>(null);
   const [taxDetailsOpen, setTaxDetailsOpen] = useState(false);
+
+  const today = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+  const businessTermNumber = getBusinessTermNumber(establishedDate, fiscalMonth, today);
+  const showSpecificPeriod = businessTermNumber !== 1;
+  const showSpecifiedNewCorporation = businessTermNumber === null || businessTermNumber <= 2;
+  const showBasePeriod = businessTermNumber === null || businessTermNumber >= 3;
+  const taxDetailQuestionCount = 3 + Number(showSpecificPeriod) + Number(showSpecifiedNewCorporation) + Number(showBasePeriod);
 
   const [loadingMunis, setLoadingMunis] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate' | 'socialIns' | 'socialInsDate' | 'capital' | 'invoice' | 'taxElection' | 'specificPeriod' | 'specifiedNewCorp' | 'basePeriodSales' | 'reorganization', string>>>({});
@@ -143,16 +157,16 @@ export default function StartPage() {
     }
     if (isInvoiceRegistered === null) errs.invoice = 'インボイス登録の有無を選択してください';
     if (isConsumptionTaxElectionEffective === null) errs.taxElection = '課税事業者選択の状況を選択してください';
-    if (specificPeriodThresholdStatus === null) errs.specificPeriod = '特定期間の状況を選択してください';
-    if (specifiedNewCorporationStatus === null) errs.specifiedNewCorp = '特定新規設立法人の状況を選択してください';
-    if (basePeriodTaxableSalesStatus === null) errs.basePeriodSales = '基準期間の課税売上高を選択してください';
+    if (showSpecificPeriod && specificPeriodThresholdStatus === null) errs.specificPeriod = '特定期間の状況を選択してください';
+    if (showSpecifiedNewCorporation && specifiedNewCorporationStatus === null) errs.specifiedNewCorp = '特定新規設立法人の状況を選択してください';
+    if (showBasePeriod && basePeriodTaxableSalesStatus === null) errs.basePeriodSales = '基準期間の課税売上高を選択してください';
     if (reorganizationTaxabilityStatus === null) errs.reorganization = '合併・分割による事業承継の状況を選択してください';
     if (
       isInvoiceRegistered === null ||
       isConsumptionTaxElectionEffective === null ||
-      specificPeriodThresholdStatus === null ||
-      specifiedNewCorporationStatus === null ||
-      basePeriodTaxableSalesStatus === null ||
+      (showSpecificPeriod && specificPeriodThresholdStatus === null) ||
+      (showSpecifiedNewCorporation && specifiedNewCorporationStatus === null) ||
+      (showBasePeriod && basePeriodTaxableSalesStatus === null) ||
       reorganizationTaxabilityStatus === null
     ) setTaxDetailsOpen(true);
     if (!establishedDate) errs.establishedDate = '設立日を入力してください';
@@ -184,9 +198,9 @@ export default function StartPage() {
       capital: String(capitalAmount),
       invoiceRegistered: String(isInvoiceRegistered),
       taxElectionEffective: String(isConsumptionTaxElectionEffective),
-      specificPeriod: String(specificPeriodThresholdStatus),
-      specifiedNewCorp: String(specifiedNewCorporationStatus),
-      basePeriodSales: String(basePeriodTaxableSalesStatus),
+      specificPeriod: businessTermNumber === 1 ? 'not_applicable_or_unknown' : String(specificPeriodThresholdStatus),
+      specifiedNewCorp: businessTermNumber !== null && businessTermNumber >= 3 ? 'does_not_apply' : String(specifiedNewCorporationStatus),
+      basePeriodSales: businessTermNumber !== null && businessTermNumber <= 2 ? 'not_applicable' : String(basePeriodTaxableSalesStatus),
       reorganizationTax: String(reorganizationTaxabilityStatus),
     });
     if (corporateType === 'kabushiki') {
@@ -557,7 +571,7 @@ export default function StartPage() {
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-gray-800">
             <span className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-blue-600" />
-              消費税の詳細判定（6項目）
+              消費税の詳細判定（{taxDetailQuestionCount}項目）
             </span>
             <ChevronDown className="h-5 w-5 text-gray-500 transition-transform group-open:rotate-180" />
           </summary>
@@ -608,6 +622,7 @@ export default function StartPage() {
           {errors.taxElection && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.taxElection}</p>}
         </div>
 
+        {showSpecificPeriod && (<>
         {/* ⑩ 特定期間 */}
         <div className="card space-y-4">
           <div className="flex items-center gap-3">
@@ -630,7 +645,9 @@ export default function StartPage() {
           <p className="text-xs text-gray-500">課税売上高と給与等支払額を確認します。前事業年度が1年未満の場合は期間が異なることがあります</p>
           {errors.specificPeriod && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.specificPeriod}</p>}
         </div>
+        </>)}
 
+        {showSpecifiedNewCorporation && (<>
         {/* ⑪ 特定新規設立法人 */}
         <div className="card space-y-4">
           <div className="flex items-center gap-3">
@@ -652,7 +669,9 @@ export default function StartPage() {
           <p className="text-xs text-gray-500">他者による支配関係と、判定対象者の課税売上高5億円超または収益合計50億円超などを確認する複雑な判定です</p>
           {errors.specifiedNewCorp && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.specifiedNewCorp}</p>}
         </div>
+        </>)}
 
+        {showBasePeriod && (<>
         {/* ⑫ 基準期間 */}
         <div className="card space-y-4">
           <div className="flex items-center gap-3">
@@ -675,6 +694,7 @@ export default function StartPage() {
           <p className="text-xs text-gray-500">法人は原則として2期前の事業年度です。設立1期目・2期目は通常「基準期間なし」です</p>
           {errors.basePeriodSales && <p className="flex items-center gap-1 text-xs text-red-500"><AlertTriangle className="h-3.5 w-3.5" />{errors.basePeriodSales}</p>}
         </div>
+        </>)}
 
         {/* ⑬ 合併・分割による事業承継 */}
         <div className="card space-y-4">
