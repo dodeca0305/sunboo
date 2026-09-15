@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle2, Circle, AlertTriangle, CalendarClock, FileText } from 'lucide-react';
+import { CheckCircle2, Circle, AlertTriangle, CalendarClock, FileText, LoaderCircle } from 'lucide-react';
 import {
   WORKSPACE_DOCUMENT_TYPES, WORKSPACE_DOCUMENT_TYPE_LABEL,
   WORKSPACE_DOCUMENT_STATUSES, WORKSPACE_DOCUMENT_STATUS_LABEL,
@@ -10,6 +10,12 @@ import {
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import InformationCard from '@/components/InformationCard';
 import type { WorkspaceRequiredDocument } from '@/lib/workspaceRequiredDocuments';
+import {
+  WORKSPACE_REQUIRED_DOCUMENT_STATUSES,
+  WORKSPACE_REQUIRED_DOCUMENT_STATUS_LABEL,
+  type WorkspaceRequiredDocumentStatus,
+  type WorkspaceRequiredDocumentStatusMap,
+} from '@/lib/workspaceRequiredDocumentStatus';
 
 // ── Company Workspace — 書類一覧（Sprint 26 Workspace Documents MVP・Sprint 85）─────────
 // workspace_documents（本Sprint新設）のステータスを表示・変更する。ファイルアップロードは
@@ -33,13 +39,17 @@ export default function WorkspaceDocumentsView({
   companyId,
   statusMap,
   requiredDocuments,
+  requiredDocumentStatusMap,
 }: {
   companyId: number;
   statusMap: WorkspaceDocumentStatusMap;
   requiredDocuments: WorkspaceRequiredDocument[];
+  requiredDocumentStatusMap: WorkspaceRequiredDocumentStatusMap;
 }) {
   const [localStatusMap, setLocalStatusMap] = useState<WorkspaceDocumentStatusMap>(statusMap);
   const [error, setError] = useState<string | null>(null);
+  const [localRequiredStatusMap, setLocalRequiredStatusMap] =
+    useState<WorkspaceRequiredDocumentStatusMap>(requiredDocumentStatusMap);
 
   async function handleStatusChange(documentType: WorkspaceDocumentType, status: WorkspaceDocumentStatus) {
     const previous = localStatusMap[documentType] ?? 'not_registered';
@@ -54,6 +64,29 @@ export default function WorkspaceDocumentsView({
 
     if (upsertError) {
       setLocalStatusMap((prev) => ({ ...prev, [documentType]: previous }));
+      setError(`保存に失敗しました: ${upsertError.message}`);
+    }
+  }
+
+  async function handleRequiredStatusChange(
+    documentName: string,
+    status: WorkspaceRequiredDocumentStatus,
+  ) {
+    const previous = localRequiredStatusMap[documentName] ?? 'not_ready';
+    setLocalRequiredStatusMap((prev) => ({ ...prev, [documentName]: status }));
+    setError(null);
+
+    const supabase = createBrowserSupabase();
+    if (!supabase) return;
+    const { error: upsertError } = await supabase
+      .from('workspace_required_document_statuses')
+      .upsert(
+        { company_id: companyId, document_name: documentName, status },
+        { onConflict: 'company_id,document_name' },
+      );
+
+    if (upsertError) {
+      setLocalRequiredStatusMap((prev) => ({ ...prev, [documentName]: previous }));
       setError(`保存に失敗しました: ${upsertError.message}`);
     }
   }
@@ -97,7 +130,20 @@ export default function WorkspaceDocumentsView({
           <InformationCard kind="info">現在のロードマップに未準備の必須書類はありません。</InformationCard>
         ) : (
           <ul className="space-y-2">
-            {requiredDocuments.map((document) => (
+            {requiredDocuments.map((document) => {
+              const preparationStatus = localRequiredStatusMap[document.name] ?? 'not_ready';
+              const PreparationIcon = preparationStatus === 'ready'
+                ? CheckCircle2
+                : preparationStatus === 'in_progress'
+                  ? LoaderCircle
+                  : Circle;
+              const preparationIconClass = preparationStatus === 'ready'
+                ? 'text-sunboo-moss'
+                : preparationStatus === 'in_progress'
+                  ? 'text-sunboo-morning-sun-dark'
+                  : 'text-sunboo-mist';
+
+              return (
               <li key={document.name} className="card space-y-2 py-3">
                 <div className="flex items-start gap-2">
                   <FileText className="mt-0.5 h-4 w-4 shrink-0 text-sunboo-moss" aria-hidden="true" />
@@ -112,13 +158,32 @@ export default function WorkspaceDocumentsView({
                       使用する手続き：{document.procedures.join('、')}
                     </p>
                   </div>
+                  <div className="ml-auto flex shrink-0 items-center gap-2">
+                    <PreparationIcon className={`h-4 w-4 ${preparationIconClass}`} aria-hidden="true" />
+                    <select
+                      value={preparationStatus}
+                      aria-label={`${document.name}の準備状況`}
+                      onChange={(event) => handleRequiredStatusChange(
+                        document.name,
+                        event.target.value as WorkspaceRequiredDocumentStatus,
+                      )}
+                      className="form-select w-auto py-1 text-xs"
+                    >
+                      {WORKSPACE_REQUIRED_DOCUMENT_STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {WORKSPACE_REQUIRED_DOCUMENT_STATUS_LABEL[status]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <p className="flex items-center gap-1.5 pl-6 text-xs text-sunboo-morning-sun-dark">
                   <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
                   最も近い期限：{document.nearestDueDate}
                 </p>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </section>

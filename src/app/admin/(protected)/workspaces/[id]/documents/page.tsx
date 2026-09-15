@@ -1,7 +1,12 @@
 import { notFound } from 'next/navigation';
 import { FileStack } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { loadWorkspaceCompany, loadWorkspaceDocumentStatuses, loadWorkspaceRoadmapContext } from '@/lib/workspaceLoader';
+import {
+  loadWorkspaceCompany,
+  loadWorkspaceDocumentStatuses,
+  loadWorkspaceRequiredDocumentStatuses,
+  loadWorkspaceRoadmapContext,
+} from '@/lib/workspaceLoader';
 import WorkspaceDocumentsView from '@/components/WorkspaceDocumentsView';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import PageHeader from '@/components/PageHeader';
@@ -30,8 +35,9 @@ export default async function WorkspaceDocumentsPage({ params }: { params: Promi
   const company = await loadWorkspaceCompany(supabase, companyId);
   if (!company) notFound();
 
-  const [{ statusMap }, roadmapContext] = await Promise.all([
+  const [{ statusMap }, requiredDocumentStatusMap, roadmapContext] = await Promise.all([
     loadWorkspaceDocumentStatuses(supabase, companyId),
+    loadWorkspaceRequiredDocumentStatuses(supabase, companyId),
     loadWorkspaceRoadmapContext(supabase, company),
   ]);
   const registeredCount = WORKSPACE_DOCUMENT_TYPES.filter((t) => statusMap[t] === 'registered').length;
@@ -61,6 +67,7 @@ export default async function WorkspaceDocumentsPage({ params }: { params: Promi
         companyId={companyId}
         statusMap={statusMap}
         requiredDocuments={requiredDocuments}
+        requiredDocumentStatusMap={requiredDocumentStatusMap}
       />
     </div>
   );
