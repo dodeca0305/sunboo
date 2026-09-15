@@ -67,7 +67,7 @@ const SECTIONS = [
   { icon: Receipt, title: '決算実績', description: '決算のたびの申告実績（TaxReturnProfile）', hrefSuffix: '/tax-returns', comingSoon: false },
   { icon: CalendarRange, title: '年間ロードマップ', description: '今後の手続き予定の一覧', hrefSuffix: '/roadmap', comingSoon: false },
   { icon: Share2, title: '共有', description: '経営者への共有リンクの発行・管理', hrefSuffix: '/share', comingSoon: false },
-  { icon: BarChart3, title: '会計分析', description: '決算実績の推移分析', hrefSuffix: null, comingSoon: true },
+  { icon: BarChart3, title: '売上目標', description: '月間目標・実績・行動の管理', hrefSuffix: '/growth', comingSoon: false },
   { icon: FileStack, title: '書類', description: '定款・登記簿謄本等の登録状況', hrefSuffix: '/documents', comingSoon: false },
 ] as const;
 
