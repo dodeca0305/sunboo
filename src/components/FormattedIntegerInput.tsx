@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { parseIntegerInput } from '@/lib/integerInputValidation';
 
 type FormattedIntegerInputProps = {
@@ -8,6 +9,7 @@ type FormattedIntegerInputProps = {
   placeholder?: string;
   ariaLabel: string;
   onBlur?: () => void;
+  className?: string;
 };
 
 export default function FormattedIntegerInput({
@@ -16,7 +18,27 @@ export default function FormattedIntegerInput({
   placeholder = '円',
   ariaLabel,
   onBlur,
+  className = '',
 }: FormattedIntegerInputProps) {
+  const [text, setText] = useState(value === null ? '' : value.toLocaleString('ja-JP'));
+  const composingRef = useRef(false);
+
+  useEffect(() => {
+    if (!composingRef.current) {
+      setText(value === null ? '' : value.toLocaleString('ja-JP'));
+    }
+  }, [value]);
+
+  function commit(rawValue: string) {
+    const result = parseIntegerInput(rawValue);
+    if (result.status === 'unsafe') {
+      setText(value === null ? '' : value.toLocaleString('ja-JP'));
+      return;
+    }
+    setText(result.value === null ? '' : result.value.toLocaleString('ja-JP'));
+    onChange(result.value);
+  }
+
   return (
     <input
       type="text"
@@ -24,20 +46,25 @@ export default function FormattedIntegerInput({
       autoComplete="off"
       placeholder={placeholder}
       aria-label={ariaLabel}
-      value={value === null ? '' : value.toLocaleString('ja-JP')}
+      value={text}
       onChange={(event) => {
-        const result = parseIntegerInput(
-          event.target.value,
-        );
-
-        if (result.status === 'unsafe') {
-          return;
+        setText(event.target.value);
+        if (!(event.nativeEvent as InputEvent).isComposing && !composingRef.current) {
+          commit(event.target.value);
         }
-
-        onChange(result.value);
       }}
-      onBlur={onBlur}
-      className="form-input"
+      onCompositionStart={() => {
+        composingRef.current = true;
+      }}
+      onCompositionEnd={(event) => {
+        composingRef.current = false;
+        commit(event.currentTarget.value);
+      }}
+      onBlur={(event) => {
+        if (!composingRef.current) commit(event.currentTarget.value);
+        onBlur?.();
+      }}
+      className={`form-input ${className}`}
     />
   );
 }
