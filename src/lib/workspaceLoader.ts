@@ -14,6 +14,10 @@ import {
   type WorkspaceProcedureStatusMap, type WorkspaceProcedureStatusRow,
 } from './workspaceProcedureStatus';
 import type { WorkspaceDocumentStatus, WorkspaceDocumentType, WorkspaceDocumentStatusMap } from './workspaceDocumentStatus';
+import type {
+  WorkspaceRequiredDocumentStatus,
+  WorkspaceRequiredDocumentStatusMap,
+} from './workspaceRequiredDocumentStatus';
 import { applyCutoverToRoadmapYears } from './submissionDirectoryCutover';
 
 // ── Company Workspace — データ取得の共通化（Sprint 34）───────────────────
@@ -108,6 +112,29 @@ export async function loadWorkspaceDocumentStatuses(
     if (row.status === 'needs_update') needsUpdateCount++;
   }
   return { statusMap, needsUpdateCount };
+}
+
+// 今後必要な書類の準備状況を、書類名をキーに組み立てる。
+// migration適用前でもDocuments画面全体を表示できるよう、テーブル未作成時は空Mapへ退避する。
+export async function loadWorkspaceRequiredDocumentStatuses(
+  supabase: SupabaseClient,
+  companyId: number,
+): Promise<WorkspaceRequiredDocumentStatusMap> {
+  const { data, error } = await supabase
+    .from('workspace_required_document_statuses')
+    .select('document_name, status')
+    .eq('company_id', companyId);
+
+  if (error) return {};
+
+  const statusMap: WorkspaceRequiredDocumentStatusMap = {};
+  for (const row of (data as {
+    document_name: string;
+    status: WorkspaceRequiredDocumentStatus;
+  }[] | null) ?? []) {
+    statusMap[row.document_name] = row.status;
+  }
+  return statusMap;
 }
 
 // workspace_tax_return_profilesを取得し、既存Engineの共通入力であるTaxReturnProfileへ変換する
