@@ -3,6 +3,25 @@ export type MonthlySalesEntry = {
   targetRevenue: number;
   actualRevenue: number;
   actionGoal: string;
+  revenueModel: RevenueModel;
+  meetingCount: number;
+  conversionRate: number;
+  averageContractValue: number;
+  customerCount: number;
+  purchaseFrequency: number;
+  averageOrderValue: number;
+};
+
+export type RevenueModel = 'sales_funnel' | 'customer_repeat';
+
+export type SalesDriverPlan = {
+  projectedRevenue: number;
+  projectedGap: number;
+  projectedDeals: number;
+  additionalDealsNeeded: number;
+  additionalMeetingsNeeded: number;
+  additionalCustomersNeeded: number;
+  hasEnoughInputs: boolean;
 };
 
 export type MonthlySalesProgress = {
@@ -59,5 +78,57 @@ export function calculateMonthlySalesProgress(
     requiredRevenuePerDay: shortfall > 0 && daysRemaining > 0
       ? Math.ceil(shortfall / daysRemaining)
       : 0,
+  };
+}
+
+export function calculateSalesDriverPlan(
+  entry: Pick<MonthlySalesEntry,
+    | 'targetRevenue'
+    | 'revenueModel'
+    | 'meetingCount'
+    | 'conversionRate'
+    | 'averageContractValue'
+    | 'customerCount'
+    | 'purchaseFrequency'
+    | 'averageOrderValue'
+  >,
+): SalesDriverPlan {
+  const targetRevenue = Math.max(0, entry.targetRevenue);
+
+  if (entry.revenueModel === 'sales_funnel') {
+    const meetings = Math.max(0, entry.meetingCount);
+    const rate = Math.min(100, Math.max(0, entry.conversionRate));
+    const averageValue = Math.max(0, entry.averageContractValue);
+    const projectedDeals = meetings * (rate / 100);
+    const projectedRevenue = Math.round(projectedDeals * averageValue);
+    const projectedGap = Math.max(targetRevenue - projectedRevenue, 0);
+    const revenuePerMeeting = (rate / 100) * averageValue;
+
+    return {
+      projectedRevenue,
+      projectedGap,
+      projectedDeals: Math.round(projectedDeals * 10) / 10,
+      additionalDealsNeeded: averageValue > 0 ? Math.ceil(projectedGap / averageValue) : 0,
+      additionalMeetingsNeeded: revenuePerMeeting > 0 ? Math.ceil(projectedGap / revenuePerMeeting) : 0,
+      additionalCustomersNeeded: 0,
+      hasEnoughInputs: meetings > 0 && rate > 0 && averageValue > 0,
+    };
+  }
+
+  const customers = Math.max(0, entry.customerCount);
+  const frequency = Math.max(0, entry.purchaseFrequency);
+  const averageValue = Math.max(0, entry.averageOrderValue);
+  const revenuePerCustomer = frequency * averageValue;
+  const projectedRevenue = Math.round(customers * revenuePerCustomer);
+  const projectedGap = Math.max(targetRevenue - projectedRevenue, 0);
+
+  return {
+    projectedRevenue,
+    projectedGap,
+    projectedDeals: 0,
+    additionalDealsNeeded: 0,
+    additionalMeetingsNeeded: 0,
+    additionalCustomersNeeded: revenuePerCustomer > 0 ? Math.ceil(projectedGap / revenuePerCustomer) : 0,
+    hasEnoughInputs: customers > 0 && frequency > 0 && averageValue > 0,
   };
 }

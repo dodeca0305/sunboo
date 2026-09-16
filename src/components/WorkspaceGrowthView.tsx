@@ -7,11 +7,28 @@ import InformationCard from '@/components/InformationCard';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import {
   calculateMonthlySalesProgress,
+  calculateSalesDriverPlan,
   currentYearMonth,
   type MonthlySalesEntry,
 } from '@/lib/monthlySalesProgress';
 
 const yen = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 });
+
+function emptyEntry(yearMonth: string): MonthlySalesEntry {
+  return {
+    yearMonth,
+    targetRevenue: 0,
+    actualRevenue: 0,
+    actionGoal: '',
+    revenueModel: 'sales_funnel',
+    meetingCount: 0,
+    conversionRate: 0,
+    averageContractValue: 0,
+    customerCount: 0,
+    purchaseFrequency: 0,
+    averageOrderValue: 0,
+  };
+}
 
 export default function WorkspaceGrowthView({
   companyId,
@@ -23,27 +40,18 @@ export default function WorkspaceGrowthView({
   const initialMap = Object.fromEntries(initialEntries.map((entry) => [entry.yearMonth, entry]));
   const [entries, setEntries] = useState<Record<string, MonthlySalesEntry>>(initialMap);
   const [yearMonth, setYearMonth] = useState(currentYearMonth());
-  const selected = entries[yearMonth] ?? {
-    yearMonth,
-    targetRevenue: 0,
-    actualRevenue: 0,
-    actionGoal: '',
-  };
+  const selected = entries[yearMonth] ?? emptyEntry(yearMonth);
   const [draft, setDraft] = useState<MonthlySalesEntry>(selected);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const progress = useMemo(() => calculateMonthlySalesProgress(draft), [draft]);
+  const driverPlan = useMemo(() => calculateSalesDriverPlan(draft), [draft]);
 
   function changeMonth(nextMonth: string) {
     if (!/^\d{4}-\d{2}$/.test(nextMonth)) return;
     setYearMonth(nextMonth);
-    setDraft(entries[nextMonth] ?? {
-      yearMonth: nextMonth,
-      targetRevenue: 0,
-      actualRevenue: 0,
-      actionGoal: '',
-    });
+    setDraft(entries[nextMonth] ?? emptyEntry(nextMonth));
     setError(null);
     setSaved(false);
   }
@@ -73,6 +81,13 @@ export default function WorkspaceGrowthView({
       target_revenue: draft.targetRevenue,
       actual_revenue: draft.actualRevenue,
       action_goal: draft.actionGoal.trim(),
+      revenue_model: draft.revenueModel,
+      meeting_count: draft.meetingCount,
+      conversion_rate: draft.conversionRate,
+      average_contract_value: draft.averageContractValue,
+      customer_count: draft.customerCount,
+      purchase_frequency: draft.purchaseFrequency,
+      average_order_value: draft.averageOrderValue,
     }, { onConflict: 'company_id,year_month' });
     setSaving(false);
 
@@ -150,6 +165,108 @@ export default function WorkspaceGrowthView({
           <p className="mt-1 text-right text-xs text-sunboo-ink-muted">{draft.actionGoal.length}/500文字</p>
         </div>
 
+      </div>
+
+      <div className="card space-y-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-sunboo-moss" />
+            <h2 className="font-bold text-sunboo-ink">売上をつくる数字</h2>
+          </div>
+          <p className="mt-1 text-sm text-sunboo-ink-muted">
+            自社に近い計算方法を選び、目標達成に必要な行動量を見える化します。
+          </p>
+        </div>
+
+        <div>
+          <label className="form-label" htmlFor="growth-revenue-model">売上の計算方法</label>
+          <select
+            id="growth-revenue-model"
+            className="form-input"
+            value={draft.revenueModel}
+            onChange={(event) => setDraft((previous) => ({
+              ...previous,
+              revenueModel: event.target.value as MonthlySalesEntry['revenueModel'],
+            }))}
+          >
+            <option value="sales_funnel">商談数 × 成約率 × 平均契約単価</option>
+            <option value="customer_repeat">顧客数 × 月間購入回数 × 平均単価</option>
+          </select>
+        </div>
+
+        {draft.revenueModel === 'sales_funnel' ? (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <DriverInput
+              label="今月の商談予定数（件）"
+              value={draft.meetingCount}
+              onChange={(value) => setDraft((previous) => ({ ...previous, meetingCount: value }))}
+              placeholder="例：20"
+            />
+            <DriverInput
+              label="想定成約率（%）"
+              value={draft.conversionRate}
+              onChange={(value) => setDraft((previous) => ({ ...previous, conversionRate: Math.min(100, value) }))}
+              placeholder="例：25"
+            />
+            <DriverInput
+              label="平均契約単価（円）"
+              value={draft.averageContractValue}
+              onChange={(value) => setDraft((previous) => ({ ...previous, averageContractValue: value }))}
+              placeholder="例：500,000"
+            />
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <DriverInput
+              label="今月の想定顧客数（人・社）"
+              value={draft.customerCount}
+              onChange={(value) => setDraft((previous) => ({ ...previous, customerCount: value }))}
+              placeholder="例：100"
+            />
+            <DriverInput
+              label="1顧客の月間購入回数（回）"
+              value={draft.purchaseFrequency}
+              onChange={(value) => setDraft((previous) => ({ ...previous, purchaseFrequency: value }))}
+              placeholder="例：2"
+            />
+            <DriverInput
+              label="平均単価（円）"
+              value={draft.averageOrderValue}
+              onChange={(value) => setDraft((previous) => ({ ...previous, averageOrderValue: value }))}
+              placeholder="例：5,000"
+            />
+          </div>
+        )}
+
+        {driverPlan.hasEnoughInputs ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Metric label="計画上の見込売上" value={yen.format(driverPlan.projectedRevenue)} />
+            <Metric label="計画上の不足額" value={yen.format(driverPlan.projectedGap)} caution={driverPlan.projectedGap > 0} />
+            {draft.revenueModel === 'sales_funnel' ? (
+              <>
+                <Metric label="見込成約数" value={`${driverPlan.projectedDeals}件`} />
+                <Metric
+                  label="不足を埋める追加商談"
+                  value={`${driverPlan.additionalMeetingsNeeded}件`}
+                  caution={driverPlan.additionalMeetingsNeeded > 0}
+                />
+              </>
+            ) : (
+              <Metric
+                label="不足を埋める追加顧客"
+                value={`${driverPlan.additionalCustomersNeeded}人・社`}
+                caution={driverPlan.additionalCustomersNeeded > 0}
+              />
+            )}
+          </div>
+        ) : (
+          <InformationCard kind="info">
+            3つの数字を入力すると、見込売上と目標達成に必要な追加件数が表示されます。
+          </InformationCard>
+        )}
+        <p className="text-xs text-sunboo-ink-muted">
+          この計算は入力した想定値に基づく目安であり、売上や成約を保証するものではありません。
+        </p>
         <button type="button" className="btn-primary" onClick={save} disabled={saving}>
           <Save className="h-4 w-4" />
           {saving ? '保存中…' : '売上計画を保存'}
@@ -177,6 +294,31 @@ export default function WorkspaceGrowthView({
           数字だけでなく、商談数・提案数・客単価など、売上につながる行動を毎週確認しよう。
         </InformationCard>
       )}
+    </div>
+  );
+}
+
+function DriverInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  placeholder: string;
+}) {
+  return (
+    <div>
+      <label className="form-label">{label}</label>
+      <FormattedIntegerInput
+        value={value}
+        onChange={(nextValue) => onChange(Math.max(0, nextValue ?? 0))}
+        ariaLabel={label}
+        placeholder={placeholder}
+        zeroAsBlank
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateMonthlySalesProgress, currentYearMonth } from './monthlySalesProgress.ts';
+import { calculateMonthlySalesProgress, calculateSalesDriverPlan, currentYearMonth } from './monthlySalesProgress.ts';
 
 test('日本時間の年月を返す', () => {
   assert.equal(currentYearMonth(new Date('2026-08-31T15:30:00Z')), '2026-09');
@@ -38,4 +38,57 @@ test('過去月は残り日数と必要売上を0にする', () => {
   }, new Date('2026-09-10T00:00:00Z'));
   assert.equal(progress.daysRemaining, 0);
   assert.equal(progress.requiredRevenuePerDay, 0);
+});
+
+test('商談モデルから見込売上と追加商談数を計算する', () => {
+  assert.deepEqual(calculateSalesDriverPlan({
+    targetRevenue: 3_000_000,
+    revenueModel: 'sales_funnel',
+    meetingCount: 10,
+    conversionRate: 20,
+    averageContractValue: 500_000,
+    customerCount: 0,
+    purchaseFrequency: 0,
+    averageOrderValue: 0,
+  }), {
+    projectedRevenue: 1_000_000,
+    projectedGap: 2_000_000,
+    projectedDeals: 2,
+    additionalDealsNeeded: 4,
+    additionalMeetingsNeeded: 20,
+    additionalCustomersNeeded: 0,
+    hasEnoughInputs: true,
+  });
+});
+
+test('顧客モデルから見込売上と追加顧客数を計算する', () => {
+  const plan = calculateSalesDriverPlan({
+    targetRevenue: 1_000_000,
+    revenueModel: 'customer_repeat',
+    meetingCount: 0,
+    conversionRate: 0,
+    averageContractValue: 0,
+    customerCount: 100,
+    purchaseFrequency: 2,
+    averageOrderValue: 3_000,
+  });
+  assert.equal(plan.projectedRevenue, 600_000);
+  assert.equal(plan.projectedGap, 400_000);
+  assert.equal(plan.additionalCustomersNeeded, 67);
+  assert.equal(plan.hasEnoughInputs, true);
+});
+
+test('売上要因の入力が不足している場合は追加件数を0にする', () => {
+  const plan = calculateSalesDriverPlan({
+    targetRevenue: 1_000_000,
+    revenueModel: 'sales_funnel',
+    meetingCount: 10,
+    conversionRate: 0,
+    averageContractValue: 500_000,
+    customerCount: 0,
+    purchaseFrequency: 0,
+    averageOrderValue: 0,
+  });
+  assert.equal(plan.additionalMeetingsNeeded, 0);
+  assert.equal(plan.hasEnoughInputs, false);
 });

@@ -13,6 +13,13 @@ type MonthlySalesRow = {
   target_revenue: number;
   actual_revenue: number;
   action_goal: string;
+  revenue_model: 'sales_funnel' | 'customer_repeat';
+  meeting_count: number;
+  conversion_rate: number;
+  average_contract_value: number;
+  customer_count: number;
+  purchase_frequency: number;
+  average_order_value: number;
 };
 
 export default async function WorkspaceGrowthPage({ params }: { params: Promise<{ id: string }> }) {
@@ -27,7 +34,7 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
 
   const { data } = await supabase
     .from('workspace_monthly_sales')
-    .select('year_month, target_revenue, actual_revenue, action_goal')
+    .select('year_month, target_revenue, actual_revenue, action_goal, revenue_model, meeting_count, conversion_rate, average_contract_value, customer_count, purchase_frequency, average_order_value')
     .eq('company_id', companyId)
     .order('year_month', { ascending: false });
 
@@ -36,6 +43,13 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
     targetRevenue: row.target_revenue,
     actualRevenue: row.actual_revenue,
     actionGoal: row.action_goal,
+    revenueModel: row.revenue_model ?? 'sales_funnel',
+    meetingCount: row.meeting_count ?? 0,
+    conversionRate: row.conversion_rate ?? 0,
+    averageContractValue: row.average_contract_value ?? 0,
+    customerCount: row.customer_count ?? 0,
+    purchaseFrequency: row.purchase_frequency ?? 0,
+    averageOrderValue: row.average_order_value ?? 0,
   }));
 
   return (
