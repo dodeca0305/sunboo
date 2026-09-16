@@ -8,8 +8,11 @@ import { createBrowserSupabase } from '@/lib/supabase/browser';
 import {
   calculateMonthlySalesProgress,
   calculateSalesDriverPlan,
+  calculateWeeklySalesProgress,
+  currentWeekStart,
   currentYearMonth,
   type MonthlySalesEntry,
+  type WeeklySalesActivity,
 } from '@/lib/monthlySalesProgress';
 
 const yen = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 });
@@ -33,9 +36,11 @@ function emptyEntry(yearMonth: string): MonthlySalesEntry {
 export default function WorkspaceGrowthView({
   companyId,
   initialEntries,
+  initialWeeklyActivities,
 }: {
   companyId: number;
   initialEntries: MonthlySalesEntry[];
+  initialWeeklyActivities: WeeklySalesActivity[];
 }) {
   const initialMap = Object.fromEntries(initialEntries.map((entry) => [entry.yearMonth, entry]));
   const [entries, setEntries] = useState<Record<string, MonthlySalesEntry>>(initialMap);
@@ -45,8 +50,31 @@ export default function WorkspaceGrowthView({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const initialWeeklyMap = Object.fromEntries(initialWeeklyActivities.map((activity) => [activity.weekStart, activity]));
+  const [weeklyActivities, setWeeklyActivities] = useState<Record<string, WeeklySalesActivity>>(initialWeeklyMap);
+  const [weekStart, setWeekStart] = useState(currentWeekStart());
+  const [weeklyDraft, setWeeklyDraft] = useState<WeeklySalesActivity>(initialWeeklyMap[currentWeekStart()] ?? {
+    weekStart: currentWeekStart(),
+    targetMeetings: 0,
+    actualMeetings: 0,
+    actualDeals: 0,
+    actionNote: '',
+  });
+  const [weeklySaving, setWeeklySaving] = useState(false);
+  const [weeklySaved, setWeeklySaved] = useState(false);
   const progress = useMemo(() => calculateMonthlySalesProgress(draft), [draft]);
   const driverPlan = useMemo(() => calculateSalesDriverPlan(draft), [draft]);
+  const monthEnd = useMemo(() => {
+    const [year, month] = draft.yearMonth.split('-').map(Number);
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    return `${draft.yearMonth}-${String(lastDay).padStart(2, '0')}`;
+  }, [draft.yearMonth]);
+  const weeklyProgress = useMemo(() => calculateWeeklySalesProgress({
+    activity: weeklyDraft,
+    plannedConversionRate: draft.conversionRate,
+    remainingMeetings: driverPlan.additionalMeetingsNeeded,
+    monthEnd,
+  }), [weeklyDraft, draft.conversionRate, driverPlan.additionalMeetingsNeeded, monthEnd]);
 
   function changeMonth(nextMonth: string) {
     if (!/^\d{4}-\d{2}$/.test(nextMonth)) return;
@@ -100,6 +128,60 @@ export default function WorkspaceGrowthView({
     setDraft(savedEntry);
     setEntries((previous) => ({ ...previous, [yearMonth]: savedEntry }));
     setSaved(true);
+  }
+
+  function changeWeek(nextWeek: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(nextWeek)) return;
+    setWeekStart(nextWeek);
+    setWeeklyDraft(weeklyActivities[nextWeek] ?? {
+      weekStart: nextWeek,
+      targetMeetings: 0,
+      actualMeetings: 0,
+      actualDeals: 0,
+      actionNote: '',
+    });
+    setWeeklySaved(false);
+    setError(null);
+  }
+
+  async function saveWeeklyActivity() {
+    if (weeklyDraft.targetMeetings <= 0) {
+      setError('今週の商談目標を入力してください。');
+      return;
+    }
+    if (weeklyDraft.actualDeals > weeklyDraft.actualMeetings) {
+      setError('成約数は実際の商談数以下で入力してください。');
+      return;
+    }
+
+    const supabase = createBrowserSupabase();
+    if (!supabase) {
+      setError('Supabase が設定されていません。');
+      return;
+    }
+
+    setWeeklySaving(true);
+    setWeeklySaved(false);
+    setError(null);
+    const { error: saveError } = await supabase.from('workspace_weekly_sales_activities').upsert({
+      company_id: companyId,
+      week_start: weeklyDraft.weekStart,
+      target_meetings: weeklyDraft.targetMeetings,
+      actual_meetings: weeklyDraft.actualMeetings,
+      actual_deals: weeklyDraft.actualDeals,
+      action_note: weeklyDraft.actionNote.trim(),
+    }, { onConflict: 'company_id,week_start' });
+    setWeeklySaving(false);
+
+    if (saveError) {
+      setError(`週間実績の保存に失敗しました: ${saveError.message}`);
+      return;
+    }
+
+    const savedActivity = { ...weeklyDraft, actionNote: weeklyDraft.actionNote.trim() };
+    setWeeklyDraft(savedActivity);
+    setWeeklyActivities((previous) => ({ ...previous, [weekStart]: savedActivity }));
+    setWeeklySaved(true);
   }
 
   return (
@@ -283,6 +365,85 @@ export default function WorkspaceGrowthView({
           caution={progress.requiredRevenuePerDay > 0}
         />
       </div>
+
+      {draft.revenueModel === 'sales_funnel' && (
+        <div className="card space-y-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-sunboo-moss" />
+              <h2 className="font-bold text-sunboo-ink">今週の商談実績</h2>
+            </div>
+            <p className="mt-1 text-sm text-sunboo-ink-muted">
+              毎週の目標と実績を記録し、月間目標との差を早めに修正します。
+            </p>
+          </div>
+
+          {weeklySaved && (
+            <div className="information-card information-card--success flex items-center gap-2 text-sm">
+              <CheckCircle2 className="h-4 w-4" />週間実績を保存しました。
+            </div>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <label className="form-label" htmlFor="growth-week-start">週の開始日</label>
+              <input
+                id="growth-week-start"
+                type="date"
+                className="form-input"
+                value={weekStart}
+                onChange={(event) => changeWeek(event.target.value)}
+              />
+            </div>
+            <DriverInput
+              label="今週の商談目標（件）"
+              value={weeklyDraft.targetMeetings}
+              onChange={(value) => setWeeklyDraft((previous) => ({ ...previous, targetMeetings: value }))}
+              placeholder="例：10"
+            />
+            <DriverInput
+              label="実際の商談数（件）"
+              value={weeklyDraft.actualMeetings}
+              onChange={(value) => setWeeklyDraft((previous) => ({ ...previous, actualMeetings: value }))}
+              placeholder="例：7"
+            />
+            <DriverInput
+              label="実際の成約数（件）"
+              value={weeklyDraft.actualDeals}
+              onChange={(value) => setWeeklyDraft((previous) => ({ ...previous, actualDeals: value }))}
+              placeholder="例：1"
+            />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Metric label="実際の成約率" value={`${weeklyProgress.actualConversionRate}%`} />
+            <Metric label="今週の商談不足" value={`${weeklyProgress.meetingGap}件`} caution={weeklyProgress.meetingGap > 0} />
+            <Metric label="今週の成約不足" value={`${weeklyProgress.dealGap}件`} caution={weeklyProgress.dealGap > 0} />
+            <Metric
+              label="残り週あたり必要商談"
+              value={`${weeklyProgress.requiredMeetingsPerWeek}件`}
+              caution={weeklyProgress.requiredMeetingsPerWeek > 0}
+            />
+          </div>
+
+          <div>
+            <label className="form-label" htmlFor="growth-weekly-action-note">今週の振り返り・次の行動</label>
+            <textarea
+              id="growth-weekly-action-note"
+              className="form-input min-h-20"
+              maxLength={500}
+              value={weeklyDraft.actionNote}
+              onChange={(event) => setWeeklyDraft((previous) => ({ ...previous, actionNote: event.target.value }))}
+              placeholder="例：紹介依頼を5社へ送り、未回答案件へ木曜日までに再提案する"
+            />
+          </div>
+
+          <button type="button" className="btn-primary" onClick={saveWeeklyActivity} disabled={weeklySaving}>
+            <Save className="h-4 w-4" />
+            {weeklySaving ? '保存中…' : '週間実績を保存'}
+          </button>
+        </div>
+      )}
 
       {progress.achievementRate >= 100 ? (
         <div className="information-card information-card--success flex items-center gap-2 text-sm">

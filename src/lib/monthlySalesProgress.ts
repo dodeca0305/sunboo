@@ -24,6 +24,22 @@ export type SalesDriverPlan = {
   hasEnoughInputs: boolean;
 };
 
+export type WeeklySalesActivity = {
+  weekStart: string;
+  targetMeetings: number;
+  actualMeetings: number;
+  actualDeals: number;
+  actionNote: string;
+};
+
+export type WeeklySalesProgress = {
+  actualConversionRate: number;
+  meetingGap: number;
+  dealGap: number;
+  weeksRemaining: number;
+  requiredMeetingsPerWeek: number;
+};
+
 export type MonthlySalesProgress = {
   achievementRate: number;
   shortfall: number;
@@ -130,5 +146,58 @@ export function calculateSalesDriverPlan(
     additionalMeetingsNeeded: 0,
     additionalCustomersNeeded: revenuePerCustomer > 0 ? Math.ceil(projectedGap / revenuePerCustomer) : 0,
     hasEnoughInputs: customers > 0 && frequency > 0 && averageValue > 0,
+  };
+}
+
+export function currentWeekStart(now = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+  }).formatToParts(now);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const weekdayIndex = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(values.weekday);
+  if (!values.year || !values.month || !values.day || weekdayIndex < 0) {
+    throw new Error('今週の開始日を取得できません。');
+  }
+  const date = new Date(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day)));
+  const daysFromMonday = weekdayIndex === 0 ? 6 : weekdayIndex - 1;
+  date.setUTCDate(date.getUTCDate() - daysFromMonday);
+  return date.toISOString().slice(0, 10);
+}
+
+export function calculateWeeklySalesProgress({
+  activity,
+  plannedConversionRate,
+  remainingMeetings,
+  monthEnd,
+}: {
+  activity: Pick<WeeklySalesActivity, 'weekStart' | 'targetMeetings' | 'actualMeetings' | 'actualDeals'>;
+  plannedConversionRate: number;
+  remainingMeetings: number;
+  monthEnd: string;
+}): WeeklySalesProgress {
+  const actualMeetings = Math.max(0, activity.actualMeetings);
+  const actualDeals = Math.max(0, activity.actualDeals);
+  const targetMeetings = Math.max(0, activity.targetMeetings);
+  const expectedDeals = Math.ceil(targetMeetings * Math.min(100, Math.max(0, plannedConversionRate)) / 100);
+  const actualConversionRate = actualMeetings === 0
+    ? 0
+    : Math.round((actualDeals / actualMeetings) * 1000) / 10;
+  const start = new Date(`${activity.weekStart}T00:00:00Z`);
+  const end = new Date(`${monthEnd}T00:00:00Z`);
+  const days = Math.max(0, Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1);
+  const weeksRemaining = Math.max(1, Math.ceil(days / 7));
+
+  return {
+    actualConversionRate,
+    meetingGap: Math.max(targetMeetings - actualMeetings, 0),
+    dealGap: Math.max(expectedDeals - actualDeals, 0),
+    weeksRemaining,
+    requiredMeetingsPerWeek: Math.max(0, remainingMeetings) > 0
+      ? Math.ceil(Math.max(0, remainingMeetings) / weeksRemaining)
+      : 0,
   };
 }
