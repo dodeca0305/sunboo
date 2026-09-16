@@ -6,7 +6,7 @@ import WorkspaceGrowthView from '@/components/WorkspaceGrowthView';
 import InformationCard from '@/components/InformationCard';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { loadWorkspaceCompany } from '@/lib/workspaceLoader';
-import type { MonthlySalesEntry } from '@/lib/monthlySalesProgress';
+import type { MonthlySalesEntry, WeeklySalesActivity } from '@/lib/monthlySalesProgress';
 
 type MonthlySalesRow = {
   year_month: string;
@@ -20,6 +20,14 @@ type MonthlySalesRow = {
   customer_count: number;
   purchase_frequency: number;
   average_order_value: number;
+};
+
+type WeeklySalesRow = {
+  week_start: string;
+  target_meetings: number;
+  actual_meetings: number;
+  actual_deals: number;
+  action_note: string;
 };
 
 export default async function WorkspaceGrowthPage({ params }: { params: Promise<{ id: string }> }) {
@@ -38,6 +46,12 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
     .eq('company_id', companyId)
     .order('year_month', { ascending: false });
 
+  const { data: weeklyData } = await supabase
+    .from('workspace_weekly_sales_activities')
+    .select('week_start, target_meetings, actual_meetings, actual_deals, action_note')
+    .eq('company_id', companyId)
+    .order('week_start', { ascending: false });
+
   const entries: MonthlySalesEntry[] = ((data as MonthlySalesRow[] | null) ?? []).map((row) => ({
     yearMonth: row.year_month.slice(0, 7),
     targetRevenue: row.target_revenue,
@@ -50,6 +64,14 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
     customerCount: row.customer_count ?? 0,
     purchaseFrequency: row.purchase_frequency ?? 0,
     averageOrderValue: row.average_order_value ?? 0,
+  }));
+
+  const weeklyActivities: WeeklySalesActivity[] = ((weeklyData as WeeklySalesRow[] | null) ?? []).map((row) => ({
+    weekStart: row.week_start,
+    targetMeetings: row.target_meetings,
+    actualMeetings: row.actual_meetings,
+    actualDeals: row.actual_deals,
+    actionNote: row.action_note,
   }));
 
   return (
@@ -65,7 +87,11 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
       <InformationCard kind="disclaimer">
         売上達成を保証する機能ではありません。実績との差を早めに把握し、経営者が行動を見直すための参考情報です。
       </InformationCard>
-      <WorkspaceGrowthView companyId={companyId} initialEntries={entries} />
+      <WorkspaceGrowthView
+        companyId={companyId}
+        initialEntries={entries}
+        initialWeeklyActivities={weeklyActivities}
+      />
     </div>
   );
 }

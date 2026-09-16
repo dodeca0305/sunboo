@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateMonthlySalesProgress, calculateSalesDriverPlan, currentYearMonth } from './monthlySalesProgress.ts';
+import {
+  calculateMonthlySalesProgress,
+  calculateSalesDriverPlan,
+  calculateWeeklySalesProgress,
+  currentWeekStart,
+  currentYearMonth,
+} from './monthlySalesProgress.ts';
 
 test('日本時間の年月を返す', () => {
   assert.equal(currentYearMonth(new Date('2026-08-31T15:30:00Z')), '2026-09');
@@ -91,4 +97,29 @@ test('売上要因の入力が不足している場合は追加件数を0にす�
   });
   assert.equal(plan.additionalMeetingsNeeded, 0);
   assert.equal(plan.hasEnoughInputs, false);
+});
+
+test('日本時間で月曜日を今週の開始日として返す', () => {
+  assert.equal(currentWeekStart(new Date('2026-09-16T03:00:00Z')), '2026-09-14');
+  assert.equal(currentWeekStart(new Date('2026-09-20T14:59:00Z')), '2026-09-14');
+});
+
+test('週間の実績差と残り週あたり必要商談数を計算する', () => {
+  assert.deepEqual(calculateWeeklySalesProgress({
+    activity: {
+      weekStart: '2026-09-14',
+      targetMeetings: 10,
+      actualMeetings: 7,
+      actualDeals: 1,
+    },
+    plannedConversionRate: 20,
+    remainingMeetings: 20,
+    monthEnd: '2026-09-30',
+  }), {
+    actualConversionRate: 14.3,
+    meetingGap: 3,
+    dealGap: 1,
+    weeksRemaining: 3,
+    requiredMeetingsPerWeek: 7,
+  });
 });
