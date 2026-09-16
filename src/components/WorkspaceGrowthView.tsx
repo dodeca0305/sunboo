@@ -120,6 +120,7 @@ export default function WorkspaceGrowthView({
               onChange={(value) => setDraft((previous) => ({ ...previous, targetRevenue: value ?? 0 }))}
               ariaLabel="月間売上目標"
               placeholder="例：3,000,000"
+              selectZeroOnFocus
             />
           </div>
           <div>
@@ -129,6 +130,7 @@ export default function WorkspaceGrowthView({
               onChange={(value) => setDraft((previous) => ({ ...previous, actualRevenue: value ?? 0 }))}
               ariaLabel="現在の売上実績"
               placeholder="例：1,500,000"
+              selectZeroOnFocus
             />
           </div>
         </div>
