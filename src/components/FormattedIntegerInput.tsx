@@ -11,7 +11,14 @@ type FormattedIntegerInputProps = {
   onBlur?: () => void;
   className?: string;
   selectZeroOnFocus?: boolean;
+  zeroAsBlank?: boolean;
 };
+
+function formatIntegerValue(value: number | null, zeroAsBlank: boolean): string {
+  return value === null || (zeroAsBlank && value === 0)
+    ? ''
+    : value.toLocaleString('ja-JP');
+}
 
 export default function FormattedIntegerInput({
   value,
@@ -21,23 +28,24 @@ export default function FormattedIntegerInput({
   onBlur,
   className = '',
   selectZeroOnFocus = false,
+  zeroAsBlank = false,
 }: FormattedIntegerInputProps) {
-  const [text, setText] = useState(value === null ? '' : value.toLocaleString('ja-JP'));
+  const [text, setText] = useState(formatIntegerValue(value, zeroAsBlank));
   const composingRef = useRef(false);
 
   useEffect(() => {
     if (!composingRef.current) {
-      setText(value === null ? '' : value.toLocaleString('ja-JP'));
+      setText(formatIntegerValue(value, zeroAsBlank));
     }
-  }, [value]);
+  }, [value, zeroAsBlank]);
 
   function commit(rawValue: string) {
     const result = parseIntegerInput(rawValue);
     if (result.status === 'unsafe') {
-      setText(value === null ? '' : value.toLocaleString('ja-JP'));
+      setText(formatIntegerValue(value, zeroAsBlank));
       return;
     }
-    setText(result.value === null ? '' : result.value.toLocaleString('ja-JP'));
+    setText(formatIntegerValue(result.value, zeroAsBlank));
     onChange(result.value);
   }
 

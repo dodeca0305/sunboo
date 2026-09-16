@@ -121,6 +121,7 @@ export default function WorkspaceGrowthView({
               ariaLabel="月間売上目標"
               placeholder="例：3,000,000"
               selectZeroOnFocus
+              zeroAsBlank
             />
           </div>
           <div>
@@ -131,6 +132,7 @@ export default function WorkspaceGrowthView({
               ariaLabel="現在の売上実績"
               placeholder="例：1,500,000"
               selectZeroOnFocus
+              zeroAsBlank
             />
           </div>
         </div>
