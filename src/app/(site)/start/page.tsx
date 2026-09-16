@@ -7,6 +7,7 @@ import { prefectures as staticPrefectures } from '@/data/prefectures';
 import { MapPin, Users, Calendar, ArrowRight, AlertTriangle, Building2, UserCog, ChevronDown } from 'lucide-react';
 import type { CorporateType } from '@/lib/types';
 import SegmentedControl from '@/components/SegmentedControl';
+import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import { getBusinessTermNumber } from '@/lib/businessTerm';
 
 const FALLBACK_MUNICIPALITIES: Record<string, { code: string; name: string }[]> = {
@@ -451,15 +452,12 @@ export default function StartPage() {
           <div>
             <label className="form-label">給与を支払う人数（役員を含む）</label>
             <div className="relative">
-              <input
-                type="number"
-                min="0"
-                step="1"
-                inputMode="numeric"
-                className="form-input pr-12"
-                value={payrollRecipientCount ?? ''}
-                onChange={(e) => setPayrollRecipientCount(e.target.value === '' ? null : Number(e.target.value))}
+              <FormattedIntegerInput
+                value={payrollRecipientCount}
+                onChange={setPayrollRecipientCount}
+                ariaLabel="給与を支払う人数"
                 placeholder="0"
+                className="pr-12"
               />
               <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">人</span>
             </div>
@@ -547,15 +545,12 @@ export default function StartPage() {
             </div>
           </div>
           <div className="relative">
-            <input
-              type="number"
-              min="1"
-              step="1"
-              inputMode="numeric"
-              className="form-input pr-12"
-              value={capitalAmount ?? ''}
-              onChange={(e) => setCapitalAmount(e.target.value === '' ? null : Number(e.target.value))}
+            <FormattedIntegerInput
+              value={capitalAmount}
+              onChange={setCapitalAmount}
+              ariaLabel="資本金・出資金"
               placeholder="1000000"
+              className="pr-12"
             />
             <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">円</span>
           </div>
