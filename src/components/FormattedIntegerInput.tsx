@@ -10,6 +10,7 @@ type FormattedIntegerInputProps = {
   ariaLabel: string;
   onBlur?: () => void;
   className?: string;
+  selectZeroOnFocus?: boolean;
 };
 
 export default function FormattedIntegerInput({
@@ -19,6 +20,7 @@ export default function FormattedIntegerInput({
   ariaLabel,
   onBlur,
   className = '',
+  selectZeroOnFocus = false,
 }: FormattedIntegerInputProps) {
   const [text, setText] = useState(value === null ? '' : value.toLocaleString('ja-JP'));
   const composingRef = useRef(false);
@@ -59,6 +61,11 @@ export default function FormattedIntegerInput({
       onCompositionEnd={(event) => {
         composingRef.current = false;
         commit(event.currentTarget.value);
+      }}
+      onFocus={(event) => {
+        if (selectZeroOnFocus && value === 0) {
+          event.currentTarget.select();
+        }
       }}
       onBlur={(event) => {
         if (!composingRef.current) commit(event.currentTarget.value);
