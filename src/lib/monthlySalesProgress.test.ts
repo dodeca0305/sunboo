@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   calculateMonthlySalesProgress,
   calculateSalesDriverPlan,
+  calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
   currentWeekStart,
   currentYearMonth,
@@ -121,5 +122,24 @@ test('週間の実績差と残り週あたり必要商談数を計算する', ()
     dealGap: 1,
     weeksRemaining: 3,
     requiredMeetingsPerWeek: 7,
+  });
+});
+
+test('店舗型の週間実績から平均単価と顧客不足を計算する', () => {
+  assert.deepEqual(calculateWeeklyCustomerProgress({
+    activity: {
+      weekStart: '2026-09-14',
+      targetCustomers: 100,
+      actualCustomers: 80,
+      actualPurchases: 120,
+      actualRevenue: 600_000,
+    },
+    remainingCustomers: 90,
+    monthEnd: '2026-09-30',
+  }), {
+    averageOrderValue: 5_000,
+    actualPurchaseFrequency: 1.5,
+    customerGap: 20,
+    requiredCustomersPerWeek: 30,
   });
 });
