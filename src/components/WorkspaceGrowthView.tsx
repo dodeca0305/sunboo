@@ -8,6 +8,7 @@ import { createBrowserSupabase } from '@/lib/supabase/browser';
 import {
   calculateMonthlySalesProgress,
   calculateMonthlyGrossProfit,
+  calculateMonthlyOperatingProfit,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
@@ -26,6 +27,8 @@ function emptyEntry(yearMonth: string): MonthlySalesEntry {
     actualRevenue: 0,
     targetGrossProfit: 0,
     actualCostOfSales: 0,
+    targetOperatingProfit: 0,
+    actualFixedCosts: 0,
     actionGoal: '',
     revenueModel: 'sales_funnel',
     meetingCount: 0,
@@ -72,6 +75,7 @@ export default function WorkspaceGrowthView({
   const [weeklySaved, setWeeklySaved] = useState(false);
   const progress = useMemo(() => calculateMonthlySalesProgress(draft), [draft]);
   const grossProfitProgress = useMemo(() => calculateMonthlyGrossProfit(draft), [draft]);
+  const operatingProfitProgress = useMemo(() => calculateMonthlyOperatingProfit(draft), [draft]);
   const driverPlan = useMemo(() => calculateSalesDriverPlan(draft), [draft]);
   const monthEnd = useMemo(() => {
     const [year, month] = draft.yearMonth.split('-').map(Number);
@@ -128,6 +132,8 @@ export default function WorkspaceGrowthView({
       actual_revenue: draft.actualRevenue,
       target_gross_profit: draft.targetGrossProfit,
       actual_cost_of_sales: draft.actualCostOfSales,
+      target_operating_profit: draft.targetOperatingProfit,
+      actual_fixed_costs: draft.actualFixedCosts,
       action_goal: draft.actionGoal.trim(),
       revenue_model: draft.revenueModel,
       meeting_count: draft.meetingCount,
@@ -431,6 +437,59 @@ export default function WorkspaceGrowthView({
             label="粗利益目標の達成率"
             value={`${grossProfitProgress.grossProfitAchievementRate}%`}
             caution={grossProfitProgress.grossProfitAchievementRate < 100}
+          />
+        </div>
+
+        <div className="border-t border-sunboo-line pt-4">
+          <div className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-sunboo-moss" />
+            <h2 className="font-bold text-sunboo-ink">黒字をつくる数字</h2>
+          </div>
+          <p className="mt-1 text-sm text-sunboo-ink-muted">
+            粗利益から固定費を差し引き、営業利益と黒字化に必要な売上を確認します。
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <DriverInput
+            label="月間営業利益目標（円）"
+            value={draft.targetOperatingProfit}
+            onChange={(value) => setDraft((previous) => ({ ...previous, targetOperatingProfit: value }))}
+            placeholder="例：500,000"
+          />
+          <DriverInput
+            label="現在の固定費（円）"
+            value={draft.actualFixedCosts}
+            onChange={(value) => setDraft((previous) => ({ ...previous, actualFixedCosts: value }))}
+            placeholder="例：700,000"
+          />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Metric
+            label="現在の営業利益"
+            value={yen.format(operatingProfitProgress.actualOperatingProfit)}
+            caution={operatingProfitProgress.actualOperatingProfit < 0}
+          />
+          <Metric
+            label="営業利益目標までの不足額"
+            value={yen.format(operatingProfitProgress.operatingProfitShortfall)}
+            caution={operatingProfitProgress.operatingProfitShortfall > 0}
+          />
+          <Metric
+            label="損益分岐点売上高"
+            value={operatingProfitProgress.breakEvenRevenue === null
+              ? '算出不可'
+              : yen.format(operatingProfitProgress.breakEvenRevenue)}
+            caution={operatingProfitProgress.breakEvenRevenue === null}
+          />
+          <Metric
+            label="目標営業利益に必要な売上"
+            value={operatingProfitProgress.requiredRevenueForTargetProfit === null
+              ? '算出不可'
+              : yen.format(operatingProfitProgress.requiredRevenueForTargetProfit)}
+            caution={operatingProfitProgress.requiredRevenueForTargetProfit === null
+              || operatingProfitProgress.requiredRevenueForTargetProfit > draft.actualRevenue}
           />
         </div>
         <button type="button" className="btn-primary" onClick={save} disabled={saving}>
