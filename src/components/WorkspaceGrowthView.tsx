@@ -7,6 +7,7 @@ import InformationCard from '@/components/InformationCard';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import {
   calculateMonthlySalesProgress,
+  calculateMonthlyGrossProfit,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
@@ -23,6 +24,8 @@ function emptyEntry(yearMonth: string): MonthlySalesEntry {
     yearMonth,
     targetRevenue: 0,
     actualRevenue: 0,
+    targetGrossProfit: 0,
+    actualCostOfSales: 0,
     actionGoal: '',
     revenueModel: 'sales_funnel',
     meetingCount: 0,
@@ -68,6 +71,7 @@ export default function WorkspaceGrowthView({
   const [weeklySaving, setWeeklySaving] = useState(false);
   const [weeklySaved, setWeeklySaved] = useState(false);
   const progress = useMemo(() => calculateMonthlySalesProgress(draft), [draft]);
+  const grossProfitProgress = useMemo(() => calculateMonthlyGrossProfit(draft), [draft]);
   const driverPlan = useMemo(() => calculateSalesDriverPlan(draft), [draft]);
   const monthEnd = useMemo(() => {
     const [year, month] = draft.yearMonth.split('-').map(Number);
@@ -103,6 +107,10 @@ export default function WorkspaceGrowthView({
       setError('今月の行動目標を入力してください。');
       return;
     }
+    if (draft.targetGrossProfit > draft.targetRevenue) {
+      setError('月間粗利益目標は月間売上目標以下で入力してください。');
+      return;
+    }
 
     const supabase = createBrowserSupabase();
     if (!supabase) {
@@ -118,6 +126,8 @@ export default function WorkspaceGrowthView({
       year_month: `${draft.yearMonth}-01`,
       target_revenue: draft.targetRevenue,
       actual_revenue: draft.actualRevenue,
+      target_gross_profit: draft.targetGrossProfit,
+      actual_cost_of_sales: draft.actualCostOfSales,
       action_goal: draft.actionGoal.trim(),
       revenue_model: draft.revenueModel,
       meeting_count: draft.meetingCount,
@@ -375,6 +385,54 @@ export default function WorkspaceGrowthView({
         <p className="text-xs text-sunboo-ink-muted">
           この計算は入力した想定値に基づく目安であり、売上や成約を保証するものではありません。
         </p>
+
+        <div className="border-t border-sunboo-line pt-4">
+          <div className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-sunboo-moss" />
+            <h2 className="font-bold text-sunboo-ink">利益を残す数字</h2>
+          </div>
+          <p className="mt-1 text-sm text-sunboo-ink-muted">
+            売上原価を差し引いた粗利益を確認し、売上だけでなく会社に残る利益を管理します。
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <DriverInput
+            label="月間粗利益目標（円）"
+            value={draft.targetGrossProfit}
+            onChange={(value) => setDraft((previous) => ({ ...previous, targetGrossProfit: value }))}
+            placeholder="例：1,200,000"
+          />
+          <DriverInput
+            label="現在の売上原価（円）"
+            value={draft.actualCostOfSales}
+            onChange={(value) => setDraft((previous) => ({ ...previous, actualCostOfSales: value }))}
+            placeholder="例：600,000"
+          />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Metric
+            label="現在の実績粗利益"
+            value={yen.format(grossProfitProgress.actualGrossProfit)}
+            caution={grossProfitProgress.actualGrossProfit < 0}
+          />
+          <Metric
+            label="現在の粗利率"
+            value={`${grossProfitProgress.grossProfitMargin}%`}
+            caution={grossProfitProgress.grossProfitMargin < 0}
+          />
+          <Metric
+            label="粗利益目標までの不足額"
+            value={yen.format(grossProfitProgress.grossProfitShortfall)}
+            caution={grossProfitProgress.grossProfitShortfall > 0}
+          />
+          <Metric
+            label="粗利益目標の達成率"
+            value={`${grossProfitProgress.grossProfitAchievementRate}%`}
+            caution={grossProfitProgress.grossProfitAchievementRate < 100}
+          />
+        </div>
         <button type="button" className="btn-primary" onClick={save} disabled={saving}>
           <Save className="h-4 w-4" />
           {saving ? '保存中…' : '売上計画を保存'}

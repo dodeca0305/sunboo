@@ -2,6 +2,8 @@ export type MonthlySalesEntry = {
   yearMonth: string;
   targetRevenue: number;
   actualRevenue: number;
+  targetGrossProfit: number;
+  actualCostOfSales: number;
   actionGoal: string;
   revenueModel: RevenueModel;
   meetingCount: number;
@@ -57,6 +59,35 @@ export type MonthlySalesProgress = {
   daysRemaining: number;
   requiredRevenuePerDay: number;
 };
+
+export type MonthlyGrossProfitProgress = {
+  actualGrossProfit: number;
+  grossProfitMargin: number;
+  grossProfitShortfall: number;
+  grossProfitAchievementRate: number;
+};
+
+export function calculateMonthlyGrossProfit(
+  entry: Pick<MonthlySalesEntry,
+    'targetGrossProfit' | 'actualRevenue' | 'actualCostOfSales'
+  >,
+): MonthlyGrossProfitProgress {
+  const targetGrossProfit = Math.max(0, entry.targetGrossProfit);
+  const actualRevenue = Math.max(0, entry.actualRevenue);
+  const actualCostOfSales = Math.max(0, entry.actualCostOfSales);
+  const actualGrossProfit = actualRevenue - actualCostOfSales;
+
+  return {
+    actualGrossProfit,
+    grossProfitMargin: actualRevenue > 0
+      ? Math.round((actualGrossProfit / actualRevenue) * 1000) / 10
+      : 0,
+    grossProfitShortfall: Math.max(targetGrossProfit - actualGrossProfit, 0),
+    grossProfitAchievementRate: targetGrossProfit > 0
+      ? Math.round((actualGrossProfit / targetGrossProfit) * 1000) / 10
+      : 0,
+  };
+}
 
 export function currentYearMonth(now = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
