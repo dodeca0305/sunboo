@@ -14,6 +14,8 @@ type MonthlySalesRow = {
   actual_revenue: number;
   target_gross_profit: number;
   actual_cost_of_sales: number;
+  target_operating_profit: number;
+  actual_fixed_costs: number;
   action_goal: string;
   revenue_model: 'sales_funnel' | 'customer_repeat';
   meeting_count: number;
@@ -48,7 +50,7 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
 
   const { data } = await supabase
     .from('workspace_monthly_sales')
-    .select('year_month, target_revenue, actual_revenue, target_gross_profit, actual_cost_of_sales, action_goal, revenue_model, meeting_count, conversion_rate, average_contract_value, customer_count, purchase_frequency, average_order_value')
+    .select('year_month, target_revenue, actual_revenue, target_gross_profit, actual_cost_of_sales, target_operating_profit, actual_fixed_costs, action_goal, revenue_model, meeting_count, conversion_rate, average_contract_value, customer_count, purchase_frequency, average_order_value')
     .eq('company_id', companyId)
     .order('year_month', { ascending: false });
 
@@ -64,6 +66,8 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
     actualRevenue: row.actual_revenue,
     targetGrossProfit: row.target_gross_profit ?? 0,
     actualCostOfSales: row.actual_cost_of_sales ?? 0,
+    targetOperatingProfit: row.target_operating_profit ?? 0,
+    actualFixedCosts: row.actual_fixed_costs ?? 0,
     actionGoal: row.action_goal,
     revenueModel: row.revenue_model ?? 'sales_funnel',
     meetingCount: row.meeting_count ?? 0,

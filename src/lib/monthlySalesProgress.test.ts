@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   calculateMonthlySalesProgress,
   calculateMonthlyGrossProfit,
+  calculateMonthlyOperatingProfit,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
@@ -71,6 +72,34 @@ test('売上原価が売上を超えた場合は粗利益を赤字として計�
   assert.equal(progress.grossProfitMargin, -25);
   assert.equal(progress.grossProfitShortfall, 700_000);
   assert.equal(progress.grossProfitAchievementRate, -40);
+});
+
+test('固定費から営業利益・損益分岐点・目標利益に必要な売上を計算する', () => {
+  assert.deepEqual(calculateMonthlyOperatingProfit({
+    actualRevenue: 2_000_000,
+    actualCostOfSales: 1_000_000,
+    actualFixedCosts: 700_000,
+    targetOperatingProfit: 500_000,
+  }), {
+    actualOperatingProfit: 300_000,
+    operatingProfitShortfall: 200_000,
+    breakEvenRevenue: 1_400_000,
+    requiredRevenueForTargetProfit: 2_400_000,
+  });
+});
+
+test('粗利益率が0以下なら損益分岐点を算出しない', () => {
+  assert.deepEqual(calculateMonthlyOperatingProfit({
+    actualRevenue: 800_000,
+    actualCostOfSales: 1_000_000,
+    actualFixedCosts: 300_000,
+    targetOperatingProfit: 100_000,
+  }), {
+    actualOperatingProfit: -500_000,
+    operatingProfitShortfall: 600_000,
+    breakEvenRevenue: null,
+    requiredRevenueForTargetProfit: null,
+  });
 });
 
 test('商談モデルから見込売上と追加商談数を計算する', () => {

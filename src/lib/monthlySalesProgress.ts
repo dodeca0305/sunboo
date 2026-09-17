@@ -4,6 +4,8 @@ export type MonthlySalesEntry = {
   actualRevenue: number;
   targetGrossProfit: number;
   actualCostOfSales: number;
+  targetOperatingProfit: number;
+  actualFixedCosts: number;
   actionGoal: string;
   revenueModel: RevenueModel;
   meetingCount: number;
@@ -67,6 +69,13 @@ export type MonthlyGrossProfitProgress = {
   grossProfitAchievementRate: number;
 };
 
+export type MonthlyOperatingProfitProgress = {
+  actualOperatingProfit: number;
+  operatingProfitShortfall: number;
+  breakEvenRevenue: number | null;
+  requiredRevenueForTargetProfit: number | null;
+};
+
 export function calculateMonthlyGrossProfit(
   entry: Pick<MonthlySalesEntry,
     'targetGrossProfit' | 'actualRevenue' | 'actualCostOfSales'
@@ -86,6 +95,34 @@ export function calculateMonthlyGrossProfit(
     grossProfitAchievementRate: targetGrossProfit > 0
       ? Math.round((actualGrossProfit / targetGrossProfit) * 1000) / 10
       : 0,
+  };
+}
+
+export function calculateMonthlyOperatingProfit(
+  entry: Pick<MonthlySalesEntry,
+    | 'actualRevenue'
+    | 'actualCostOfSales'
+    | 'actualFixedCosts'
+    | 'targetOperatingProfit'
+  >,
+): MonthlyOperatingProfitProgress {
+  const actualRevenue = Math.max(0, entry.actualRevenue);
+  const actualCostOfSales = Math.max(0, entry.actualCostOfSales);
+  const actualFixedCosts = Math.max(0, entry.actualFixedCosts);
+  const targetOperatingProfit = Math.max(0, entry.targetOperatingProfit);
+  const actualGrossProfit = actualRevenue - actualCostOfSales;
+  const actualOperatingProfit = actualGrossProfit - actualFixedCosts;
+  const grossProfitRate = actualRevenue > 0 ? actualGrossProfit / actualRevenue : 0;
+
+  return {
+    actualOperatingProfit,
+    operatingProfitShortfall: Math.max(targetOperatingProfit - actualOperatingProfit, 0),
+    breakEvenRevenue: grossProfitRate > 0
+      ? Math.ceil(actualFixedCosts / grossProfitRate)
+      : null,
+    requiredRevenueForTargetProfit: grossProfitRate > 0
+      ? Math.ceil((actualFixedCosts + targetOperatingProfit) / grossProfitRate)
+      : null,
   };
 }
 
