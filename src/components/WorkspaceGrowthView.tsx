@@ -9,6 +9,7 @@ import {
   calculateMonthlySalesProgress,
   calculateMonthlyGrossProfit,
   calculateMonthlyOperatingProfit,
+  calculateMonthlyCashFlow,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
@@ -29,6 +30,10 @@ function emptyEntry(yearMonth: string): MonthlySalesEntry {
     actualCostOfSales: 0,
     targetOperatingProfit: 0,
     actualFixedCosts: 0,
+    cashBalance: 0,
+    expectedCashInflows: 0,
+    expectedCashOutflows: 0,
+    plannedTaxPayments: 0,
     actionGoal: '',
     revenueModel: 'sales_funnel',
     meetingCount: 0,
@@ -76,6 +81,7 @@ export default function WorkspaceGrowthView({
   const progress = useMemo(() => calculateMonthlySalesProgress(draft), [draft]);
   const grossProfitProgress = useMemo(() => calculateMonthlyGrossProfit(draft), [draft]);
   const operatingProfitProgress = useMemo(() => calculateMonthlyOperatingProfit(draft), [draft]);
+  const cashFlowProgress = useMemo(() => calculateMonthlyCashFlow(draft), [draft]);
   const driverPlan = useMemo(() => calculateSalesDriverPlan(draft), [draft]);
   const monthEnd = useMemo(() => {
     const [year, month] = draft.yearMonth.split('-').map(Number);
@@ -134,6 +140,10 @@ export default function WorkspaceGrowthView({
       actual_cost_of_sales: draft.actualCostOfSales,
       target_operating_profit: draft.targetOperatingProfit,
       actual_fixed_costs: draft.actualFixedCosts,
+      cash_balance: draft.cashBalance,
+      expected_cash_inflows: draft.expectedCashInflows,
+      expected_cash_outflows: draft.expectedCashOutflows,
+      planned_tax_payments: draft.plannedTaxPayments,
       action_goal: draft.actionGoal.trim(),
       revenue_model: draft.revenueModel,
       meeting_count: draft.meetingCount,
@@ -490,6 +500,68 @@ export default function WorkspaceGrowthView({
               : yen.format(operatingProfitProgress.requiredRevenueForTargetProfit)}
             caution={operatingProfitProgress.requiredRevenueForTargetProfit === null
               || operatingProfitProgress.requiredRevenueForTargetProfit > draft.actualRevenue}
+          />
+        </div>
+
+        <div className="border-t border-sunboo-line pt-4">
+          <div className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-sunboo-moss" />
+            <h2 className="font-bold text-sunboo-ink">資金を切らさない数字</h2>
+          </div>
+          <p className="mt-1 text-sm text-sunboo-ink-muted">
+            預金残高と今月の入出金予定から、月末の資金不足を早めに把握します。
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <DriverInput
+            label="現在の預金残高（円）"
+            value={draft.cashBalance}
+            onChange={(value) => setDraft((previous) => ({ ...previous, cashBalance: value }))}
+            placeholder="例：3,000,000"
+          />
+          <DriverInput
+            label="今月の入金予定（円）"
+            value={draft.expectedCashInflows}
+            onChange={(value) => setDraft((previous) => ({ ...previous, expectedCashInflows: value }))}
+            placeholder="例：2,000,000"
+          />
+          <DriverInput
+            label="今月の支出予定・納税除く（円）"
+            value={draft.expectedCashOutflows}
+            onChange={(value) => setDraft((previous) => ({ ...previous, expectedCashOutflows: value }))}
+            placeholder="例：2,500,000"
+          />
+          <DriverInput
+            label="今月の納税予定（円）"
+            value={draft.plannedTaxPayments}
+            onChange={(value) => setDraft((previous) => ({ ...previous, plannedTaxPayments: value }))}
+            placeholder="例：500,000"
+          />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Metric
+            label="月末の預金見込残高"
+            value={yen.format(cashFlowProgress.projectedClosingCash)}
+            caution={cashFlowProgress.projectedClosingCash < 0}
+          />
+          <Metric
+            label="今月の資金増減"
+            value={yen.format(cashFlowProgress.netCashFlow)}
+            caution={cashFlowProgress.netCashFlow < 0}
+          />
+          <Metric
+            label="月末の資金不足額"
+            value={yen.format(cashFlowProgress.fundingGap)}
+            caution={cashFlowProgress.fundingGap > 0}
+          />
+          <Metric
+            label="資金が持つ目安"
+            value={cashFlowProgress.runwayMonths === null
+              ? '資金減少なし'
+              : `${cashFlowProgress.runwayMonths}か月`}
+            caution={cashFlowProgress.runwayMonths !== null && cashFlowProgress.runwayMonths < 3}
           />
         </div>
         <button type="button" className="btn-primary" onClick={save} disabled={saving}>
