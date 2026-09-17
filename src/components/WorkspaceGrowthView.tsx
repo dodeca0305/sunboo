@@ -8,6 +8,7 @@ import { createBrowserSupabase } from '@/lib/supabase/browser';
 import {
   calculateMonthlySalesProgress,
   calculateSalesDriverPlan,
+  calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
   currentWeekStart,
   currentYearMonth,
@@ -58,6 +59,10 @@ export default function WorkspaceGrowthView({
     targetMeetings: 0,
     actualMeetings: 0,
     actualDeals: 0,
+    targetCustomers: 0,
+    actualCustomers: 0,
+    actualPurchases: 0,
+    actualRevenue: 0,
     actionNote: '',
   });
   const [weeklySaving, setWeeklySaving] = useState(false);
@@ -75,6 +80,11 @@ export default function WorkspaceGrowthView({
     remainingMeetings: driverPlan.additionalMeetingsNeeded,
     monthEnd,
   }), [weeklyDraft, draft.conversionRate, driverPlan.additionalMeetingsNeeded, monthEnd]);
+  const weeklyCustomerProgress = useMemo(() => calculateWeeklyCustomerProgress({
+    activity: weeklyDraft,
+    remainingCustomers: driverPlan.additionalCustomersNeeded,
+    monthEnd,
+  }), [weeklyDraft, driverPlan.additionalCustomersNeeded, monthEnd]);
 
   function changeMonth(nextMonth: string) {
     if (!/^\d{4}-\d{2}$/.test(nextMonth)) return;
@@ -138,6 +148,10 @@ export default function WorkspaceGrowthView({
       targetMeetings: 0,
       actualMeetings: 0,
       actualDeals: 0,
+      targetCustomers: 0,
+      actualCustomers: 0,
+      actualPurchases: 0,
+      actualRevenue: 0,
       actionNote: '',
     });
     setWeeklySaved(false);
@@ -145,12 +159,20 @@ export default function WorkspaceGrowthView({
   }
 
   async function saveWeeklyActivity() {
-    if (weeklyDraft.targetMeetings <= 0) {
+    if (draft.revenueModel === 'sales_funnel' && weeklyDraft.targetMeetings <= 0) {
       setError('今週の商談目標を入力してください。');
       return;
     }
-    if (weeklyDraft.actualDeals > weeklyDraft.actualMeetings) {
+    if (draft.revenueModel === 'sales_funnel' && weeklyDraft.actualDeals > weeklyDraft.actualMeetings) {
       setError('成約数は実際の商談数以下で入力してください。');
+      return;
+    }
+    if (draft.revenueModel === 'customer_repeat' && weeklyDraft.targetCustomers <= 0) {
+      setError('今週の顧客目標を入力してください。');
+      return;
+    }
+    if (draft.revenueModel === 'customer_repeat' && weeklyDraft.actualCustomers > weeklyDraft.actualPurchases) {
+      setError('購入件数は実際の顧客数以上で入力してください。');
       return;
     }
 
@@ -169,6 +191,10 @@ export default function WorkspaceGrowthView({
       target_meetings: weeklyDraft.targetMeetings,
       actual_meetings: weeklyDraft.actualMeetings,
       actual_deals: weeklyDraft.actualDeals,
+      target_customers: weeklyDraft.targetCustomers,
+      actual_customers: weeklyDraft.actualCustomers,
+      actual_purchases: weeklyDraft.actualPurchases,
+      actual_revenue: weeklyDraft.actualRevenue,
       action_note: weeklyDraft.actionNote.trim(),
     }, { onConflict: 'company_id,week_start' });
     setWeeklySaving(false);
@@ -366,15 +392,16 @@ export default function WorkspaceGrowthView({
         />
       </div>
 
-      {draft.revenueModel === 'sales_funnel' && (
-        <div className="card space-y-4">
+      <div className="card space-y-4">
           <div>
             <div className="flex items-center gap-2">
               <Target className="h-5 w-5 text-sunboo-moss" />
-              <h2 className="font-bold text-sunboo-ink">今週の商談実績</h2>
+              <h2 className="font-bold text-sunboo-ink">
+                {draft.revenueModel === 'sales_funnel' ? '今週の商談実績' : '今週の店舗・顧客実績'}
+              </h2>
             </div>
             <p className="mt-1 text-sm text-sunboo-ink-muted">
-              毎週の目標と実績を記録し、月間目標との差を早めに修正します。
+              毎週の目標と実績を記録し、月間売上との差を早めに修正します。
             </p>
           </div>
 
@@ -395,36 +422,83 @@ export default function WorkspaceGrowthView({
                 onChange={(event) => changeWeek(event.target.value)}
               />
             </div>
-            <DriverInput
-              label="今週の商談目標（件）"
-              value={weeklyDraft.targetMeetings}
-              onChange={(value) => setWeeklyDraft((previous) => ({ ...previous, targetMeetings: value }))}
-              placeholder="例：10"
-            />
-            <DriverInput
-              label="実際の商談数（件）"
-              value={weeklyDraft.actualMeetings}
-              onChange={(value) => setWeeklyDraft((previous) => ({ ...previous, actualMeetings: value }))}
-              placeholder="例：7"
-            />
-            <DriverInput
-              label="実際の成約数（件）"
-              value={weeklyDraft.actualDeals}
-              onChange={(value) => setWeeklyDraft((previous) => ({ ...previous, actualDeals: value }))}
-              placeholder="例：1"
-            />
+            {draft.revenueModel === 'sales_funnel' ? (
+              <>
+                <DriverInput
+                  label="今週の商談目標（件）"
+                  value={weeklyDraft.targetMeetings}
+                  onChange={(value) => setWeeklyDraft((previous) => ({ ...previous, targetMeetings: value }))}
+                  placeholder="例：10"
+                />
+                <DriverInput
+                  label="実際の商談数（件）"
+                  value={weeklyDraft.actualMeetings}
+                  onChange={(value) => setWeeklyDraft((previous) => ({ ...previous, actualMeetings: value }))}
+                  placeholder="例：7"
+                />
+                <DriverInput
+                  label="実際の成約数（件）"
+                  value={weeklyDraft.actualDeals}
+                  onChange={(value) => setWeeklyDraft((previous) => ({ ...previous, actualDeals: value }))}
+                  placeholder="例：1"
+                />
+              </>
+            ) : (
+              <>
+                <DriverInput
+                  label="今週の顧客目標（人・社）"
+                  value={weeklyDraft.targetCustomers}
+                  onChange={(value) => setWeeklyDraft((previous) => ({ ...previous, targetCustomers: value }))}
+                  placeholder="例：100"
+                />
+                <DriverInput
+                  label="実際の顧客数（人・社）"
+                  value={weeklyDraft.actualCustomers}
+                  onChange={(value) => setWeeklyDraft((previous) => ({ ...previous, actualCustomers: value }))}
+                  placeholder="例：80"
+                />
+                <DriverInput
+                  label="実際の購入件数（件）"
+                  value={weeklyDraft.actualPurchases}
+                  onChange={(value) => setWeeklyDraft((previous) => ({ ...previous, actualPurchases: value }))}
+                  placeholder="例：120"
+                />
+              </>
+            )}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Metric label="実際の成約率" value={`${weeklyProgress.actualConversionRate}%`} />
-            <Metric label="今週の商談不足" value={`${weeklyProgress.meetingGap}件`} caution={weeklyProgress.meetingGap > 0} />
-            <Metric label="今週の成約不足" value={`${weeklyProgress.dealGap}件`} caution={weeklyProgress.dealGap > 0} />
-            <Metric
-              label="残り週あたり必要商談"
-              value={`${weeklyProgress.requiredMeetingsPerWeek}件`}
-              caution={weeklyProgress.requiredMeetingsPerWeek > 0}
+          {draft.revenueModel === 'customer_repeat' && (
+            <DriverInput
+              label="今週の実売上（円）"
+              value={weeklyDraft.actualRevenue}
+              onChange={(value) => setWeeklyDraft((previous) => ({ ...previous, actualRevenue: value }))}
+              placeholder="例：600,000"
             />
-          </div>
+          )}
+
+          {draft.revenueModel === 'sales_funnel' ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Metric label="実際の成約率" value={`${weeklyProgress.actualConversionRate}%`} />
+              <Metric label="今週の商談不足" value={`${weeklyProgress.meetingGap}件`} caution={weeklyProgress.meetingGap > 0} />
+              <Metric label="今週の成約不足" value={`${weeklyProgress.dealGap}件`} caution={weeklyProgress.dealGap > 0} />
+              <Metric
+                label="残り週あたり必要商談"
+                value={`${weeklyProgress.requiredMeetingsPerWeek}件`}
+                caution={weeklyProgress.requiredMeetingsPerWeek > 0}
+              />
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Metric label="実際の平均単価" value={yen.format(weeklyCustomerProgress.averageOrderValue)} />
+              <Metric label="1顧客あたり購入回数" value={`${weeklyCustomerProgress.actualPurchaseFrequency}回`} />
+              <Metric label="今週の顧客不足" value={`${weeklyCustomerProgress.customerGap}人・社`} caution={weeklyCustomerProgress.customerGap > 0} />
+              <Metric
+                label="残り週あたり必要顧客"
+                value={`${weeklyCustomerProgress.requiredCustomersPerWeek}人・社`}
+                caution={weeklyCustomerProgress.requiredCustomersPerWeek > 0}
+              />
+            </div>
+          )}
 
           <div>
             <label className="form-label" htmlFor="growth-weekly-action-note">今週の振り返り・次の行動</label>
@@ -434,7 +508,9 @@ export default function WorkspaceGrowthView({
               maxLength={500}
               value={weeklyDraft.actionNote}
               onChange={(event) => setWeeklyDraft((previous) => ({ ...previous, actionNote: event.target.value }))}
-              placeholder="例：紹介依頼を5社へ送り、未回答案件へ木曜日までに再提案する"
+              placeholder={draft.revenueModel === 'sales_funnel'
+                ? '例：紹介依頼を5社へ送り、未回答案件へ木曜日までに再提案する'
+                : '例：平日限定セットを告知し、来店数と平均単価を来週比較する'}
             />
           </div>
 
@@ -442,8 +518,7 @@ export default function WorkspaceGrowthView({
             <Save className="h-4 w-4" />
             {weeklySaving ? '保存中…' : '週間実績を保存'}
           </button>
-        </div>
-      )}
+      </div>
 
       {progress.achievementRate >= 100 ? (
         <div className="information-card information-card--success flex items-center gap-2 text-sm">

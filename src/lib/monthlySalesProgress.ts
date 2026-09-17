@@ -29,6 +29,10 @@ export type WeeklySalesActivity = {
   targetMeetings: number;
   actualMeetings: number;
   actualDeals: number;
+  targetCustomers: number;
+  actualCustomers: number;
+  actualPurchases: number;
+  actualRevenue: number;
   actionNote: string;
 };
 
@@ -38,6 +42,13 @@ export type WeeklySalesProgress = {
   dealGap: number;
   weeksRemaining: number;
   requiredMeetingsPerWeek: number;
+};
+
+export type WeeklyCustomerProgress = {
+  averageOrderValue: number;
+  actualPurchaseFrequency: number;
+  customerGap: number;
+  requiredCustomersPerWeek: number;
 };
 
 export type MonthlySalesProgress = {
@@ -198,6 +209,38 @@ export function calculateWeeklySalesProgress({
     weeksRemaining,
     requiredMeetingsPerWeek: Math.max(0, remainingMeetings) > 0
       ? Math.ceil(Math.max(0, remainingMeetings) / weeksRemaining)
+      : 0,
+  };
+}
+
+export function calculateWeeklyCustomerProgress({
+  activity,
+  remainingCustomers,
+  monthEnd,
+}: {
+  activity: Pick<WeeklySalesActivity,
+    'weekStart' | 'targetCustomers' | 'actualCustomers' | 'actualPurchases' | 'actualRevenue'
+  >;
+  remainingCustomers: number;
+  monthEnd: string;
+}): WeeklyCustomerProgress {
+  const targetCustomers = Math.max(0, activity.targetCustomers);
+  const actualCustomers = Math.max(0, activity.actualCustomers);
+  const actualPurchases = Math.max(0, activity.actualPurchases);
+  const actualRevenue = Math.max(0, activity.actualRevenue);
+  const start = new Date(`${activity.weekStart}T00:00:00Z`);
+  const end = new Date(`${monthEnd}T00:00:00Z`);
+  const days = Math.max(0, Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1);
+  const weeksRemaining = Math.max(1, Math.ceil(days / 7));
+
+  return {
+    averageOrderValue: actualPurchases > 0 ? Math.round(actualRevenue / actualPurchases) : 0,
+    actualPurchaseFrequency: actualCustomers > 0
+      ? Math.round((actualPurchases / actualCustomers) * 10) / 10
+      : 0,
+    customerGap: Math.max(targetCustomers - actualCustomers, 0),
+    requiredCustomersPerWeek: Math.max(0, remainingCustomers) > 0
+      ? Math.ceil(Math.max(0, remainingCustomers) / weeksRemaining)
       : 0,
   };
 }

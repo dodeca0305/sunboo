@@ -27,6 +27,10 @@ type WeeklySalesRow = {
   target_meetings: number;
   actual_meetings: number;
   actual_deals: number;
+  target_customers: number;
+  actual_customers: number;
+  actual_purchases: number;
+  actual_revenue: number;
   action_note: string;
 };
 
@@ -48,7 +52,7 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
 
   const { data: weeklyData } = await supabase
     .from('workspace_weekly_sales_activities')
-    .select('week_start, target_meetings, actual_meetings, actual_deals, action_note')
+    .select('week_start, target_meetings, actual_meetings, actual_deals, target_customers, actual_customers, actual_purchases, actual_revenue, action_note')
     .eq('company_id', companyId)
     .order('week_start', { ascending: false });
 
@@ -71,6 +75,10 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
     targetMeetings: row.target_meetings,
     actualMeetings: row.actual_meetings,
     actualDeals: row.actual_deals,
+    targetCustomers: row.target_customers ?? 0,
+    actualCustomers: row.actual_customers ?? 0,
+    actualPurchases: row.actual_purchases ?? 0,
+    actualRevenue: row.actual_revenue ?? 0,
     actionNote: row.action_note,
   }));
 
