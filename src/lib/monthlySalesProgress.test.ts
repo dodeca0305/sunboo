@@ -4,6 +4,7 @@ import {
   calculateMonthlySalesProgress,
   calculateMonthlyGrossProfit,
   calculateMonthlyOperatingProfit,
+  calculateMonthlyCashFlow,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
@@ -100,6 +101,46 @@ test('粗利益率が0以下なら損益分岐点を算出しない', () => {
     breakEvenRevenue: null,
     requiredRevenueForTargetProfit: null,
   });
+});
+
+test('月末預金残高・資金不足・資金余力を計算する', () => {
+  assert.deepEqual(calculateMonthlyCashFlow({
+    cashBalance: 3_000_000,
+    expectedCashInflows: 2_000_000,
+    expectedCashOutflows: 2_500_000,
+    plannedTaxPayments: 500_000,
+  }), {
+    projectedClosingCash: 2_000_000,
+    netCashFlow: -1_000_000,
+    fundingGap: 0,
+    monthlyCashBurn: 1_000_000,
+    runwayMonths: 3,
+  });
+});
+
+test('月末に資金が不足する場合は不足額を表示する', () => {
+  const progress = calculateMonthlyCashFlow({
+    cashBalance: 500_000,
+    expectedCashInflows: 300_000,
+    expectedCashOutflows: 900_000,
+    plannedTaxPayments: 200_000,
+  });
+  assert.equal(progress.projectedClosingCash, -300_000);
+  assert.equal(progress.fundingGap, 300_000);
+  assert.equal(progress.monthlyCashBurn, 800_000);
+  assert.equal(progress.runwayMonths, 0.6);
+});
+
+test('入金が支出以上なら資金余力月数を有限値で誤表示しない', () => {
+  const progress = calculateMonthlyCashFlow({
+    cashBalance: 1_000_000,
+    expectedCashInflows: 1_500_000,
+    expectedCashOutflows: 1_000_000,
+    plannedTaxPayments: 200_000,
+  });
+  assert.equal(progress.netCashFlow, 300_000);
+  assert.equal(progress.monthlyCashBurn, 0);
+  assert.equal(progress.runwayMonths, null);
 });
 
 test('商談モデルから見込売上と追加商談数を計算する', () => {

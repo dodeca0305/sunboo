@@ -6,6 +6,10 @@ export type MonthlySalesEntry = {
   actualCostOfSales: number;
   targetOperatingProfit: number;
   actualFixedCosts: number;
+  cashBalance: number;
+  expectedCashInflows: number;
+  expectedCashOutflows: number;
+  plannedTaxPayments: number;
   actionGoal: string;
   revenueModel: RevenueModel;
   meetingCount: number;
@@ -76,6 +80,14 @@ export type MonthlyOperatingProfitProgress = {
   requiredRevenueForTargetProfit: number | null;
 };
 
+export type MonthlyCashFlowProgress = {
+  projectedClosingCash: number;
+  netCashFlow: number;
+  fundingGap: number;
+  monthlyCashBurn: number;
+  runwayMonths: number | null;
+};
+
 export function calculateMonthlyGrossProfit(
   entry: Pick<MonthlySalesEntry,
     'targetGrossProfit' | 'actualRevenue' | 'actualCostOfSales'
@@ -122,6 +134,34 @@ export function calculateMonthlyOperatingProfit(
       : null,
     requiredRevenueForTargetProfit: grossProfitRate > 0
       ? Math.ceil((actualFixedCosts + targetOperatingProfit) / grossProfitRate)
+      : null,
+  };
+}
+
+export function calculateMonthlyCashFlow(
+  entry: Pick<MonthlySalesEntry,
+    | 'cashBalance'
+    | 'expectedCashInflows'
+    | 'expectedCashOutflows'
+    | 'plannedTaxPayments'
+  >,
+): MonthlyCashFlowProgress {
+  const cashBalance = Math.max(0, entry.cashBalance);
+  const expectedCashInflows = Math.max(0, entry.expectedCashInflows);
+  const expectedCashOutflows = Math.max(0, entry.expectedCashOutflows);
+  const plannedTaxPayments = Math.max(0, entry.plannedTaxPayments);
+  const totalOutflows = expectedCashOutflows + plannedTaxPayments;
+  const netCashFlow = expectedCashInflows - totalOutflows;
+  const projectedClosingCash = cashBalance + netCashFlow;
+  const monthlyCashBurn = Math.max(totalOutflows - expectedCashInflows, 0);
+
+  return {
+    projectedClosingCash,
+    netCashFlow,
+    fundingGap: Math.max(-projectedClosingCash, 0),
+    monthlyCashBurn,
+    runwayMonths: monthlyCashBurn > 0
+      ? Math.round((cashBalance / monthlyCashBurn) * 10) / 10
       : null,
   };
 }
