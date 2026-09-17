@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   calculateMonthlySalesProgress,
+  calculateMonthlyGrossProfit,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
@@ -45,6 +46,31 @@ test('過去月は残り日数と必要売上を0にする', () => {
   }, new Date('2026-09-10T00:00:00Z'));
   assert.equal(progress.daysRemaining, 0);
   assert.equal(progress.requiredRevenuePerDay, 0);
+});
+
+test('月間の実績粗利益・粗利率・不足額を計算する', () => {
+  assert.deepEqual(calculateMonthlyGrossProfit({
+    targetGrossProfit: 1_200_000,
+    actualRevenue: 2_000_000,
+    actualCostOfSales: 1_000_000,
+  }), {
+    actualGrossProfit: 1_000_000,
+    grossProfitMargin: 50,
+    grossProfitShortfall: 200_000,
+    grossProfitAchievementRate: 83.3,
+  });
+});
+
+test('売上原価が売上を超えた場合は粗利益を赤字として計算する', () => {
+  const progress = calculateMonthlyGrossProfit({
+    targetGrossProfit: 500_000,
+    actualRevenue: 800_000,
+    actualCostOfSales: 1_000_000,
+  });
+  assert.equal(progress.actualGrossProfit, -200_000);
+  assert.equal(progress.grossProfitMargin, -25);
+  assert.equal(progress.grossProfitShortfall, 700_000);
+  assert.equal(progress.grossProfitAchievementRate, -40);
 });
 
 test('商談モデルから見込売上と追加商談数を計算する', () => {
