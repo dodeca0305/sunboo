@@ -12,6 +12,7 @@ import { createBrowserSupabase } from '@/lib/supabase/browser';
 import { buildRoadmapSubmissionInfo } from '@/lib/roadmapSubmissionInfo';
 import { buildRoadmapDocumentItems, hasAnyRoadmapDocumentItems, type RoadmapDocumentItem } from '@/lib/roadmapDocuments';
 import { AlertTriangle, Building2, ExternalLink, Info, Square } from 'lucide-react';
+import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import StatusBadge from '@/components/StatusBadge';
 import { trackEvent } from '@/lib/analytics';
 import {
@@ -19,6 +20,10 @@ import {
   workspaceCompletionFeedbackKey,
   type WorkspaceCompletionFeedbackPayload,
 } from '@/lib/workspaceCompletionFeedback';
+import {
+  workspaceTaxPaymentPlanKey,
+  type WorkspaceTaxPaymentPlanMap,
+} from '@/lib/workspaceTaxPaymentPlan';
 
 // ── 年間ロードマップ — 表示コンポーネント（Sprint 23 Phase23.3・Sprint 24 Phase24.1・Sprint 32・Sprint 84）───
 // src/app/(site)/roadmap/page.tsx と admin/(protected)/workspaces/[id]/roadmap/page.tsx・
@@ -167,16 +172,21 @@ export default function AnnualRoadmapView({
   companyId,
   focusProcedureId,
   focusDueDate,
+  taxPaymentPlanMap,
 }: {
   roadmapYears: RoadmapYear[];
   statusMap?: WorkspaceProcedureStatusMap;
   companyId?: number;
   focusProcedureId?: number;
   focusDueDate?: string;
+  taxPaymentPlanMap?: WorkspaceTaxPaymentPlanMap;
 }) {
   const router = useRouter();
   const [localStatusMap, setLocalStatusMap] = useState<WorkspaceProcedureStatusMap>(statusMap ?? {});
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [localTaxPaymentPlanMap, setLocalTaxPaymentPlanMap] = useState<WorkspaceTaxPaymentPlanMap>(taxPaymentPlanMap ?? {});
+  const [savingTaxPaymentKey, setSavingTaxPaymentKey] = useState<string | null>(null);
+  const [savedTaxPaymentKey, setSavedTaxPaymentKey] = useState<string | null>(null);
   const editable = statusMap !== undefined && companyId !== undefined;
 
   useEffect(() => {
@@ -250,6 +260,32 @@ export default function AnnualRoadmapView({
     }
   }
 
+  async function saveTaxPaymentPlan(procedureId: number, dueDate: string) {
+    if (!companyId) return;
+    const key = workspaceTaxPaymentPlanKey(procedureId, dueDate);
+    const amount = localTaxPaymentPlanMap[key] ?? 0;
+    const supabase = createBrowserSupabase();
+    if (!supabase) return;
+
+    setSavingTaxPaymentKey(key);
+    setSavedTaxPaymentKey(null);
+    setStatusError(null);
+    const { error } = await supabase.from('workspace_tax_payment_plans').upsert({
+      company_id: companyId,
+      procedure_id: procedureId,
+      due_date: dueDate,
+      amount,
+    }, { onConflict: 'company_id,procedure_id,due_date' });
+    setSavingTaxPaymentKey(null);
+
+    if (error) {
+      setStatusError(`予定税額の保存に失敗しました: ${error.message}`);
+      return;
+    }
+    setSavedTaxPaymentKey(key);
+    trackEvent('tax_payment_plan_saved', { workspace_id: companyId, company_id: companyId });
+  }
+
   return (
     <div className="space-y-10">
       {statusError && (
@@ -268,6 +304,8 @@ export default function AnnualRoadmapView({
                 <ul className="space-y-3">
                   {items.map((item, idx) => {
                     const status = localStatusMap[workspaceProcedureOccurrenceKey(item.procedure.id, item.dueDate)] ?? 'not_started';
+                    const taxPaymentKey = workspaceTaxPaymentPlanKey(item.procedure.id, item.dueDate);
+                    const isTaxProcedure = item.procedure.category === 'tax' || item.procedure.category === 'local_tax';
                     const submission = buildRoadmapSubmissionInfo(item.procedure);
                     const docGroups = buildRoadmapDocumentItems(item.procedure);
                     const hasDocGuide = hasAnyRoadmapDocumentItems(docGroups);
@@ -300,6 +338,42 @@ export default function AnnualRoadmapView({
                               </h4>
                               <span className="tag">{CATEGORY_LABEL[item.procedure.category] ?? 'その他'}</span>
                             </div>
+
+                            {editable && isTaxProcedure && (
+                              <div className="border-t border-sunboo-mist pt-3">
+                                <SectionLabel>予定税額（資金繰りへ連携）</SectionLabel>
+                                <div className="mt-1.5 flex flex-col gap-2 sm:flex-row sm:items-center">
+                                  <FormattedIntegerInput
+                                    value={localTaxPaymentPlanMap[taxPaymentKey] ?? 0}
+                                    onChange={(value) => {
+                                      setLocalTaxPaymentPlanMap((previous) => ({
+                                        ...previous,
+                                        [taxPaymentKey]: Math.max(0, value ?? 0),
+                                      }));
+                                      setSavedTaxPaymentKey(null);
+                                    }}
+                                    placeholder="例：500,000"
+                                    ariaLabel={`${item.procedure.name}の予定税額`}
+                                    zeroAsBlank
+                                    className="sm:max-w-52"
+                                  />
+                                  <button
+                                    type="button"
+                                    className="btn-secondary min-h-11 sm:min-h-0"
+                                    disabled={savingTaxPaymentKey === taxPaymentKey}
+                                    onClick={() => saveTaxPaymentPlan(item.procedure.id, item.dueDate)}
+                                  >
+                                    {savingTaxPaymentKey === taxPaymentKey ? '保存中…' : '予定税額を保存'}
+                                  </button>
+                                  {savedTaxPaymentKey === taxPaymentKey && (
+                                    <span className="text-xs font-medium text-sunboo-moss">保存しました</span>
+                                  )}
+                                </div>
+                                <p className="mt-1 text-xs text-sunboo-ink-muted">
+                                  この納期限の月にある資金繰りへ自動で加算されます。
+                                </p>
+                              </div>
+                            )}
 
                             {/* 3〜5. 提出先／提出方法／公式ページ */}
                             <div>

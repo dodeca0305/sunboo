@@ -21,7 +21,7 @@ import {
 
 const yen = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 });
 
-function emptyEntry(yearMonth: string): MonthlySalesEntry {
+function emptyEntry(yearMonth: string, linkedTaxPayments = 0): MonthlySalesEntry {
   return {
     yearMonth,
     targetRevenue: 0,
@@ -34,6 +34,7 @@ function emptyEntry(yearMonth: string): MonthlySalesEntry {
     expectedCashInflows: 0,
     expectedCashOutflows: 0,
     plannedTaxPayments: 0,
+    linkedTaxPayments,
     actionGoal: '',
     revenueModel: 'sales_funnel',
     meetingCount: 0,
@@ -49,15 +50,17 @@ export default function WorkspaceGrowthView({
   companyId,
   initialEntries,
   initialWeeklyActivities,
+  linkedTaxPaymentsByMonth,
 }: {
   companyId: number;
   initialEntries: MonthlySalesEntry[];
   initialWeeklyActivities: WeeklySalesActivity[];
+  linkedTaxPaymentsByMonth: Record<string, number>;
 }) {
   const initialMap = Object.fromEntries(initialEntries.map((entry) => [entry.yearMonth, entry]));
   const [entries, setEntries] = useState<Record<string, MonthlySalesEntry>>(initialMap);
   const [yearMonth, setYearMonth] = useState(currentYearMonth());
-  const selected = entries[yearMonth] ?? emptyEntry(yearMonth);
+  const selected = entries[yearMonth] ?? emptyEntry(yearMonth, linkedTaxPaymentsByMonth[yearMonth] ?? 0);
   const [draft, setDraft] = useState<MonthlySalesEntry>(selected);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -103,7 +106,7 @@ export default function WorkspaceGrowthView({
   function changeMonth(nextMonth: string) {
     if (!/^\d{4}-\d{2}$/.test(nextMonth)) return;
     setYearMonth(nextMonth);
-    setDraft(entries[nextMonth] ?? emptyEntry(nextMonth));
+    setDraft(entries[nextMonth] ?? emptyEntry(nextMonth, linkedTaxPaymentsByMonth[nextMonth] ?? 0));
     setError(null);
     setSaved(false);
   }
@@ -533,11 +536,19 @@ export default function WorkspaceGrowthView({
             placeholder="例：2,500,000"
           />
           <DriverInput
-            label="今月の納税予定（円）"
+            label="その他の納税予定（円）"
             value={draft.plannedTaxPayments}
             onChange={(value) => setDraft((previous) => ({ ...previous, plannedTaxPayments: value }))}
-            placeholder="例：500,000"
+            placeholder="ロードマップ外の納税"
           />
+        </div>
+
+        <div className="rounded-xl border border-sunboo-mist bg-sunboo-paper px-4 py-3">
+          <p className="text-xs text-sunboo-ink-muted">年間ロードマップから自動連携された今月の納税予定</p>
+          <p className="mt-1 font-bold text-sunboo-ink">{yen.format(draft.linkedTaxPayments)}</p>
+          <p className="mt-1 text-xs text-sunboo-ink-muted">
+            納期限がこの月にある税務・地方税の予定税額を合計しています。
+          </p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

@@ -109,6 +109,7 @@ test('月末預金残高・資金不足・資金余力を計算する', () => {
     expectedCashInflows: 2_000_000,
     expectedCashOutflows: 2_500_000,
     plannedTaxPayments: 500_000,
+    linkedTaxPayments: 0,
   }), {
     projectedClosingCash: 2_000_000,
     netCashFlow: -1_000_000,
@@ -124,6 +125,7 @@ test('月末に資金が不足する場合は不足額を表示する', () => {
     expectedCashInflows: 300_000,
     expectedCashOutflows: 900_000,
     plannedTaxPayments: 200_000,
+    linkedTaxPayments: 0,
   });
   assert.equal(progress.projectedClosingCash, -300_000);
   assert.equal(progress.fundingGap, 300_000);
@@ -137,10 +139,23 @@ test('入金が支出以上なら資金余力月数を有限値で誤表示し�
     expectedCashInflows: 1_500_000,
     expectedCashOutflows: 1_000_000,
     plannedTaxPayments: 200_000,
+    linkedTaxPayments: 0,
   });
   assert.equal(progress.netCashFlow, 300_000);
   assert.equal(progress.monthlyCashBurn, 0);
   assert.equal(progress.runwayMonths, null);
+});
+
+test('ロードマップ連携分とその他の納税予定を合算する', () => {
+  const progress = calculateMonthlyCashFlow({
+    cashBalance: 3_000_000,
+    expectedCashInflows: 2_000_000,
+    expectedCashOutflows: 2_000_000,
+    plannedTaxPayments: 100_000,
+    linkedTaxPayments: 400_000,
+  });
+  assert.equal(progress.projectedClosingCash, 2_500_000);
+  assert.equal(progress.netCashFlow, -500_000);
 });
 
 test('商談モデルから見込売上と追加商談数を計算する', () => {
