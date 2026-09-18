@@ -10,10 +10,17 @@ import {
   calculateWeeklySalesProgress,
   currentWeekStart,
   currentYearMonth,
+  shiftYearMonth,
 } from './monthlySalesProgress.ts';
 
 test('日本時間の年月を返す', () => {
   assert.equal(currentYearMonth(new Date('2026-08-31T15:30:00Z')), '2026-09');
+});
+
+test('前月・翌月へ年をまたいで移動できる', () => {
+  assert.equal(shiftYearMonth('2026-09', 1), '2026-10');
+  assert.equal(shiftYearMonth('2026-12', 1), '2027-01');
+  assert.equal(shiftYearMonth('2026-01', -1), '2025-12');
 });
 
 test('達成率・不足額・残り1日あたり必要売上を計算する', () => {

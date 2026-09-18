@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Save, Target, TrendingUp } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Save, Target, TrendingUp } from 'lucide-react';
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import InformationCard from '@/components/InformationCard';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
@@ -15,6 +15,7 @@ import {
   calculateWeeklySalesProgress,
   currentWeekStart,
   currentYearMonth,
+  shiftYearMonth,
   type MonthlySalesEntry,
   type WeeklySalesActivity,
 } from '@/lib/monthlySalesProgress';
@@ -254,16 +255,36 @@ export default function WorkspaceGrowthView({
           <h2 className="font-bold text-sunboo-ink">月間売上計画</h2>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
             <label className="form-label" htmlFor="growth-year-month">対象月</label>
-            <input
-              id="growth-year-month"
-              type="month"
-              className="form-input"
-              value={yearMonth}
-              onChange={(event) => changeMonth(event.target.value)}
-            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="btn-secondary min-h-11 shrink-0 px-3"
+                aria-label="前月を表示"
+                onClick={() => changeMonth(shiftYearMonth(yearMonth, -1))}
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                前月
+              </button>
+              <input
+                id="growth-year-month"
+                type="month"
+                className="form-input min-w-0"
+                value={yearMonth}
+                onChange={(event) => changeMonth(event.target.value)}
+              />
+              <button
+                type="button"
+                className="btn-secondary min-h-11 shrink-0 px-3"
+                aria-label="翌月を表示"
+                onClick={() => changeMonth(shiftYearMonth(yearMonth, 1))}
+              >
+                翌月
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
           </div>
           <div>
             <label className="form-label">月間売上目標（円）</label>

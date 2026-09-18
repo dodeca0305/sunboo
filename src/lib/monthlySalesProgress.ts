@@ -181,6 +181,18 @@ export function currentYearMonth(now = new Date()): string {
   return `${year}-${month}`;
 }
 
+export function shiftYearMonth(yearMonth: string, offset: number): string {
+  const match = /^(\d{4})-(\d{2})$/.exec(yearMonth);
+  if (!match) throw new Error('対象月が不正です。');
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (month < 1 || month > 12 || !Number.isInteger(offset)) {
+    throw new Error('対象月が不正です。');
+  }
+  const shifted = new Date(Date.UTC(year, month - 1 + offset, 1));
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
 export function calculateMonthlySalesProgress(
   entry: Pick<MonthlySalesEntry, 'yearMonth' | 'targetRevenue' | 'actualRevenue'>,
   today = new Date(),
