@@ -7,6 +7,7 @@ export type AnalyticsEventName =
   | 'start_clicked'
   | 'event_registered'
   | 'procedure_status_changed'
+  | 'tax_payment_plan_saved'
   | 'feedback_link_clicked'
   // ── RC2 Product Analytics Foundation（Sprint89想定）で追加。Company Workspace側の
   // 利用状況計測用。詳細な発火タイミング・保存項目はdocs/ANALYTICS_STRATEGY.md参照。

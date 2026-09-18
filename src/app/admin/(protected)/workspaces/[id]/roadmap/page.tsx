@@ -12,6 +12,7 @@ import RoadmapPdfExportButton from '@/components/RoadmapPdfExportButton';
 import PageHeader from '@/components/PageHeader';
 import InformationCard from '@/components/InformationCard';
 import AnalyticsPageEvent from '@/components/AnalyticsPageEvent';
+import { taxPaymentPlanRowsToMap, type WorkspaceTaxPaymentPlanRow } from '@/lib/workspaceTaxPaymentPlan';
 
 // ── Company Workspace — 年間ロードマップ（Sprint 23 Phase23.3・Phase23.4）─────
 // buildAnnualRoadmap（src/lib/roadmap.ts）・buildStateFromTimeline（src/lib/state.ts）は
@@ -89,12 +90,22 @@ export default async function WorkspaceRoadmapPage({
   let roadmapYears: RoadmapYear[] = [];
   let statusMap: WorkspaceProcedureStatusMap = {};
   let companyAddress = '';
+  let taxPaymentPlanMap = {};
   let computeError: string | null = null;
   try {
     const context = await loadWorkspaceRoadmapContext(supabase, company);
     roadmapYears = context.roadmapYears;
     statusMap = context.procedureStatusMap;
     companyAddress = formatCompanyAddress(context.companyProfile);
+    const { data: taxPaymentPlanData, error: taxPaymentPlanError } = await supabase
+      .from('workspace_tax_payment_plans')
+      .select('procedure_id, due_date, amount')
+      .eq('company_id', companyId);
+    if (!taxPaymentPlanError) {
+      taxPaymentPlanMap = taxPaymentPlanRowsToMap(
+        (taxPaymentPlanData as WorkspaceTaxPaymentPlanRow[] | null) ?? [],
+      );
+    }
   } catch (err) {
     computeError = err instanceof Error ? err.message : '不明なエラー';
   }
@@ -160,6 +171,7 @@ export default async function WorkspaceRoadmapPage({
             companyId={companyId}
             focusProcedureId={focusProcedureId}
             focusDueDate={focusDueDate}
+            taxPaymentPlanMap={taxPaymentPlanMap}
           />
         </>
       )}

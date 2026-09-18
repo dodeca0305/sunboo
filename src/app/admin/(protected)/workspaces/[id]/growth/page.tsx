@@ -7,6 +7,7 @@ import InformationCard from '@/components/InformationCard';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { loadWorkspaceCompany } from '@/lib/workspaceLoader';
 import type { MonthlySalesEntry, WeeklySalesActivity } from '@/lib/monthlySalesProgress';
+import { sumTaxPaymentPlansByMonth, type WorkspaceTaxPaymentPlanRow } from '@/lib/workspaceTaxPaymentPlan';
 
 type MonthlySalesRow = {
   year_month: string;
@@ -64,6 +65,14 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
     .eq('company_id', companyId)
     .order('week_start', { ascending: false });
 
+  const { data: taxPaymentPlanData } = await supabase
+    .from('workspace_tax_payment_plans')
+    .select('procedure_id, due_date, amount')
+    .eq('company_id', companyId);
+  const linkedTaxPaymentsByMonth = sumTaxPaymentPlansByMonth(
+    (taxPaymentPlanData as WorkspaceTaxPaymentPlanRow[] | null) ?? [],
+  );
+
   const entries: MonthlySalesEntry[] = ((data as MonthlySalesRow[] | null) ?? []).map((row) => ({
     yearMonth: row.year_month.slice(0, 7),
     targetRevenue: row.target_revenue,
@@ -76,6 +85,7 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
     expectedCashInflows: row.expected_cash_inflows ?? 0,
     expectedCashOutflows: row.expected_cash_outflows ?? 0,
     plannedTaxPayments: row.planned_tax_payments ?? 0,
+    linkedTaxPayments: linkedTaxPaymentsByMonth[row.year_month.slice(0, 7)] ?? 0,
     actionGoal: row.action_goal,
     revenueModel: row.revenue_model ?? 'sales_funnel',
     meetingCount: row.meeting_count ?? 0,
@@ -115,6 +125,7 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
         companyId={companyId}
         initialEntries={entries}
         initialWeeklyActivities={weeklyActivities}
+        linkedTaxPaymentsByMonth={linkedTaxPaymentsByMonth}
       />
     </div>
   );

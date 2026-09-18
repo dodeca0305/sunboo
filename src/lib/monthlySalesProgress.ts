@@ -10,6 +10,7 @@ export type MonthlySalesEntry = {
   expectedCashInflows: number;
   expectedCashOutflows: number;
   plannedTaxPayments: number;
+  linkedTaxPayments: number;
   actionGoal: string;
   revenueModel: RevenueModel;
   meetingCount: number;
@@ -144,13 +145,15 @@ export function calculateMonthlyCashFlow(
     | 'expectedCashInflows'
     | 'expectedCashOutflows'
     | 'plannedTaxPayments'
+    | 'linkedTaxPayments'
   >,
 ): MonthlyCashFlowProgress {
   const cashBalance = Math.max(0, entry.cashBalance);
   const expectedCashInflows = Math.max(0, entry.expectedCashInflows);
   const expectedCashOutflows = Math.max(0, entry.expectedCashOutflows);
   const plannedTaxPayments = Math.max(0, entry.plannedTaxPayments);
-  const totalOutflows = expectedCashOutflows + plannedTaxPayments;
+  const linkedTaxPayments = Math.max(0, entry.linkedTaxPayments);
+  const totalOutflows = expectedCashOutflows + plannedTaxPayments + linkedTaxPayments;
   const netCashFlow = expectedCashInflows - totalOutflows;
   const projectedClosingCash = cashBalance + netCashFlow;
   const monthlyCashBurn = Math.max(totalOutflows - expectedCashInflows, 0);
