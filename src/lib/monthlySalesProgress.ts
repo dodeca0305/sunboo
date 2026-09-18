@@ -89,6 +89,11 @@ export type MonthlyCashFlowProgress = {
   runwayMonths: number | null;
 };
 
+export type CashFlowAction = {
+  title: string;
+  description: string;
+};
+
 export function calculateMonthlyGrossProfit(
   entry: Pick<MonthlySalesEntry,
     'targetGrossProfit' | 'actualRevenue' | 'actualCostOfSales'
@@ -167,6 +172,44 @@ export function calculateMonthlyCashFlow(
       ? Math.round((cashBalance / monthlyCashBurn) * 10) / 10
       : null,
   };
+}
+
+export function buildCashFlowActions(
+  entry: Pick<MonthlySalesEntry,
+    | 'expectedCashInflows'
+    | 'expectedCashOutflows'
+    | 'plannedTaxPayments'
+    | 'linkedTaxPayments'
+  >,
+  progress: MonthlyCashFlowProgress,
+): CashFlowAction[] {
+  if (progress.fundingGap <= 0) return [];
+
+  const actions: CashFlowAction[] = [
+    {
+      title: '入金予定を前倒しできないか確認',
+      description: `請求済み・未回収の売掛金を確認し、月末までに最低${progress.fundingGap.toLocaleString('ja-JP')}円の資金確保を目指します。`,
+    },
+    {
+      title: '支出の延期・分割を検討',
+      description: `今月の支出予定${Math.max(0, entry.expectedCashOutflows).toLocaleString('ja-JP')}円から、翌月へ延期できる支払いと分割交渉できる支払いを確認します。`,
+    },
+  ];
+
+  const taxPayments = Math.max(0, entry.plannedTaxPayments) + Math.max(0, entry.linkedTaxPayments);
+  if (taxPayments > 0) {
+    actions.push({
+      title: '納税資金の相談を早めに開始',
+      description: `今月の納税予定${taxPayments.toLocaleString('ja-JP')}円を確認し、期限内納付が難しい場合は税務署・自治体へ猶予や分納の可否を事前相談します。`,
+    });
+  }
+
+  actions.push({
+    title: '不足が残る場合は資金調達を相談',
+    description: `対策後も不足する金額を再計算し、金融機関への短期融資や当座貸越の相談資料を準備します。現在の不足見込は${progress.fundingGap.toLocaleString('ja-JP')}円です。`,
+  });
+
+  return actions;
 }
 
 export function currentYearMonth(now = new Date()): string {

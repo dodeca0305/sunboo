@@ -10,6 +10,7 @@ import {
   calculateMonthlyGrossProfit,
   calculateMonthlyOperatingProfit,
   calculateMonthlyCashFlow,
+  buildCashFlowActions,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
@@ -86,6 +87,10 @@ export default function WorkspaceGrowthView({
   const grossProfitProgress = useMemo(() => calculateMonthlyGrossProfit(draft), [draft]);
   const operatingProfitProgress = useMemo(() => calculateMonthlyOperatingProfit(draft), [draft]);
   const cashFlowProgress = useMemo(() => calculateMonthlyCashFlow(draft), [draft]);
+  const cashFlowActions = useMemo(
+    () => buildCashFlowActions(draft, cashFlowProgress),
+    [draft, cashFlowProgress],
+  );
   const driverPlan = useMemo(() => calculateSalesDriverPlan(draft), [draft]);
   const monthEnd = useMemo(() => {
     const [year, month] = draft.yearMonth.split('-').map(Number);
@@ -596,6 +601,35 @@ export default function WorkspaceGrowthView({
             caution={cashFlowProgress.runwayMonths !== null && cashFlowProgress.runwayMonths < 3}
           />
         </div>
+
+        {cashFlowActions.length > 0 && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <h3 className="font-bold">
+                  月末までに最低{yen.format(cashFlowProgress.fundingGap)}の資金対策が必要です
+                </h3>
+                <p className="mt-1 text-sm">
+                  上から順に実行し、対策後の金額を入力し直して不足が解消するか確認してください。
+                </p>
+                <ol className="mt-4 space-y-3">
+                  {cashFlowActions.map((action, index) => (
+                    <li key={action.title} className="flex gap-3 rounded-lg bg-white/70 p-3">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold">
+                        {index + 1}
+                      </span>
+                      <div>
+                        <p className="font-semibold">{action.title}</p>
+                        <p className="mt-1 text-sm">{action.description}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </div>
+          </div>
+        )}
         <button type="button" className="btn-primary" onClick={save} disabled={saving}>
           <Save className="h-4 w-4" />
           {saving ? '保存中…' : '売上計画を保存'}
