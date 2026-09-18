@@ -94,6 +94,14 @@ export type CashFlowAction = {
   description: string;
 };
 
+export type FundingSalesRecovery = {
+  requiredCashCollection: number;
+  grossProfitMargin: number | null;
+  requiredAdditionalRevenue: number | null;
+  requiredUnits: number | null;
+  unitLabel: '件の成約' | '件の購入';
+};
+
 export function calculateMonthlyGrossProfit(
   entry: Pick<MonthlySalesEntry,
     'targetGrossProfit' | 'actualRevenue' | 'actualCostOfSales'
@@ -210,6 +218,43 @@ export function buildCashFlowActions(
   });
 
   return actions;
+}
+
+export function calculateFundingSalesRecovery(
+  entry: Pick<MonthlySalesEntry,
+    | 'actualRevenue'
+    | 'actualCostOfSales'
+    | 'revenueModel'
+    | 'averageContractValue'
+    | 'averageOrderValue'
+  >,
+  progress: MonthlyCashFlowProgress,
+): FundingSalesRecovery {
+  const requiredCashCollection = Math.max(0, progress.fundingGap);
+  const actualRevenue = Math.max(0, entry.actualRevenue);
+  const actualCostOfSales = Math.max(0, entry.actualCostOfSales);
+  const grossProfit = actualRevenue - actualCostOfSales;
+  const grossProfitMargin = actualRevenue > 0 && grossProfit > 0
+    ? grossProfit / actualRevenue
+    : null;
+  const requiredAdditionalRevenue = grossProfitMargin === null
+    ? null
+    : Math.ceil(requiredCashCollection / grossProfitMargin);
+  const unitValue = entry.revenueModel === 'sales_funnel'
+    ? Math.max(0, entry.averageContractValue)
+    : Math.max(0, entry.averageOrderValue);
+
+  return {
+    requiredCashCollection,
+    grossProfitMargin: grossProfitMargin === null
+      ? null
+      : Math.round(grossProfitMargin * 1000) / 10,
+    requiredAdditionalRevenue,
+    requiredUnits: requiredAdditionalRevenue !== null && unitValue > 0
+      ? Math.ceil(requiredAdditionalRevenue / unitValue)
+      : null,
+    unitLabel: entry.revenueModel === 'sales_funnel' ? '件の成約' : '件の購入',
+  };
 }
 
 export function currentYearMonth(now = new Date()): string {

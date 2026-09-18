@@ -6,6 +6,7 @@ import {
   calculateMonthlyOperatingProfit,
   calculateMonthlyCashFlow,
   buildCashFlowActions,
+  calculateFundingSalesRecovery,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
@@ -194,6 +195,51 @@ test('資金不足がなければ対策を表示しない', () => {
   };
   const progress = calculateMonthlyCashFlow({ ...entry, cashBalance: 500_000 });
   assert.deepEqual(buildCashFlowActions(entry, progress), []);
+});
+
+test('粗利率と平均契約単価から資金不足を埋める追加売上・成約数を計算する', () => {
+  const recovery = calculateFundingSalesRecovery({
+    actualRevenue: 2_000_000,
+    actualCostOfSales: 1_200_000,
+    revenueModel: 'sales_funnel',
+    averageContractValue: 250_000,
+    averageOrderValue: 0,
+  }, {
+    projectedClosingCash: -400_000,
+    netCashFlow: -900_000,
+    fundingGap: 400_000,
+    monthlyCashBurn: 900_000,
+    runwayMonths: 0.6,
+  });
+
+  assert.deepEqual(recovery, {
+    requiredCashCollection: 400_000,
+    grossProfitMargin: 40,
+    requiredAdditionalRevenue: 1_000_000,
+    requiredUnits: 4,
+    unitLabel: '件の成約',
+  });
+});
+
+test('粗利率を確認できない場合は追加売上と件数を断定しない', () => {
+  const recovery = calculateFundingSalesRecovery({
+    actualRevenue: 0,
+    actualCostOfSales: 0,
+    revenueModel: 'customer_repeat',
+    averageContractValue: 0,
+    averageOrderValue: 5_000,
+  }, {
+    projectedClosingCash: -100_000,
+    netCashFlow: -100_000,
+    fundingGap: 100_000,
+    monthlyCashBurn: 100_000,
+    runwayMonths: 0,
+  });
+
+  assert.equal(recovery.requiredCashCollection, 100_000);
+  assert.equal(recovery.requiredAdditionalRevenue, null);
+  assert.equal(recovery.requiredUnits, null);
+  assert.equal(recovery.unitLabel, '件の購入');
 });
 
 test('商談モデルから見込売上と追加商談数を計算する', () => {

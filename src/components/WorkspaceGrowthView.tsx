@@ -11,6 +11,7 @@ import {
   calculateMonthlyOperatingProfit,
   calculateMonthlyCashFlow,
   buildCashFlowActions,
+  calculateFundingSalesRecovery,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
@@ -89,6 +90,10 @@ export default function WorkspaceGrowthView({
   const cashFlowProgress = useMemo(() => calculateMonthlyCashFlow(draft), [draft]);
   const cashFlowActions = useMemo(
     () => buildCashFlowActions(draft, cashFlowProgress),
+    [draft, cashFlowProgress],
+  );
+  const fundingSalesRecovery = useMemo(
+    () => calculateFundingSalesRecovery(draft, cashFlowProgress),
     [draft, cashFlowProgress],
   );
   const driverPlan = useMemo(() => calculateSalesDriverPlan(draft), [draft]);
@@ -626,6 +631,36 @@ export default function WorkspaceGrowthView({
                     </li>
                   ))}
                 </ol>
+                <div className="mt-4 rounded-lg border border-amber-300 bg-white p-4">
+                  <p className="font-bold">売上で不足を埋める場合の目安</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <Metric
+                      label="最低限必要な追加入金"
+                      value={yen.format(fundingSalesRecovery.requiredCashCollection)}
+                      caution
+                    />
+                    <Metric
+                      label="粗利率を考慮した追加売上"
+                      value={fundingSalesRecovery.requiredAdditionalRevenue === null
+                        ? '算出不可'
+                        : yen.format(fundingSalesRecovery.requiredAdditionalRevenue)}
+                      caution
+                    />
+                    <Metric
+                      label={`必要な${fundingSalesRecovery.unitLabel}`}
+                      value={fundingSalesRecovery.requiredUnits === null
+                        ? '算出不可'
+                        : `${fundingSalesRecovery.requiredUnits}件`}
+                      caution
+                    />
+                  </div>
+                  <p className="mt-3 text-xs">
+                    当月中に入金される売上を前提とした目安です。
+                    {fundingSalesRecovery.grossProfitMargin === null
+                      ? ' 実績売上・売上原価から正の粗利率を確認できないため、追加売上と件数は算出していません。'
+                      : ` 現在の実績粗利率${fundingSalesRecovery.grossProfitMargin}%と平均単価を使用しています。`}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
