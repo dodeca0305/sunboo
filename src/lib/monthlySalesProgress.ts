@@ -102,6 +102,13 @@ export type FundingSalesRecovery = {
   unitLabel: '件の成約' | '件の購入';
 };
 
+export type FundingWeeklyAction = {
+  weeksRemaining: number;
+  requiredUnitsPerWeek: number | null;
+  requiredMeetingsPerWeek: number | null;
+  unitLabel: '成約' | '購入';
+};
+
 export function calculateMonthlyGrossProfit(
   entry: Pick<MonthlySalesEntry,
     'targetGrossProfit' | 'actualRevenue' | 'actualCostOfSales'
@@ -254,6 +261,39 @@ export function calculateFundingSalesRecovery(
       ? Math.ceil(requiredAdditionalRevenue / unitValue)
       : null,
     unitLabel: entry.revenueModel === 'sales_funnel' ? '件の成約' : '件の購入',
+  };
+}
+
+export function calculateFundingWeeklyAction({
+  recovery,
+  revenueModel,
+  conversionRate,
+  weeksRemaining,
+}: {
+  recovery: FundingSalesRecovery;
+  revenueModel: RevenueModel;
+  conversionRate: number;
+  weeksRemaining: number;
+}): FundingWeeklyAction {
+  const safeWeeks = Math.max(1, Math.floor(weeksRemaining));
+  const requiredUnits = recovery.requiredUnits;
+  const requiredUnitsPerWeek = requiredUnits === null
+    ? null
+    : Math.ceil(requiredUnits / safeWeeks);
+  const safeConversionRate = Math.min(100, Math.max(0, conversionRate));
+  const totalMeetings = revenueModel === 'sales_funnel'
+    && requiredUnits !== null
+    && safeConversionRate > 0
+    ? Math.ceil(requiredUnits / (safeConversionRate / 100))
+    : null;
+
+  return {
+    weeksRemaining: safeWeeks,
+    requiredUnitsPerWeek,
+    requiredMeetingsPerWeek: totalMeetings === null
+      ? null
+      : Math.ceil(totalMeetings / safeWeeks),
+    unitLabel: revenueModel === 'sales_funnel' ? '成約' : '購入',
   };
 }
 

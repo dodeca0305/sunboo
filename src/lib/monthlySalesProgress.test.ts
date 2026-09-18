@@ -7,6 +7,7 @@ import {
   calculateMonthlyCashFlow,
   buildCashFlowActions,
   calculateFundingSalesRecovery,
+  calculateFundingWeeklyAction,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
@@ -240,6 +241,46 @@ test('粗利率を確認できない場合は追加売上と件数を断定し�
   assert.equal(recovery.requiredAdditionalRevenue, null);
   assert.equal(recovery.requiredUnits, null);
   assert.equal(recovery.unitLabel, '件の購入');
+});
+
+test('必要成約数と成約率から週あたりの成約・商談目標を計算する', () => {
+  assert.deepEqual(calculateFundingWeeklyAction({
+    recovery: {
+      requiredCashCollection: 400_000,
+      grossProfitMargin: 40,
+      requiredAdditionalRevenue: 1_000_000,
+      requiredUnits: 4,
+      unitLabel: '件の成約',
+    },
+    revenueModel: 'sales_funnel',
+    conversionRate: 20,
+    weeksRemaining: 2,
+  }), {
+    weeksRemaining: 2,
+    requiredUnitsPerWeek: 2,
+    requiredMeetingsPerWeek: 10,
+    unitLabel: '成約',
+  });
+});
+
+test('店舗型は必要購入数を週単位へ割り振る', () => {
+  assert.deepEqual(calculateFundingWeeklyAction({
+    recovery: {
+      requiredCashCollection: 100_000,
+      grossProfitMargin: 50,
+      requiredAdditionalRevenue: 200_000,
+      requiredUnits: 40,
+      unitLabel: '件の購入',
+    },
+    revenueModel: 'customer_repeat',
+    conversionRate: 0,
+    weeksRemaining: 3,
+  }), {
+    weeksRemaining: 3,
+    requiredUnitsPerWeek: 14,
+    requiredMeetingsPerWeek: null,
+    unitLabel: '購入',
+  });
 });
 
 test('商談モデルから見込売上と追加商談数を計算する', () => {

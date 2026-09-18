@@ -12,6 +12,7 @@ import {
   calculateMonthlyCashFlow,
   buildCashFlowActions,
   calculateFundingSalesRecovery,
+  calculateFundingWeeklyAction,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
@@ -113,6 +114,12 @@ export default function WorkspaceGrowthView({
     remainingCustomers: driverPlan.additionalCustomersNeeded,
     monthEnd,
   }), [weeklyDraft, driverPlan.additionalCustomersNeeded, monthEnd]);
+  const fundingWeeklyAction = useMemo(() => calculateFundingWeeklyAction({
+    recovery: fundingSalesRecovery,
+    revenueModel: draft.revenueModel,
+    conversionRate: draft.conversionRate,
+    weeksRemaining: weeklyProgress.weeksRemaining,
+  }), [fundingSalesRecovery, draft.revenueModel, draft.conversionRate, weeklyProgress.weeksRemaining]);
 
   function changeMonth(nextMonth: string) {
     if (!/^\d{4}-\d{2}$/.test(nextMonth)) return;
@@ -660,6 +667,22 @@ export default function WorkspaceGrowthView({
                       ? ' 実績売上・売上原価から正の粗利率を確認できないため、追加売上と件数は算出していません。'
                       : ` 現在の実績粗利率${fundingSalesRecovery.grossProfitMargin}%と平均単価を使用しています。`}
                   </p>
+                  {fundingSalesRecovery.requiredUnits !== null && (
+                    <div className="mt-4 rounded-lg bg-amber-100 p-3">
+                      <p className="text-xs font-semibold">今週からの追加目標（残り{fundingWeeklyAction.weeksRemaining}週）</p>
+                      <p className="mt-1 text-lg font-bold">
+                        毎週あと{fundingWeeklyAction.requiredUnitsPerWeek}件の{fundingWeeklyAction.unitLabel}
+                        {draft.revenueModel === 'sales_funnel' && (
+                          fundingWeeklyAction.requiredMeetingsPerWeek === null
+                            ? '（必要商談数は成約率入力後に算出）'
+                            : `・${fundingWeeklyAction.requiredMeetingsPerWeek}件の商談`
+                        )}
+                      </p>
+                      <p className="mt-1 text-xs">
+                        週ごとの実績を下の入力欄へ記録し、翌週の必要数を見直してください。
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
