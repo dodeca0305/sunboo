@@ -5,6 +5,7 @@ import {
   calculateMonthlyGrossProfit,
   calculateMonthlyOperatingProfit,
   calculateMonthlyCashFlow,
+  buildCashFlowActions,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
@@ -163,6 +164,36 @@ test('ロードマップ連携分とその他の納税予定を合算する', ()
   });
   assert.equal(progress.projectedClosingCash, 2_500_000);
   assert.equal(progress.netCashFlow, -500_000);
+});
+
+test('資金不足時に不足額と納税を含む具体的な対策を表示する', () => {
+  const entry = {
+    expectedCashInflows: 300_000,
+    expectedCashOutflows: 900_000,
+    plannedTaxPayments: 200_000,
+    linkedTaxPayments: 100_000,
+  };
+  const progress = calculateMonthlyCashFlow({
+    ...entry,
+    cashBalance: 500_000,
+  });
+  const actions = buildCashFlowActions(entry, progress);
+
+  assert.equal(progress.fundingGap, 400_000);
+  assert.equal(actions.length, 4);
+  assert.match(actions[0].description, /400,000円/);
+  assert.match(actions[2].description, /300,000円/);
+});
+
+test('資金不足がなければ対策を表示しない', () => {
+  const entry = {
+    expectedCashInflows: 1_000_000,
+    expectedCashOutflows: 500_000,
+    plannedTaxPayments: 0,
+    linkedTaxPayments: 0,
+  };
+  const progress = calculateMonthlyCashFlow({ ...entry, cashBalance: 500_000 });
+  assert.deepEqual(buildCashFlowActions(entry, progress), []);
 });
 
 test('商談モデルから見込売上と追加商談数を計算する', () => {
