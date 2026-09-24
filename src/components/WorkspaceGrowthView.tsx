@@ -49,7 +49,7 @@ function emptyDailyActivity(
   previous: DailySalesActivity | undefined,
 ): DailySalesActivity {
   const carryover = calculateDailyCarryoverTarget(baseTarget, previous);
-  return { activityDate, targetUnits: carryover.target, actualUnits: 0, actionPlan: '' };
+  return { activityDate, targetUnits: carryover.target, actualUnits: 0, actionPlan: '', outcomeReview: '' };
 }
 
 function emptyWeeklyActivity(
@@ -395,13 +395,18 @@ export default function WorkspaceGrowthView({
     setDailySaving(true);
     setDailySaved(false);
     setError(null);
-    const savedDaily = { ...dailyDraft, actionPlan: dailyDraft.actionPlan.trim() };
+    const savedDaily = {
+      ...dailyDraft,
+      actionPlan: dailyDraft.actionPlan.trim(),
+      outcomeReview: dailyDraft.outcomeReview.trim(),
+    };
     const { error: dailyError } = await supabase.from('workspace_daily_sales_activities').upsert({
       company_id: companyId,
       activity_date: savedDaily.activityDate,
       target_units: savedDaily.targetUnits,
       actual_units: savedDaily.actualUnits,
       action_plan: savedDaily.actionPlan,
+      outcome_review: savedDaily.outcomeReview,
     }, { onConflict: 'company_id,activity_date' });
     if (dailyError) {
       setDailySaving(false);
@@ -1013,6 +1018,18 @@ export default function WorkspaceGrowthView({
                   placeholder="例：新規架電10件・既存顧客への提案5件"
                 />
               </div>
+              <div>
+                <label className="form-label" htmlFor="growth-daily-outcome-review">成果・振り返り</label>
+                <textarea
+                  id="growth-daily-outcome-review"
+                  className="form-input min-h-20"
+                  maxLength={500}
+                  value={dailyDraft.outcomeReview}
+                  onChange={(event) => setDailyDraft((previous) => ({ ...previous, outcomeReview: event.target.value }))}
+                  placeholder="例：新規架電から1件商談化。午前中の連絡はつながりやすかった"
+                />
+                <p className="mt-1 text-xs text-sunboo-ink-muted">結果と学びを残すと、成果につながる行動を翌週へ活かせます。</p>
+              </div>
               <button type="button" className="btn-primary" onClick={saveDailyActivity} disabled={dailySaving}>
                 <Save className="h-4 w-4" />
                 {dailySaving ? '保存中…' : '今日の実績を保存'}
@@ -1042,6 +1059,9 @@ export default function WorkspaceGrowthView({
                           <div className="min-w-0 text-sm text-sunboo-ink">
                             <p>目標{activity.targetUnits}{weeklyGoalSummary.unit}・実績{activity.actualUnits}{weeklyGoalSummary.unit}</p>
                             <p className="mt-1 truncate text-xs text-sunboo-ink-muted">{activity.actionPlan}</p>
+                            {activity.outcomeReview && (
+                              <p className="mt-1 truncate text-xs font-semibold text-sunboo-moss">成果：{activity.outcomeReview}</p>
+                            )}
                           </div>
                         ) : (
                           <p className="text-sm text-sunboo-ink-muted">未入力</p>
