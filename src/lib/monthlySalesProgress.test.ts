@@ -13,6 +13,7 @@ import {
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
+  calculateWeeklyGoalSummary,
   currentWeekStart,
   currentYearMonth,
   previousWeekStart,
@@ -421,6 +422,40 @@ test('週間の実績差と残り週あたり必要商談数を計算する', ()
     dealGap: 1,
     weeksRemaining: 3,
     requiredMeetingsPerWeek: 7,
+  });
+});
+
+test('今週の商談目標に対する残り件数と達成率を返す', () => {
+  assert.deepEqual(calculateWeeklyGoalSummary({
+    targetMeetings: 13,
+    actualMeetings: 5,
+    targetCustomers: 0,
+    actualCustomers: 0,
+  }, 'sales_funnel'), {
+    target: 13,
+    actual: 5,
+    remaining: 8,
+    achievementRate: 38.5,
+    achieved: false,
+    label: '商談',
+    unit: '件',
+  });
+});
+
+test('週間目標を超えた場合は残り0で目標達成にする', () => {
+  assert.deepEqual(calculateWeeklyGoalSummary({
+    targetMeetings: 0,
+    actualMeetings: 0,
+    targetCustomers: 100,
+    actualCustomers: 120,
+  }, 'customer_repeat'), {
+    target: 100,
+    actual: 120,
+    remaining: 0,
+    achievementRate: 120,
+    achieved: true,
+    label: '顧客',
+    unit: '人・社',
   });
 });
 
