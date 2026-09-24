@@ -45,6 +45,13 @@ export type WeeklySalesActivity = {
   actionNote: string;
 };
 
+export type DailySalesActivity = {
+  activityDate: string;
+  targetUnits: number;
+  actualUnits: number;
+  actionPlan: string;
+};
+
 export type WeeklySalesProgress = {
   actualConversionRate: number;
   meetingGap: number;
@@ -132,6 +139,12 @@ export type WeeklyDailyPace = {
   weekEnded: boolean;
 };
 
+export type DailyCarryoverTarget = {
+  baseTarget: number;
+  carriedShortfall: number;
+  target: number;
+};
+
 export function calculateWeeklyGoalSummary(
   activity: Pick<WeeklySalesActivity,
     'targetMeetings' | 'actualMeetings' | 'targetCustomers' | 'actualCustomers'
@@ -200,6 +213,36 @@ export function calculateWeeklyDailyPace({
       : 0,
     weekEnded: false,
   };
+}
+
+export function previousBusinessDate(dateValue: string): string {
+  const date = new Date(`${dateValue}T00:00:00Z`);
+  do {
+    date.setUTCDate(date.getUTCDate() - 1);
+  } while (date.getUTCDay() === 0 || date.getUTCDay() === 6);
+  return date.toISOString().slice(0, 10);
+}
+
+export function calculateDailyCarryoverTarget(
+  baseTarget: number,
+  previous: Pick<DailySalesActivity, 'targetUnits' | 'actualUnits'> | undefined,
+): DailyCarryoverTarget {
+  const carriedShortfall = previous
+    ? Math.max(Math.max(0, previous.targetUnits) - Math.max(0, previous.actualUnits), 0)
+    : 0;
+  return {
+    baseTarget: Math.max(0, baseTarget),
+    carriedShortfall,
+    target: Math.max(0, baseTarget) + carriedShortfall,
+  };
+}
+
+export function isDateInWeek(activityDate: string, weekStart: string): boolean {
+  const date = new Date(`${activityDate}T00:00:00Z`);
+  const start = new Date(`${weekStart}T00:00:00Z`);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 6);
+  return !Number.isNaN(date.getTime()) && date >= start && date <= end;
 }
 
 export function calculateMonthlyGrossProfit(
