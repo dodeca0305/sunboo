@@ -6,7 +6,7 @@ import WorkspaceGrowthView from '@/components/WorkspaceGrowthView';
 import InformationCard from '@/components/InformationCard';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { loadWorkspaceCompany } from '@/lib/workspaceLoader';
-import type { MonthlySalesEntry, WeeklySalesActivity } from '@/lib/monthlySalesProgress';
+import type { DailySalesActivity, MonthlySalesEntry, WeeklySalesActivity } from '@/lib/monthlySalesProgress';
 import { sumTaxPaymentPlansByMonth, type WorkspaceTaxPaymentPlanRow } from '@/lib/workspaceTaxPaymentPlan';
 
 type MonthlySalesRow = {
@@ -43,6 +43,13 @@ type WeeklySalesRow = {
   action_note: string;
 };
 
+type DailySalesRow = {
+  activity_date: string;
+  target_units: number;
+  actual_units: number;
+  action_plan: string;
+};
+
 export default async function WorkspaceGrowthPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const companyId = Number(id);
@@ -64,6 +71,12 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
     .select('week_start, target_meetings, actual_meetings, actual_deals, target_customers, actual_customers, actual_purchases, actual_revenue, action_note')
     .eq('company_id', companyId)
     .order('week_start', { ascending: false });
+
+  const { data: dailyData } = await supabase
+    .from('workspace_daily_sales_activities')
+    .select('activity_date, target_units, actual_units, action_plan')
+    .eq('company_id', companyId)
+    .order('activity_date', { ascending: false });
 
   const { data: taxPaymentPlanData } = await supabase
     .from('workspace_tax_payment_plans')
@@ -107,6 +120,12 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
     actualRevenue: row.actual_revenue ?? 0,
     actionNote: row.action_note,
   }));
+  const dailyActivities: DailySalesActivity[] = ((dailyData as DailySalesRow[] | null) ?? []).map((row) => ({
+    activityDate: row.activity_date,
+    targetUnits: row.target_units,
+    actualUnits: row.actual_units,
+    actionPlan: row.action_plan,
+  }));
 
   return (
     <div className="space-y-6">
@@ -125,6 +144,7 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
         companyId={companyId}
         initialEntries={entries}
         initialWeeklyActivities={weeklyActivities}
+        initialDailyActivities={dailyActivities}
         linkedTaxPaymentsByMonth={linkedTaxPaymentsByMonth}
       />
     </div>

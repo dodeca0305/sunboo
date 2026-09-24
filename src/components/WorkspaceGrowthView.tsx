@@ -16,6 +16,7 @@ import {
   calculateWeeklyCarryoverTarget,
   calculateWeeklyGoalSummary,
   calculateWeeklyDailyPace,
+  calculateDailyCarryoverTarget,
   hasMeaningfulWeeklyActivity,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
@@ -23,12 +24,30 @@ import {
   currentWeekStart,
   currentYearMonth,
   previousWeekStart,
+  previousBusinessDate,
+  isDateInWeek,
   shiftYearMonth,
+  type DailySalesActivity,
   type MonthlySalesEntry,
   type WeeklySalesActivity,
 } from '@/lib/monthlySalesProgress';
 
 const yen = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 });
+
+function todayInJapan(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+}
+
+function emptyDailyActivity(
+  activityDate: string,
+  baseTarget: number,
+  previous: DailySalesActivity | undefined,
+): DailySalesActivity {
+  const carryover = calculateDailyCarryoverTarget(baseTarget, previous);
+  return { activityDate, targetUnits: carryover.target, actualUnits: 0, actionPlan: '' };
+}
 
 function emptyWeeklyActivity(
   weekStart: string,
@@ -78,11 +97,13 @@ export default function WorkspaceGrowthView({
   companyId,
   initialEntries,
   initialWeeklyActivities,
+  initialDailyActivities,
   linkedTaxPaymentsByMonth,
 }: {
   companyId: number;
   initialEntries: MonthlySalesEntry[];
   initialWeeklyActivities: WeeklySalesActivity[];
+  initialDailyActivities: DailySalesActivity[];
   linkedTaxPaymentsByMonth: Record<string, number>;
 }) {
   const initialMap = Object.fromEntries(initialEntries.map((entry) => [entry.yearMonth, entry]));
@@ -97,12 +118,31 @@ export default function WorkspaceGrowthView({
   const [weeklyActivities, setWeeklyActivities] = useState<Record<string, WeeklySalesActivity>>(initialWeeklyMap);
   const [weekStart, setWeekStart] = useState(currentWeekStart());
   const initialWeek = currentWeekStart();
-  const [weeklyDraft, setWeeklyDraft] = useState<WeeklySalesActivity>(
-    initialWeeklyMap[initialWeek]
-      ?? emptyWeeklyActivity(initialWeek, initialWeeklyMap[previousWeekStart(initialWeek)], selected.revenueModel),
-  );
+  const initialWeeklyActivity = initialWeeklyMap[initialWeek]
+    ?? emptyWeeklyActivity(initialWeek, initialWeeklyMap[previousWeekStart(initialWeek)], selected.revenueModel);
+  const [weeklyDraft, setWeeklyDraft] = useState<WeeklySalesActivity>(initialWeeklyActivity);
   const [weeklySaving, setWeeklySaving] = useState(false);
   const [weeklySaved, setWeeklySaved] = useState(false);
+  const initialDailyMap = Object.fromEntries(initialDailyActivities.map((activity) => [activity.activityDate, activity]));
+  const initialActivityDate = todayInJapan();
+  const initialWeeklySummary = calculateWeeklyGoalSummary(initialWeeklyActivity, selected.revenueModel);
+  const initialDailyPace = calculateWeeklyDailyPace({
+    weekStart: initialWeek,
+    remaining: initialWeeklySummary.remaining,
+  });
+  const initialPreviousDate = previousBusinessDate(initialActivityDate);
+  const [dailyActivities, setDailyActivities] = useState<Record<string, DailySalesActivity>>(initialDailyMap);
+  const [activityDate, setActivityDate] = useState(initialActivityDate);
+  const [dailyDraft, setDailyDraft] = useState<DailySalesActivity>(
+    initialDailyMap[initialActivityDate]
+      ?? emptyDailyActivity(
+        initialActivityDate,
+        initialDailyPace.requiredPerBusinessDay,
+        isDateInWeek(initialPreviousDate, initialWeek) ? initialDailyMap[initialPreviousDate] : undefined,
+      ),
+  );
+  const [dailySaving, setDailySaving] = useState(false);
+  const [dailySaved, setDailySaved] = useState(false);
   const progress = useMemo(() => calculateMonthlySalesProgress(draft), [draft]);
   const grossProfitProgress = useMemo(() => calculateMonthlyGrossProfit(draft), [draft]);
   const operatingProfitProgress = useMemo(() => calculateMonthlyOperatingProfit(draft), [draft]);
@@ -140,6 +180,12 @@ export default function WorkspaceGrowthView({
     weekStart: weeklyDraft.weekStart,
     remaining: weeklyGoalSummary.remaining,
   }), [weeklyDraft.weekStart, weeklyGoalSummary.remaining]);
+  const dailyCarryover = useMemo(() => calculateDailyCarryoverTarget(
+    weeklyDailyPace.requiredPerBusinessDay,
+    isDateInWeek(previousBusinessDate(activityDate), weekStart)
+      ? dailyActivities[previousBusinessDate(activityDate)]
+      : undefined,
+  ), [weeklyDailyPace.requiredPerBusinessDay, dailyActivities, activityDate, weekStart]);
   const fundingWeeklyAction = useMemo(() => calculateFundingWeeklyAction({
     recovery: fundingSalesRecovery,
     revenueModel: draft.revenueModel,
@@ -216,13 +262,48 @@ export default function WorkspaceGrowthView({
   function changeWeek(nextWeek: string) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(nextWeek)) return;
     const existingActivity = weeklyActivities[nextWeek];
+    const nextWeekly = hasMeaningfulWeeklyActivity(existingActivity)
+      ? existingActivity!
+      : emptyWeeklyActivity(nextWeek, weeklyActivities[previousWeekStart(nextWeek)], draft.revenueModel);
     setWeekStart(nextWeek);
-    setWeeklyDraft(
-      hasMeaningfulWeeklyActivity(existingActivity)
-        ? existingActivity!
-        : emptyWeeklyActivity(nextWeek, weeklyActivities[previousWeekStart(nextWeek)], draft.revenueModel),
-    );
+    setWeeklyDraft(nextWeekly);
     setWeeklySaved(false);
+    const today = todayInJapan();
+    const nextActivityDate = isDateInWeek(today, nextWeek) ? today : nextWeek;
+    const nextSummary = calculateWeeklyGoalSummary(nextWeekly, draft.revenueModel);
+    const nextPace = calculateWeeklyDailyPace({ weekStart: nextWeek, remaining: nextSummary.remaining });
+    setActivityDate(nextActivityDate);
+    setDailyDraft(
+      dailyActivities[nextActivityDate]
+        ?? emptyDailyActivity(
+          nextActivityDate,
+          nextPace.requiredPerBusinessDay,
+          isDateInWeek(previousBusinessDate(nextActivityDate), nextWeek)
+            ? dailyActivities[previousBusinessDate(nextActivityDate)]
+            : undefined,
+        ),
+    );
+    setDailySaved(false);
+    setError(null);
+  }
+
+  function changeActivityDate(nextDate: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate) || !isDateInWeek(nextDate, weekStart)) {
+      setError('日次実績の日付は、選択中の週の日付を入力してください。');
+      return;
+    }
+    setActivityDate(nextDate);
+    setDailyDraft(
+      dailyActivities[nextDate]
+        ?? emptyDailyActivity(
+          nextDate,
+          weeklyDailyPace.requiredPerBusinessDay,
+          isDateInWeek(previousBusinessDate(nextDate), weekStart)
+            ? dailyActivities[previousBusinessDate(nextDate)]
+            : undefined,
+        ),
+    );
+    setDailySaved(false);
     setError(null);
   }
 
@@ -283,6 +364,73 @@ export default function WorkspaceGrowthView({
     setWeeklyDraft(savedActivity);
     setWeeklyActivities((previous) => ({ ...previous, [weekStart]: savedActivity }));
     setWeeklySaved(true);
+  }
+
+  async function saveDailyActivity() {
+    if (!isDateInWeek(dailyDraft.activityDate, weekStart)) {
+      setError('日次実績の日付は、選択中の週の日付を入力してください。');
+      return;
+    }
+    if (dailyDraft.targetUnits <= 0) {
+      setError('今日の目標件数を入力してください。');
+      return;
+    }
+    if (!dailyDraft.actionPlan.trim()) {
+      setError('今日やる行動を入力してください。');
+      return;
+    }
+    const supabase = createBrowserSupabase();
+    if (!supabase) {
+      setError('Supabase が設定されていません。');
+      return;
+    }
+
+    setDailySaving(true);
+    setDailySaved(false);
+    setError(null);
+    const savedDaily = { ...dailyDraft, actionPlan: dailyDraft.actionPlan.trim() };
+    const { error: dailyError } = await supabase.from('workspace_daily_sales_activities').upsert({
+      company_id: companyId,
+      activity_date: savedDaily.activityDate,
+      target_units: savedDaily.targetUnits,
+      actual_units: savedDaily.actualUnits,
+      action_plan: savedDaily.actionPlan,
+    }, { onConflict: 'company_id,activity_date' });
+    if (dailyError) {
+      setDailySaving(false);
+      setError(`日次実績の保存に失敗しました: ${dailyError.message}`);
+      return;
+    }
+
+    const nextDailyActivities = { ...dailyActivities, [activityDate]: savedDaily };
+    const weeklyActual = Object.values(nextDailyActivities)
+      .filter((activity) => isDateInWeek(activity.activityDate, weekStart))
+      .reduce((total, activity) => total + activity.actualUnits, 0);
+    const nextWeekly = draft.revenueModel === 'sales_funnel'
+      ? { ...weeklyDraft, actualMeetings: weeklyActual }
+      : { ...weeklyDraft, actualCustomers: weeklyActual };
+    const { error: weeklyError } = await supabase.from('workspace_weekly_sales_activities').upsert({
+      company_id: companyId,
+      week_start: nextWeekly.weekStart,
+      target_meetings: nextWeekly.targetMeetings,
+      actual_meetings: nextWeekly.actualMeetings,
+      actual_deals: nextWeekly.actualDeals,
+      target_customers: nextWeekly.targetCustomers,
+      actual_customers: nextWeekly.actualCustomers,
+      actual_purchases: nextWeekly.actualPurchases,
+      actual_revenue: nextWeekly.actualRevenue,
+      action_note: nextWeekly.actionNote.trim(),
+    }, { onConflict: 'company_id,week_start' });
+    setDailySaving(false);
+    if (weeklyError) {
+      setError(`週間実績への反映に失敗しました: ${weeklyError.message}`);
+      return;
+    }
+    setDailyActivities(nextDailyActivities);
+    setDailyDraft(savedDaily);
+    setWeeklyDraft(nextWeekly);
+    setWeeklyActivities((previous) => ({ ...previous, [weekStart]: nextWeekly }));
+    setDailySaved(true);
   }
 
   return (
@@ -802,6 +950,66 @@ export default function WorkspaceGrowthView({
                   この週は終了しました。残り{weeklyGoalSummary.remaining}{weeklyGoalSummary.unit}は翌週目標へ繰り越されます。
                 </p>
               )}
+            </div>
+          )}
+
+          {weeklyGoalSummary.target > 0 && (
+            <div className="rounded-xl border border-sunboo-mist bg-sunboo-paper p-4 space-y-4">
+              <div>
+                <h3 className="font-bold text-sunboo-ink">今日の売上アクション</h3>
+                <p className="mt-1 text-xs text-sunboo-ink-muted">
+                  日次実績を保存すると、今週の{weeklyGoalSummary.label}実績へ自動集計します。
+                </p>
+              </div>
+              {dailySaved && (
+                <div className="information-card information-card--success flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="h-4 w-4" />今日の実績を保存し、週間実績へ反映しました。
+                </div>
+              )}
+              {dailyCarryover.carriedShortfall > 0 && !dailyActivities[activityDate] && (
+                <InformationCard kind="info">
+                  前営業日の未達{dailyCarryover.carriedShortfall}{weeklyGoalSummary.unit}を、今日の目標へ繰り越しています。
+                </InformationCard>
+              )}
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="form-label" htmlFor="growth-activity-date">対象日</label>
+                  <input
+                    id="growth-activity-date"
+                    type="date"
+                    className="form-input"
+                    value={activityDate}
+                    onChange={(event) => changeActivityDate(event.target.value)}
+                  />
+                </div>
+                <DriverInput
+                  label={`今日の${weeklyGoalSummary.label}目標（${weeklyGoalSummary.unit}）`}
+                  value={dailyDraft.targetUnits}
+                  onChange={(value) => setDailyDraft((previous) => ({ ...previous, targetUnits: value }))}
+                  placeholder="例：3"
+                />
+                <DriverInput
+                  label={`今日の${weeklyGoalSummary.label}実績（${weeklyGoalSummary.unit}）`}
+                  value={dailyDraft.actualUnits}
+                  onChange={(value) => setDailyDraft((previous) => ({ ...previous, actualUnits: value }))}
+                  placeholder="例：2"
+                />
+              </div>
+              <div>
+                <label className="form-label" htmlFor="growth-daily-action-plan">今日やる行動</label>
+                <textarea
+                  id="growth-daily-action-plan"
+                  className="form-input min-h-20"
+                  maxLength={500}
+                  value={dailyDraft.actionPlan}
+                  onChange={(event) => setDailyDraft((previous) => ({ ...previous, actionPlan: event.target.value }))}
+                  placeholder="例：新規架電10件・既存顧客への提案5件"
+                />
+              </div>
+              <button type="button" className="btn-primary" onClick={saveDailyActivity} disabled={dailySaving}>
+                <Save className="h-4 w-4" />
+                {dailySaving ? '保存中…' : '今日の実績を保存'}
+              </button>
             </div>
           )}
 

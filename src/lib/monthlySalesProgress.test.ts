@@ -15,6 +15,9 @@ import {
   calculateWeeklySalesProgress,
   calculateWeeklyGoalSummary,
   calculateWeeklyDailyPace,
+  calculateDailyCarryoverTarget,
+  previousBusinessDate,
+  isDateInWeek,
   currentWeekStart,
   currentYearMonth,
   previousWeekStart,
@@ -494,6 +497,27 @@ test('終了した週は翌週繰越の対象として返す', () => {
     requiredPerBusinessDay: 0,
     weekEnded: true,
   });
+});
+
+test('前営業日の未達分を今日の目標へ加算する', () => {
+  assert.deepEqual(calculateDailyCarryoverTarget(3, {
+    targetUnits: 3,
+    actualUnits: 2,
+  }), {
+    baseTarget: 3,
+    carriedShortfall: 1,
+    target: 4,
+  });
+});
+
+test('月曜日の前営業日は金曜日になる', () => {
+  assert.equal(previousBusinessDate('2026-09-28'), '2026-09-25');
+});
+
+test('対象日が選択週の7日間に含まれるか判定する', () => {
+  assert.equal(isDateInWeek('2026-09-28', '2026-09-28'), true);
+  assert.equal(isDateInWeek('2026-10-04', '2026-09-28'), true);
+  assert.equal(isDateInWeek('2026-10-05', '2026-09-28'), false);
 });
 
 test('店舗型の週間実績から平均単価と顧客不足を計算する', () => {
