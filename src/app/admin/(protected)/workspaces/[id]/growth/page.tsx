@@ -48,6 +48,7 @@ type DailySalesRow = {
   target_units: number;
   actual_units: number;
   action_plan: string;
+  outcome_review: string;
 };
 
 export default async function WorkspaceGrowthPage({ params }: { params: Promise<{ id: string }> }) {
@@ -74,7 +75,7 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
 
   const { data: dailyData } = await supabase
     .from('workspace_daily_sales_activities')
-    .select('activity_date, target_units, actual_units, action_plan')
+    .select('activity_date, target_units, actual_units, action_plan, outcome_review')
     .eq('company_id', companyId)
     .order('activity_date', { ascending: false });
 
@@ -125,6 +126,7 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
     targetUnits: row.target_units,
     actualUnits: row.actual_units,
     actionPlan: row.action_plan,
+    outcomeReview: row.outcome_review ?? '',
   }));
 
   return (

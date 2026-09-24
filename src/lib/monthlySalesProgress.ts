@@ -50,6 +50,7 @@ export type DailySalesActivity = {
   targetUnits: number;
   actualUnits: number;
   actionPlan: string;
+  outcomeReview: string;
 };
 
 export type WeeklySalesProgress = {
