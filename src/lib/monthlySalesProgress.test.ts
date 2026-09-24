@@ -14,6 +14,7 @@ import {
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
   calculateWeeklyGoalSummary,
+  calculateWeeklyDailyPace,
   currentWeekStart,
   currentYearMonth,
   previousWeekStart,
@@ -456,6 +457,42 @@ test('週間目標を超えた場合は残り0で目標達成にする', () => {
     achieved: true,
     label: '顧客',
     unit: '人・社',
+  });
+});
+
+test('未来の週は月曜から金曜の5営業日で1日目標を計算する', () => {
+  assert.deepEqual(calculateWeeklyDailyPace({
+    weekStart: '2026-09-28',
+    remaining: 13,
+    now: new Date('2026-09-24T06:00:00Z'),
+  }), {
+    remainingBusinessDays: 5,
+    requiredPerBusinessDay: 3,
+    weekEnded: false,
+  });
+});
+
+test('今週は今日を含む残り平日で1日目標を計算する', () => {
+  assert.deepEqual(calculateWeeklyDailyPace({
+    weekStart: '2026-09-21',
+    remaining: 8,
+    now: new Date('2026-09-24T06:00:00Z'),
+  }), {
+    remainingBusinessDays: 2,
+    requiredPerBusinessDay: 4,
+    weekEnded: false,
+  });
+});
+
+test('終了した週は翌週繰越の対象として返す', () => {
+  assert.deepEqual(calculateWeeklyDailyPace({
+    weekStart: '2026-09-14',
+    remaining: 3,
+    now: new Date('2026-09-24T06:00:00Z'),
+  }), {
+    remainingBusinessDays: 0,
+    requiredPerBusinessDay: 0,
+    weekEnded: true,
   });
 });
 

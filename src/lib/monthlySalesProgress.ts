@@ -126,6 +126,12 @@ export type WeeklyGoalSummary = {
   unit: '件' | '人・社';
 };
 
+export type WeeklyDailyPace = {
+  remainingBusinessDays: number;
+  requiredPerBusinessDay: number;
+  weekEnded: boolean;
+};
+
 export function calculateWeeklyGoalSummary(
   activity: Pick<WeeklySalesActivity,
     'targetMeetings' | 'actualMeetings' | 'targetCustomers' | 'actualCustomers'
@@ -147,6 +153,52 @@ export function calculateWeeklyGoalSummary(
     achieved: target > 0 && actual >= target,
     label: revenueModel === 'sales_funnel' ? '商談' : '顧客',
     unit: revenueModel === 'sales_funnel' ? '件' : '人・社',
+  };
+}
+
+export function calculateWeeklyDailyPace({
+  weekStart,
+  remaining,
+  now = new Date(),
+}: {
+  weekStart: string;
+  remaining: number;
+  now?: Date;
+}): WeeklyDailyPace {
+  const start = new Date(`${weekStart}T00:00:00Z`);
+  if (Number.isNaN(start.getTime())) {
+    return { remainingBusinessDays: 0, requiredPerBusinessDay: 0, weekEnded: false };
+  }
+
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 6);
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const today = new Date(`${values.year}-${values.month}-${values.day}T00:00:00Z`);
+
+  if (today > end) {
+    return { remainingBusinessDays: 0, requiredPerBusinessDay: 0, weekEnded: true };
+  }
+
+  const cursor = new Date(today < start ? start : today);
+  let remainingBusinessDays = 0;
+  while (cursor <= end) {
+    const weekday = cursor.getUTCDay();
+    if (weekday !== 0 && weekday !== 6) remainingBusinessDays += 1;
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return {
+    remainingBusinessDays,
+    requiredPerBusinessDay: remainingBusinessDays > 0
+      ? Math.ceil(Math.max(0, remaining) / remainingBusinessDays)
+      : 0,
+    weekEnded: false,
   };
 }
 

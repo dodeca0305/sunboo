@@ -15,6 +15,7 @@ import {
   calculateFundingWeeklyAction,
   calculateWeeklyCarryoverTarget,
   calculateWeeklyGoalSummary,
+  calculateWeeklyDailyPace,
   hasMeaningfulWeeklyActivity,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
@@ -135,6 +136,10 @@ export default function WorkspaceGrowthView({
     () => calculateWeeklyGoalSummary(weeklyDraft, draft.revenueModel),
     [weeklyDraft, draft.revenueModel],
   );
+  const weeklyDailyPace = useMemo(() => calculateWeeklyDailyPace({
+    weekStart: weeklyDraft.weekStart,
+    remaining: weeklyGoalSummary.remaining,
+  }), [weeklyDraft.weekStart, weeklyGoalSummary.remaining]);
   const fundingWeeklyAction = useMemo(() => calculateFundingWeeklyAction({
     recovery: fundingSalesRecovery,
     revenueModel: draft.revenueModel,
@@ -784,6 +789,19 @@ export default function WorkspaceGrowthView({
               <p className="mt-1 text-right text-xs font-semibold text-sunboo-ink-muted">
                 達成率 {weeklyGoalSummary.achievementRate}%
               </p>
+              {!weeklyGoalSummary.achieved && weeklyDailyPace.remainingBusinessDays > 0 && (
+                <p className="mt-3 border-t border-sunboo-mist pt-3 text-sm font-semibold text-sunboo-ink">
+                  残り{weeklyGoalSummary.remaining}{weeklyGoalSummary.unit} ÷ 残り営業日
+                  {weeklyDailyPace.remainingBusinessDays}日 ＝ 1日あたり
+                  {weeklyDailyPace.requiredPerBusinessDay}{weeklyGoalSummary.unit}必要
+                  <span className="ml-2 text-xs font-normal text-sunboo-ink-muted">（土日を除く）</span>
+                </p>
+              )}
+              {!weeklyGoalSummary.achieved && weeklyDailyPace.weekEnded && weeklyGoalSummary.remaining > 0 && (
+                <p className="mt-3 border-t border-sunboo-mist pt-3 text-sm font-semibold text-sunboo-morning-sun-dark">
+                  この週は終了しました。残り{weeklyGoalSummary.remaining}{weeklyGoalSummary.unit}は翌週目標へ繰り越されます。
+                </p>
+              )}
             </div>
           )}
 
