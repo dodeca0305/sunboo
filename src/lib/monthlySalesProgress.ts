@@ -145,6 +145,13 @@ export type DailyCarryoverTarget = {
   target: number;
 };
 
+export type DailyWeekSummary = {
+  target: number;
+  actual: number;
+  remaining: number;
+  achievementRate: number;
+};
+
 export function calculateWeeklyGoalSummary(
   activity: Pick<WeeklySalesActivity,
     'targetMeetings' | 'actualMeetings' | 'targetCustomers' | 'actualCustomers'
@@ -243,6 +250,29 @@ export function isDateInWeek(activityDate: string, weekStart: string): boolean {
   const end = new Date(start);
   end.setUTCDate(end.getUTCDate() + 6);
   return !Number.isNaN(date.getTime()) && date >= start && date <= end;
+}
+
+export function businessDatesForWeek(weekStart: string): string[] {
+  const start = new Date(`${weekStart}T00:00:00Z`);
+  if (Number.isNaN(start.getTime())) return [];
+  return Array.from({ length: 7 }, (_, offset) => {
+    const date = new Date(start);
+    date.setUTCDate(date.getUTCDate() + offset);
+    return date;
+  })
+    .filter((date) => date.getUTCDay() !== 0 && date.getUTCDay() !== 6)
+    .map((date) => date.toISOString().slice(0, 10));
+}
+
+export function calculateDailyWeekSummary(activities: DailySalesActivity[]): DailyWeekSummary {
+  const target = activities.reduce((total, activity) => total + Math.max(0, activity.targetUnits), 0);
+  const actual = activities.reduce((total, activity) => total + Math.max(0, activity.actualUnits), 0);
+  return {
+    target,
+    actual,
+    remaining: Math.max(target - actual, 0),
+    achievementRate: target > 0 ? Math.round((actual / target) * 1000) / 10 : 0,
+  };
 }
 
 export function calculateMonthlyGrossProfit(

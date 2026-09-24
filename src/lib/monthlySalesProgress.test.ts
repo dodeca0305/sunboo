@@ -18,6 +18,8 @@ import {
   calculateDailyCarryoverTarget,
   previousBusinessDate,
   isDateInWeek,
+  businessDatesForWeek,
+  calculateDailyWeekSummary,
   currentWeekStart,
   currentYearMonth,
   previousWeekStart,
@@ -518,6 +520,28 @@ test('対象日が選択週の7日間に含まれるか判定する', () => {
   assert.equal(isDateInWeek('2026-09-28', '2026-09-28'), true);
   assert.equal(isDateInWeek('2026-10-04', '2026-09-28'), true);
   assert.equal(isDateInWeek('2026-10-05', '2026-09-28'), false);
+});
+
+test('選択週の月曜日から金曜日を返す', () => {
+  assert.deepEqual(businessDatesForWeek('2026-09-21'), [
+    '2026-09-21',
+    '2026-09-22',
+    '2026-09-23',
+    '2026-09-24',
+    '2026-09-25',
+  ]);
+});
+
+test('保存済みの日次実績から週間合計を計算する', () => {
+  assert.deepEqual(calculateDailyWeekSummary([
+    { activityDate: '2026-09-24', targetUnits: 3, actualUnits: 2, actionPlan: '架電' },
+    { activityDate: '2026-09-25', targetUnits: 5, actualUnits: 3, actionPlan: '提案' },
+  ]), {
+    target: 8,
+    actual: 5,
+    remaining: 3,
+    achievementRate: 62.5,
+  });
 });
 
 test('店舗型の週間実績から平均単価と顧客不足を計算する', () => {
