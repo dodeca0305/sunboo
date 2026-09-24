@@ -109,6 +109,13 @@ export type FundingWeeklyAction = {
   unitLabel: '成約' | '購入';
 };
 
+export type WeeklyCarryoverTarget = {
+  baseTarget: number;
+  carriedShortfall: number;
+  nextTarget: number;
+  targetLabel: '商談' | '顧客';
+};
+
 export function calculateMonthlyGrossProfit(
   entry: Pick<MonthlySalesEntry,
     'targetGrossProfit' | 'actualRevenue' | 'actualCostOfSales'
@@ -294,6 +301,40 @@ export function calculateFundingWeeklyAction({
       ? null
       : Math.ceil(totalMeetings / safeWeeks),
     unitLabel: revenueModel === 'sales_funnel' ? '成約' : '購入',
+  };
+}
+
+export function previousWeekStart(weekStart: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) {
+    throw new Error('週の開始日が不正です。');
+  }
+  const date = new Date(`${weekStart}T00:00:00Z`);
+  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== weekStart) {
+    throw new Error('週の開始日が不正です。');
+  }
+  date.setUTCDate(date.getUTCDate() - 7);
+  return date.toISOString().slice(0, 10);
+}
+
+export function calculateWeeklyCarryoverTarget(
+  previous: Pick<WeeklySalesActivity,
+    'targetMeetings' | 'actualMeetings' | 'targetCustomers' | 'actualCustomers'
+  >,
+  revenueModel: RevenueModel,
+): WeeklyCarryoverTarget {
+  const baseTarget = revenueModel === 'sales_funnel'
+    ? Math.max(0, previous.targetMeetings)
+    : Math.max(0, previous.targetCustomers);
+  const actual = revenueModel === 'sales_funnel'
+    ? Math.max(0, previous.actualMeetings)
+    : Math.max(0, previous.actualCustomers);
+  const carriedShortfall = Math.max(baseTarget - actual, 0);
+
+  return {
+    baseTarget,
+    carriedShortfall,
+    nextTarget: baseTarget + carriedShortfall,
+    targetLabel: revenueModel === 'sales_funnel' ? '商談' : '顧客',
   };
 }
 
