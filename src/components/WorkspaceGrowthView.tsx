@@ -26,6 +26,8 @@ import {
   previousWeekStart,
   previousBusinessDate,
   isDateInWeek,
+  businessDatesForWeek,
+  calculateDailyWeekSummary,
   shiftYearMonth,
   type DailySalesActivity,
   type MonthlySalesEntry,
@@ -33,6 +35,7 @@ import {
 } from '@/lib/monthlySalesProgress';
 
 const yen = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 });
+const shortDate = new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short', timeZone: 'UTC' });
 
 function todayInJapan(): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -186,6 +189,10 @@ export default function WorkspaceGrowthView({
       ? dailyActivities[previousBusinessDate(activityDate)]
       : undefined,
   ), [weeklyDailyPace.requiredPerBusinessDay, dailyActivities, activityDate, weekStart]);
+  const businessDates = useMemo(() => businessDatesForWeek(weekStart), [weekStart]);
+  const dailyWeekSummary = useMemo(() => calculateDailyWeekSummary(
+    businessDates.flatMap((date) => dailyActivities[date] ? [dailyActivities[date]] : []),
+  ), [businessDates, dailyActivities]);
   const fundingWeeklyAction = useMemo(() => calculateFundingWeeklyAction({
     recovery: fundingSalesRecovery,
     revenueModel: draft.revenueModel,
@@ -1010,6 +1017,43 @@ export default function WorkspaceGrowthView({
                 <Save className="h-4 w-4" />
                 {dailySaving ? '保存中…' : '今日の実績を保存'}
               </button>
+
+              <div className="border-t border-sunboo-mist pt-4">
+                <div className="flex flex-wrap items-end justify-between gap-2">
+                  <div>
+                    <h4 className="font-bold text-sunboo-ink">今週の日次実績</h4>
+                    <p className="mt-1 text-xs text-sunboo-ink-muted">月曜日から金曜日までの保存状況です。</p>
+                  </div>
+                  <p className="text-sm font-semibold text-sunboo-ink">
+                    合計 目標{dailyWeekSummary.target}{weeklyGoalSummary.unit}・実績
+                    {dailyWeekSummary.actual}{weeklyGoalSummary.unit}・あと
+                    {dailyWeekSummary.remaining}{weeklyGoalSummary.unit}（{dailyWeekSummary.achievementRate}%）
+                  </p>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  {businessDates.map((date) => {
+                    const activity = dailyActivities[date];
+                    return (
+                      <div key={date} className="grid gap-2 rounded-lg border border-sunboo-mist px-3 py-3 sm:grid-cols-[8rem_1fr_auto] sm:items-center">
+                        <p className="font-semibold text-sunboo-ink">
+                          {shortDate.format(new Date(`${date}T00:00:00Z`))}
+                        </p>
+                        {activity ? (
+                          <div className="min-w-0 text-sm text-sunboo-ink">
+                            <p>目標{activity.targetUnits}{weeklyGoalSummary.unit}・実績{activity.actualUnits}{weeklyGoalSummary.unit}</p>
+                            <p className="mt-1 truncate text-xs text-sunboo-ink-muted">{activity.actionPlan}</p>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-sunboo-ink-muted">未入力</p>
+                        )}
+                        <button type="button" className="btn-secondary" onClick={() => changeActivityDate(date)}>
+                          入力・確認
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
 
