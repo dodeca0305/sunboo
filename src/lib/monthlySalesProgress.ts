@@ -338,6 +338,18 @@ export function calculateWeeklyCarryoverTarget(
   };
 }
 
+export function hasMeaningfulWeeklyActivity(activity: WeeklySalesActivity | undefined): boolean {
+  if (!activity) return false;
+  return activity.targetMeetings > 0
+    || activity.actualMeetings > 0
+    || activity.actualDeals > 0
+    || activity.targetCustomers > 0
+    || activity.actualCustomers > 0
+    || activity.actualPurchases > 0
+    || activity.actualRevenue > 0
+    || activity.actionNote.trim().length > 0;
+}
+
 export function currentYearMonth(now = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Tokyo',

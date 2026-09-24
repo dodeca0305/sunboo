@@ -9,6 +9,7 @@ import {
   calculateFundingSalesRecovery,
   calculateFundingWeeklyAction,
   calculateWeeklyCarryoverTarget,
+  hasMeaningfulWeeklyActivity,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
@@ -315,6 +316,34 @@ test('前週目標を達成した場合は翌週目標を増やさない', () =>
     nextTarget: 100,
     targetLabel: '顧客',
   });
+});
+
+test('全項目が0の保存行は未入力として扱う', () => {
+  assert.equal(hasMeaningfulWeeklyActivity({
+    weekStart: '2026-09-28',
+    targetMeetings: 0,
+    actualMeetings: 0,
+    actualDeals: 0,
+    targetCustomers: 0,
+    actualCustomers: 0,
+    actualPurchases: 0,
+    actualRevenue: 0,
+    actionNote: '',
+  }), false);
+});
+
+test('目標・実績・振り返りのいずれかがあれば入力済みとして扱う', () => {
+  assert.equal(hasMeaningfulWeeklyActivity({
+    weekStart: '2026-09-28',
+    targetMeetings: 0,
+    actualMeetings: 0,
+    actualDeals: 0,
+    targetCustomers: 0,
+    actualCustomers: 0,
+    actualPurchases: 0,
+    actualRevenue: 0,
+    actionNote: '来週再提案する',
+  }), true);
 });
 
 test('商談モデルから見込売上と追加商談数を計算する', () => {
