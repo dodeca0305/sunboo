@@ -11,6 +11,8 @@ import {
   calculateMonthlyOperatingProfit,
   calculateMonthlyCashFlow,
   buildCashFlowActions,
+  calculateFundingSalesRecovery,
+  calculateFundingWeeklyAction,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
@@ -91,6 +93,10 @@ export default function WorkspaceGrowthView({
     () => buildCashFlowActions(draft, cashFlowProgress),
     [draft, cashFlowProgress],
   );
+  const fundingSalesRecovery = useMemo(
+    () => calculateFundingSalesRecovery(draft, cashFlowProgress),
+    [draft, cashFlowProgress],
+  );
   const driverPlan = useMemo(() => calculateSalesDriverPlan(draft), [draft]);
   const monthEnd = useMemo(() => {
     const [year, month] = draft.yearMonth.split('-').map(Number);
@@ -108,6 +114,12 @@ export default function WorkspaceGrowthView({
     remainingCustomers: driverPlan.additionalCustomersNeeded,
     monthEnd,
   }), [weeklyDraft, driverPlan.additionalCustomersNeeded, monthEnd]);
+  const fundingWeeklyAction = useMemo(() => calculateFundingWeeklyAction({
+    recovery: fundingSalesRecovery,
+    revenueModel: draft.revenueModel,
+    conversionRate: draft.conversionRate,
+    weeksRemaining: weeklyProgress.weeksRemaining,
+  }), [fundingSalesRecovery, draft.revenueModel, draft.conversionRate, weeklyProgress.weeksRemaining]);
 
   function changeMonth(nextMonth: string) {
     if (!/^\d{4}-\d{2}$/.test(nextMonth)) return;
@@ -626,6 +638,52 @@ export default function WorkspaceGrowthView({
                     </li>
                   ))}
                 </ol>
+                <div className="mt-4 rounded-lg border border-amber-300 bg-white p-4">
+                  <p className="font-bold">売上で不足を埋める場合の目安</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <Metric
+                      label="最低限必要な追加入金"
+                      value={yen.format(fundingSalesRecovery.requiredCashCollection)}
+                      caution
+                    />
+                    <Metric
+                      label="粗利率を考慮した追加売上"
+                      value={fundingSalesRecovery.requiredAdditionalRevenue === null
+                        ? '算出不可'
+                        : yen.format(fundingSalesRecovery.requiredAdditionalRevenue)}
+                      caution
+                    />
+                    <Metric
+                      label={`必要な${fundingSalesRecovery.unitLabel}`}
+                      value={fundingSalesRecovery.requiredUnits === null
+                        ? '算出不可'
+                        : `${fundingSalesRecovery.requiredUnits}件`}
+                      caution
+                    />
+                  </div>
+                  <p className="mt-3 text-xs">
+                    当月中に入金される売上を前提とした目安です。
+                    {fundingSalesRecovery.grossProfitMargin === null
+                      ? ' 実績売上・売上原価から正の粗利率を確認できないため、追加売上と件数は算出していません。'
+                      : ` 現在の実績粗利率${fundingSalesRecovery.grossProfitMargin}%と平均単価を使用しています。`}
+                  </p>
+                  {fundingSalesRecovery.requiredUnits !== null && (
+                    <div className="mt-4 rounded-lg bg-amber-100 p-3">
+                      <p className="text-xs font-semibold">今週からの追加目標（残り{fundingWeeklyAction.weeksRemaining}週）</p>
+                      <p className="mt-1 text-lg font-bold">
+                        毎週あと{fundingWeeklyAction.requiredUnitsPerWeek}件の{fundingWeeklyAction.unitLabel}
+                        {draft.revenueModel === 'sales_funnel' && (
+                          fundingWeeklyAction.requiredMeetingsPerWeek === null
+                            ? '（必要商談数は成約率入力後に算出）'
+                            : `・${fundingWeeklyAction.requiredMeetingsPerWeek}件の商談`
+                        )}
+                      </p>
+                      <p className="mt-1 text-xs">
+                        週ごとの実績を下の入力欄へ記録し、翌週の必要数を見直してください。
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
