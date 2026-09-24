@@ -13,17 +13,38 @@ import {
   buildCashFlowActions,
   calculateFundingSalesRecovery,
   calculateFundingWeeklyAction,
+  calculateWeeklyCarryoverTarget,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
   currentWeekStart,
   currentYearMonth,
+  previousWeekStart,
   shiftYearMonth,
   type MonthlySalesEntry,
   type WeeklySalesActivity,
 } from '@/lib/monthlySalesProgress';
 
 const yen = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 });
+
+function emptyWeeklyActivity(
+  weekStart: string,
+  previous: WeeklySalesActivity | undefined,
+  revenueModel: MonthlySalesEntry['revenueModel'],
+): WeeklySalesActivity {
+  const carryover = previous ? calculateWeeklyCarryoverTarget(previous, revenueModel) : null;
+  return {
+    weekStart,
+    targetMeetings: revenueModel === 'sales_funnel' ? carryover?.nextTarget ?? 0 : 0,
+    actualMeetings: 0,
+    actualDeals: 0,
+    targetCustomers: revenueModel === 'customer_repeat' ? carryover?.nextTarget ?? 0 : 0,
+    actualCustomers: 0,
+    actualPurchases: 0,
+    actualRevenue: 0,
+    actionNote: '',
+  };
+}
 
 function emptyEntry(yearMonth: string, linkedTaxPayments = 0): MonthlySalesEntry {
   return {
@@ -72,17 +93,11 @@ export default function WorkspaceGrowthView({
   const initialWeeklyMap = Object.fromEntries(initialWeeklyActivities.map((activity) => [activity.weekStart, activity]));
   const [weeklyActivities, setWeeklyActivities] = useState<Record<string, WeeklySalesActivity>>(initialWeeklyMap);
   const [weekStart, setWeekStart] = useState(currentWeekStart());
-  const [weeklyDraft, setWeeklyDraft] = useState<WeeklySalesActivity>(initialWeeklyMap[currentWeekStart()] ?? {
-    weekStart: currentWeekStart(),
-    targetMeetings: 0,
-    actualMeetings: 0,
-    actualDeals: 0,
-    targetCustomers: 0,
-    actualCustomers: 0,
-    actualPurchases: 0,
-    actualRevenue: 0,
-    actionNote: '',
-  });
+  const initialWeek = currentWeekStart();
+  const [weeklyDraft, setWeeklyDraft] = useState<WeeklySalesActivity>(
+    initialWeeklyMap[initialWeek]
+      ?? emptyWeeklyActivity(initialWeek, initialWeeklyMap[previousWeekStart(initialWeek)], selected.revenueModel),
+  );
   const [weeklySaving, setWeeklySaving] = useState(false);
   const [weeklySaved, setWeeklySaved] = useState(false);
   const progress = useMemo(() => calculateMonthlySalesProgress(draft), [draft]);
@@ -190,20 +205,20 @@ export default function WorkspaceGrowthView({
   function changeWeek(nextWeek: string) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(nextWeek)) return;
     setWeekStart(nextWeek);
-    setWeeklyDraft(weeklyActivities[nextWeek] ?? {
-      weekStart: nextWeek,
-      targetMeetings: 0,
-      actualMeetings: 0,
-      actualDeals: 0,
-      targetCustomers: 0,
-      actualCustomers: 0,
-      actualPurchases: 0,
-      actualRevenue: 0,
-      actionNote: '',
-    });
+    setWeeklyDraft(
+      weeklyActivities[nextWeek]
+        ?? emptyWeeklyActivity(nextWeek, weeklyActivities[previousWeekStart(nextWeek)], draft.revenueModel),
+    );
     setWeeklySaved(false);
     setError(null);
   }
+
+  const weeklyCarryover = useMemo(() => {
+    if (weeklyActivities[weekStart]) return null;
+    const previous = weeklyActivities[previousWeekStart(weekStart)];
+    if (!previous) return null;
+    return calculateWeeklyCarryoverTarget(previous, draft.revenueModel);
+  }, [weeklyActivities, weekStart, draft.revenueModel]);
 
   async function saveWeeklyActivity() {
     if (draft.revenueModel === 'sales_funnel' && weeklyDraft.targetMeetings <= 0) {
@@ -722,6 +737,13 @@ export default function WorkspaceGrowthView({
             <div className="information-card information-card--success flex items-center gap-2 text-sm">
               <CheckCircle2 className="h-4 w-4" />週間実績を保存しました。
             </div>
+          )}
+
+          {weeklyCarryover && weeklyCarryover.carriedShortfall > 0 && (
+            <InformationCard kind="info">
+              前週の未達{weeklyCarryover.carriedShortfall}件を繰り越し、今週の{weeklyCarryover.targetLabel}目標を
+              {weeklyCarryover.baseTarget}件から{weeklyCarryover.nextTarget}件へ自動調整しました。
+            </InformationCard>
           )}
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

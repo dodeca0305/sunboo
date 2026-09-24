@@ -8,11 +8,13 @@ import {
   buildCashFlowActions,
   calculateFundingSalesRecovery,
   calculateFundingWeeklyAction,
+  calculateWeeklyCarryoverTarget,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
   currentWeekStart,
   currentYearMonth,
+  previousWeekStart,
   shiftYearMonth,
 } from './monthlySalesProgress.ts';
 
@@ -280,6 +282,38 @@ test('店舗型は必要購入数を週単位へ割り振る', () => {
     requiredUnitsPerWeek: 14,
     requiredMeetingsPerWeek: null,
     unitLabel: '購入',
+  });
+});
+
+test('前週の開始日を年・月をまたいで取得できる', () => {
+  assert.equal(previousWeekStart('2027-01-04'), '2026-12-28');
+});
+
+test('前週の商談未達分を翌週の通常目標へ上乗せする', () => {
+  assert.deepEqual(calculateWeeklyCarryoverTarget({
+    targetMeetings: 10,
+    actualMeetings: 7,
+    targetCustomers: 0,
+    actualCustomers: 0,
+  }, 'sales_funnel'), {
+    baseTarget: 10,
+    carriedShortfall: 3,
+    nextTarget: 13,
+    targetLabel: '商談',
+  });
+});
+
+test('前週目標を達成した場合は翌週目標を増やさない', () => {
+  assert.deepEqual(calculateWeeklyCarryoverTarget({
+    targetMeetings: 0,
+    actualMeetings: 0,
+    targetCustomers: 100,
+    actualCustomers: 110,
+  }, 'customer_repeat'), {
+    baseTarget: 100,
+    carriedShortfall: 0,
+    nextTarget: 100,
+    targetLabel: '顧客',
   });
 });
 
