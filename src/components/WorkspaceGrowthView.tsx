@@ -14,6 +14,7 @@ import {
   calculateFundingSalesRecovery,
   calculateFundingWeeklyAction,
   calculateWeeklyCarryoverTarget,
+  hasMeaningfulWeeklyActivity,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
   calculateWeeklySalesProgress,
@@ -204,17 +205,19 @@ export default function WorkspaceGrowthView({
 
   function changeWeek(nextWeek: string) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(nextWeek)) return;
+    const existingActivity = weeklyActivities[nextWeek];
     setWeekStart(nextWeek);
     setWeeklyDraft(
-      weeklyActivities[nextWeek]
-        ?? emptyWeeklyActivity(nextWeek, weeklyActivities[previousWeekStart(nextWeek)], draft.revenueModel),
+      hasMeaningfulWeeklyActivity(existingActivity)
+        ? existingActivity!
+        : emptyWeeklyActivity(nextWeek, weeklyActivities[previousWeekStart(nextWeek)], draft.revenueModel),
     );
     setWeeklySaved(false);
     setError(null);
   }
 
   const weeklyCarryover = useMemo(() => {
-    if (weeklyActivities[weekStart]) return null;
+    if (hasMeaningfulWeeklyActivity(weeklyActivities[weekStart])) return null;
     const previous = weeklyActivities[previousWeekStart(weekStart)];
     if (!previous) return null;
     return calculateWeeklyCarryoverTarget(previous, draft.revenueModel);
