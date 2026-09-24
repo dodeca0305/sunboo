@@ -116,6 +116,40 @@ export type WeeklyCarryoverTarget = {
   targetLabel: '商談' | '顧客';
 };
 
+export type WeeklyGoalSummary = {
+  target: number;
+  actual: number;
+  remaining: number;
+  achievementRate: number;
+  achieved: boolean;
+  label: '商談' | '顧客';
+  unit: '件' | '人・社';
+};
+
+export function calculateWeeklyGoalSummary(
+  activity: Pick<WeeklySalesActivity,
+    'targetMeetings' | 'actualMeetings' | 'targetCustomers' | 'actualCustomers'
+  >,
+  revenueModel: RevenueModel,
+): WeeklyGoalSummary {
+  const target = Math.max(0, revenueModel === 'sales_funnel'
+    ? activity.targetMeetings
+    : activity.targetCustomers);
+  const actual = Math.max(0, revenueModel === 'sales_funnel'
+    ? activity.actualMeetings
+    : activity.actualCustomers);
+
+  return {
+    target,
+    actual,
+    remaining: Math.max(target - actual, 0),
+    achievementRate: target > 0 ? Math.round((actual / target) * 1000) / 10 : 0,
+    achieved: target > 0 && actual >= target,
+    label: revenueModel === 'sales_funnel' ? '商談' : '顧客',
+    unit: revenueModel === 'sales_funnel' ? '件' : '人・社',
+  };
+}
+
 export function calculateMonthlyGrossProfit(
   entry: Pick<MonthlySalesEntry,
     'targetGrossProfit' | 'actualRevenue' | 'actualCostOfSales'

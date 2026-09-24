@@ -14,6 +14,7 @@ import {
   calculateFundingSalesRecovery,
   calculateFundingWeeklyAction,
   calculateWeeklyCarryoverTarget,
+  calculateWeeklyGoalSummary,
   hasMeaningfulWeeklyActivity,
   calculateSalesDriverPlan,
   calculateWeeklyCustomerProgress,
@@ -130,6 +131,10 @@ export default function WorkspaceGrowthView({
     remainingCustomers: driverPlan.additionalCustomersNeeded,
     monthEnd,
   }), [weeklyDraft, driverPlan.additionalCustomersNeeded, monthEnd]);
+  const weeklyGoalSummary = useMemo(
+    () => calculateWeeklyGoalSummary(weeklyDraft, draft.revenueModel),
+    [weeklyDraft, draft.revenueModel],
+  );
   const fundingWeeklyAction = useMemo(() => calculateFundingWeeklyAction({
     recovery: fundingSalesRecovery,
     revenueModel: draft.revenueModel,
@@ -747,6 +752,39 @@ export default function WorkspaceGrowthView({
               前週の未達{weeklyCarryover.carriedShortfall}件を繰り越し、今週の{weeklyCarryover.targetLabel}目標を
               {weeklyCarryover.baseTarget}件から{weeklyCarryover.nextTarget}件へ自動調整しました。
             </InformationCard>
+          )}
+
+          {weeklyGoalSummary.target > 0 && (
+            <div className={`rounded-xl border px-4 py-4 ${weeklyGoalSummary.achieved
+              ? 'border-sunboo-moss bg-sunboo-paper'
+              : 'border-sunboo-morning-sun bg-sunboo-warm-paper'
+            }`}>
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold text-sunboo-ink-muted">今週の{weeklyGoalSummary.label}進捗</p>
+                  <p className="mt-1 text-lg font-bold text-sunboo-ink">
+                    目標{weeklyGoalSummary.target}{weeklyGoalSummary.unit}・実績{weeklyGoalSummary.actual}{weeklyGoalSummary.unit}
+                  </p>
+                </div>
+                <p className={`text-xl font-bold ${weeklyGoalSummary.achieved
+                  ? 'text-sunboo-moss'
+                  : 'text-sunboo-morning-sun-dark'
+                }`}>
+                  {weeklyGoalSummary.achieved
+                    ? '目標達成'
+                    : `あと${weeklyGoalSummary.remaining}${weeklyGoalSummary.unit}`}
+                </p>
+              </div>
+              <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-sunboo-mist">
+                <div
+                  className="h-full rounded-full bg-sunboo-moss transition-all"
+                  style={{ width: `${Math.min(weeklyGoalSummary.achievementRate, 100)}%` }}
+                />
+              </div>
+              <p className="mt-1 text-right text-xs font-semibold text-sunboo-ink-muted">
+                達成率 {weeklyGoalSummary.achievementRate}%
+              </p>
+            </div>
           )}
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
