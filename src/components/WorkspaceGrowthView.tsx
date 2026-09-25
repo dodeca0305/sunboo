@@ -29,6 +29,7 @@ import {
   isDateInWeek,
   businessDatesForWeek,
   calculateDailyWeekSummary,
+  calculateDailyExecutionStatus,
   buildWeeklyDailyReflection,
   buildNextWeekActionDraft,
   buildFiveDayExecutionPlan,
@@ -199,6 +200,10 @@ export default function WorkspaceGrowthView({
   const dailyWeekSummary = useMemo(() => calculateDailyWeekSummary(
     businessDates.flatMap((date) => dailyActivities[date] ? [dailyActivities[date]] : []),
   ), [businessDates, dailyActivities]);
+  const dailyExecutionStatus = useMemo(
+    () => calculateDailyExecutionStatus(dailyDraft),
+    [dailyDraft],
+  );
   const weeklyDailyReflection = useMemo(() => buildWeeklyDailyReflection(
     businessDates.flatMap((date) => dailyActivities[date] ? [dailyActivities[date]] : []),
   ), [businessDates, dailyActivities]);
@@ -1048,6 +1053,53 @@ export default function WorkspaceGrowthView({
                   前営業日の未達{dailyCarryover.carriedShortfall}{weeklyGoalSummary.unit}を、今日の目標へ繰り越しています。
                 </InformationCard>
               )}
+              <div className={`rounded-xl border p-4 ${dailyExecutionStatus.achieved
+                ? 'border-sunboo-moss bg-sunboo-moss/5'
+                : 'border-sunboo-morning-sun bg-sunboo-warm-paper'
+              }`}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold text-sunboo-ink-muted">
+                      {activityDate === initialActivityDate ? '今日の実行状況' : `${shortDate.format(new Date(`${activityDate}T00:00:00Z`))}の実行状況`}
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-sunboo-ink">
+                      目標{dailyExecutionStatus.target}{weeklyGoalSummary.unit}・実績
+                      {dailyExecutionStatus.actual}{weeklyGoalSummary.unit}
+                    </p>
+                  </div>
+                  <p className={`text-xl font-bold ${dailyExecutionStatus.achieved
+                    ? 'text-sunboo-moss'
+                    : 'text-sunboo-morning-sun-dark'
+                  }`}>
+                    {dailyExecutionStatus.achieved
+                      ? '今日の目標達成'
+                      : `あと${dailyExecutionStatus.remaining}${weeklyGoalSummary.unit}`}
+                  </p>
+                </div>
+                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-sunboo-mist">
+                  <div
+                    className="h-full rounded-full bg-sunboo-moss transition-all"
+                    style={{ width: `${Math.min(dailyExecutionStatus.achievementRate, 100)}%` }}
+                  />
+                </div>
+                <p className="mt-1 text-right text-xs font-semibold text-sunboo-ink-muted">
+                  達成率 {dailyExecutionStatus.achievementRate}%
+                </p>
+                <div className="mt-3 grid gap-3 border-t border-sunboo-mist pt-3 lg:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-semibold text-sunboo-ink-muted">今日やる行動</p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm font-semibold text-sunboo-ink">
+                      {dailyDraft.actionPlan.trim() || 'まだ入力されていません。'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-sunboo-ink-muted">成果・振り返り</p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-sunboo-ink">
+                      {dailyDraft.outcomeReview.trim() || 'まだ入力されていません。'}
+                    </p>
+                  </div>
+                </div>
+              </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
                   <label className="form-label" htmlFor="growth-activity-date">対象日</label>
