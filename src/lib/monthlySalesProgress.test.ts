@@ -20,6 +20,7 @@ import {
   isDateInWeek,
   businessDatesForWeek,
   calculateDailyWeekSummary,
+  calculateDailyExecutionStatus,
   buildWeeklyDailyReflection,
   buildNextWeekActionDraft,
   buildFiveDayExecutionPlan,
@@ -29,6 +30,26 @@ import {
   nextWeekStart,
   shiftYearMonth,
 } from './monthlySalesProgress.ts';
+
+test('日次の目標・実績・残り・達成率を計算する', () => {
+  assert.deepEqual(calculateDailyExecutionStatus({ targetUnits: 5, actualUnits: 2 }), {
+    target: 5,
+    actual: 2,
+    remaining: 3,
+    achievementRate: 40,
+    achieved: false,
+  });
+});
+
+test('日次目標を超えた場合は達成済みとして残りを0にする', () => {
+  assert.deepEqual(calculateDailyExecutionStatus({ targetUnits: 3, actualUnits: 4 }), {
+    target: 3,
+    actual: 4,
+    remaining: 0,
+    achievementRate: 133.3,
+    achieved: true,
+  });
+});
 
 test('日本時間の年月を返す', () => {
   assert.equal(currentYearMonth(new Date('2026-08-31T15:30:00Z')), '2026-09');

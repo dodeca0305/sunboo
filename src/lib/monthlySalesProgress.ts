@@ -153,6 +153,14 @@ export type DailyWeekSummary = {
   achievementRate: number;
 };
 
+export type DailyExecutionStatus = {
+  target: number;
+  actual: number;
+  remaining: number;
+  achievementRate: number;
+  achieved: boolean;
+};
+
 export type WeeklyDailyReflection = {
   recordedDays: number;
   achievedDays: number;
@@ -291,6 +299,20 @@ export function calculateDailyWeekSummary(activities: DailySalesActivity[]): Dai
     actual,
     remaining: Math.max(target - actual, 0),
     achievementRate: target > 0 ? Math.round((actual / target) * 1000) / 10 : 0,
+  };
+}
+
+export function calculateDailyExecutionStatus(
+  activity: Pick<DailySalesActivity, 'targetUnits' | 'actualUnits'>,
+): DailyExecutionStatus {
+  const target = Math.max(0, activity.targetUnits);
+  const actual = Math.max(0, activity.actualUnits);
+  return {
+    target,
+    actual,
+    remaining: Math.max(target - actual, 0),
+    achievementRate: target > 0 ? Math.round((actual / target) * 1000) / 10 : 0,
+    achieved: target > 0 && actual >= target,
   };
 }
 
