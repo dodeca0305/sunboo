@@ -332,6 +332,16 @@ export function buildWeeklyDailyReflection(activities: DailySalesActivity[]): We
   };
 }
 
+export function buildNextWeekActionDraft(reflection: WeeklyDailyReflection): string {
+  const continuedActions = [...new Set(reflection.outcomes.map((item) => item.actionPlan.trim()).filter(Boolean))];
+  const improvedActions = [...new Set(reflection.improvements.map((item) => item.actionPlan.trim()).filter(Boolean))];
+  const lines: string[] = [];
+  if (continuedActions.length > 0) lines.push(`【継続する行動】${continuedActions.slice(0, 3).join('／')}`);
+  if (improvedActions.length > 0) lines.push(`【改善する行動】${improvedActions.slice(0, 3).join('／')}`);
+  lines.push(`【翌週の方針】${reflection.nextWeekMessage}`);
+  return lines.join('\n').slice(0, 500);
+}
+
 export function calculateMonthlyGrossProfit(
   entry: Pick<MonthlySalesEntry,
     'targetGrossProfit' | 'actualRevenue' | 'actualCostOfSales'
@@ -529,6 +539,13 @@ export function previousWeekStart(weekStart: string): string {
     throw new Error('週の開始日が不正です。');
   }
   date.setUTCDate(date.getUTCDate() - 7);
+  return date.toISOString().slice(0, 10);
+}
+
+export function nextWeekStart(weekStart: string): string {
+  const date = new Date(`${weekStart}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return weekStart;
+  date.setUTCDate(date.getUTCDate() + 7);
   return date.toISOString().slice(0, 10);
 }
 
