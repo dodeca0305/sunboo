@@ -21,9 +21,11 @@ import {
   businessDatesForWeek,
   calculateDailyWeekSummary,
   buildWeeklyDailyReflection,
+  buildNextWeekActionDraft,
   currentWeekStart,
   currentYearMonth,
   previousWeekStart,
+  nextWeekStart,
   shiftYearMonth,
 } from './monthlySalesProgress.ts';
 
@@ -298,6 +300,10 @@ test('前週の開始日を年・月をまたいで取得できる', () => {
   assert.equal(previousWeekStart('2027-01-04'), '2026-12-28');
 });
 
+test('翌週の開始日を年・月をまたいで取得できる', () => {
+  assert.equal(nextWeekStart('2026-09-28'), '2026-10-05');
+});
+
 test('前週の商談未達分を翌週の通常目標へ上乗せする', () => {
   assert.deepEqual(calculateWeeklyCarryoverTarget({
     targetMeetings: 10,
@@ -562,6 +568,18 @@ test('日次実績から週間の成果と改善点を整理する', () => {
     ],
     nextWeekMessage: '未達日の行動量・時間帯・対象顧客を見直し、翌週の具体的な行動へ反映しましょう。',
   });
+});
+
+test('週間振り返りから翌週の行動計画を作る', () => {
+  const reflection = buildWeeklyDailyReflection([
+    { activityDate: '2026-09-24', targetUnits: 3, actualUnits: 2, actionPlan: '新規架電10件', outcomeReview: '1件商談化' },
+    { activityDate: '2026-09-25', targetUnits: 4, actualUnits: 4, actionPlan: '既存客へ提案', outcomeReview: '2件受注' },
+  ]);
+  assert.equal(buildNextWeekActionDraft(reflection), [
+    '【継続する行動】新規架電10件／既存客へ提案',
+    '【改善する行動】新規架電10件',
+    '【翌週の方針】未達日の行動量・時間帯・対象顧客を見直し、翌週の具体的な行動へ反映しましょう。',
+  ].join('\n'));
 });
 
 test('店舗型の週間実績から平均単価と顧客不足を計算する', () => {

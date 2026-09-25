@@ -24,11 +24,13 @@ import {
   currentWeekStart,
   currentYearMonth,
   previousWeekStart,
+  nextWeekStart,
   previousBusinessDate,
   isDateInWeek,
   businessDatesForWeek,
   calculateDailyWeekSummary,
   buildWeeklyDailyReflection,
+  buildNextWeekActionDraft,
   shiftYearMonth,
   type DailySalesActivity,
   type MonthlySalesEntry,
@@ -270,12 +272,15 @@ export default function WorkspaceGrowthView({
     setSaved(true);
   }
 
-  function changeWeek(nextWeek: string) {
+  function changeWeek(nextWeek: string, suggestedActionNote?: string) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(nextWeek)) return;
     const existingActivity = weeklyActivities[nextWeek];
-    const nextWeekly = hasMeaningfulWeeklyActivity(existingActivity)
+    const baseWeekly = hasMeaningfulWeeklyActivity(existingActivity)
       ? existingActivity!
       : emptyWeeklyActivity(nextWeek, weeklyActivities[previousWeekStart(nextWeek)], draft.revenueModel);
+    const nextWeekly = suggestedActionNote && !baseWeekly.actionNote.trim()
+      ? { ...baseWeekly, actionNote: suggestedActionNote }
+      : baseWeekly;
     setWeekStart(nextWeek);
     setWeeklyDraft(nextWeekly);
     setWeeklySaved(false);
@@ -296,6 +301,10 @@ export default function WorkspaceGrowthView({
     );
     setDailySaved(false);
     setError(null);
+  }
+
+  function prepareNextWeekPlan() {
+    changeWeek(nextWeekStart(weekStart), buildNextWeekActionDraft(weeklyDailyReflection));
   }
 
   function changeActivityDate(nextDate: string) {
@@ -1127,6 +1136,10 @@ export default function WorkspaceGrowthView({
                     <p className="mt-4 border-t border-sunboo-moss/20 pt-3 text-sm font-semibold text-sunboo-ink">
                       翌週への提案：{weeklyDailyReflection.nextWeekMessage}
                     </p>
+                    <button type="button" className="btn-primary mt-4" onClick={prepareNextWeekPlan}>
+                      <ChevronRight className="h-4 w-4" />
+                      翌週の計画を作る
+                    </button>
                   </div>
                 )}
               </div>
