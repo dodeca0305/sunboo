@@ -22,6 +22,7 @@ import {
   calculateDailyWeekSummary,
   buildWeeklyDailyReflection,
   buildNextWeekActionDraft,
+  buildFiveDayExecutionPlan,
   currentWeekStart,
   currentYearMonth,
   previousWeekStart,
@@ -580,6 +581,34 @@ test('週間振り返りから翌週の行動計画を作る', () => {
     '【改善する行動】新規架電10件',
     '【翌週の方針】未達日の行動量・時間帯・対象顧客を見直し、翌週の具体的な行動へ反映しましょう。',
   ].join('\n'));
+});
+
+test('週間目標を月曜日から金曜日へ均等に配分する', () => {
+  assert.deepEqual(buildFiveDayExecutionPlan({
+    weekStart: '2026-09-28',
+    weeklyTarget: 13,
+    actionPlan: '新規架電と既存顧客への提案',
+  }).map((activity) => [activity.activityDate, activity.targetUnits]), [
+    ['2026-09-28', 3],
+    ['2026-09-29', 3],
+    ['2026-09-30', 3],
+    ['2026-10-01', 2],
+    ['2026-10-02', 2],
+  ]);
+});
+
+test('5営業日の計画作成時に入力済みの日次実績を上書きしない', () => {
+  const existing = {
+    activityDate: '2026-09-29', targetUnits: 4, actualUnits: 1,
+    actionPlan: '個別に決めた行動', outcomeReview: '反応あり',
+  };
+  const plan = buildFiveDayExecutionPlan({
+    weekStart: '2026-09-28',
+    weeklyTarget: 13,
+    actionPlan: '週間方針',
+    existingActivities: [existing],
+  });
+  assert.deepEqual(plan[1], existing);
 });
 
 test('店舗型の週間実績から平均単価と顧客不足を計算する', () => {
