@@ -28,6 +28,7 @@ import {
   isDateInWeek,
   businessDatesForWeek,
   calculateDailyWeekSummary,
+  buildWeeklyDailyReflection,
   shiftYearMonth,
   type DailySalesActivity,
   type MonthlySalesEntry,
@@ -191,6 +192,9 @@ export default function WorkspaceGrowthView({
   ), [weeklyDailyPace.requiredPerBusinessDay, dailyActivities, activityDate, weekStart]);
   const businessDates = useMemo(() => businessDatesForWeek(weekStart), [weekStart]);
   const dailyWeekSummary = useMemo(() => calculateDailyWeekSummary(
+    businessDates.flatMap((date) => dailyActivities[date] ? [dailyActivities[date]] : []),
+  ), [businessDates, dailyActivities]);
+  const weeklyDailyReflection = useMemo(() => buildWeeklyDailyReflection(
     businessDates.flatMap((date) => dailyActivities[date] ? [dailyActivities[date]] : []),
   ), [businessDates, dailyActivities]);
   const fundingWeeklyAction = useMemo(() => calculateFundingWeeklyAction({
@@ -1073,6 +1077,58 @@ export default function WorkspaceGrowthView({
                     );
                   })}
                 </div>
+                {weeklyDailyReflection.recordedDays > 0 && (
+                  <div className="mt-5 rounded-xl border border-sunboo-moss/30 bg-sunboo-moss/5 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <h4 className="font-bold text-sunboo-ink">週間振り返り</h4>
+                        <p className="mt-1 text-xs text-sunboo-ink-muted">日々の結果から、翌週へ活かすポイントを整理します。</p>
+                      </div>
+                      <p className="text-sm font-semibold text-sunboo-ink">
+                        記録{weeklyDailyReflection.recordedDays}日・達成{weeklyDailyReflection.achievedDays}日・未達{weeklyDailyReflection.shortfallDays}日
+                      </p>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                      <div>
+                        <p className="text-sm font-bold text-sunboo-moss">記録した成果・学び</p>
+                        {weeklyDailyReflection.outcomes.length > 0 ? (
+                          <ul className="mt-2 space-y-2">
+                            {weeklyDailyReflection.outcomes.map((outcome) => (
+                              <li key={outcome.activityDate} className="rounded-lg bg-white/70 p-3 text-sm text-sunboo-ink">
+                                <span className="font-semibold">{shortDate.format(new Date(`${outcome.activityDate}T00:00:00Z`))}</span>
+                                <p className="mt-1">{outcome.outcomeReview}</p>
+                                <p className="mt-1 text-xs text-sunboo-ink-muted">行動：{outcome.actionPlan}</p>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="mt-2 text-sm text-sunboo-ink-muted">成果・振り返りはまだ入力されていません。</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-bold text-sunboo-morning-sun-dark">改善する行動</p>
+                        {weeklyDailyReflection.improvements.length > 0 ? (
+                          <ul className="mt-2 space-y-2">
+                            {weeklyDailyReflection.improvements.map((item) => (
+                              <li key={item.activityDate} className="rounded-lg bg-white/70 p-3 text-sm text-sunboo-ink">
+                                <span className="font-semibold">{shortDate.format(new Date(`${item.activityDate}T00:00:00Z`))}：あと{item.shortfall}{weeklyGoalSummary.unit}</span>
+                                <p className="mt-1 text-xs text-sunboo-ink-muted">行動：{item.actionPlan}</p>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="mt-2 text-sm text-sunboo-ink-muted">保存済みの日はすべて目標を達成しています。</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <p className="mt-4 border-t border-sunboo-moss/20 pt-3 text-sm font-semibold text-sunboo-ink">
+                      翌週への提案：{weeklyDailyReflection.nextWeekMessage}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
