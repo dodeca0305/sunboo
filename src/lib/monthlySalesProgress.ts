@@ -153,6 +153,24 @@ export type DailyWeekSummary = {
   achievementRate: number;
 };
 
+export type WeeklyDailyReflection = {
+  recordedDays: number;
+  achievedDays: number;
+  shortfallDays: number;
+  outcomes: Array<{
+    activityDate: string;
+    actionPlan: string;
+    outcomeReview: string;
+  }>;
+  improvements: Array<{
+    activityDate: string;
+    shortfall: number;
+    actionPlan: string;
+    outcomeReview: string;
+  }>;
+  nextWeekMessage: string;
+};
+
 export function calculateWeeklyGoalSummary(
   activity: Pick<WeeklySalesActivity,
     'targetMeetings' | 'actualMeetings' | 'targetCustomers' | 'actualCustomers'
@@ -273,6 +291,44 @@ export function calculateDailyWeekSummary(activities: DailySalesActivity[]): Dai
     actual,
     remaining: Math.max(target - actual, 0),
     achievementRate: target > 0 ? Math.round((actual / target) * 1000) / 10 : 0,
+  };
+}
+
+export function buildWeeklyDailyReflection(activities: DailySalesActivity[]): WeeklyDailyReflection {
+  const recorded = [...activities]
+    .filter((activity) => activity.targetUnits > 0 || activity.actualUnits > 0 || activity.actionPlan.trim() || activity.outcomeReview.trim())
+    .sort((left, right) => left.activityDate.localeCompare(right.activityDate));
+  const achievedDays = recorded.filter((activity) => activity.targetUnits > 0 && activity.actualUnits >= activity.targetUnits).length;
+  const improvements = recorded
+    .filter((activity) => activity.actualUnits < activity.targetUnits)
+    .map((activity) => ({
+      activityDate: activity.activityDate,
+      shortfall: Math.max(activity.targetUnits - activity.actualUnits, 0),
+      actionPlan: activity.actionPlan,
+      outcomeReview: activity.outcomeReview,
+    }));
+  const outcomes = recorded
+    .filter((activity) => activity.outcomeReview.trim())
+    .map((activity) => ({
+      activityDate: activity.activityDate,
+      actionPlan: activity.actionPlan,
+      outcomeReview: activity.outcomeReview.trim(),
+    }));
+
+  let nextWeekMessage = '日次目標と行動を入力し、成果につながる行動を記録しましょう。';
+  if (recorded.length > 0 && improvements.length > 0) {
+    nextWeekMessage = '未達日の行動量・時間帯・対象顧客を見直し、翌週の具体的な行動へ反映しましょう。';
+  } else if (recorded.length > 0) {
+    nextWeekMessage = '達成できた行動を翌週も再現し、成果メモを残して成功パターンにしましょう。';
+  }
+
+  return {
+    recordedDays: recorded.length,
+    achievedDays,
+    shortfallDays: improvements.length,
+    outcomes,
+    improvements,
+    nextWeekMessage,
   };
 }
 

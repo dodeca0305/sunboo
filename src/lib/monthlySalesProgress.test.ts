@@ -20,6 +20,7 @@ import {
   isDateInWeek,
   businessDatesForWeek,
   calculateDailyWeekSummary,
+  buildWeeklyDailyReflection,
   currentWeekStart,
   currentYearMonth,
   previousWeekStart,
@@ -541,6 +542,25 @@ test('保存済みの日次実績から週間合計を計算する', () => {
     actual: 5,
     remaining: 3,
     achievementRate: 62.5,
+  });
+});
+
+test('日次実績から週間の成果と改善点を整理する', () => {
+  assert.deepEqual(buildWeeklyDailyReflection([
+    { activityDate: '2026-09-24', targetUnits: 3, actualUnits: 2, actionPlan: '新規架電10件', outcomeReview: '1件商談化' },
+    { activityDate: '2026-09-25', targetUnits: 4, actualUnits: 4, actionPlan: '既存客へ提案', outcomeReview: '2件受注' },
+  ]), {
+    recordedDays: 2,
+    achievedDays: 1,
+    shortfallDays: 1,
+    outcomes: [
+      { activityDate: '2026-09-24', actionPlan: '新規架電10件', outcomeReview: '1件商談化' },
+      { activityDate: '2026-09-25', actionPlan: '既存客へ提案', outcomeReview: '2件受注' },
+    ],
+    improvements: [
+      { activityDate: '2026-09-24', shortfall: 1, actionPlan: '新規架電10件', outcomeReview: '1件商談化' },
+    ],
+    nextWeekMessage: '未達日の行動量・時間帯・対象顧客を見直し、翌週の具体的な行動へ反映しましょう。',
   });
 });
 
