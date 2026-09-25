@@ -342,6 +342,42 @@ export function buildNextWeekActionDraft(reflection: WeeklyDailyReflection): str
   return lines.join('\n').slice(0, 500);
 }
 
+export function buildFiveDayExecutionPlan({
+  weekStart,
+  weeklyTarget,
+  actionPlan,
+  existingActivities = [],
+}: {
+  weekStart: string;
+  weeklyTarget: number;
+  actionPlan: string;
+  existingActivities?: DailySalesActivity[];
+}): DailySalesActivity[] {
+  const dates = businessDatesForWeek(weekStart);
+  const safeTarget = Math.max(0, Math.floor(weeklyTarget));
+  const baseTarget = Math.floor(safeTarget / dates.length);
+  const remainder = safeTarget % dates.length;
+  const existingByDate = new Map(existingActivities.map((activity) => [activity.activityDate, activity]));
+  const trimmedActionPlan = actionPlan.trim().slice(0, 500);
+
+  return dates.map((activityDate, index) => {
+    const existing = existingByDate.get(activityDate);
+    if (existing && (
+      existing.targetUnits > 0
+      || existing.actualUnits > 0
+      || existing.actionPlan.trim()
+      || existing.outcomeReview.trim()
+    )) return existing;
+    return {
+      activityDate,
+      targetUnits: baseTarget + (index < remainder ? 1 : 0),
+      actualUnits: 0,
+      actionPlan: trimmedActionPlan,
+      outcomeReview: '',
+    };
+  });
+}
+
 export function calculateMonthlyGrossProfit(
   entry: Pick<MonthlySalesEntry,
     'targetGrossProfit' | 'actualRevenue' | 'actualCostOfSales'

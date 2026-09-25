@@ -31,6 +31,7 @@ import {
   calculateDailyWeekSummary,
   buildWeeklyDailyReflection,
   buildNextWeekActionDraft,
+  buildFiveDayExecutionPlan,
   shiftYearMonth,
   type DailySalesActivity,
   type MonthlySalesEntry,
@@ -149,6 +150,8 @@ export default function WorkspaceGrowthView({
   );
   const [dailySaving, setDailySaving] = useState(false);
   const [dailySaved, setDailySaved] = useState(false);
+  const [dailyPlanSaving, setDailyPlanSaving] = useState(false);
+  const [dailyPlanSaved, setDailyPlanSaved] = useState(false);
   const progress = useMemo(() => calculateMonthlySalesProgress(draft), [draft]);
   const grossProfitProgress = useMemo(() => calculateMonthlyGrossProfit(draft), [draft]);
   const operatingProfitProgress = useMemo(() => calculateMonthlyOperatingProfit(draft), [draft]);
@@ -456,6 +459,55 @@ export default function WorkspaceGrowthView({
     setWeeklyDraft(nextWeekly);
     setWeeklyActivities((previous) => ({ ...previous, [weekStart]: nextWeekly }));
     setDailySaved(true);
+  }
+
+  async function saveFiveDayExecutionPlan() {
+    if (weeklyGoalSummary.target <= 0) {
+      setError(`今週の${weeklyGoalSummary.label}目標を入力してください。`);
+      return;
+    }
+    if (!weeklyDraft.actionNote.trim()) {
+      setError('今週の振り返り・次の行動を入力してください。');
+      return;
+    }
+    const supabase = createBrowserSupabase();
+    if (!supabase) {
+      setError('Supabase が設定されていません。');
+      return;
+    }
+    const plan = buildFiveDayExecutionPlan({
+      weekStart,
+      weeklyTarget: weeklyGoalSummary.target,
+      actionPlan: weeklyDraft.actionNote,
+      existingActivities: businessDates.flatMap((date) => dailyActivities[date] ? [dailyActivities[date]] : []),
+    });
+    setDailyPlanSaving(true);
+    setDailyPlanSaved(false);
+    setError(null);
+    const { error: planError } = await supabase.from('workspace_daily_sales_activities').upsert(
+      plan.map((activity) => ({
+        company_id: companyId,
+        activity_date: activity.activityDate,
+        target_units: activity.targetUnits,
+        actual_units: activity.actualUnits,
+        action_plan: activity.actionPlan,
+        outcome_review: activity.outcomeReview,
+      })),
+      { onConflict: 'company_id,activity_date' },
+    );
+    setDailyPlanSaving(false);
+    if (planError) {
+      setError(`5営業日の実行計画の保存に失敗しました: ${planError.message}`);
+      return;
+    }
+    const nextDailyActivities = { ...dailyActivities };
+    plan.forEach((activity) => { nextDailyActivities[activity.activityDate] = activity; });
+    setDailyActivities(nextDailyActivities);
+    if (plan[0]) {
+      setActivityDate(plan[0].activityDate);
+      setDailyDraft(plan[0]);
+    }
+    setDailyPlanSaved(true);
   }
 
   return (
@@ -1252,6 +1304,15 @@ export default function WorkspaceGrowthView({
           <button type="button" className="btn-primary" onClick={saveWeeklyActivity} disabled={weeklySaving}>
             <Save className="h-4 w-4" />
             {weeklySaving ? '保存中…' : '週間実績を保存'}
+          </button>
+          {dailyPlanSaved && (
+            <div className="information-card information-card--success flex items-center gap-2 text-sm">
+              <CheckCircle2 className="h-4 w-4" />5営業日の実行計画を保存しました。
+            </div>
+          )}
+          <button type="button" className="btn-secondary" onClick={saveFiveDayExecutionPlan} disabled={dailyPlanSaving}>
+            <Target className="h-4 w-4" />
+            {dailyPlanSaving ? '作成中…' : '5営業日の実行計画を作る'}
           </button>
       </div>
 
