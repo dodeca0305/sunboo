@@ -21,6 +21,7 @@ import {
   businessDatesForWeek,
   calculateDailyWeekSummary,
   calculateDailyExecutionStatus,
+  todayInJapan,
   buildWeeklyDailyReflection,
   buildNextWeekActionDraft,
   buildFiveDayExecutionPlan,
@@ -30,6 +31,10 @@ import {
   nextWeekStart,
   shiftYearMonth,
 } from './monthlySalesProgress.ts';
+
+test('日本時間の今日の日付を返す', () => {
+  assert.equal(todayInJapan(new Date('2026-09-27T15:30:00Z')), '2026-09-28');
+});
 
 test('日次の目標・実績・残り・達成率を計算する', () => {
   assert.deepEqual(calculateDailyExecutionStatus({ targetUnits: 5, actualUnits: 2 }), {
