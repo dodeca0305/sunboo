@@ -14,6 +14,8 @@ import { loadWorkspaceCompany, loadWorkspaceDocumentStatuses, loadWorkspaceRoadm
 import WorkspaceDashboard from '@/components/WorkspaceDashboard';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import WorkspaceCompletionFeedback from '@/components/WorkspaceCompletionFeedback';
+import WorkspaceTodaySalesCard from '@/components/WorkspaceTodaySalesCard';
+import { todayInJapan, type DailySalesActivity, type RevenueModel } from '@/lib/monthlySalesProgress';
 import WorkspaceDeleteButton from './WorkspaceDeleteButton';
 
 // ── Company Workspace Shell（Sprint23.1〜23.4・Sprint24.0・Sprint24.2・Sprint25・Sprint26・Sprint27・Sprint35）─
@@ -81,6 +83,46 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
 
   const company = await loadWorkspaceCompany(supabase, companyId);
   if (!company) notFound();
+
+  const today = todayInJapan();
+  let todaySalesActivity: DailySalesActivity | null = null;
+  let revenueModel: RevenueModel = 'sales_funnel';
+  try {
+    const [dailyResult, monthlyResult] = await Promise.all([
+      supabase
+        .from('workspace_daily_sales_activities')
+        .select('activity_date,target_units,actual_units,action_plan,outcome_review')
+        .eq('company_id', companyId)
+        .eq('activity_date', today)
+        .maybeSingle(),
+      supabase
+        .from('workspace_monthly_sales')
+        .select('revenue_model')
+        .eq('company_id', companyId)
+        .eq('year_month', `${today.slice(0, 7)}-01`)
+        .maybeSingle(),
+    ]);
+    const daily = dailyResult.data as {
+      activity_date: string;
+      target_units: number;
+      actual_units: number;
+      action_plan: string;
+      outcome_review: string | null;
+    } | null;
+    if (daily) {
+      todaySalesActivity = {
+        activityDate: daily.activity_date,
+        targetUnits: Number(daily.target_units ?? 0),
+        actualUnits: Number(daily.actual_units ?? 0),
+        actionPlan: daily.action_plan ?? '',
+        outcomeReview: daily.outcome_review ?? '',
+      };
+    }
+    const monthly = monthlyResult.data as { revenue_model: RevenueModel | null } | null;
+    if (monthly?.revenue_model === 'customer_repeat') revenueModel = 'customer_repeat';
+  } catch {
+    todaySalesActivity = null;
+  }
 
   // ログイン中のユーザーがこの会社でownerかどうかを判定する（危険な操作の表示要否のみに使う）。
   // 取得に失敗した場合は安全側（削除UIを表示しない）に倒す。
@@ -159,6 +201,12 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
       <WorkspaceSubNav companyId={companyId} />
 
       <WorkspaceCompletionFeedback companyId={companyId} />
+
+      <WorkspaceTodaySalesCard
+        companyId={companyId}
+        activity={todaySalesActivity}
+        revenueModel={revenueModel}
+      />
 
       {advice && progress && decisions && state && (
         <WorkspaceDashboard

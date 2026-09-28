@@ -33,6 +33,7 @@ import {
   buildWeeklyDailyReflection,
   buildNextWeekActionDraft,
   buildFiveDayExecutionPlan,
+  todayInJapan,
   shiftYearMonth,
   type DailySalesActivity,
   type MonthlySalesEntry,
@@ -41,12 +42,6 @@ import {
 
 const yen = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 });
 const shortDate = new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short', timeZone: 'UTC' });
-
-function todayInJapan(): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(new Date());
-}
 
 function emptyDailyActivity(
   activityDate: string,
