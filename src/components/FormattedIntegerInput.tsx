@@ -45,7 +45,9 @@ export default function FormattedIntegerInput({
       setText(formatIntegerValue(value, zeroAsBlank));
       return;
     }
-    setText(formatIntegerValue(result.value, zeroAsBlank));
+    setText(result.status === 'valid' && result.value === 0 && zeroAsBlank
+      ? '0'
+      : formatIntegerValue(result.value, zeroAsBlank));
     onChange(result.value);
   }
 
