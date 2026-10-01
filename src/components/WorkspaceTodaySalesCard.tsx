@@ -3,11 +3,12 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, Save, Target } from 'lucide-react';
+import { CheckCircle2, Lightbulb, Save, Target } from 'lucide-react';
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import {
   calculateDailyExecutionStatus,
+  buildNextBusinessDayActionSuggestion,
   currentWeekStart,
   type DailySalesActivity,
   type RevenueModel,
@@ -51,6 +52,11 @@ export default function WorkspaceTodaySalesCard({
   const currentActivity = activity;
   const displayedActivity = { ...currentActivity, actualUnits: actualUnits ?? 0 };
   const status = calculateDailyExecutionStatus(displayedActivity);
+  const nextActionSuggestion = buildNextBusinessDayActionSuggestion({
+    activity: { ...displayedActivity, outcomeReview },
+    label,
+    unit,
+  });
 
   async function saveDailyResult() {
     const supabase = createBrowserSupabase();
@@ -209,6 +215,20 @@ export default function WorkspaceTodaySalesCard({
         {saved && <p className="mt-2 text-sm font-semibold text-sunboo-moss">今日の実績・振り返りを保存し、週間実績へ反映しました。</p>}
         {error && <p className="mt-2 text-sm font-semibold text-red-700">{error}</p>}
       </div>
+
+      {nextActionSuggestion && (
+        <div className="mt-4 rounded-xl border border-sunboo-moss/30 bg-sunboo-moss/5 p-4">
+          <div className="flex items-start gap-3">
+            <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-sunboo-moss" />
+            <div>
+              <p className="text-xs font-semibold text-sunboo-ink-muted">翌営業日の行動案</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm font-semibold leading-6 text-sunboo-ink">
+                {nextActionSuggestion}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

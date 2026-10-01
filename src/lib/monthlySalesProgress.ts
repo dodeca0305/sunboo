@@ -325,6 +325,29 @@ export function calculateDailyExecutionStatus(
   };
 }
 
+export function buildNextBusinessDayActionSuggestion({
+  activity,
+  label,
+  unit,
+}: {
+  activity: DailySalesActivity;
+  label: string;
+  unit: string;
+}): string | null {
+  const outcomeReview = activity.outcomeReview.trim();
+  if (!outcomeReview) return null;
+
+  const actionPlan = activity.actionPlan.trim() || `${label}につながる行動`;
+  const status = calculateDailyExecutionStatus(activity);
+  const review = `「${outcomeReview.slice(0, 160)}」`;
+
+  if (status.achieved) {
+    return `今日の結果${review}を再現するため、翌営業日も「${actionPlan.slice(0, 120)}」を継続し、開始時刻と対象を先に決めましょう。`;
+  }
+
+  return `今日の改善点${review}を踏まえ、翌営業日は「${actionPlan.slice(0, 120)}」を見直し、通常目標に未達${status.remaining}${unit}を加えて実行しましょう。`;
+}
+
 export function buildWeeklyDailyReflection(activities: DailySalesActivity[]): WeeklyDailyReflection {
   const recorded = [...activities]
     .filter((activity) => activity.targetUnits > 0 || activity.actualUnits > 0 || activity.actionPlan.trim() || activity.outcomeReview.trim())

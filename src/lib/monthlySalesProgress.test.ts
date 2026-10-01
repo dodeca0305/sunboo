@@ -21,6 +21,7 @@ import {
   businessDatesForWeek,
   calculateDailyWeekSummary,
   calculateDailyExecutionStatus,
+  buildNextBusinessDayActionSuggestion,
   todayInJapan,
   buildWeeklyDailyReflection,
   buildNextWeekActionDraft,
@@ -54,6 +55,45 @@ test('日次目標を超えた場合は達成済みとして残りを0にする'
     achievementRate: 133.3,
     achieved: true,
   });
+});
+
+test('日次目標が未達なら振り返りと不足件数から翌営業日の行動案を作る', () => {
+  assert.equal(buildNextBusinessDayActionSuggestion({
+    activity: {
+      activityDate: '2026-10-01',
+      targetUnits: 5,
+      actualUnits: 3,
+      actionPlan: '午前中に見込み客へ提案する',
+      outcomeReview: '午後に連絡が集中して反応が遅かった',
+    },
+    label: '商談',
+    unit: '件',
+  }), '今日の改善点「午後に連絡が集中して反応が遅かった」を踏まえ、翌営業日は「午前中に見込み客へ提案する」を見直し、通常目標に未達2件を加えて実行しましょう。');
+});
+
+test('日次目標を達成したら成果につながった行動の再現を提案する', () => {
+  assert.equal(buildNextBusinessDayActionSuggestion({
+    activity: {
+      activityDate: '2026-10-01',
+      targetUnits: 3,
+      actualUnits: 4,
+      actionPlan: '既存顧客へ追加提案する',
+      outcomeReview: '午前中の提案から2件受注できた',
+    },
+    label: '商談',
+    unit: '件',
+  }), '今日の結果「午前中の提案から2件受注できた」を再現するため、翌営業日も「既存顧客へ追加提案する」を継続し、開始時刻と対象を先に決めましょう。');
+});
+
+test('結果・改善点が未入力なら翌営業日の行動案を表示しない', () => {
+  assert.equal(buildNextBusinessDayActionSuggestion({
+    activity: {
+      activityDate: '2026-10-01', targetUnits: 3, actualUnits: 1,
+      actionPlan: '提案する', outcomeReview: '  ',
+    },
+    label: '商談',
+    unit: '件',
+  }), null);
 });
 
 test('日本時間の年月を返す', () => {
