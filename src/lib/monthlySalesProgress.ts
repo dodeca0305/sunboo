@@ -266,6 +266,15 @@ export function previousBusinessDate(dateValue: string): string {
   return date.toISOString().slice(0, 10);
 }
 
+export function nextBusinessDate(dateValue: string): string {
+  const date = new Date(`${dateValue}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return '';
+  do {
+    date.setUTCDate(date.getUTCDate() + 1);
+  } while (date.getUTCDay() === 0 || date.getUTCDay() === 6);
+  return date.toISOString().slice(0, 10);
+}
+
 export function calculateDailyCarryoverTarget(
   baseTarget: number,
   previous: Pick<DailySalesActivity, 'targetUnits' | 'actualUnits'> | undefined,
@@ -346,6 +355,27 @@ export function buildNextBusinessDayActionSuggestion({
   }
 
   return `今日の改善点${review}を踏まえ、翌営業日は「${actionPlan.slice(0, 120)}」を見直し、通常目標に未達${status.remaining}${unit}を加えて実行しましょう。`;
+}
+
+export function buildNextBusinessDayActivity({
+  activity,
+  actionSuggestion,
+}: {
+  activity: DailySalesActivity;
+  actionSuggestion: string;
+}): DailySalesActivity | null {
+  const activityDate = nextBusinessDate(activity.activityDate);
+  const actionPlan = actionSuggestion.trim().slice(0, 500);
+  if (!activityDate || !actionPlan) return null;
+
+  const status = calculateDailyExecutionStatus(activity);
+  return {
+    activityDate,
+    targetUnits: status.target + status.remaining,
+    actualUnits: 0,
+    actionPlan,
+    outcomeReview: '',
+  };
 }
 
 export function buildWeeklyDailyReflection(activities: DailySalesActivity[]): WeeklyDailyReflection {
