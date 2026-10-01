@@ -17,11 +17,13 @@ import {
   calculateWeeklyDailyPace,
   calculateDailyCarryoverTarget,
   previousBusinessDate,
+  nextBusinessDate,
   isDateInWeek,
   businessDatesForWeek,
   calculateDailyWeekSummary,
   calculateDailyExecutionStatus,
   buildNextBusinessDayActionSuggestion,
+  buildNextBusinessDayActivity,
   todayInJapan,
   buildWeeklyDailyReflection,
   buildNextWeekActionDraft,
@@ -94,6 +96,43 @@ test('結果・改善点が未入力なら翌営業日の行動案を表示し�
     label: '商談',
     unit: '件',
   }), null);
+});
+
+test('翌営業日は土日を飛ばして返す', () => {
+  assert.equal(nextBusinessDate('2026-10-01'), '2026-10-02');
+  assert.equal(nextBusinessDate('2026-10-02'), '2026-10-05');
+  assert.equal(nextBusinessDate('2026-12-31'), '2027-01-01');
+});
+
+test('未達分を加えた目標と行動案から翌営業日の計画を作る', () => {
+  assert.deepEqual(buildNextBusinessDayActivity({
+    activity: {
+      activityDate: '2026-10-02',
+      targetUnits: 5,
+      actualUnits: 3,
+      actionPlan: '今日の行動',
+      outcomeReview: '改善する',
+    },
+    actionSuggestion: '午前中に見込み客へ5件連絡する',
+  }), {
+    activityDate: '2026-10-05',
+    targetUnits: 7,
+    actualUnits: 0,
+    actionPlan: '午前中に見込み客へ5件連絡する',
+    outcomeReview: '',
+  });
+});
+
+test('達成済みなら通常目標のまま翌営業日の計画を作る', () => {
+  const next = buildNextBusinessDayActivity({
+    activity: {
+      activityDate: '2026-10-01', targetUnits: 5, actualUnits: 6,
+      actionPlan: '今日の行動', outcomeReview: '達成した',
+    },
+    actionSuggestion: '成功した行動を継続する',
+  });
+  assert.equal(next?.targetUnits, 5);
+  assert.equal(next?.activityDate, '2026-10-02');
 });
 
 test('日本時間の年月を返す', () => {

@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, Lightbulb, Save, Target } from 'lucide-react';
+import { CalendarPlus, CheckCircle2, Lightbulb, Save, Target } from 'lucide-react';
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import {
   calculateDailyExecutionStatus,
   buildNextBusinessDayActionSuggestion,
+  buildNextBusinessDayActivity,
   currentWeekStart,
   type DailySalesActivity,
   type RevenueModel,
@@ -28,6 +29,8 @@ export default function WorkspaceTodaySalesCard({
   const [outcomeReview, setOutcomeReview] = useState(activity?.outcomeReview ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savingNextPlan, setSavingNextPlan] = useState(false);
+  const [nextPlanSaved, setNextPlanSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const label = revenueModel === 'sales_funnel' ? '商談' : '顧客';
   const unit = revenueModel === 'sales_funnel' ? '件' : '人・社';
@@ -57,6 +60,74 @@ export default function WorkspaceTodaySalesCard({
     label,
     unit,
   });
+
+  async function saveNextBusinessDayPlan() {
+    if (!nextActionSuggestion) return;
+    const nextActivity = buildNextBusinessDayActivity({
+      activity: { ...displayedActivity, outcomeReview },
+      actionSuggestion: nextActionSuggestion,
+    });
+    if (!nextActivity) {
+      setError('翌営業日の計画を作成できませんでした。');
+      return;
+    }
+
+    const supabase = createBrowserSupabase();
+    if (!supabase) {
+      setError('Supabase が設定されていません。');
+      return;
+    }
+
+    setSavingNextPlan(true);
+    setNextPlanSaved(false);
+    setError(null);
+    const { data: existing, error: readError } = await supabase
+      .from('workspace_daily_sales_activities')
+      .select('target_units,actual_units,action_plan,outcome_review')
+      .eq('company_id', companyId)
+      .eq('activity_date', nextActivity.activityDate)
+      .maybeSingle();
+
+    if (readError) {
+      setSavingNextPlan(false);
+      setError(`翌営業日の計画を確認できませんでした: ${readError.message}`);
+      return;
+    }
+
+    const current = existing as {
+      target_units: number | null;
+      actual_units: number | null;
+      action_plan: string | null;
+      outcome_review: string | null;
+    } | null;
+    if (current && (
+      Number(current.target_units ?? 0) > 0
+      || Number(current.actual_units ?? 0) > 0
+      || Boolean(current.action_plan?.trim())
+      || Boolean(current.outcome_review?.trim())
+    )) {
+      setSavingNextPlan(false);
+      setError(`${nextActivity.activityDate}の計画はすでに登録されています。売上目標の詳細から確認してください。`);
+      return;
+    }
+
+    const { error: saveError } = await supabase.from('workspace_daily_sales_activities').upsert({
+      company_id: companyId,
+      activity_date: nextActivity.activityDate,
+      target_units: nextActivity.targetUnits,
+      actual_units: nextActivity.actualUnits,
+      action_plan: nextActivity.actionPlan,
+      outcome_review: nextActivity.outcomeReview,
+    }, { onConflict: 'company_id,activity_date' });
+
+    setSavingNextPlan(false);
+    if (saveError) {
+      setError(`翌営業日の計画を保存できませんでした: ${saveError.message}`);
+      return;
+    }
+    setNextPlanSaved(true);
+    router.refresh();
+  }
 
   async function saveDailyResult() {
     const supabase = createBrowserSupabase();
@@ -220,11 +291,23 @@ export default function WorkspaceTodaySalesCard({
         <div className="mt-4 rounded-xl border border-sunboo-moss/30 bg-sunboo-moss/5 p-4">
           <div className="flex items-start gap-3">
             <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-sunboo-moss" />
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-sunboo-ink-muted">翌営業日の行動案</p>
               <p className="mt-1 whitespace-pre-wrap text-sm font-semibold leading-6 text-sunboo-ink">
                 {nextActionSuggestion}
               </p>
+              <button
+                type="button"
+                className="btn-primary mt-3 inline-flex items-center gap-2"
+                onClick={saveNextBusinessDayPlan}
+                disabled={savingNextPlan || nextPlanSaved}
+              >
+                <CalendarPlus className="h-4 w-4" />
+                {savingNextPlan ? '反映中…' : nextPlanSaved ? '翌営業日の計画へ反映済み' : 'この案を翌営業日の計画へ反映'}
+              </button>
+              {nextPlanSaved && (
+                <p className="mt-2 text-sm font-semibold text-sunboo-moss">翌営業日の計画を保存しました。</p>
+              )}
             </div>
           </div>
         </div>
