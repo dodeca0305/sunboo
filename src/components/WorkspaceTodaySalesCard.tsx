@@ -24,6 +24,7 @@ export default function WorkspaceTodaySalesCard({
 }) {
   const router = useRouter();
   const [actualUnits, setActualUnits] = useState<number | null>(activity?.actualUnits ?? null);
+  const [outcomeReview, setOutcomeReview] = useState(activity?.outcomeReview ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +52,7 @@ export default function WorkspaceTodaySalesCard({
   const displayedActivity = { ...currentActivity, actualUnits: actualUnits ?? 0 };
   const status = calculateDailyExecutionStatus(displayedActivity);
 
-  async function saveActualUnits() {
+  async function saveDailyResult() {
     const supabase = createBrowserSupabase();
     if (!supabase) {
       setError('Supabase が設定されていません。');
@@ -68,12 +69,12 @@ export default function WorkspaceTodaySalesCard({
       target_units: currentActivity.targetUnits,
       actual_units: nextActual,
       action_plan: currentActivity.actionPlan,
-      outcome_review: currentActivity.outcomeReview,
+      outcome_review: outcomeReview.trim(),
     }, { onConflict: 'company_id,activity_date' });
 
     if (dailyError) {
       setSaving(false);
-      setError(`今日の実績を保存できませんでした: ${dailyError.message}`);
+      setError(`今日の実績・振り返りを保存できませんでした: ${dailyError.message}`);
       return;
     }
 
@@ -98,7 +99,7 @@ export default function WorkspaceTodaySalesCard({
 
     if (dailyRowsError || weeklyRowError) {
       setSaving(false);
-      setError('今日の実績は保存しましたが、週間実績を更新できませんでした。');
+      setError('今日の実績・振り返りは保存しましたが、週間実績を更新できませんでした。');
       router.refresh();
       return;
     }
@@ -126,7 +127,7 @@ export default function WorkspaceTodaySalesCard({
 
     setSaving(false);
     if (weeklySaveError) {
-      setError('今日の実績は保存しましたが、週間実績を更新できませんでした。');
+      setError('今日の実績・振り返りは保存しましたが、週間実績を更新できませんでした。');
       router.refresh();
       return;
     }
@@ -184,15 +185,28 @@ export default function WorkspaceTodaySalesCard({
             className="w-32"
             zeroAsBlank
           />
-          <button type="button" className="btn-primary inline-flex items-center gap-2" onClick={saveActualUnits} disabled={saving}>
+        </div>
+        <label className="mt-4 block text-xs font-semibold text-sunboo-ink-muted" htmlFor={`today-outcome-${companyId}`}>
+          今日の結果・改善点
+        </label>
+        <textarea
+          id={`today-outcome-${companyId}`}
+          value={outcomeReview}
+          onChange={(event) => setOutcomeReview(event.target.value)}
+          rows={3}
+          className="input mt-2 w-full resize-y"
+          placeholder="例：3件提案し1件受注。明日は午前中に見込み客へ再連絡する"
+        />
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" className="btn-primary inline-flex items-center gap-2" onClick={saveDailyResult} disabled={saving}>
             <Save className="h-4 w-4" />
-            {saving ? '保存中…' : '実績を保存'}
+            {saving ? '保存中…' : '実績・振り返りを保存'}
           </button>
           <Link className="btn-secondary inline-flex" href={`/admin/workspaces/${companyId}/growth`}>
             売上目標の詳細
           </Link>
         </div>
-        {saved && <p className="mt-2 text-sm font-semibold text-sunboo-moss">今日の実績を保存し、週間実績へ反映しました。</p>}
+        {saved && <p className="mt-2 text-sm font-semibold text-sunboo-moss">今日の実績・振り返りを保存し、週間実績へ反映しました。</p>}
         {error && <p className="mt-2 text-sm font-semibold text-red-700">{error}</p>}
       </div>
     </section>
