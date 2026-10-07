@@ -61,6 +61,10 @@ export default function WorkspaceTodaySalesCard({
     unit,
   });
 
+  function openActivity(date: string) {
+    router.push(`/admin/workspaces/${companyId}/growth?date=${date}`);
+  }
+
   async function saveNextBusinessDayPlan() {
     if (!nextActionSuggestion) return;
     const nextActivity = buildNextBusinessDayActivity({
@@ -107,7 +111,7 @@ export default function WorkspaceTodaySalesCard({
       || Boolean(current.outcome_review?.trim())
     )) {
       setSavingNextPlan(false);
-      setError(`${nextActivity.activityDate}の計画はすでに登録されています。売上目標の詳細から確認してください。`);
+      openActivity(nextActivity.activityDate);
       return;
     }
 
@@ -126,7 +130,7 @@ export default function WorkspaceTodaySalesCard({
       return;
     }
     setNextPlanSaved(true);
-    router.refresh();
+    openActivity(nextActivity.activityDate);
   }
 
   async function saveDailyResult() {

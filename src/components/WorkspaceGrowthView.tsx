@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Save, Target, TrendingUp } from 'lucide-react';
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import InformationCard from '@/components/InformationCard';
@@ -148,6 +148,33 @@ export default function WorkspaceGrowthView({
   const [dailySaved, setDailySaved] = useState(false);
   const [dailyPlanSaving, setDailyPlanSaving] = useState(false);
   const [dailyPlanSaved, setDailyPlanSaved] = useState(false);
+  useEffect(() => {
+    const requestedDate = new URLSearchParams(window.location.search).get('date');
+    if (!requestedDate || !/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) return;
+    const parsed = new Date(`${requestedDate}T00:00:00Z`);
+    if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== requestedDate) return;
+
+    const requestedWeek = currentWeekStart(new Date(`${requestedDate}T12:00:00+09:00`));
+    const requestedMonth = requestedDate.slice(0, 7);
+    const requestedEntry = initialMap[requestedMonth]
+      ?? emptyEntry(requestedMonth, linkedTaxPaymentsByMonth[requestedMonth] ?? 0);
+    const requestedWeekly = initialWeeklyMap[requestedWeek]
+      ?? emptyWeeklyActivity(requestedWeek, initialWeeklyMap[previousWeekStart(requestedWeek)], requestedEntry.revenueModel);
+    const summary = calculateWeeklyGoalSummary(requestedWeekly, requestedEntry.revenueModel);
+    const pace = calculateWeeklyDailyPace({ weekStart: requestedWeek, remaining: summary.remaining });
+    const previousDate = previousBusinessDate(requestedDate);
+
+    setYearMonth(requestedMonth);
+    setDraft(requestedEntry);
+    setWeekStart(requestedWeek);
+    setWeeklyDraft(requestedWeekly);
+    setActivityDate(requestedDate);
+    setDailyDraft(initialDailyMap[requestedDate]
+      ?? emptyDailyActivity(requestedDate, pace.requiredPerBusinessDay,
+        isDateInWeek(previousDate, requestedWeek) ? initialDailyMap[previousDate] : undefined));
+  // Apply the link's date once when the detail page opens.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const progress = useMemo(() => calculateMonthlySalesProgress(draft), [draft]);
   const grossProfitProgress = useMemo(() => calculateMonthlyGrossProfit(draft), [draft]);
   const operatingProfitProgress = useMemo(() => calculateMonthlyOperatingProfit(draft), [draft]);
