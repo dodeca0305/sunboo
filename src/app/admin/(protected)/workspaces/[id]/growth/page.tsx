@@ -6,30 +6,11 @@ import WorkspaceGrowthView from '@/components/WorkspaceGrowthView';
 import InformationCard from '@/components/InformationCard';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { loadWorkspaceCompany } from '@/lib/workspaceLoader';
-import type { DailySalesActivity, MonthlySalesEntry, WeeklySalesActivity } from '@/lib/monthlySalesProgress';
+import type {
+  DailySalesActivity, MonthlySalesEntry, MonthlySalesRow, WeeklySalesActivity,
+} from '@/lib/monthlySalesProgress';
+import { monthlySalesRowToEntry } from '@/lib/monthlySalesProgress';
 import { sumTaxPaymentPlansByMonth, type WorkspaceTaxPaymentPlanRow } from '@/lib/workspaceTaxPaymentPlan';
-
-type MonthlySalesRow = {
-  year_month: string;
-  target_revenue: number;
-  actual_revenue: number;
-  target_gross_profit: number;
-  actual_cost_of_sales: number;
-  target_operating_profit: number;
-  actual_fixed_costs: number;
-  cash_balance: number;
-  expected_cash_inflows: number;
-  expected_cash_outflows: number;
-  planned_tax_payments: number;
-  action_goal: string;
-  revenue_model: 'sales_funnel' | 'customer_repeat';
-  meeting_count: number;
-  conversion_rate: number;
-  average_contract_value: number;
-  customer_count: number;
-  purchase_frequency: number;
-  average_order_value: number;
-};
 
 type WeeklySalesRow = {
   week_start: string;
@@ -87,28 +68,9 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
     (taxPaymentPlanData as WorkspaceTaxPaymentPlanRow[] | null) ?? [],
   );
 
-  const entries: MonthlySalesEntry[] = ((data as MonthlySalesRow[] | null) ?? []).map((row) => ({
-    yearMonth: row.year_month.slice(0, 7),
-    targetRevenue: row.target_revenue,
-    actualRevenue: row.actual_revenue,
-    targetGrossProfit: row.target_gross_profit ?? 0,
-    actualCostOfSales: row.actual_cost_of_sales ?? 0,
-    targetOperatingProfit: row.target_operating_profit ?? 0,
-    actualFixedCosts: row.actual_fixed_costs ?? 0,
-    cashBalance: row.cash_balance ?? 0,
-    expectedCashInflows: row.expected_cash_inflows ?? 0,
-    expectedCashOutflows: row.expected_cash_outflows ?? 0,
-    plannedTaxPayments: row.planned_tax_payments ?? 0,
-    linkedTaxPayments: linkedTaxPaymentsByMonth[row.year_month.slice(0, 7)] ?? 0,
-    actionGoal: row.action_goal,
-    revenueModel: row.revenue_model ?? 'sales_funnel',
-    meetingCount: row.meeting_count ?? 0,
-    conversionRate: row.conversion_rate ?? 0,
-    averageContractValue: row.average_contract_value ?? 0,
-    customerCount: row.customer_count ?? 0,
-    purchaseFrequency: row.purchase_frequency ?? 0,
-    averageOrderValue: row.average_order_value ?? 0,
-  }));
+  const entries: MonthlySalesEntry[] = ((data as MonthlySalesRow[] | null) ?? []).map((row) =>
+    monthlySalesRowToEntry(row, linkedTaxPaymentsByMonth[row.year_month.slice(0, 7)] ?? 0),
+  );
 
   const weeklyActivities: WeeklySalesActivity[] = ((weeklyData as WeeklySalesRow[] | null) ?? []).map((row) => ({
     weekStart: row.week_start,

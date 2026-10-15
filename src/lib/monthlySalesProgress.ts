@@ -23,6 +23,68 @@ export type MonthlySalesEntry = {
 
 export type RevenueModel = 'sales_funnel' | 'customer_repeat';
 
+// workspace_monthly_salesのSELECT結果（スネークケース）。growth/page.tsx・会社ホーム（page.tsx）の
+// 両方が同じ列構成を取得するため、行→MonthlySalesEntry変換をmonthlySalesRowToEntryへ共通化する
+// （CLAUDE.mdの重複禁止方針。2箇所に19フィールドのマッピングを個別に書かない）。
+export type MonthlySalesRow = {
+  year_month: string;
+  target_revenue: number;
+  actual_revenue: number;
+  target_gross_profit: number;
+  actual_cost_of_sales: number;
+  target_operating_profit: number;
+  actual_fixed_costs: number;
+  cash_balance: number;
+  expected_cash_inflows: number;
+  expected_cash_outflows: number;
+  planned_tax_payments: number;
+  action_goal: string;
+  revenue_model: RevenueModel | null;
+  meeting_count: number;
+  conversion_rate: number;
+  average_contract_value: number;
+  customer_count: number;
+  purchase_frequency: number;
+  average_order_value: number;
+};
+
+export function monthlySalesRowToEntry(row: MonthlySalesRow, linkedTaxPayments = 0): MonthlySalesEntry {
+  return {
+    yearMonth: row.year_month.slice(0, 7),
+    targetRevenue: row.target_revenue,
+    actualRevenue: row.actual_revenue,
+    targetGrossProfit: row.target_gross_profit ?? 0,
+    actualCostOfSales: row.actual_cost_of_sales ?? 0,
+    targetOperatingProfit: row.target_operating_profit ?? 0,
+    actualFixedCosts: row.actual_fixed_costs ?? 0,
+    cashBalance: row.cash_balance ?? 0,
+    expectedCashInflows: row.expected_cash_inflows ?? 0,
+    expectedCashOutflows: row.expected_cash_outflows ?? 0,
+    plannedTaxPayments: row.planned_tax_payments ?? 0,
+    linkedTaxPayments,
+    actionGoal: row.action_goal,
+    revenueModel: row.revenue_model ?? 'sales_funnel',
+    meetingCount: row.meeting_count ?? 0,
+    conversionRate: row.conversion_rate ?? 0,
+    averageContractValue: row.average_contract_value ?? 0,
+    customerCount: row.customer_count ?? 0,
+    purchaseFrequency: row.purchase_frequency ?? 0,
+    averageOrderValue: row.average_order_value ?? 0,
+  };
+}
+
+// 対象月（"YYYY-MM"）の最終日をISO日付で返す。売上未達・資金不足の「期限」表示に使う
+// （月内の手続きではないため、procedures.due_dateのような既存の期限は存在せず、月末を期限とみなす）。
+export function monthEndDate(yearMonth: string): string {
+  const match = /^(\d{4})-(\d{2})$/.exec(yearMonth);
+  if (!match) throw new Error('対象月が不正です。');
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (month < 1 || month > 12) throw new Error('対象月が不正です。');
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return `${match[1]}-${match[2]}-${String(lastDay).padStart(2, '0')}`;
+}
+
 export type SalesDriverPlan = {
   projectedRevenue: number;
   projectedGap: number;

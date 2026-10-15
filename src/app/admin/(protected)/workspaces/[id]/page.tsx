@@ -10,12 +10,17 @@ import type { WorkspaceDocumentStatusMap } from '@/lib/workspaceDocumentStatus';
 import { generateWorkspaceAdvice, summarizeWorkspaceProgress, type WorkspaceAdvice, type WorkspaceProgressSummary } from '@/lib/workspaceAdvice';
 import { generateWorkspaceDecisions, type WorkspaceDecisions } from '@/lib/workspaceDecisions';
 import { buildWorkspaceNotifications, type WorkspaceNotification } from '@/lib/workspaceNotifications';
+import { buildWorkspaceGrowthNotifications } from '@/lib/workspaceGrowthNotifications';
 import { loadWorkspaceCompany, loadWorkspaceDocumentStatuses, loadWorkspaceRoadmapContext } from '@/lib/workspaceLoader';
 import WorkspaceDashboard from '@/components/WorkspaceDashboard';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import WorkspaceCompletionFeedback from '@/components/WorkspaceCompletionFeedback';
 import WorkspaceTodaySalesCard from '@/components/WorkspaceTodaySalesCard';
-import { todayInJapan, type DailySalesActivity, type RevenueModel } from '@/lib/monthlySalesProgress';
+import {
+  monthEndDate, monthlySalesRowToEntry, todayInJapan,
+  type DailySalesActivity, type MonthlySalesEntry, type MonthlySalesRow, type RevenueModel,
+} from '@/lib/monthlySalesProgress';
+import type { WorkspaceTaxPaymentPlanRow } from '@/lib/workspaceTaxPaymentPlan';
 import WorkspaceDeleteButton from './WorkspaceDeleteButton';
 
 // ── Company Workspace Shell（Sprint23.1〜23.4・Sprint24.0・Sprint24.2・Sprint25・Sprint26・Sprint27・Sprint35）─
@@ -85,10 +90,25 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
   if (!company) notFound();
 
   const today = todayInJapan();
+  const currentYearMonth = today.slice(0, 7);
   let todaySalesActivity: DailySalesActivity | null = null;
   let revenueModel: RevenueModel = 'sales_funnel';
+  // 【追加】会社ホームの「重要アクション」（売上未達・資金不足）判定に使う今月分の売上・資金繰りデータ。
+  // growth/page.tsxと同じ列構成を取得し、同じmonthlySalesRowToEntryで変換することで
+  // 変換ロジックの重複を避ける（docs/DEVELOPMENT_HANDOFF.md 3節）。
+  let monthlySalesEntry: MonthlySalesEntry | null = null;
+  // 【レビュー対応】workspace_tax_payment_plansの取得に失敗した場合、trueのままにしない。
+  // 取得失敗を「今月の納税予定は0円」と同一視すると、資金不足額を実際より少なく見積もってしまう
+  // （断定を避け、取得できなかった事実をそのまま通知側へ伝える）。
+  let cashFlowDataAvailable = true;
+  // 【レビュー対応】daily/monthlyそれぞれの取得失敗を「未登録（データが無い）」と区別するフラグ。
+  // 区別しないと、取得に失敗しただけなのに「未登録」向けのUI（新規作成導線・警告無し）が
+  // 表示され、既存の計画・データを見失ったまま誤った操作につながる、または警告が出ないことを
+  // 「問題なし」と誤認される（Unknown is better than Wrong）。
+  let todaySalesFetchFailed = false;
+  let monthlySalesFetchFailed = false;
   try {
-    const [dailyResult, monthlyResult] = await Promise.all([
+    const [dailyResult, monthlyResult, taxPaymentPlanResult] = await Promise.all([
       supabase
         .from('workspace_daily_sales_activities')
         .select('activity_date,target_units,actual_units,action_plan,outcome_review')
@@ -97,31 +117,69 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
         .maybeSingle(),
       supabase
         .from('workspace_monthly_sales')
-        .select('revenue_model')
+        .select('year_month, target_revenue, actual_revenue, target_gross_profit, actual_cost_of_sales, target_operating_profit, actual_fixed_costs, cash_balance, expected_cash_inflows, expected_cash_outflows, planned_tax_payments, action_goal, revenue_model, meeting_count, conversion_rate, average_contract_value, customer_count, purchase_frequency, average_order_value')
         .eq('company_id', companyId)
-        .eq('year_month', `${today.slice(0, 7)}-01`)
+        .eq('year_month', `${currentYearMonth}-01`)
         .maybeSingle(),
+      supabase
+        .from('workspace_tax_payment_plans')
+        .select('procedure_id, due_date, amount')
+        .eq('company_id', companyId)
+        .gte('due_date', `${currentYearMonth}-01`)
+        .lte('due_date', monthEndDate(currentYearMonth)),
     ]);
-    const daily = dailyResult.data as {
-      activity_date: string;
-      target_units: number;
-      actual_units: number;
-      action_plan: string;
-      outcome_review: string | null;
-    } | null;
-    if (daily) {
-      todaySalesActivity = {
-        activityDate: daily.activity_date,
-        targetUnits: Number(daily.target_units ?? 0),
-        actualUnits: Number(daily.actual_units ?? 0),
-        actionPlan: daily.action_plan ?? '',
-        outcomeReview: daily.outcome_review ?? '',
-      };
+
+    // 【レビュー対応】各取得結果のerrorを明示的に確認する。Supabaseはクエリ失敗時も例外を
+    // 投げず{data: null, error: {...}}を返すため、errorを見ないとdataがnullな理由が
+    // 「未入力」なのか「取得失敗」なのか区別できない（取得失敗を未入力・0円と同一視しない）。
+    if (dailyResult.error) {
+      todaySalesActivity = null;
+      todaySalesFetchFailed = true;
+    } else {
+      const daily = dailyResult.data as {
+        activity_date: string;
+        target_units: number;
+        actual_units: number;
+        action_plan: string;
+        outcome_review: string | null;
+      } | null;
+      if (daily) {
+        todaySalesActivity = {
+          activityDate: daily.activity_date,
+          targetUnits: Number(daily.target_units ?? 0),
+          actualUnits: Number(daily.actual_units ?? 0),
+          actionPlan: daily.action_plan ?? '',
+          outcomeReview: daily.outcome_review ?? '',
+        };
+      }
     }
-    const monthly = monthlyResult.data as { revenue_model: RevenueModel | null } | null;
-    if (monthly?.revenue_model === 'customer_repeat') revenueModel = 'customer_repeat';
+
+    if (monthlyResult.error) {
+      monthlySalesEntry = null;
+      monthlySalesFetchFailed = true;
+    } else {
+      const monthly = monthlyResult.data as MonthlySalesRow | null;
+      if (monthly?.revenue_model === 'customer_repeat') revenueModel = 'customer_repeat';
+      if (monthly) {
+        if (taxPaymentPlanResult.error) {
+          // 月次売上の取得自体は成功している。納税予定だけが不明なため、売上未達の通知は
+          // そのまま成立させつつ、資金繰り側は金額を断定しない（workspaceGrowthNotifications.ts）。
+          cashFlowDataAvailable = false;
+          monthlySalesEntry = monthlySalesRowToEntry(monthly, 0);
+        } else {
+          const linkedTaxPayments = ((taxPaymentPlanResult.data as WorkspaceTaxPaymentPlanRow[] | null) ?? [])
+            .reduce((sum, row) => sum + Math.max(0, row.amount ?? 0), 0);
+          monthlySalesEntry = monthlySalesRowToEntry(monthly, linkedTaxPayments);
+        }
+      }
+    }
   } catch {
+    // 【レビュー対応】例外発生時もerrorチェックと同じ扱いにする（未登録・0円と同一視しない）。
     todaySalesActivity = null;
+    todaySalesFetchFailed = true;
+    monthlySalesEntry = null;
+    monthlySalesFetchFailed = true;
+    cashFlowDataAvailable = true; // monthlySalesFetchFailed=trueが優先されるため値自体は使われない
   }
 
   // ログイン中のユーザーがこの会社でownerかどうかを判定する（危険な操作の表示要否のみに使う）。
@@ -173,7 +231,13 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
     advice = generateWorkspaceAdvice(roadmapYears, procedureStatusMap, state);
     progress = summarizeWorkspaceProgress(roadmapYears, procedureStatusMap);
     decisions = generateWorkspaceDecisions(companyProfile, state, roadmapYears, procedureStatusMap, documentStatusMap);
-    notifications = buildWorkspaceNotifications(companyId, decisions, advice, procedureStatusMap, documentStatusMap);
+    const growthNotifications = buildWorkspaceGrowthNotifications(monthlySalesEntry, {
+      cashFlowDataAvailable,
+      monthlyDataFetchFailed: monthlySalesFetchFailed,
+    });
+    notifications = buildWorkspaceNotifications(
+      companyId, decisions, advice, procedureStatusMap, documentStatusMap, undefined, growthNotifications,
+    );
   } catch {
     advice = null;
     progress = null;
@@ -206,6 +270,7 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
         companyId={companyId}
         activity={todaySalesActivity}
         revenueModel={revenueModel}
+        fetchFailed={todaySalesFetchFailed}
       />
 
       {advice && progress && decisions && state && (
