@@ -35,6 +35,8 @@ import {
   shiftYearMonth,
   monthEndDate,
   monthlySalesRowToEntry,
+  emptyMonthlySalesEntry,
+  shouldGuideCashFlowInput,
 } from './monthlySalesProgress.ts';
 
 test('日本時間の今日の日付を返す', () => {
@@ -828,4 +830,30 @@ test('revenue_modelがnullの場合はsales_funnelへフォールバックし、
   });
   assert.equal(entry.revenueModel, 'sales_funnel');
   assert.equal(entry.linkedTaxPayments, 0);
+});
+
+test('emptyMonthlySalesEntryは全項目0・linkedTaxPaymentsのみ引数の値になる', () => {
+  const entry = emptyMonthlySalesEntry('2026-10', 500_000);
+  assert.equal(entry.yearMonth, '2026-10');
+  assert.equal(entry.linkedTaxPayments, 500_000);
+  assert.equal(entry.cashBalance, 0);
+  assert.equal(entry.targetRevenue, 0);
+  assert.equal(entry.revenueModel, 'sales_funnel');
+});
+
+test('emptyMonthlySalesEntryはlinkedTaxPayments省略時に0になる', () => {
+  assert.equal(emptyMonthlySalesEntry('2026-10').linkedTaxPayments, 0);
+});
+
+test('shouldGuideCashFlowInput: 未登録かつ既知の納税予定があれば案内が必要と判定する', () => {
+  assert.equal(shouldGuideCashFlowInput(false, 500_000), true);
+});
+
+test('shouldGuideCashFlowInput: 未登録でも納税予定が0円なら案内不要と判定する', () => {
+  assert.equal(shouldGuideCashFlowInput(false, 0), false);
+});
+
+test('shouldGuideCashFlowInput: 登録済みなら納税予定の額に関わらず案内不要と判定する（通常のfundingGap計算に委ねる）', () => {
+  assert.equal(shouldGuideCashFlowInput(true, 500_000), false);
+  assert.equal(shouldGuideCashFlowInput(true, 0), false);
 });

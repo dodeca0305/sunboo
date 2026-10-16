@@ -1,5 +1,6 @@
 import {
-  calculateMonthlyCashFlow, calculateMonthlySalesProgress, monthEndDate, type MonthlySalesEntry,
+  calculateMonthlyCashFlow, calculateMonthlySalesProgress, monthEndDate, shouldGuideCashFlowInput,
+  type MonthlySalesEntry,
 } from './monthlySalesProgress.ts';
 import type { WorkspaceNotification } from './workspaceNotifications';
 
@@ -41,6 +42,12 @@ export type WorkspaceGrowthNotificationOptions = {
   // 黙っていると「警告が無い＝問題なし」と誤って受け取られる（Unknown is better than Wrong）。
   // trueの場合、売上未達・資金不足の個別判定は行わず、取得できない旨の通知1件のみ返す。
   monthlyDataFetchFailed?: boolean;
+  // 【レビュー対応】workspace_monthly_salesにこの月の行が無い（まだ一度も保存していない）場合、
+  // 呼び出し元はこれをfalseにする。falseの場合、entryのcashBalance等は既定値0が入っているだけで
+  // 「実際に0円」とは限らない。既知の納税予定（entry.linkedTaxPayments）があるのに未登録のまま
+  // fundingGapを計算すると、本来不明なはずの不足額を断定表示してしまう
+  // （Unknown is better than Wrong。growth画面のshouldGuideCashFlowInputと判定基準を共有する）。
+  monthlyDataRegistered?: boolean;
 };
 
 const MONTHLY_DATA_FETCH_FAILED_NOTIFICATION: WorkspaceNotification = {
@@ -55,7 +62,9 @@ export function buildWorkspaceGrowthNotifications(
   entry: MonthlySalesEntry | null,
   options: WorkspaceGrowthNotificationOptions = {},
 ): WorkspaceNotification[] {
-  const { today = new Date(), cashFlowDataAvailable = true, monthlyDataFetchFailed = false } = options;
+  const {
+    today = new Date(), cashFlowDataAvailable = true, monthlyDataFetchFailed = false, monthlyDataRegistered = true,
+  } = options;
 
   if (monthlyDataFetchFailed) return [MONTHLY_DATA_FETCH_FAILED_NOTIFICATION];
   if (!entry) return [];
@@ -79,7 +88,17 @@ export function buildWorkspaceGrowthNotifications(
     });
   }
 
-  if (!cashFlowDataAvailable) {
+  if (shouldGuideCashFlowInput(monthlyDataRegistered, entry.linkedTaxPayments)) {
+    // 【レビュー対応】月次データ未登録＋既知の納税予定あり。cashBalance等の未入力項目を
+    // 実際に0円と断定したfundingGapを表示せず、growth画面と同じ案内文言で入力を促す。
+    notifications.push({
+      id: `cash:guidance:${entry.yearMonth}`,
+      severity: 'medium',
+      category: 'cash',
+      title: '今月の資金繰り',
+      message: `納税予定¥${entry.linkedTaxPayments.toLocaleString('ja-JP')}あり。預金残高・入出金予定を入力して資金繰りを確認してください。`,
+    });
+  } else if (!cashFlowDataAvailable) {
     // 【レビュー対応】納税予定の取得に失敗し、入力された金額の一部が不明な状態。
     // fundingGapを計算すると「本来より少ない不足額」を断定表示してしまう恐れがあるため、
     // 金額を出さずデータ未確認である旨のみ伝える。

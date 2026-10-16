@@ -73,6 +73,45 @@ export function monthlySalesRowToEntry(row: MonthlySalesRow, linkedTaxPayments =
   };
 }
 
+// workspace_monthly_salesに行が無い（まだ一度も保存されていない）月のための既定値。
+// linkedTaxPayments（年間ロードマップ連携の納税予定）だけは行の有無と無関係に別テーブル
+// （workspace_tax_payment_plans）から独立して存在しうるため、呼び出し元から渡す
+// （会社ホーム・売上目標詳細画面の両方がこの関数を共有し、未登録月の扱いを一致させる）。
+export function emptyMonthlySalesEntry(yearMonth: string, linkedTaxPayments = 0): MonthlySalesEntry {
+  return {
+    yearMonth,
+    targetRevenue: 0,
+    actualRevenue: 0,
+    targetGrossProfit: 0,
+    actualCostOfSales: 0,
+    targetOperatingProfit: 0,
+    actualFixedCosts: 0,
+    cashBalance: 0,
+    expectedCashInflows: 0,
+    expectedCashOutflows: 0,
+    plannedTaxPayments: 0,
+    linkedTaxPayments,
+    actionGoal: '',
+    revenueModel: 'sales_funnel',
+    meetingCount: 0,
+    conversionRate: 0,
+    averageContractValue: 0,
+    customerCount: 0,
+    purchaseFrequency: 0,
+    averageOrderValue: 0,
+  };
+}
+
+// 月次データ（cashBalance・expectedCashInflows等）が未登録の月は、その値を「実際に0円」と
+// 断定してはならない（Unknown is better than Wrong）。既知の納税予定（linkedTaxPayments、
+// 年間ロードマップ連携）があるにもかかわらず未登録の場合に限り、資金不足額を計算・表示する
+// 代わりに入力を促す案内に切り替える、という判定を会社ホーム・詳細画面の両方で共有する。
+// 未登録かつ納税予定も0円（＝判断材料が何もない）場合は、ここでは案内不要と判定する
+// （本当に何も分からない月について毎月通知し続けるのはノイズになるため）。
+export function shouldGuideCashFlowInput(isRegistered: boolean, linkedTaxPayments: number): boolean {
+  return !isRegistered && linkedTaxPayments > 0;
+}
+
 // 対象月（"YYYY-MM"）の最終日をISO日付で返す。売上未達・資金不足の「期限」表示に使う
 // （月内の手続きではないため、procedures.due_dateのような既存の期限は存在せず、月末を期限とみなす）。
 export function monthEndDate(yearMonth: string): string {

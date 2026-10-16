@@ -17,7 +17,7 @@ import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import WorkspaceCompletionFeedback from '@/components/WorkspaceCompletionFeedback';
 import WorkspaceTodaySalesCard from '@/components/WorkspaceTodaySalesCard';
 import {
-  monthEndDate, monthlySalesRowToEntry, todayInJapan,
+  emptyMonthlySalesEntry, monthEndDate, monthlySalesRowToEntry, todayInJapan,
   type DailySalesActivity, type MonthlySalesEntry, type MonthlySalesRow, type RevenueModel,
 } from '@/lib/monthlySalesProgress';
 import type { WorkspaceTaxPaymentPlanRow } from '@/lib/workspaceTaxPaymentPlan';
@@ -107,6 +107,12 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
   // 「問題なし」と誤認される（Unknown is better than Wrong）。
   let todaySalesFetchFailed = false;
   let monthlySalesFetchFailed = false;
+  // 【レビュー対応】workspace_monthly_salesにこの月の行が無い（まだ一度も保存していない）場合でも、
+  // 連携納税予定（workspace_tax_payment_plans）の額を無視しない。以前はif(monthly)の内側でのみ
+  // linkedTaxPaymentsを計算していたため、未登録月では連携納税予定の有無に関わらず会社ホームが
+  // 何も通知しない不備があった（growth画面の詳細では同じ納税予定を元に資金不足額を表示していたため、
+  // 画面間で表示が食い違っていた）。
+  let monthlyDataRegistered = true;
   try {
     const [dailyResult, monthlyResult, taxPaymentPlanResult] = await Promise.all([
       supabase
@@ -160,18 +166,22 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
     } else {
       const monthly = monthlyResult.data as MonthlySalesRow | null;
       if (monthly?.revenue_model === 'customer_repeat') revenueModel = 'customer_repeat';
-      if (monthly) {
-        if (taxPaymentPlanResult.error) {
-          // 月次売上の取得自体は成功している。納税予定だけが不明なため、売上未達の通知は
-          // そのまま成立させつつ、資金繰り側は金額を断定しない（workspaceGrowthNotifications.ts）。
-          cashFlowDataAvailable = false;
-          monthlySalesEntry = monthlySalesRowToEntry(monthly, 0);
-        } else {
-          const linkedTaxPayments = ((taxPaymentPlanResult.data as WorkspaceTaxPaymentPlanRow[] | null) ?? [])
-            .reduce((sum, row) => sum + Math.max(0, row.amount ?? 0), 0);
-          monthlySalesEntry = monthlySalesRowToEntry(monthly, linkedTaxPayments);
-        }
+      monthlyDataRegistered = Boolean(monthly);
+
+      let linkedTaxPayments = 0;
+      if (taxPaymentPlanResult.error) {
+        // 月次売上の取得自体は成功している（またはそもそも未登録）。納税予定だけが不明なため、
+        // 売上未達の通知はそのまま成立させつつ、資金繰り側は金額を断定しない
+        // （workspaceGrowthNotifications.ts）。
+        cashFlowDataAvailable = false;
+      } else {
+        linkedTaxPayments = ((taxPaymentPlanResult.data as WorkspaceTaxPaymentPlanRow[] | null) ?? [])
+          .reduce((sum, row) => sum + Math.max(0, row.amount ?? 0), 0);
       }
+
+      monthlySalesEntry = monthly
+        ? monthlySalesRowToEntry(monthly, linkedTaxPayments)
+        : emptyMonthlySalesEntry(currentYearMonth, linkedTaxPayments);
     }
   } catch {
     // 【レビュー対応】例外発生時もerrorチェックと同じ扱いにする（未登録・0円と同一視しない）。
@@ -180,6 +190,7 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
     monthlySalesEntry = null;
     monthlySalesFetchFailed = true;
     cashFlowDataAvailable = true; // monthlySalesFetchFailed=trueが優先されるため値自体は使われない
+    monthlyDataRegistered = true; // 同上
   }
 
   // ログイン中のユーザーがこの会社でownerかどうかを判定する（危険な操作の表示要否のみに使う）。
@@ -234,6 +245,7 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
     const growthNotifications = buildWorkspaceGrowthNotifications(monthlySalesEntry, {
       cashFlowDataAvailable,
       monthlyDataFetchFailed: monthlySalesFetchFailed,
+      monthlyDataRegistered,
     });
     notifications = buildWorkspaceNotifications(
       companyId, decisions, advice, procedureStatusMap, documentStatusMap, undefined, growthNotifications,

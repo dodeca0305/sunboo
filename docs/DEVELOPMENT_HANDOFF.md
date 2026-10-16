@@ -223,10 +223,62 @@
 
 ---
 
-## 12. 残る課題（【コード確認済み】の既知事項 + 今回判明した新規事項）
+## 13. プレビューでのホーム/詳細表示不一致（第3ラウンド）
+
+PR #132のプレビューで、会社ID17・2026年10月の実データにおいて以下の不一致が報告された。
+
+- `workspace_monthly_sales`の当月行が未登録（月間売上目標・実績・預金残高・入出金予定がすべて空欄）
+- 年間ロードマップ連携の納税予定は¥500,000
+- 売上目標の詳細画面（`/growth`）は「資金不足¥500,000」を表示
+- 会社ホームには資金通知が一切出ていない
+
+### 13-1. 原因
+
+`src/app/admin/(protected)/workspaces/[id]/page.tsx`（ホーム）の月次データ取得処理が、`workspace_tax_payment_plans`（連携納税予定）の計算を`if (monthly) { ... }`という**月次行が存在する場合のブロックの内側**に書いていたため、月次行が未登録（`monthly === null`、エラーではなく単に0件）の場合は連携納税予定のクエリ結果を参照すらせず、`monthlySalesEntry`が`null`のまま終了していた。`buildWorkspaceGrowthNotifications(null, ...)`は`entry === null`の時点で即座に`[]`を返す設計のため、既知の¥500,000の納税予定が存在するにもかかわらず、ホームは何も通知しなかった。
+
+一方、詳細画面（`WorkspaceGrowthView.tsx`）は月次行が無い月を選択した場合、`emptyEntry()`（ローカル定義、現在は共有関数化）でcashBalance等を**0円のドラフト**として組み立てる。このドラフトの`linkedTaxPayments`だけは`workspace_tax_payment_plans`から独立して正しく渡されていたため、`calculateMonthlyCashFlow`が「預金残高0円・納税予定¥500,000」から`fundingGap=¥500,000`を算出し、確定した不足額として表示していた。
+
+**つまり両画面とも「未入力の預金残高を実際に0円」と扱っていた点では同じだったが、ホーム側はそれ以前に連携納税予定自体を無視して終了していたため、2画面の間で「何も表示しない」と「¥500,000と断定表示する」という異なる誤りが生じていた。**
+
+### 13-2. 修正方針
+
+ユーザー指摘の通り、「未入力の預金残高を実際に0円と断定しない」という方針で両画面を統一した。
+
+- `src/lib/monthlySalesProgress.ts`に2つの共有関数を追加
+  - `emptyMonthlySalesEntry(yearMonth, linkedTaxPayments)`: `WorkspaceGrowthView.tsx`にローカル定義されていた`emptyEntry`を移動・共有化（会社ホームも同じ「未登録月の既定値」を使えるようにする）
+  - `shouldGuideCashFlowInput(isRegistered, linkedTaxPayments)`: 「未登録かつ既知の納税予定がある」場合にのみ、fundingGapの計算・断定表示をやめて入力案内に切り替える、という判定をホーム・詳細の両方で共有する
+- `page.tsx`（ホーム）: `linkedTaxPayments`の計算を`if (monthly)`の外側に移動し、月次行の有無に関わらず常に計算するよう修正。月次行が無い場合は`emptyMonthlySalesEntry(currentYearMonth, linkedTaxPayments)`でentryを組み立て、`monthlyDataRegistered`フラグ（行の有無）を`buildWorkspaceGrowthNotifications`へ渡す
+- `workspaceGrowthNotifications.ts`: `monthlyDataRegistered`オプションを追加。`shouldGuideCashFlowInput`がtrueの場合、fundingGapを計算せず「納税予定¥{額}あり。預金残高・入出金予定を入力して資金繰りを確認してください。」を通知する（severity: medium。確定した問題ではなく入力待ちのため、資金不足確定時のhighとは分ける）
+- `WorkspaceGrowthView.tsx`: 同じ`shouldGuideCashFlowInput`を使い、未登録月＋既知の納税予定ありの場合は資金繰りのMetricグリッド（預金見込残高・資金増減・資金不足額・資金が持つ目安）と資金対策アラートの表示を、ホームと同一の案内文言（見出し「納税予定{額}あり」＋本文「預金残高・入出金予定を入力して資金繰りを確認してください」）に置き換えた
+- 売上未達側は変更していない（未登録月は`targetRevenue=0`のため`shortfall`は常に0になり、元々誤った断定は発生しない）
+- **実データの書き換えは行っていない**（`workspace_monthly_sales`・`workspace_tax_payment_plans`いずれも未操作）
+
+### 13-3. 検証結果
+
+| 項目 | 結果 |
+|---|---|
+| `npm run build` | ✅ TypeScriptエラー0 |
+| `npm run lint` | ✅ 0 errors（既知の警告1件のみ、`WorkspaceGrowthView.tsx`、行番号は`emptyEntry`削除により変動したが内容は変更前から存在） |
+| `npm test` | ✅ **327/327 PASS**（12節時点の318件＋新規9件） |
+| `git diff --check` | ✅ 空白エラー0件 |
+
+### 追加したテスト9件
+
+| ファイル | 内容 |
+|---|---|
+| `src/lib/monthlySalesProgress.test.ts`（5件） | `emptyMonthlySalesEntry`が`linkedTaxPayments`以外すべて0になること／省略時0になること／`shouldGuideCashFlowInput`が未登録+納税予定あり→true、未登録+納税予定0円→false、登録済み→常にfalseを返すこと |
+| `src/lib/workspaceGrowthNotifications.test.ts`（4件） | `monthlyDataRegistered=false`+納税予定¥500,000（会社17の実例）で断定せず入力案内を通知すること／納税予定も0円なら何も通知しないこと／`monthlyDataRegistered=true`では通常のfundingGap計算を使うこと／`monthlyDataRegistered=false`が`cashFlowDataAvailable=false`より優先されること |
+
+### 13-4. 残る確認事項
+
+- 実ブラウザ（プレビュー環境）での表示確認は未実施。会社ID17・2026年10月で、ホームに「納税予定¥500,000あり。預金残高・入出金予定を入力して資金繰りを確認してください。」の通知が表示され、詳細画面（`/growth`）の資金繰りセクションも同じ文言に変わっていることの確認を推奨する
+
+---
+
+## 14. 残る課題（【コード確認済み】の既知事項 + 今回判明した新規事項）
 
 - 既存3ドキュメント（PROJECT_CONTEXT.md / ROADMAP.md / PROJECT_STATUS.md）とコードの同期作業が別途必要（2-1節）。本書はその場しのぎであり、正式な同期の代替にはならない
 - Tax Intelligenceの本番有効化状況（Cron稼働・メール送信・Control承認）が未確認（2-6節）。経営支援とTax Intelligenceを一体化する次フェーズに進む前に、まず現状の本番稼働実態を確認するタスクが必要
 - `AGENTS.md`はリポジトリ内に存在しない（確認済み、`find`で0件）
-- `WorkspaceTodaySalesCard.tsx`の`fetchFailed`状態・`workspaceGrowthNotifications.ts`の`monthlyDataFetchFailed`はいずれもユニットテスト（純粋関数）・ビルドでの型チェックのみで確認しており、実ブラウザでの表示確認（Supabase接続を実際に失敗させた場合の見た目）は行っていない
+- `WorkspaceTodaySalesCard.tsx`の`fetchFailed`状態・`workspaceGrowthNotifications.ts`の`monthlyDataFetchFailed`／`monthlyDataRegistered`はいずれもユニットテスト（純粋関数）・ビルドでの型チェックのみで確認しており、実ブラウザでの表示確認は行っていない
 - 本書作成時点でmainへのマージ・本番公開はまだ行っていない（作業ブランチ`feat/workspace-home-priority-actions`上での変更に留まる）

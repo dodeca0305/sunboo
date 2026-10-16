@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildWorkspaceGrowthNotifications } from './workspaceGrowthNotifications.ts';
-import type { MonthlySalesEntry } from './monthlySalesProgress.ts';
+import { emptyMonthlySalesEntry, type MonthlySalesEntry } from './monthlySalesProgress.ts';
 
 function entry(overrides: Partial<MonthlySalesEntry> = {}): MonthlySalesEntry {
   return {
@@ -158,6 +158,54 @@ test('資金に余裕があってもcashFlowDataAvailable=falseなら確認で�
   );
   const cash = notifications.find((n) => n.category === 'cash');
   assert.ok(cash, '残高に余裕があっても、納税予定が不明な以上「問題なし」と断定しない');
+});
+
+// 【レビュー対応】会社ID17・2026年10月の実例: workspace_monthly_salesが未登録
+// （月間売上目標・実績・預金残高・入出金予定がすべて空欄）だが、年間ロードマップ連携の
+// 納税予定が¥500,000あった。修正前はentry===nullとなりホームが何も通知しなかったが、
+// growth詳細画面は同じ納税予定から資金不足¥500,000を算出・表示しており、画面間で
+// 表示が食い違っていた。
+
+test('monthlyDataRegistered=false・既知の納税予定ありの場合、資金不足額を断定せず納税予定額と入力案内を通知する', () => {
+  const notifications = buildWorkspaceGrowthNotifications(
+    emptyMonthlySalesEntry('2026-10', 500_000),
+    { today: new Date('2026-10-05T00:00:00Z'), monthlyDataRegistered: false },
+  );
+  const cash = notifications.find((n) => n.category === 'cash');
+  assert.ok(cash, '未登録でも連携納税予定を無視せず通知する');
+  assert.equal(cash.severity, 'medium');
+  assert.equal(cash.message, '納税予定¥500,000あり。預金残高・入出金予定を入力して資金繰りを確認してください。');
+  // fundingGapを計算した場合の「不足する見込みです」という断定表現は含まない
+  assert.doesNotMatch(cash.message, /不足する見込み/);
+});
+
+test('monthlyDataRegistered=false・納税予定も0円の場合は何も通知しない（判断材料が無い月まで毎回案内しない）', () => {
+  const notifications = buildWorkspaceGrowthNotifications(
+    emptyMonthlySalesEntry('2026-10', 0),
+    { today: new Date('2026-10-05T00:00:00Z'), monthlyDataRegistered: false },
+  );
+  assert.deepEqual(notifications, []);
+});
+
+test('monthlyDataRegistered=true（登録済み）の場合、未登録向けの案内は出さず通常のfundingGap計算を使う', () => {
+  const notifications = buildWorkspaceGrowthNotifications(
+    entry({ cashBalance: 0, linkedTaxPayments: 500_000 }),
+    { today: new Date('2026-10-05T00:00:00Z'), monthlyDataRegistered: true },
+  );
+  const cash = notifications.find((n) => n.category === 'cash');
+  assert.ok(cash);
+  assert.match(cash.message, /不足する見込みです/);
+  assert.doesNotMatch(cash.message, /預金残高・入出金予定を入力して/);
+});
+
+test('monthlyDataRegistered=falseはcashFlowDataAvailable=falseより優先して判定される', () => {
+  const notifications = buildWorkspaceGrowthNotifications(
+    emptyMonthlySalesEntry('2026-10', 500_000),
+    { today: new Date('2026-10-05T00:00:00Z'), monthlyDataRegistered: false, cashFlowDataAvailable: false },
+  );
+  const cash = notifications.find((n) => n.category === 'cash');
+  assert.ok(cash);
+  assert.equal(cash.message, '納税予定¥500,000あり。預金残高・入出金予定を入力して資金繰りを確認してください。');
 });
 
 // 【レビュー対応】以下2件は月替わり（JST基準の2026-11-01T00:00:00、UTCでは
