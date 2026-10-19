@@ -269,9 +269,14 @@ PR #132のプレビューで、会社ID17・2026年10月の実データにおい
 | `src/lib/monthlySalesProgress.test.ts`（5件） | `emptyMonthlySalesEntry`が`linkedTaxPayments`以外すべて0になること／省略時0になること／`shouldGuideCashFlowInput`が未登録+納税予定あり→true、未登録+納税予定0円→false、登録済み→常にfalseを返すこと |
 | `src/lib/workspaceGrowthNotifications.test.ts`（4件） | `monthlyDataRegistered=false`+納税予定¥500,000（会社17の実例）で断定せず入力案内を通知すること／納税予定も0円なら何も通知しないこと／`monthlyDataRegistered=true`では通常のfundingGap計算を使うこと／`monthlyDataRegistered=false`が`cashFlowDataAvailable=false`より優先されること |
 
-### 13-4. 残る確認事項
+### 13-4. 実ブラウザでの確認結果（【ユーザー確認済み】2026-10-19）
 
-- 実ブラウザ（プレビュー環境）での表示確認は未実施。会社ID17・2026年10月で、ホームに「納税予定¥500,000あり。預金残高・入出金予定を入力して資金繰りを確認してください。」の通知が表示され、詳細画面（`/growth`）の資金繰りセクションも同じ文言に変わっていることの確認を推奨する
+PR #132のプレビュー環境で、会社ID17・2026年10月について実ブラウザで確認済み。
+
+- ホーム（`/admin/workspaces/17`）・売上目標詳細（`/admin/workspaces/17/growth`）の**両画面**で、納税予定¥500,000と資金情報の入力案内が表示されることを確認
+- 未入力状態（`workspace_monthly_sales`未登録）での資金不足額の断定表示は解消されていることを確認
+
+13-1節の不一致・13-2節の修正方針は実ブラウザで検証済みとなった。
 
 ---
 
@@ -280,5 +285,5 @@ PR #132のプレビューで、会社ID17・2026年10月の実データにおい
 - 既存3ドキュメント（PROJECT_CONTEXT.md / ROADMAP.md / PROJECT_STATUS.md）とコードの同期作業が別途必要（2-1節）。本書はその場しのぎであり、正式な同期の代替にはならない
 - Tax Intelligenceの本番有効化状況（Cron稼働・メール送信・Control承認）が未確認（2-6節）。経営支援とTax Intelligenceを一体化する次フェーズに進む前に、まず現状の本番稼働実態を確認するタスクが必要
 - `AGENTS.md`はリポジトリ内に存在しない（確認済み、`find`で0件）
-- `WorkspaceTodaySalesCard.tsx`の`fetchFailed`状態・`workspaceGrowthNotifications.ts`の`monthlyDataFetchFailed`／`monthlyDataRegistered`はいずれもユニットテスト（純粋関数）・ビルドでの型チェックのみで確認しており、実ブラウザでの表示確認は行っていない
+- `WorkspaceTodaySalesCard.tsx`の`fetchFailed`状態・`workspaceGrowthNotifications.ts`の`monthlyDataFetchFailed`はユニットテスト・ビルドでの型チェックのみで確認しており、実ブラウザでの表示確認は未実施のまま（13-4節で確認済みなのは`monthlyDataRegistered`の資金繰り案内表示のみ）
 - 本書作成時点でmainへのマージ・本番公開はまだ行っていない（作業ブランチ`feat/workspace-home-priority-actions`上での変更に留まる）
