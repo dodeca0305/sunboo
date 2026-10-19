@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CalendarPlus, CheckCircle2, Lightbulb, Save, Target } from 'lucide-react';
+import { AlertTriangle, CalendarPlus, CheckCircle2, Lightbulb, Save, Target } from 'lucide-react';
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import {
@@ -19,10 +19,16 @@ export default function WorkspaceTodaySalesCard({
   companyId,
   activity,
   revenueModel,
+  fetchFailed = false,
 }: {
   companyId: number;
   activity: DailySalesActivity | null;
   revenueModel: RevenueModel;
+  // 【レビュー対応】取得失敗（Supabaseのerror・例外）を「未登録（activity===null）」と区別するためのフラグ。
+  // 区別しないと、取得に失敗しただけなのに「今日の実行計画はまだ作られていません」という
+  // 未登録向けの文言・CTA（新規作成リンク）を表示してしまい、既存の計画を見失ったまま
+  // 新規に作り直す操作を誘発しかねない（docs/DEVELOPMENT_HANDOFF.md 7節）。
+  fetchFailed?: boolean;
 }) {
   const router = useRouter();
   const [actualUnits, setActualUnits] = useState<number | null>(activity?.actualUnits ?? null);
@@ -34,6 +40,30 @@ export default function WorkspaceTodaySalesCard({
   const [error, setError] = useState<string | null>(null);
   const label = revenueModel === 'sales_funnel' ? '商談' : '顧客';
   const unit = revenueModel === 'sales_funnel' ? '件' : '人・社';
+
+  if (fetchFailed) {
+    return (
+      <section className="card border-red-200 bg-red-50">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+          <div className="min-w-0 flex-1">
+            <h2 className="font-bold text-sunboo-ink">今日の売上目標</h2>
+            <p className="mt-1 text-sm text-red-700">
+              今日の売上データを取得できませんでした。既存の計画が無いとは限らないため、
+              新しい計画を作る前に再読み込みしてください。
+            </p>
+            <button
+              type="button"
+              className="btn-secondary mt-4 inline-flex items-center gap-2 border-red-200 text-red-700 hover:border-red-300 hover:bg-red-50"
+              onClick={() => router.refresh()}
+            >
+              再読み込み
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   if (!activity) {
     return (

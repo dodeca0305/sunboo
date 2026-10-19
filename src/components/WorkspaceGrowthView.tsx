@@ -35,6 +35,8 @@ import {
   buildFiveDayExecutionPlan,
   todayInJapan,
   shiftYearMonth,
+  emptyMonthlySalesEntry,
+  shouldGuideCashFlowInput,
   type DailySalesActivity,
   type MonthlySalesEntry,
   type WeeklySalesActivity,
@@ -71,31 +73,6 @@ function emptyWeeklyActivity(
   };
 }
 
-function emptyEntry(yearMonth: string, linkedTaxPayments = 0): MonthlySalesEntry {
-  return {
-    yearMonth,
-    targetRevenue: 0,
-    actualRevenue: 0,
-    targetGrossProfit: 0,
-    actualCostOfSales: 0,
-    targetOperatingProfit: 0,
-    actualFixedCosts: 0,
-    cashBalance: 0,
-    expectedCashInflows: 0,
-    expectedCashOutflows: 0,
-    plannedTaxPayments: 0,
-    linkedTaxPayments,
-    actionGoal: '',
-    revenueModel: 'sales_funnel',
-    meetingCount: 0,
-    conversionRate: 0,
-    averageContractValue: 0,
-    customerCount: 0,
-    purchaseFrequency: 0,
-    averageOrderValue: 0,
-  };
-}
-
 export default function WorkspaceGrowthView({
   companyId,
   initialEntries,
@@ -112,7 +89,7 @@ export default function WorkspaceGrowthView({
   const initialMap = Object.fromEntries(initialEntries.map((entry) => [entry.yearMonth, entry]));
   const [entries, setEntries] = useState<Record<string, MonthlySalesEntry>>(initialMap);
   const [yearMonth, setYearMonth] = useState(currentYearMonth());
-  const selected = entries[yearMonth] ?? emptyEntry(yearMonth, linkedTaxPaymentsByMonth[yearMonth] ?? 0);
+  const selected = entries[yearMonth] ?? emptyMonthlySalesEntry(yearMonth, linkedTaxPaymentsByMonth[yearMonth] ?? 0);
   const [draft, setDraft] = useState<MonthlySalesEntry>(selected);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -157,7 +134,7 @@ export default function WorkspaceGrowthView({
     const requestedWeek = currentWeekStart(new Date(`${requestedDate}T12:00:00+09:00`));
     const requestedMonth = requestedDate.slice(0, 7);
     const requestedEntry = initialMap[requestedMonth]
-      ?? emptyEntry(requestedMonth, linkedTaxPaymentsByMonth[requestedMonth] ?? 0);
+      ?? emptyMonthlySalesEntry(requestedMonth, linkedTaxPaymentsByMonth[requestedMonth] ?? 0);
     const requestedWeekly = initialWeeklyMap[requestedWeek]
       ?? emptyWeeklyActivity(requestedWeek, initialWeeklyMap[previousWeekStart(requestedWeek)], requestedEntry.revenueModel);
     const summary = calculateWeeklyGoalSummary(requestedWeekly, requestedEntry.revenueModel);
@@ -179,6 +156,13 @@ export default function WorkspaceGrowthView({
   const grossProfitProgress = useMemo(() => calculateMonthlyGrossProfit(draft), [draft]);
   const operatingProfitProgress = useMemo(() => calculateMonthlyOperatingProfit(draft), [draft]);
   const cashFlowProgress = useMemo(() => calculateMonthlyCashFlow(draft), [draft]);
+  // 【レビュー対応】workspace_monthly_salesにこの月の行が無い（まだ保存していない）場合、
+  // cashBalance等は既定値0が入っているだけで「実際に0円」とは限らない。既知の納税予定
+  // （linkedTaxPayments、年間ロードマップ連携）があるのに未登録のまま資金不足額を断定表示
+  // しないよう、入力を促す案内に切り替える（会社ホーム側のworkspaceGrowthNotifications.tsと
+  // 同じshouldGuideCashFlowInputを共有し、判定基準を一致させる）。
+  const isMonthRegistered = Boolean(entries[yearMonth]);
+  const showCashFlowGuidance = shouldGuideCashFlowInput(isMonthRegistered, draft.linkedTaxPayments);
   const cashFlowActions = useMemo(
     () => buildCashFlowActions(draft, cashFlowProgress),
     [draft, cashFlowProgress],
@@ -239,7 +223,7 @@ export default function WorkspaceGrowthView({
   function changeMonth(nextMonth: string) {
     if (!/^\d{4}-\d{2}$/.test(nextMonth)) return;
     setYearMonth(nextMonth);
-    setDraft(entries[nextMonth] ?? emptyEntry(nextMonth, linkedTaxPaymentsByMonth[nextMonth] ?? 0));
+    setDraft(entries[nextMonth] ?? emptyMonthlySalesEntry(nextMonth, linkedTaxPaymentsByMonth[nextMonth] ?? 0));
     setError(null);
     setSaved(false);
   }
@@ -869,104 +853,125 @@ export default function WorkspaceGrowthView({
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Metric
-            label="月末の預金見込残高"
-            value={yen.format(cashFlowProgress.projectedClosingCash)}
-            caution={cashFlowProgress.projectedClosingCash < 0}
-          />
-          <Metric
-            label="今月の資金増減"
-            value={yen.format(cashFlowProgress.netCashFlow)}
-            caution={cashFlowProgress.netCashFlow < 0}
-          />
-          <Metric
-            label="月末の資金不足額"
-            value={yen.format(cashFlowProgress.fundingGap)}
-            caution={cashFlowProgress.fundingGap > 0}
-          />
-          <Metric
-            label="資金が持つ目安"
-            value={cashFlowProgress.runwayMonths === null
-              ? '資金減少なし'
-              : `${cashFlowProgress.runwayMonths}か月`}
-            caution={cashFlowProgress.runwayMonths !== null && cashFlowProgress.runwayMonths < 3}
-          />
-        </div>
-
-        {cashFlowActions.length > 0 && (
+        {showCashFlowGuidance ? (
+          // 【レビュー対応】未登録月＋既知の納税予定あり。cashBalance等を0円と断定した
+          // 資金不足額を表示せず、入力を促す案内のみ表示する（会社ホーム側と文言を一致させる）。
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
             <div className="flex items-start gap-3">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
               <div className="min-w-0 flex-1">
                 <h3 className="font-bold">
-                  月末までに最低{yen.format(cashFlowProgress.fundingGap)}の資金対策が必要です
+                  納税予定{yen.format(draft.linkedTaxPayments)}あり
                 </h3>
                 <p className="mt-1 text-sm">
-                  上から順に実行し、対策後の金額を入力し直して不足が解消するか確認してください。
+                  預金残高・入出金予定を入力して資金繰りを確認してください。未入力のまま0円として
+                  計算すると、実際の資金不足額を見誤る可能性があります。
                 </p>
-                <ol className="mt-4 space-y-3">
-                  {cashFlowActions.map((action, index) => (
-                    <li key={action.title} className="flex gap-3 rounded-lg bg-white/70 p-3">
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold">
-                        {index + 1}
-                      </span>
-                      <div>
-                        <p className="font-semibold">{action.title}</p>
-                        <p className="mt-1 text-sm">{action.description}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-                <div className="mt-4 rounded-lg border border-amber-300 bg-white p-4">
-                  <p className="font-bold">売上で不足を埋める場合の目安</p>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                    <Metric
-                      label="最低限必要な追加入金"
-                      value={yen.format(fundingSalesRecovery.requiredCashCollection)}
-                      caution
-                    />
-                    <Metric
-                      label="粗利率を考慮した追加売上"
-                      value={fundingSalesRecovery.requiredAdditionalRevenue === null
-                        ? '算出不可'
-                        : yen.format(fundingSalesRecovery.requiredAdditionalRevenue)}
-                      caution
-                    />
-                    <Metric
-                      label={`必要な${fundingSalesRecovery.unitLabel}`}
-                      value={fundingSalesRecovery.requiredUnits === null
-                        ? '算出不可'
-                        : `${fundingSalesRecovery.requiredUnits}件`}
-                      caution
-                    />
-                  </div>
-                  <p className="mt-3 text-xs">
-                    当月中に入金される売上を前提とした目安です。
-                    {fundingSalesRecovery.grossProfitMargin === null
-                      ? ' 実績売上・売上原価から正の粗利率を確認できないため、追加売上と件数は算出していません。'
-                      : ` 現在の実績粗利率${fundingSalesRecovery.grossProfitMargin}%と平均単価を使用しています。`}
-                  </p>
-                  {fundingSalesRecovery.requiredUnits !== null && (
-                    <div className="mt-4 rounded-lg bg-amber-100 p-3">
-                      <p className="text-xs font-semibold">今週からの追加目標（残り{fundingWeeklyAction.weeksRemaining}週）</p>
-                      <p className="mt-1 text-lg font-bold">
-                        毎週あと{fundingWeeklyAction.requiredUnitsPerWeek}件の{fundingWeeklyAction.unitLabel}
-                        {draft.revenueModel === 'sales_funnel' && (
-                          fundingWeeklyAction.requiredMeetingsPerWeek === null
-                            ? '（必要商談数は成約率入力後に算出）'
-                            : `・${fundingWeeklyAction.requiredMeetingsPerWeek}件の商談`
-                        )}
-                      </p>
-                      <p className="mt-1 text-xs">
-                        週ごとの実績を下の入力欄へ記録し、翌週の必要数を見直してください。
-                      </p>
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
           </div>
+        ) : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Metric
+                label="月末の預金見込残高"
+                value={yen.format(cashFlowProgress.projectedClosingCash)}
+                caution={cashFlowProgress.projectedClosingCash < 0}
+              />
+              <Metric
+                label="今月の資金増減"
+                value={yen.format(cashFlowProgress.netCashFlow)}
+                caution={cashFlowProgress.netCashFlow < 0}
+              />
+              <Metric
+                label="月末の資金不足額"
+                value={yen.format(cashFlowProgress.fundingGap)}
+                caution={cashFlowProgress.fundingGap > 0}
+              />
+              <Metric
+                label="資金が持つ目安"
+                value={cashFlowProgress.runwayMonths === null
+                  ? '資金減少なし'
+                  : `${cashFlowProgress.runwayMonths}か月`}
+                caution={cashFlowProgress.runwayMonths !== null && cashFlowProgress.runwayMonths < 3}
+              />
+            </div>
+
+            {cashFlowActions.length > 0 && (
+              <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold">
+                      月末までに最低{yen.format(cashFlowProgress.fundingGap)}の資金対策が必要です
+                    </h3>
+                    <p className="mt-1 text-sm">
+                      上から順に実行し、対策後の金額を入力し直して不足が解消するか確認してください。
+                    </p>
+                    <ol className="mt-4 space-y-3">
+                      {cashFlowActions.map((action, index) => (
+                        <li key={action.title} className="flex gap-3 rounded-lg bg-white/70 p-3">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold">
+                            {index + 1}
+                          </span>
+                          <div>
+                            <p className="font-semibold">{action.title}</p>
+                            <p className="mt-1 text-sm">{action.description}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                    <div className="mt-4 rounded-lg border border-amber-300 bg-white p-4">
+                      <p className="font-bold">売上で不足を埋める場合の目安</p>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                        <Metric
+                          label="最低限必要な追加入金"
+                          value={yen.format(fundingSalesRecovery.requiredCashCollection)}
+                          caution
+                        />
+                        <Metric
+                          label="粗利率を考慮した追加売上"
+                          value={fundingSalesRecovery.requiredAdditionalRevenue === null
+                            ? '算出不可'
+                            : yen.format(fundingSalesRecovery.requiredAdditionalRevenue)}
+                          caution
+                        />
+                        <Metric
+                          label={`必要な${fundingSalesRecovery.unitLabel}`}
+                          value={fundingSalesRecovery.requiredUnits === null
+                            ? '算出不可'
+                            : `${fundingSalesRecovery.requiredUnits}件`}
+                          caution
+                        />
+                      </div>
+                      <p className="mt-3 text-xs">
+                        当月中に入金される売上を前提とした目安です。
+                        {fundingSalesRecovery.grossProfitMargin === null
+                          ? ' 実績売上・売上原価から正の粗利率を確認できないため、追加売上と件数は算出していません。'
+                          : ` 現在の実績粗利率${fundingSalesRecovery.grossProfitMargin}%と平均単価を使用しています。`}
+                      </p>
+                      {fundingSalesRecovery.requiredUnits !== null && (
+                        <div className="mt-4 rounded-lg bg-amber-100 p-3">
+                          <p className="text-xs font-semibold">今週からの追加目標（残り{fundingWeeklyAction.weeksRemaining}週）</p>
+                          <p className="mt-1 text-lg font-bold">
+                            毎週あと{fundingWeeklyAction.requiredUnitsPerWeek}件の{fundingWeeklyAction.unitLabel}
+                            {draft.revenueModel === 'sales_funnel' && (
+                              fundingWeeklyAction.requiredMeetingsPerWeek === null
+                                ? '（必要商談数は成約率入力後に算出）'
+                                : `・${fundingWeeklyAction.requiredMeetingsPerWeek}件の商談`
+                            )}
+                          </p>
+                          <p className="mt-1 text-xs">
+                            週ごとの実績を下の入力欄へ記録し、翌週の必要数を見直してください。
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
         <button type="button" className="btn-primary" onClick={save} disabled={saving}>
           <Save className="h-4 w-4" />

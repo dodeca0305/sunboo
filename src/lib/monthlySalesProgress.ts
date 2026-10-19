@@ -23,6 +23,107 @@ export type MonthlySalesEntry = {
 
 export type RevenueModel = 'sales_funnel' | 'customer_repeat';
 
+// workspace_monthly_salesのSELECT結果（スネークケース）。growth/page.tsx・会社ホーム（page.tsx）の
+// 両方が同じ列構成を取得するため、行→MonthlySalesEntry変換をmonthlySalesRowToEntryへ共通化する
+// （CLAUDE.mdの重複禁止方針。2箇所に19フィールドのマッピングを個別に書かない）。
+export type MonthlySalesRow = {
+  year_month: string;
+  target_revenue: number;
+  actual_revenue: number;
+  target_gross_profit: number;
+  actual_cost_of_sales: number;
+  target_operating_profit: number;
+  actual_fixed_costs: number;
+  cash_balance: number;
+  expected_cash_inflows: number;
+  expected_cash_outflows: number;
+  planned_tax_payments: number;
+  action_goal: string;
+  revenue_model: RevenueModel | null;
+  meeting_count: number;
+  conversion_rate: number;
+  average_contract_value: number;
+  customer_count: number;
+  purchase_frequency: number;
+  average_order_value: number;
+};
+
+export function monthlySalesRowToEntry(row: MonthlySalesRow, linkedTaxPayments = 0): MonthlySalesEntry {
+  return {
+    yearMonth: row.year_month.slice(0, 7),
+    targetRevenue: row.target_revenue,
+    actualRevenue: row.actual_revenue,
+    targetGrossProfit: row.target_gross_profit ?? 0,
+    actualCostOfSales: row.actual_cost_of_sales ?? 0,
+    targetOperatingProfit: row.target_operating_profit ?? 0,
+    actualFixedCosts: row.actual_fixed_costs ?? 0,
+    cashBalance: row.cash_balance ?? 0,
+    expectedCashInflows: row.expected_cash_inflows ?? 0,
+    expectedCashOutflows: row.expected_cash_outflows ?? 0,
+    plannedTaxPayments: row.planned_tax_payments ?? 0,
+    linkedTaxPayments,
+    actionGoal: row.action_goal,
+    revenueModel: row.revenue_model ?? 'sales_funnel',
+    meetingCount: row.meeting_count ?? 0,
+    conversionRate: row.conversion_rate ?? 0,
+    averageContractValue: row.average_contract_value ?? 0,
+    customerCount: row.customer_count ?? 0,
+    purchaseFrequency: row.purchase_frequency ?? 0,
+    averageOrderValue: row.average_order_value ?? 0,
+  };
+}
+
+// workspace_monthly_salesに行が無い（まだ一度も保存されていない）月のための既定値。
+// linkedTaxPayments（年間ロードマップ連携の納税予定）だけは行の有無と無関係に別テーブル
+// （workspace_tax_payment_plans）から独立して存在しうるため、呼び出し元から渡す
+// （会社ホーム・売上目標詳細画面の両方がこの関数を共有し、未登録月の扱いを一致させる）。
+export function emptyMonthlySalesEntry(yearMonth: string, linkedTaxPayments = 0): MonthlySalesEntry {
+  return {
+    yearMonth,
+    targetRevenue: 0,
+    actualRevenue: 0,
+    targetGrossProfit: 0,
+    actualCostOfSales: 0,
+    targetOperatingProfit: 0,
+    actualFixedCosts: 0,
+    cashBalance: 0,
+    expectedCashInflows: 0,
+    expectedCashOutflows: 0,
+    plannedTaxPayments: 0,
+    linkedTaxPayments,
+    actionGoal: '',
+    revenueModel: 'sales_funnel',
+    meetingCount: 0,
+    conversionRate: 0,
+    averageContractValue: 0,
+    customerCount: 0,
+    purchaseFrequency: 0,
+    averageOrderValue: 0,
+  };
+}
+
+// 月次データ（cashBalance・expectedCashInflows等）が未登録の月は、その値を「実際に0円」と
+// 断定してはならない（Unknown is better than Wrong）。既知の納税予定（linkedTaxPayments、
+// 年間ロードマップ連携）があるにもかかわらず未登録の場合に限り、資金不足額を計算・表示する
+// 代わりに入力を促す案内に切り替える、という判定を会社ホーム・詳細画面の両方で共有する。
+// 未登録かつ納税予定も0円（＝判断材料が何もない）場合は、ここでは案内不要と判定する
+// （本当に何も分からない月について毎月通知し続けるのはノイズになるため）。
+export function shouldGuideCashFlowInput(isRegistered: boolean, linkedTaxPayments: number): boolean {
+  return !isRegistered && linkedTaxPayments > 0;
+}
+
+// 対象月（"YYYY-MM"）の最終日をISO日付で返す。売上未達・資金不足の「期限」表示に使う
+// （月内の手続きではないため、procedures.due_dateのような既存の期限は存在せず、月末を期限とみなす）。
+export function monthEndDate(yearMonth: string): string {
+  const match = /^(\d{4})-(\d{2})$/.exec(yearMonth);
+  if (!match) throw new Error('対象月が不正です。');
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (month < 1 || month > 12) throw new Error('対象月が不正です。');
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return `${match[1]}-${match[2]}-${String(lastDay).padStart(2, '0')}`;
+}
+
 export type SalesDriverPlan = {
   projectedRevenue: number;
   projectedGap: number;

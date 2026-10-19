@@ -1,9 +1,12 @@
 import type { WorkspaceDecisions, DecisionPriority } from './workspaceDecisions';
 import type { WorkspaceAdvice } from './workspaceAdvice';
-import { workspaceProcedureOccurrenceKey, type WorkspaceProcedureStatusMap } from './workspaceProcedureStatus';
+// 拡張子を明示する（workspaceTaxPaymentPlan.tsと同じ既存パターン）。これにより本ファイルを
+// node --testで直接importしてテストできる（拡張子無しのままだとNode ESMのネイティブ解決が
+// 失敗し、buildWorkspaceNotificationsの単体テストが書けない）。
+import { workspaceProcedureOccurrenceKey, type WorkspaceProcedureStatusMap } from './workspaceProcedureStatus.ts';
 import {
   WORKSPACE_DOCUMENT_TYPES, WORKSPACE_DOCUMENT_TYPE_LABEL, type WorkspaceDocumentStatusMap,
-} from './workspaceDocumentStatus';
+} from './workspaceDocumentStatus.ts';
 
 // ── Workspace Notification Center — MVP（Sprint 37 Phase37.1）─────────────
 // 設計: docs/NOTIFICATION_ENGINE_DESIGN.md（Sprint36、設計レビュー承認済み）。
@@ -25,6 +28,10 @@ import {
 //   判定に使っているのと同じ基準（status === 'needs_update'）をそのまま再利用する
 //   （Decision.watchItemsの文言一致だけに頼ると、手続きに対応しない書類（定款・登記簿謄本）が
 //   一度も通知対象にならないため、Document Statusを直接の入力として使う）
+// - sales / cash: 【追加】docs/DEVELOPMENT_HANDOFF.md 3節。workspaceGrowthNotifications.ts
+//   （calculateMonthlySalesProgress・calculateMonthlyCashFlow、いずれもmonthlySalesProgress.ts
+//   と共通）が判定済みの売上未達・資金不足の通知候補をそのまま受け取るだけで、本ファイル側では
+//   新しい判定ロジックを追加しない（他カテゴリと同じ「変換のみ」の方針を維持する）
 //
 // 【重複防止】workspaceProcedureOccurrenceKey（procedure_id + occurrence_key）を、
 // 手続きに紐づく候補（Advice由来）のキーとしてそのまま再利用する。Decision.actions/
@@ -36,7 +43,7 @@ import {
 // 渡されたDecisions/Advice/Status Mapから都度計算するだけの純粋関数。
 
 export type WorkspaceNotificationSeverity = DecisionPriority; // 'high' | 'medium' | 'low'
-export type WorkspaceNotificationCategory = 'deadline' | 'hold' | 'document' | 'closing' | 'information';
+export type WorkspaceNotificationCategory = 'deadline' | 'hold' | 'document' | 'closing' | 'information' | 'sales' | 'cash';
 
 export type WorkspaceNotification = {
   id: string;
@@ -48,7 +55,7 @@ export type WorkspaceNotification = {
   href?: string;
 };
 
-const DEFAULT_MAX_ITEMS = 5;
+export const DEFAULT_MAX_ITEMS = 5;
 const CLOSING_WATCH_TITLE = '決算に向けた準備';
 const HOLD_REASON_KEYWORD = '保留';
 const NO_DELAY_OPPORTUNITY_TITLE = '直近の手続きに遅れはありません';
@@ -149,11 +156,19 @@ function hrefFor(companyId: number, category: WorkspaceNotificationCategory, has
   const base = `/admin/workspaces/${companyId}`;
   if (category === 'document') return `${base}/documents`;
   if (category === 'information') return hasOccurrenceLink ? `${base}/roadmap` : `${base}/profile`;
+  if (category === 'sales' || category === 'cash') return `${base}/growth`;
   return `${base}/roadmap`; // deadline / hold / closing
 }
 
-// Decisions/Advice/Procedure Status/Document Statusから、重要度順（high→low）に並んだ
-// 通知候補を都度計算する。保存は行わない（呼び出しの都度この関数を実行する）。
+// Decisions/Advice/Procedure Status/Document Status/Growth（売上・資金繰り）から、重要度順
+// （high→low）に並んだ通知候補を都度計算する。保存は行わない（呼び出しの都度この関数を実行する）。
+// growthNotifications（workspaceGrowthNotifications.ts、省略可）は呼び出し元が既に判定済みの
+// 候補をそのまま受け取るだけで、本関数側では売上・資金繰りに関する新しい判定を行わない。
+//
+// 【引数の順序について】既存の呼び出し元（第6引数maxItemsを位置引数で渡すコード）との互換性を
+// 保つため、growthNotificationsは末尾（第7引数）に追加した。maxItemsの位置は変更していない。
+// 呼び出し側でmaxItemsを省略してgrowthNotificationsだけ渡したい場合はundefinedを渡す
+// （デフォルト値DEFAULT_MAX_ITEMSが適用される）。
 export function buildWorkspaceNotifications(
   companyId: number,
   decisions: WorkspaceDecisions,
@@ -161,6 +176,7 @@ export function buildWorkspaceNotifications(
   procedureStatusMap: WorkspaceProcedureStatusMap,
   documentStatusMap: WorkspaceDocumentStatusMap,
   maxItems = DEFAULT_MAX_ITEMS,
+  growthNotifications: WorkspaceNotification[] = [],
 ): WorkspaceNotification[] {
   const candidates = [
     ...fromDecisionActions(decisions),
@@ -168,6 +184,7 @@ export function buildWorkspaceNotifications(
     ...fromAdviceWarnings(advice),
     ...fromAdviceOpportunities(advice),
     ...fromDocumentStatus(documentStatusMap),
+    ...growthNotifications,
   ];
 
   // 重複防止（同じ手続き・同じ出現回・同じ通知種別を1件にまとめる）と、既に完了済みの出現を除外する

@@ -33,6 +33,10 @@ import {
   previousWeekStart,
   nextWeekStart,
   shiftYearMonth,
+  monthEndDate,
+  monthlySalesRowToEntry,
+  emptyMonthlySalesEntry,
+  shouldGuideCashFlowInput,
 } from './monthlySalesProgress.ts';
 
 test('日本時間の今日の日付を返す', () => {
@@ -733,4 +737,123 @@ test('店舗型の週間実績から平均単価と顧客不足を計算する',
     customerGap: 20,
     requiredCustomersPerWeek: 30,
   });
+});
+
+test('対象月の末日をISO日付で返す', () => {
+  assert.equal(monthEndDate('2026-02'), '2026-02-28');
+  assert.equal(monthEndDate('2028-02'), '2028-02-29'); // 閏年
+  assert.equal(monthEndDate('2026-04'), '2026-04-30');
+});
+
+test('対象月の形式が不正ならエラーにする', () => {
+  assert.throws(() => monthEndDate('2026/04'));
+});
+
+test('月が01〜12の範囲外ならエラーにする', () => {
+  assert.throws(() => monthEndDate('2026-00'));
+  assert.throws(() => monthEndDate('2026-13'));
+  assert.throws(() => monthEndDate('2026-99'));
+});
+
+test('月が01・12（範囲の両端）なら正しく末日を返す', () => {
+  assert.equal(monthEndDate('2026-01'), '2026-01-31');
+  assert.equal(monthEndDate('2026-12'), '2026-12-31');
+});
+
+test('workspace_monthly_salesの行をMonthlySalesEntryへ変換する', () => {
+  const row = {
+    year_month: '2026-10-01',
+    target_revenue: 1_000_000,
+    actual_revenue: 400_000,
+    target_gross_profit: 500_000,
+    actual_cost_of_sales: 200_000,
+    target_operating_profit: 100_000,
+    actual_fixed_costs: 150_000,
+    cash_balance: 300_000,
+    expected_cash_inflows: 400_000,
+    expected_cash_outflows: 500_000,
+    planned_tax_payments: 50_000,
+    action_goal: '既存顧客への追加提案',
+    revenue_model: 'customer_repeat' as const,
+    meeting_count: 10,
+    conversion_rate: 20,
+    average_contract_value: 40_000,
+    customer_count: 30,
+    purchase_frequency: 1.2,
+    average_order_value: 13_333,
+  };
+  assert.deepEqual(monthlySalesRowToEntry(row, 70_000), {
+    yearMonth: '2026-10',
+    targetRevenue: 1_000_000,
+    actualRevenue: 400_000,
+    targetGrossProfit: 500_000,
+    actualCostOfSales: 200_000,
+    targetOperatingProfit: 100_000,
+    actualFixedCosts: 150_000,
+    cashBalance: 300_000,
+    expectedCashInflows: 400_000,
+    expectedCashOutflows: 500_000,
+    plannedTaxPayments: 50_000,
+    linkedTaxPayments: 70_000,
+    actionGoal: '既存顧客への追加提案',
+    revenueModel: 'customer_repeat',
+    meetingCount: 10,
+    conversionRate: 20,
+    averageContractValue: 40_000,
+    customerCount: 30,
+    purchaseFrequency: 1.2,
+    averageOrderValue: 13_333,
+  });
+});
+
+test('revenue_modelがnullの場合はsales_funnelへフォールバックし、linkedTaxPaymentsは省略時0になる', () => {
+  const entry = monthlySalesRowToEntry({
+    year_month: '2026-10-01',
+    target_revenue: 0,
+    actual_revenue: 0,
+    target_gross_profit: 0,
+    actual_cost_of_sales: 0,
+    target_operating_profit: 0,
+    actual_fixed_costs: 0,
+    cash_balance: 0,
+    expected_cash_inflows: 0,
+    expected_cash_outflows: 0,
+    planned_tax_payments: 0,
+    action_goal: '',
+    revenue_model: null,
+    meeting_count: 0,
+    conversion_rate: 0,
+    average_contract_value: 0,
+    customer_count: 0,
+    purchase_frequency: 0,
+    average_order_value: 0,
+  });
+  assert.equal(entry.revenueModel, 'sales_funnel');
+  assert.equal(entry.linkedTaxPayments, 0);
+});
+
+test('emptyMonthlySalesEntryは全項目0・linkedTaxPaymentsのみ引数の値になる', () => {
+  const entry = emptyMonthlySalesEntry('2026-10', 500_000);
+  assert.equal(entry.yearMonth, '2026-10');
+  assert.equal(entry.linkedTaxPayments, 500_000);
+  assert.equal(entry.cashBalance, 0);
+  assert.equal(entry.targetRevenue, 0);
+  assert.equal(entry.revenueModel, 'sales_funnel');
+});
+
+test('emptyMonthlySalesEntryはlinkedTaxPayments省略時に0になる', () => {
+  assert.equal(emptyMonthlySalesEntry('2026-10').linkedTaxPayments, 0);
+});
+
+test('shouldGuideCashFlowInput: 未登録かつ既知の納税予定があれば案内が必要と判定する', () => {
+  assert.equal(shouldGuideCashFlowInput(false, 500_000), true);
+});
+
+test('shouldGuideCashFlowInput: 未登録でも納税予定が0円なら案内不要と判定する', () => {
+  assert.equal(shouldGuideCashFlowInput(false, 0), false);
+});
+
+test('shouldGuideCashFlowInput: 登録済みなら納税予定の額に関わらず案内不要と判定する（通常のfundingGap計算に委ねる）', () => {
+  assert.equal(shouldGuideCashFlowInput(true, 500_000), false);
+  assert.equal(shouldGuideCashFlowInput(true, 0), false);
 });

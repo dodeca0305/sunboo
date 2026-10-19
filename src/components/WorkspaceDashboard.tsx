@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import {
   Sunrise, ListChecks, PieChart, Sparkles, Building2, Compass,
-  Bell, Clock, PauseCircle, FileStack, Receipt, Info,
+  Bell, Clock, PauseCircle, FileStack, Receipt, Info, TrendingUp, Wallet,
 } from 'lucide-react';
 import type {
   WorkspaceAdvice,
@@ -123,6 +123,8 @@ const NOTIFICATION_CATEGORY_ICON: Record<WorkspaceNotificationCategory, typeof C
   document: FileStack,
   closing: Receipt,
   information: Info,
+  sales: TrendingUp,
+  cash: Wallet,
 };
 
 function NotificationRow({ notification }: { notification: WorkspaceNotification }) {

@@ -5,6 +5,13 @@
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) を、DB構造は [docs/DATABASE.md](docs/DATABASE.md) を、
 ルールエンジンの詳細は [docs/RULE_ENGINE.md](docs/RULE_ENGINE.md) を参照してください。
 
+**作業開始前に必ず [docs/DEVELOPMENT_HANDOFF.md](docs/DEVELOPMENT_HANDOFF.md) を確認すること。**
+PROJECT_CONTEXT.md・docs/ROADMAP.md・docs/PROJECT_STATUS.mdは2026年7月時点（Sprint44前後）の記述で
+更新が止まっており、以降にマージされた多数の機能（売上目標・粗利・資金繰り・週次/日次売上行動管理・
+Tax Intelligence基盤の本番相当実装等）が反映されていない。DEVELOPMENT_HANDOFF.mdはこのdriftを
+コードから直接確認した事実ベースで記録したものであり、新しい開発に着手する際はこのdriftを
+前提として既存ドキュメントの古い記述をそのまま信用しないこと。
+
 ## 守るべき思想
 
 SUNBOOは**長期運用を前提としたプロダクト**です。速度より保守性・拡張性・実務品質を優先してください。
@@ -73,6 +80,7 @@ SUNBOOは**長期運用を前提としたプロダクト**です。速度より�
 
 | ファイル | 内容 |
 |---|---|
+| [docs/DEVELOPMENT_HANDOFF.md](docs/DEVELOPMENT_HANDOFF.md) | **最新の実装状況（コード確認済み）。既存ドキュメントとのdriftの記録。作業開始前に必読** |
 | [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) | Mission/Vision、完了済みPhase、現在の状態、ロードマップ概要 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | システム全体構成、主要ディレクトリ・ページ、データ取得方針 |
 | [docs/DATABASE.md](docs/DATABASE.md) | 全テーブルの役割と関係性 |
