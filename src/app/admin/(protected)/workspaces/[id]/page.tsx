@@ -8,9 +8,13 @@ import PageHeader from '@/components/PageHeader';
 import { type CompanyState } from '@/lib/state';
 import type { WorkspaceDocumentStatusMap } from '@/lib/workspaceDocumentStatus';
 import { generateWorkspaceAdvice, summarizeWorkspaceProgress, type WorkspaceAdvice, type WorkspaceProgressSummary } from '@/lib/workspaceAdvice';
-import { generateWorkspaceDecisions, type WorkspaceDecisions } from '@/lib/workspaceDecisions';
+import {
+  generateWorkspaceDecisions, mergeDecisionActions, selectUrgentDecisionActions, summarizeDecisionActions,
+  type WorkspaceDecisionAction, type WorkspaceDecisions,
+} from '@/lib/workspaceDecisions';
 import { buildWorkspaceNotifications, type WorkspaceNotification } from '@/lib/workspaceNotifications';
 import { buildWorkspaceGrowthNotifications } from '@/lib/workspaceGrowthNotifications';
+import { growthNotificationsToDecisionActions } from '@/lib/workspaceGrowthActions';
 import { loadWorkspaceCompany, loadWorkspaceDocumentStatuses, loadWorkspaceRoadmapContext } from '@/lib/workspaceLoader';
 import WorkspaceDashboard from '@/components/WorkspaceDashboard';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
@@ -229,6 +233,7 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
   let progress: WorkspaceProgressSummary | null = null;
   let decisions: WorkspaceDecisions | null = null;
   let notifications: WorkspaceNotification[] = [];
+  let todayActions: WorkspaceDecisionAction[] = [];
   let state: CompanyState | null = null;
   let prefectureName = '';
   let municipalityName = '';
@@ -241,20 +246,40 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
 
     advice = generateWorkspaceAdvice(roadmapYears, procedureStatusMap, state);
     progress = summarizeWorkspaceProgress(roadmapYears, procedureStatusMap);
-    decisions = generateWorkspaceDecisions(companyProfile, state, roadmapYears, procedureStatusMap, documentStatusMap);
+    const procedureDecisions = generateWorkspaceDecisions(
+      companyProfile, state, roadmapYears, procedureStatusMap, documentStatusMap,
+    );
     const growthNotifications = buildWorkspaceGrowthNotifications(monthlySalesEntry, {
       cashFlowDataAvailable,
       monthlyDataFetchFailed: monthlySalesFetchFailed,
       monthlyDataRegistered,
     });
+
+    // 【追加】手続き起因のactions（procedureDecisions.actions）と、売上・資金繰り起因のactions
+    // （growthNotificationsをそのまま変換、新しい判定ロジックは持たない）を同じ優先順位
+    // （compareDecisionActions: 重要度→実際の期限の近さ、期限の無い項目は架空の期限を付けず
+    // 最後方へ）で合流させる。「意思決定」の件数・表示・summaryはこの合流後の配列から一貫して
+    // 導出するため、二重計上や件数の不整合は起きない。
+    const growthActions = growthNotificationsToDecisionActions(growthNotifications, companyId, currentYearMonth);
+    const mergedActions = mergeDecisionActions(procedureDecisions.actions, growthActions);
+    decisions = { ...procedureDecisions, actions: mergedActions, summary: summarizeDecisionActions(mergedActions) };
+    // 「今日やること」は合流済みactionsのうち最優先の階層のみ（高優先度が無ければ中優先度）。
+    // 既存のselectTodayActionItems（advice.warnings優先）と同じ「上位が無ければ次」という考え方を
+    // 手続き・書類・売上・資金繰りをまとめた配列に対して適用する。
+    todayActions = selectUrgentDecisionActions(mergedActions);
+
+    // 【注意】ここは必ずprocedureDecisions（手続きのみ、合流前）を渡す。合流後のdecisionsを渡すと、
+    // decisions.actionsに既に含まれる売上・資金繰りactionsがfromDecisionActions経由で
+    // 'deadline'カテゴリとして再度拾われ、growthNotificationsと二重に通知されてしまう。
     notifications = buildWorkspaceNotifications(
-      companyId, decisions, advice, procedureStatusMap, documentStatusMap, undefined, growthNotifications,
+      companyId, procedureDecisions, advice, procedureStatusMap, documentStatusMap, undefined, growthNotifications,
     );
   } catch {
     advice = null;
     progress = null;
     decisions = null;
     notifications = [];
+    todayActions = [];
     state = null;
   }
 
@@ -298,6 +323,7 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
           advice={advice}
           progress={progress}
           decisions={decisions}
+          todayActions={todayActions}
           notifications={notifications}
           documentsNeedingUpdateCount={documentsNeedingUpdateCount}
         />

@@ -1,8 +1,10 @@
 import type { RoadmapItem, RoadmapYear } from './roadmap';
 import type { CompanyState } from './state';
-import { workspaceProcedureOccurrenceKey, type WorkspaceProcedureStatus, type WorkspaceProcedureStatusMap } from './workspaceProcedureStatus';
+// 拡張子を明示する（既存パターン。node --testでworkspaceDecisions.ts経由で本ファイルを
+// importする際にNode ESMのネイティブ解決が失敗しないようにするため）。
+import { workspaceProcedureOccurrenceKey, type WorkspaceProcedureStatus, type WorkspaceProcedureStatusMap } from './workspaceProcedureStatus.ts';
 import type { ProcedureCategory } from './types';
-import { buildWorkspaceAdviceSummary } from './workspaceAdvicePresentation';
+import { buildWorkspaceAdviceSummary } from './workspaceAdvicePresentation.ts';
 
 // ── Workspace AI Adviser — ルールベースMVP（Sprint 24 Phase24.2・Sprint 32）─────────
 // Advice = f( Annual Roadmap, Procedure Status, State )。既存Engine（診断エンジン・State Engine・
