@@ -351,3 +351,26 @@ node --testのネイティブESM解決対応として、`workspaceDecisions.ts`�
 
 - 実データ（`workspace_monthly_sales`・`workspace_tax_payment_plans`等）の書き換えは行っていない（閲覧・ログインのみ）
 - mainへのマージ・本番公開は行っていない（作業ブランチ`feat/workspace-home-action-priority`上での変更に留まる）
+
+### 15-7. PR #133レビュー対応: `generateWorkspaceDecisions`の早期件数制限の見直し
+
+**指摘内容**: `generateWorkspaceDecisions`は内部で`actions.sort(compareDecisionActions); actions.splice(ACTION_MAX_ITEMS);`を行っており、`page.tsx`が売上・資金繰りactionsと合流する**前**に、手続きactionsを単独で8件へ絞っていた。これは「手続きと売上・資金繰りの全候補を合流・ソートした後に表示件数を制限する」という設計意図（15-2節）に構成上は反しており、合流前の早期カットに見えるため指摘を受けた。
+
+**検証**: 合流に使う`mergeDecisionActions`と、合流前の早期カットに使う`ACTION_MAX_ITEMS`（旧コードでは両方とも同じ8）が常に同一の値である限り、数学的には「先に手続き側だけ上位8件に絞ってから合流・再ソート・再度上位8件」と「手続き＋成長の全候補を合流・ソートしてから一度だけ上位8件」は同じ結果になる（手続き側で8位より下位の候補は、どのような成長候補を追加で混ぜても、合流後の全体順位でも8位以内に入り得ないため）。そのため、今回の修正前の`feat/workspace-home-action-priority`時点の実装は、出力結果としては誤っていなかった。
+
+ただし、この等価性は「`generateWorkspaceDecisions`内の早期カット件数」と「`mergeDecisionActions`の`maxItems`」が常に同じ値であることに暗黙に依存しており、どちらかが将来ズレた場合に静かに壊れる構成だった（テストで直接検知できない前提に依存していた）。指摘のとおり、コード構成自体を「全候補を合流・ソートした後に1回だけ件数制限する」形に修正した。
+
+**修正内容**:
+- `generateWorkspaceDecisions`（`src/lib/workspaceDecisions.ts`）に、7番目の引数`maxActions: number = ACTION_MAX_ITEMS`を追加。内部の`actions.splice(ACTION_MAX_ITEMS)`を`actions.splice(maxActions)`に変更した。既定値は従来と同じ`ACTION_MAX_ITEMS`のため、**本引数を省略する呼び出しの動作は一切変わらない**
+- `page.tsx`: `generateWorkspaceDecisions(..., undefined, Number.POSITIVE_INFINITY)`で呼び出し、手続きactionsの**全候補**（件数制限なし）を取得するよう変更。`Array.prototype.splice(Infinity)`はECMA-262仕様上、`start`が配列長を超える場合は配列末尾にクランプされ要素が1件も削除されない安全なno-opであることを確認済み（`node -e`で実測確認: `[1,2,3,4,5].splice(Infinity)`は`[1,2,3,4,5]`のまま）
+  - この全候補（`procedureDecisions.actions`）を`growthActions`と`mergeDecisionActions`で合流・ソートし、`mergeDecisionActions`内で初めて（1回だけ）`ACTION_MAX_ITEMS`件へ制限する。これが「意思決定」「今日やること」の最終的な表示件数になる
+  - `buildWorkspaceNotifications`（「確認が必要なこと」、Sprint37の既存Engine）には、**既存の呼び出し元の動作を変えないため**、全候補ではなく`procedureDecisions.actions.slice(0, ACTION_MAX_ITEMS)`（従来の内部`splice(ACTION_MAX_ITEMS)`と全く同じ内容の配列）を渡すよう明示的に切り出した
+
+**検証したこと**:
+- `src/lib/workspaceDecisions.test.ts`に新規テスト「手続き側の候補だけで上限を超える場合でも、全候補を合流・ソートした後に正しい優先順位で上位ACTION_MAX_ITEMS件が選ばれる」を追加。手続き側のみでhigh優先度12件（ACTION_MAX_ITEMSの8を超える件数）、成長側にそれら全てより期限の早いhigh優先度1件を用意し、`mergeDecisionActions`の出力が全13件中の正しい上位8件（成長1件＋手続き01〜07、手続き08〜12は除外）になることを確認した
+- `MONTHLY_DATA_FETCH_FAILED_NOTIFICATION`（`workspaceGrowthNotifications.ts`、取得失敗時の実際の通知）の`severity`が今回の修正・レビュー対応を通じて`'medium'`のまま変更されていないことを確認した（レビュー時に提示した「期限なしの高優先度」の混在ソート例は、comparatorの挙動を示すための人工的なテストデータであり、実際の取得失敗通知の優先度ではない）
+- `npm test`: ✅ **352/352 PASS**（15-4節時点の351件＋本節の新規1件）
+- `npm run build`: ✅ TypeScriptエラー0
+- `npm run lint`: ✅ 0 errors（既知の警告1件のみ、本節の変更対象外）
+
+**実ブラウザでの再確認**: 行っていない（15-5節で確認済みの会社ID17のケースは手続きactionsが13件中2件のみで、ACTION_MAX_ITEMS=8を超えないため、本節の修正による表示上の差分は無い。ユーザー指示により再実行していない）。

@@ -55,6 +55,34 @@ test('mergeDecisionActions: 件数上限（既定ACTION_MAX_ITEMS）を超えた
   assert.equal(merged.length, ACTION_MAX_ITEMS);
 });
 
+// 【レビュー対応】generateWorkspaceDecisionsは、売上・資金繰りactionsと合流する前に自身の候補
+// （手続きのみ）を内部でACTION_MAX_ITEMS件へ先に絞ってはいけない（page.tsxがmaxActions=Infinityを
+// 渡し、本関数（mergeDecisionActions）側で1回だけ件数制限する構成にした）。以下は、手続き側の
+// 候補だけで既にACTION_MAX_ITEMSを超えており、かつ成長（売上・資金繰り）側に手続きのどれよりも
+// 優先されるべき候補が混ざっているケースで、全候補（手続き＋成長）を合流・ソートした「後」に
+// 初めて件数制限が効き、本来選ばれるべき上位ACTION_MAX_ITEMS件が正しく選ばれることを検証する。
+test('mergeDecisionActions: 手続き側の候補だけで上限を超える場合でも、全候補を合流・ソートした後に正しい優先順位で上位ACTION_MAX_ITEMS件が選ばれる', () => {
+  // 手続き側: high優先度12件、期限が2026-10-01〜2026-10-12（1日刻み、昇順）。
+  const procedureActions = Array.from({ length: 12 }, (_, i) =>
+    action({ priority: 'high', title: `手続き${String(i + 1).padStart(2, '0')}`, dueDate: `2026-10-${String(i + 1).padStart(2, '0')}` }));
+  // 成長側: high優先度1件、期限は手続きのどれよりも早い2026-09-30（最優先のはず）。
+  const growthAction = action({ priority: 'high', title: '今月の資金繰り（最優先）', dueDate: '2026-09-30' });
+
+  const merged = mergeDecisionActions(procedureActions, [growthAction]);
+
+  assert.equal(merged.length, ACTION_MAX_ITEMS);
+  // 全13件（手続き12件＋成長1件）の中から、期限が早い順に上位8件が選ばれる：
+  // 成長（09-30）→手続き01(10-01)〜手続き07(10-07)。手続き08〜12は正しく除外される。
+  assert.deepEqual(
+    merged.map((a) => a.title),
+    ['今月の資金繰り（最優先）', '手続き01', '手続き02', '手続き03', '手続き04', '手続き05', '手続き06', '手続き07'],
+  );
+  // 手続き側だけを先にACTION_MAX_ITEMS（8）件へ絞ってから合流していたら、この成長actionが
+  // 手続き09〜12を押し出す形で上位に入ってくる挙動は（たまたま一致する場合を除き）保証されない。
+  // 本テストは「合流後に1回だけ件数制限する」構成であることの直接的な検証を意図している。
+  assert.ok(!merged.some((a) => a.title === '手続き08'), '手続き08は上位8件から正しく除外される');
+});
+
 test('summarizeDecisionActions: マージ後の配列から件数を数えるため、表示件数とsummaryが一致する（二重計上防止）', () => {
   const merged = [
     action({ priority: 'high', title: 'A' }),

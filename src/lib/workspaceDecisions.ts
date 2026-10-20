@@ -85,6 +85,11 @@ export function generateWorkspaceDecisions(
   procedureStatusMap: WorkspaceProcedureStatusMap,
   documentStatusMap: WorkspaceDocumentStatusMap,
   today: Date = new Date(),
+  // 【追加】既定値はACTION_MAX_ITEMSで、単独呼び出し時の動作は変更しない。売上・資金繰りの
+  // actionsと合流してから1回だけ件数制限したい呼び出し元（page.tsx）は、ここに
+  // Number.POSITIVE_INFINITYを渡すことで、本Engine内での早期カットを無効化できる
+  // （actions.splice(Infinity)はJS仕様上、配列をそのまま返す安全なno-opになる）。
+  maxActions: number = ACTION_MAX_ITEMS,
 ): WorkspaceDecisions {
   const actions: WorkspaceDecisionAction[] = [];
   const watchItems: WorkspaceDecisionWatchItem[] = [];
@@ -166,7 +171,7 @@ export function generateWorkspaceDecisions(
   }
 
   actions.sort(compareDecisionActions);
-  actions.splice(ACTION_MAX_ITEMS);
+  actions.splice(maxActions);
   const summary = summarizeDecisionActions(actions);
 
   return { actions, watchItems, completed, summary };
