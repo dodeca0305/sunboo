@@ -1,0 +1,39 @@
+name: Claude task handoff
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions: {}
+
+concurrency:
+  group: claude-task-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  claude:
+    if: >-
+      github.event.comment.user.login == 'dodeca0305' &&
+      github.event.comment.user.type == 'User' &&
+      contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Run requested task
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: >-
+            --max-turns 30
+            --append-system-prompt "Read CLAUDE.md and docs/DEVELOPMENT_HANDOFF.md before working. Work on a task branch and report changes, checks, and limitations on the triggering issue or PR. Never merge PRs, push directly to main, deploy production, modify production data, or disclose secrets. If authentication or required test configuration is unavailable, report the blocker accurately."
