@@ -374,3 +374,24 @@ node --testのネイティブESM解決対応として、`workspaceDecisions.ts`�
 - `npm run lint`: ✅ 0 errors（既知の警告1件のみ、本節の変更対象外）
 
 **実ブラウザでの再確認**: 行っていない（15-5節で確認済みの会社ID17のケースは手続きactionsが13件中2件のみで、ACTION_MAX_ITEMS=8を超えないため、本節の修正による表示上の差分は無い。ユーザー指示により再実行していない）。
+
+## 16. 会社ホーム「税務レビュー要約」カード
+
+### 16-1. 前提（デプロイ状況）
+
+- PR #133はmainへマージ済み（`a6e6c84`）。本番デプロイ成功・main CI（run 39732753838）はChatGPT側で確認済み（本セッションでは未確認・ユーザー報告に基づく記録）
+
+### 16-2. 実装内容（DB変更なし・既存RLSのまま）
+
+- `src/lib/taxIntelligence/reviewSummary.ts`: `loadWorkspaceTaxReviewSummary`。ログインユーザーのsession clientで読み、service-roleは使わない
+  - `openReviewCount`: 既存`loadWorkspaceTaxReviewItems`（tax-review画面と同じloader）の`status='open'`件数。画面と同範囲
+  - `controlEvaluation`: `tax_controls`の`status='approved' AND is_enabled=true`を母集団にし、`workspace_tax_control_results`をControlごとの最新1件（`as_of_date`→`evaluated_at`→`id`）で集計。結果が無いControlは「未評価」。`applicable=false`は「対象外」
+  - 2つは`Promise.allSettled`で独立取得し、片方の失敗でもう片方を隠さない（失敗は`null`）
+- `src/components/WorkspaceTaxReviewSummaryCard.tsx`: 表示のみ。承認済みControl0件は「判定は行われていません」と表示し、「問題なし」とは表示しない。専門家確認の注意書きと`/tax-review`へのリンク付き
+- `workspaces/[id]/page.tsx`: 他機能と独立したtry/catchで取得し、カードのみ縮退表示
+- テスト: `reviewSummary.test.ts`（最新1件・未評価・対象外・片側取得失敗）
+
+### 16-3. 未確認事項
+
+- 本セッション（GitHub Actions）では`npm test`・`npm run build`・Playwrightが権限制約で実行できず、未実行。ローカルで実行して確認すること
+- 本番のControl承認状況・評価データ・Cron稼働は未確認。`tax_controls`の読み取りはadmin_users限定RLSのため、admin以外のworkspaceメンバーでは「取得できませんでした」表示になる（既存tax-review画面と同じ制約）
