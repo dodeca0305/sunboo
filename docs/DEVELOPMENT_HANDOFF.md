@@ -286,4 +286,91 @@ PR #132のプレビュー環境で、会社ID17・2026年10月について実ブ
 - Tax Intelligenceの本番有効化状況（Cron稼働・メール送信・Control承認）が未確認（2-6節）。経営支援とTax Intelligenceを一体化する次フェーズに進む前に、まず現状の本番稼働実態を確認するタスクが必要
 - `AGENTS.md`はリポジトリ内に存在しない（確認済み、`find`で0件）
 - `WorkspaceTodaySalesCard.tsx`の`fetchFailed`状態・`workspaceGrowthNotifications.ts`の`monthlyDataFetchFailed`はユニットテスト・ビルドでの型チェックのみで確認しており、実ブラウザでの表示確認は未実施のまま（13-4節で確認済みなのは`monthlyDataRegistered`の資金繰り案内表示のみ）
-- 本書作成時点でmainへのマージ・本番公開はまだ行っていない（作業ブランチ`feat/workspace-home-priority-actions`上での変更に留まる）
+- 【2026-10-20追記】PR #132（本節までの内容）はmainへマージ済み・本番（`https://www.sunboo-keiei.com`）で表示確認済み。上記「mainへのマージ・本番公開はまだ行っていない」は本PR当時の状態であり、現在は解消済み。続きは15節を参照
+
+## 15. 会社ホーム「今日のポイント」「意思決定」への売上・資金繰りアクション統合（【コード確認済み・実ブラウザ確認済み】2026-10-20、作業ブランチ`feat/workspace-home-action-priority`）
+
+### 15-1. 背景・要件
+
+PR #132（5〜13節）で追加した売上未達・資金不足の判定（`workspaceGrowthNotifications.ts`）は「確認が必要なこと」（`workspaceNotifications.ts`）にのみ連携されており、会社ホームの「今日のポイント」（`今日やること`）と「意思決定」（`workspaceDecisions.ts`）は手続き期限・書類ステータスのみを入力としていた（売上・資金繰りのデータを一切参照しない状態だった）。本節はその欠落を埋める。要件は以下6点（会話由来）。
+
+1. 既存の売上・資金繰り通知（`buildWorkspaceGrowthNotifications`）を再利用し、計算・判定ロジックを重複させない
+2. 手続き・書類・売上・資金繰りを共通の優先順位（重要度→実際の期限の近さ）で扱う。期限のない入力案内に架空の期限を付けない
+3. 「今日やること」に具体的な行動と遷移ボタンを表示する。売上・資金繰りは該当月の売上目標画面へ遷移させる
+4. 「意思決定」の件数と表示項目を整合させ、同じ項目を二重計上しない
+5. 未登録・取得失敗・実際の0円を区別する。入力案内や取得失敗を資金不足の確定情報として扱わない
+6. 既存の手続き期限・書類通知と、PR #131の日付指定遷移（`?date=YYYY-MM-DD`）を維持する
+
+### 15-2. 設計・実装
+
+既存3エンジン（Decision Engine `workspaceDecisions.ts` / AI Adviser `workspaceAdvice.ts` / Notification Center `workspaceNotifications.ts`）の「既存Engineの出力を読むだけで新たな計算・DBアクセスを行わない純粋関数」という設計方針を維持し、`workspaceGrowthNotifications.ts`（PR #132、変更しない）が既に判定済みの通知を機械的に変換・合流させるだけの薄い層として実装した。
+
+- **`workspaceDecisions.ts`**: `WorkspaceDecisionAction`に`procedureId`・`actionHref`（共に省略可）を追加。既存の`generateWorkspaceDecisions`内部でのみ使っていたソート・件数制限・サマリー生成ロジックを、`compareDecisionActions`（優先度→`dueDate ?? '9999-99-99'`の順でソート。架空の期限を作らず、期限の無い項目は同優先度内で最後方に回す）・`summarizeDecisionActions`・`mergeDecisionActions`（手続き起因と他ドメイン起因の配列を合流しソート・件数制限）・`selectUrgentDecisionActions`（high優先度があればhighのみ、無ければmedium、という既存`selectTodayActionItems`の warnings→priority フォールバックと同じ考え方をhigh/medium/lowの3階層へ一般化したもの）として抽出・export。`generateWorkspaceDecisions`自体の判定ロジックは一切変更していない
+- **`workspaceNotifications.ts`**: `WorkspaceNotification`に`dueDate`（省略可）を追加。既存呼び出し元への影響なし
+- **`workspaceGrowthNotifications.ts`**: 各通知に`dueDate`を設定。売上未達・計算済み資金不足（いずれも確定した計算結果）には`monthEndDate(entry.yearMonth)`を設定。取得失敗・未登録月の入力案内・資金繰り確認不能（いずれも確定した事実ではない）には`null`を設定し、架空の期限を付けない（要件2・5）
+- **`workspaceGrowthActions.ts`（新規）**: `growthNotificationToDecisionAction` / `growthNotificationsToDecisionActions`。`WorkspaceNotification`の`severity`→`priority`・`title`→`title`・`message`→`reason`・`dueDate`→`dueDate`をそのまま転記するだけで、新しい判断ロジックは一切持たない。`actionHref`は`/admin/workspaces/{companyId}/growth?date={yearMonth}-01`を指す。`WorkspaceGrowthView.tsx`の既存`?date`クエリ処理（PR #131と同じ仕組み）がそのまま対象月のドラフトを開くため、新しい遷移ロジックの追加は不要だった
+- **`page.tsx`（ホーム）**: `generateWorkspaceDecisions`の出力を`procedureDecisions`として保持したまま、`growthNotificationsToDecisionActions`で変換した`growthActions`と`mergeDecisionActions`で合流させ、画面表示用の`decisions`・`todayActions`（`selectUrgentDecisionActions`）を構築する。**`buildWorkspaceNotifications`には合流後の`decisions`ではなく、必ず`procedureDecisions`（手続きのみ・合流前）を渡す**。合流後の`decisions`を渡すと、`decisions.actions`に既に含まれる売上・資金繰りactionsが`buildWorkspaceNotifications`内部の`fromDecisionActions`経由で`'deadline'`カテゴリとして再度拾われ、別途渡している`growthNotifications`と二重に通知されてしまうため（要件4、実装中に自己発見・修正）
+- **`WorkspaceDashboard.tsx`**: 「今日やること」の描画を、旧`selectTodayActionItems(advice)`（手続きのみ）から新しい`todayActions`プロパティ（`WorkspaceDecisionAction[]`、手続き＋売上・資金繰りが合流済み）へ差し替え。各行に遷移ボタンを表示し、`actionHref`があればそれを使い（売上・資金繰り起因）、無ければ`procedureId`＋`dueDate`から既存のRoadmap深いリンク（PR #131と同じ`?procedureId=...&dueDate=...`形式）を組み立てる（手続き起因）。「次の期限」「今年あと何件」は意図的に変更していない（手続きのみの集計のまま。売上・資金繰りには実在する「次の期限」という概念が無い項目を含むため、安易に合算すると誤解を招く）
+
+### 15-3. スコープ外とした判断（会話では明示されていないが実装中に決定）
+
+- 書類単体（手続きに紐づかない定款・登記簿謄本等）を新たに「意思決定」「今日のポイント」へ追加することはしなかった。要件が「売上・資金繰りのアクションを統合」と明示していたこと、書類起因のリスクは`generateWorkspaceDecisions`内の`documentIssue`判定で既に該当手続きのaction理由文に織り込まれていること、独立項目として追加すると同じ書類課題が「手続きactionの理由文」と「書類単体の行」の両方に現れ二重計上に近い状態になりかねないことが理由
+- 「確認が必要なこと」セクション自体のレイアウト・ロジックは変更していない（引き続き`procedureDecisions`＋`advice`＋`growthNotifications`から独立に構築。今回追加したのは「今日のポイント」「意思決定」への統合のみ）
+
+### 15-4. 検証結果
+
+| 項目 | 結果 |
+|---|---|
+| `npm test` | ✅ **351/351 PASS**（13節時点の327件＋新規24件） |
+| `npm run build` | ✅ `✓ Compiled successfully`、TypeScriptエラー0、全ルート生成成功 |
+| `npm run lint` | ✅ 0 errors（既知の警告1件のみ、`WorkspaceGrowthView.tsx`、本節の変更対象外） |
+
+追加したテスト24件:
+
+| ファイル | 内容 |
+|---|---|
+| `src/lib/workspaceDecisions.test.ts`（新規、11件） | `compareDecisionActions`（優先度順・同優先度内での期限近い順・期限無し項目が最後方になること）／`mergeDecisionActions`（手続き・成長アクションの合流順・`ACTION_MAX_ITEMS`での切り捨て）／`summarizeDecisionActions`（high件数ありなし・0件の3パターン）／`selectUrgentDecisionActions`（high優先・mediumフォールバック・該当無しで空配列） |
+| `src/lib/workspaceGrowthActions.test.ts`（新規、8件） | `growthNotificationToDecisionAction`（severity/title/message転記・dueDate引き継ぎ・null/undefined双方のnull化・procedureIdが常にnull・actionHrefの`/growth?date=`形式）／`growthNotificationsToDecisionActions`（複数件変換・空配列） |
+| `src/lib/workspaceGrowthNotifications.test.ts`（追記、5件） | 各通知の`dueDate`が要件5の区別どおりに設定されること（取得失敗・入力案内・確認不能はnull、売上未達・計算済み資金不足は月末） |
+
+node --testのネイティブESM解決対応として、`workspaceDecisions.ts`→`workspaceAdvice.ts`、`workspaceAdvice.ts`→`workspaceProcedureStatus.ts`/`workspaceAdvicePresentation.ts`のimportに`.ts`拡張子を明示した（既存の`workspaceTaxPaymentPlan.ts`・`workspaceNotifications.ts`と同じパターン。value importのみ対象、type-only importは対象外）。
+
+### 15-5. 実ブラウザでの確認結果（Playwright、会社ID17・株式会社REINE・2026年10月、未登録月＋連携納税予定¥500,000の実例）
+
+ローカル`npm run dev`環境に管理者アカウントでログインし、Playwright（`playwright-core`＋キャッシュ済みChromium）で`/admin/workspaces/17`を操作して確認した。
+
+- **要件1・5（重複排除・未登録区別）**: 「今日のポイント」の「今日やること」、「確認が必要なこと」、「意思決定」のいずれでも、資金繰り項目の文言は「納税予定¥500,000あり。預金残高・入出金予定を入力して資金繰りを確認してください。」で統一されており、未登録月を資金不足確定として断定する表示は無かった
+- **要件2（共通の優先順位）**: 「今日やること」「意思決定」とも、同じ優先度（中/medium）内で「特別徴収税額の納付」（期限: 11月10日、実際の期限あり）が「今月の資金繰り」（期限: 無し、入力案内）より先に表示された。架空の期限は表示されていない
+- **要件3（遷移ボタン）**: 「今日やること」の2項目双方に「対応内容を確認」ボタンが表示された。手続き項目のhrefは`/admin/workspaces/17/roadmap?procedureId=71&dueDate=2026-11-10`（PR #131と同じRoadmap深いリンク形式）、売上・資金繰り項目のhrefは`/admin/workspaces/17/growth?date=2026-10-01`。実際にクリックして売上目標画面（2026年10月）へ遷移し、ホームと同じ「納税予定¥500,000あり」の案内が表示されることを確認した
+- **要件4（件数整合）**: 「意思決定」のサマリーは「対応が必要な項目が2件あります。」で、実際に表示された項目も2件（特別徴収税額の納付・今月の資金繰り）で一致していた。「確認が必要なこと」も3件（手続き・資金繰り案内・消費税の課税判定watch）のまま重複は無かった
+- **要件6（既存機能の維持）**: 「確認が必要なこと」の既存3項目の表示・Roadmap深いリンクは変更前と同じ内容のまま維持されていた
+
+スクリーンショット・ページ本文テキストはいずれもローカルの一時ディレクトリに保存し、リポジトリには含めていない。管理者ログインに使用した認証情報はコマンド内の環境変数として渡しただけで、スクリプトファイル・リポジトリには一切書き込んでいない。
+
+### 15-6. 実施していないこと
+
+- 実データ（`workspace_monthly_sales`・`workspace_tax_payment_plans`等）の書き換えは行っていない（閲覧・ログインのみ）
+- mainへのマージ・本番公開は行っていない（作業ブランチ`feat/workspace-home-action-priority`上での変更に留まる）
+
+### 15-7. PR #133レビュー対応: `generateWorkspaceDecisions`の早期件数制限の見直し
+
+**指摘内容**: `generateWorkspaceDecisions`は内部で`actions.sort(compareDecisionActions); actions.splice(ACTION_MAX_ITEMS);`を行っており、`page.tsx`が売上・資金繰りactionsと合流する**前**に、手続きactionsを単独で8件へ絞っていた。これは「手続きと売上・資金繰りの全候補を合流・ソートした後に表示件数を制限する」という設計意図（15-2節）に構成上は反しており、合流前の早期カットに見えるため指摘を受けた。
+
+**検証**: 合流に使う`mergeDecisionActions`と、合流前の早期カットに使う`ACTION_MAX_ITEMS`（旧コードでは両方とも同じ8）が常に同一の値である限り、数学的には「先に手続き側だけ上位8件に絞ってから合流・再ソート・再度上位8件」と「手続き＋成長の全候補を合流・ソートしてから一度だけ上位8件」は同じ結果になる（手続き側で8位より下位の候補は、どのような成長候補を追加で混ぜても、合流後の全体順位でも8位以内に入り得ないため）。そのため、今回の修正前の`feat/workspace-home-action-priority`時点の実装は、出力結果としては誤っていなかった。
+
+ただし、この等価性は「`generateWorkspaceDecisions`内の早期カット件数」と「`mergeDecisionActions`の`maxItems`」が常に同じ値であることに暗黙に依存しており、どちらかが将来ズレた場合に静かに壊れる構成だった（テストで直接検知できない前提に依存していた）。指摘のとおり、コード構成自体を「全候補を合流・ソートした後に1回だけ件数制限する」形に修正した。
+
+**修正内容**:
+- `generateWorkspaceDecisions`（`src/lib/workspaceDecisions.ts`）に、7番目の引数`maxActions: number = ACTION_MAX_ITEMS`を追加。内部の`actions.splice(ACTION_MAX_ITEMS)`を`actions.splice(maxActions)`に変更した。既定値は従来と同じ`ACTION_MAX_ITEMS`のため、**本引数を省略する呼び出しの動作は一切変わらない**
+- `page.tsx`: `generateWorkspaceDecisions(..., undefined, Number.POSITIVE_INFINITY)`で呼び出し、手続きactionsの**全候補**（件数制限なし）を取得するよう変更。`Array.prototype.splice(Infinity)`はECMA-262仕様上、`start`が配列長を超える場合は配列末尾にクランプされ要素が1件も削除されない安全なno-opであることを確認済み（`node -e`で実測確認: `[1,2,3,4,5].splice(Infinity)`は`[1,2,3,4,5]`のまま）
+  - この全候補（`procedureDecisions.actions`）を`growthActions`と`mergeDecisionActions`で合流・ソートし、`mergeDecisionActions`内で初めて（1回だけ）`ACTION_MAX_ITEMS`件へ制限する。これが「意思決定」「今日やること」の最終的な表示件数になる
+  - `buildWorkspaceNotifications`（「確認が必要なこと」、Sprint37の既存Engine）には、**既存の呼び出し元の動作を変えないため**、全候補ではなく`procedureDecisions.actions.slice(0, ACTION_MAX_ITEMS)`（従来の内部`splice(ACTION_MAX_ITEMS)`と全く同じ内容の配列）を渡すよう明示的に切り出した
+
+**検証したこと**:
+- `src/lib/workspaceDecisions.test.ts`に新規テスト「手続き側の候補だけで上限を超える場合でも、全候補を合流・ソートした後に正しい優先順位で上位ACTION_MAX_ITEMS件が選ばれる」を追加。手続き側のみでhigh優先度12件（ACTION_MAX_ITEMSの8を超える件数）、成長側にそれら全てより期限の早いhigh優先度1件を用意し、`mergeDecisionActions`の出力が全13件中の正しい上位8件（成長1件＋手続き01〜07、手続き08〜12は除外）になることを確認した
+- `MONTHLY_DATA_FETCH_FAILED_NOTIFICATION`（`workspaceGrowthNotifications.ts`、取得失敗時の実際の通知）の`severity`が今回の修正・レビュー対応を通じて`'medium'`のまま変更されていないことを確認した（レビュー時に提示した「期限なしの高優先度」の混在ソート例は、comparatorの挙動を示すための人工的なテストデータであり、実際の取得失敗通知の優先度ではない）
+- `npm test`: ✅ **352/352 PASS**（15-4節時点の351件＋本節の新規1件）
+- `npm run build`: ✅ TypeScriptエラー0
+- `npm run lint`: ✅ 0 errors（既知の警告1件のみ、本節の変更対象外）
+
+**実ブラウザでの再確認**: 行っていない（15-5節で確認済みの会社ID17のケースは手続きactionsが13件中2件のみで、ACTION_MAX_ITEMS=8を超えないため、本節の修正による表示上の差分は無い。ユーザー指示により再実行していない）。

@@ -3,7 +3,9 @@ import type { CompanyState } from './state';
 import type { CompanyProfile } from './companyProfile';
 import type { WorkspaceProcedureStatusMap } from './workspaceProcedureStatus';
 import type { WorkspaceDocumentStatusMap, WorkspaceDocumentType } from './workspaceDocumentStatus';
-import { nearestOccurrencePerProcedure, daysUntil, formatDueDate, statusOf } from './workspaceAdvice';
+// 拡張子を明示する（workspaceTaxPaymentPlan.ts・workspaceNotifications.tsと同じ既存パターン）。
+// これにより本ファイルをnode --testで直接importしてテストできる。
+import { nearestOccurrencePerProcedure, daysUntil, formatDueDate, statusOf } from './workspaceAdvice.ts';
 
 // ── Workspace Decision Engine — ルールベースMVP（Sprint 27）─────────────
 // Decisions = f( CompanyProfile, State, Annual Roadmap, Procedure Status, Document Status )。
@@ -27,6 +29,12 @@ export type WorkspaceDecisionAction = {
   title: string;
   reason: string;
   dueDate: string | null;
+  // 【追加】会社ホーム「今日やること」の遷移ボタン生成に使う（省略可、既存呼び出し元に影響しない）。
+  // 手続き起因のactionはprocedureId（+既存のdueDate）からRoadmapへの深いリンクを組み立てる。
+  // 売上・資金繰り等、手続きに紐づかないactionはactionHrefを直接持つ（workspaceGrowthActions.ts）。
+  // 両方null/undefinedの場合は汎用リンク（/roadmap）にフォールバックする。
+  procedureId?: number | null;
+  actionHref?: string | null;
 };
 
 export type WorkspaceDecisionWatchItem = {
@@ -50,7 +58,7 @@ export type WorkspaceDecisions = {
 const URGENT_WINDOW_DAYS = 3;
 const ACTION_WINDOW_DAYS = 30;
 const WATCH_WINDOW_DAYS = 90;
-const ACTION_MAX_ITEMS = 8;
+export const ACTION_MAX_ITEMS = 8;
 const FISCAL_YEAR_END_WATCH_MONTHS = 2;
 
 // 手続き名から、対応する書類種別を推定する（procedures.codeは本Engineの入力に含まれないため、
@@ -77,6 +85,11 @@ export function generateWorkspaceDecisions(
   procedureStatusMap: WorkspaceProcedureStatusMap,
   documentStatusMap: WorkspaceDocumentStatusMap,
   today: Date = new Date(),
+  // 【追加】既定値はACTION_MAX_ITEMSで、単独呼び出し時の動作は変更しない。売上・資金繰りの
+  // actionsと合流してから1回だけ件数制限したい呼び出し元（page.tsx）は、ここに
+  // Number.POSITIVE_INFINITYを渡すことで、本Engine内での早期カットを無効化できる
+  // （actions.splice(Infinity)はJS仕様上、配列をそのまま返す安全なno-opになる）。
+  maxActions: number = ACTION_MAX_ITEMS,
 ): WorkspaceDecisions {
   const actions: WorkspaceDecisionAction[] = [];
   const watchItems: WorkspaceDecisionWatchItem[] = [];
@@ -111,6 +124,7 @@ export function generateWorkspaceDecisions(
           title: item.procedure.name,
           reason: documentIssue ? `${directive}${documentNote}` : directive,
           dueDate: item.dueDate,
+          procedureId: item.procedure.id,
         });
       }
     } else if (diff <= ACTION_WINDOW_DAYS) {
@@ -121,6 +135,7 @@ export function generateWorkspaceDecisions(
           ? `書類が未整備のため、通常より早めに着手してください（期限: ${formatDueDate(item.dueDate)}、あと${diff}日）。`
           : `早めに着手することをおすすめします（期限: ${formatDueDate(item.dueDate)}、あと${diff}日）。`,
         dueDate: item.dueDate,
+        procedureId: item.procedure.id,
       });
     } else if (diff <= WATCH_WINDOW_DAYS && documentIssue) {
       watchItems.push({
@@ -155,21 +170,56 @@ export function generateWorkspaceDecisions(
     });
   }
 
-  const priorityRank: Record<DecisionPriority, number> = { high: 0, medium: 1, low: 2 };
-  actions.sort((a, b) => {
-    const rankDiff = priorityRank[a.priority] - priorityRank[b.priority];
-    if (rankDiff !== 0) return rankDiff;
-    return (a.dueDate ?? '9999-99-99').localeCompare(b.dueDate ?? '9999-99-99');
-  });
-  actions.splice(ACTION_MAX_ITEMS);
-
-  const highCount = actions.filter((a) => a.priority === 'high').length;
-  const summary =
-    highCount > 0
-      ? `優先度の高い対応が${highCount}件あります。至急ご確認ください。`
-      : actions.length > 0
-        ? `対応が必要な項目が${actions.length}件あります。`
-        : '現時点で急ぎの意思決定は必要ありません。';
+  actions.sort(compareDecisionActions);
+  actions.splice(maxActions);
+  const summary = summarizeDecisionActions(actions);
 
   return { actions, watchItems, completed, summary };
+}
+
+// ── 共有ユーティリティ（手続き・書類・売上・資金繰りを共通の優先順位で扱うための拡張）────────
+// 設計: docs/DEVELOPMENT_HANDOFF.md。会社ホーム「今日のポイント」「意思決定」に売上・資金繰りの
+// アクション（workspaceGrowthActions.ts経由でWorkspaceDecisionAction形に変換済み）を統合する際、
+// 本Engine（手続き）の判定ロジックは一切変更せず、ソート・件数サマリーだけを共有する。
+// 新しい判断ロジックではなく、上のgenerateWorkspaceDecisions内部で元々使っていたものを
+// そのまま抽出した（重複させない）。
+
+const priorityRank: Record<DecisionPriority, number> = { high: 0, medium: 1, low: 2 };
+
+// 優先度→実際の期限の近さの順でソートする。dueDateが無い項目（入力案内等、期限の無いもの）に
+// 架空の期限を付けず、同優先度内では常に最後方へ回す（'9999-99-99'は表示に出さないソート専用の
+// センチネル）。
+export function compareDecisionActions(a: WorkspaceDecisionAction, b: WorkspaceDecisionAction): number {
+  const rankDiff = priorityRank[a.priority] - priorityRank[b.priority];
+  if (rankDiff !== 0) return rankDiff;
+  return (a.dueDate ?? '9999-99-99').localeCompare(b.dueDate ?? '9999-99-99');
+}
+
+export function summarizeDecisionActions(actions: WorkspaceDecisionAction[]): string {
+  const highCount = actions.filter((a) => a.priority === 'high').length;
+  return highCount > 0
+    ? `優先度の高い対応が${highCount}件あります。至急ご確認ください。`
+    : actions.length > 0
+      ? `対応が必要な項目が${actions.length}件あります。`
+      : '現時点で急ぎの意思決定は必要ありません。';
+}
+
+// 手続き起因のactions（generateWorkspaceDecisionsの出力）と、売上・資金繰り等の他ドメイン起因の
+// actionsを同じ優先順位ルールで合流させる。呼び出し元（page.tsx）が、合流後の配列をそのまま
+// 「意思決定」の表示・件数サマリーに使うことで、表示件数とsummaryの不整合（二重計上）を防ぐ。
+export function mergeDecisionActions(
+  base: WorkspaceDecisionAction[],
+  extra: WorkspaceDecisionAction[],
+  maxItems: number = ACTION_MAX_ITEMS,
+): WorkspaceDecisionAction[] {
+  return [...base, ...extra].sort(compareDecisionActions).slice(0, maxItems);
+}
+
+// 「今日やること」向けに、合流済みactionsから最優先の階層だけを取り出す。
+// 既存のselectTodayActionItems（advice.warnings優先・無ければadvice.priority）と同じ
+// 「上位階層が1件もなければ次の階層」という考え方を、high/medium/lowの3階層へ一般化したもの。
+export function selectUrgentDecisionActions(actions: WorkspaceDecisionAction[]): WorkspaceDecisionAction[] {
+  const high = actions.filter((a) => a.priority === 'high');
+  if (high.length > 0) return high;
+  return actions.filter((a) => a.priority === 'medium');
 }

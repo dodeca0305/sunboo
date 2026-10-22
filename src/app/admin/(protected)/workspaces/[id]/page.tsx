@@ -8,9 +8,13 @@ import PageHeader from '@/components/PageHeader';
 import { type CompanyState } from '@/lib/state';
 import type { WorkspaceDocumentStatusMap } from '@/lib/workspaceDocumentStatus';
 import { generateWorkspaceAdvice, summarizeWorkspaceProgress, type WorkspaceAdvice, type WorkspaceProgressSummary } from '@/lib/workspaceAdvice';
-import { generateWorkspaceDecisions, type WorkspaceDecisions } from '@/lib/workspaceDecisions';
+import {
+  ACTION_MAX_ITEMS, generateWorkspaceDecisions, mergeDecisionActions, selectUrgentDecisionActions,
+  summarizeDecisionActions, type WorkspaceDecisionAction, type WorkspaceDecisions,
+} from '@/lib/workspaceDecisions';
 import { buildWorkspaceNotifications, type WorkspaceNotification } from '@/lib/workspaceNotifications';
 import { buildWorkspaceGrowthNotifications } from '@/lib/workspaceGrowthNotifications';
+import { growthNotificationsToDecisionActions } from '@/lib/workspaceGrowthActions';
 import { loadWorkspaceCompany, loadWorkspaceDocumentStatuses, loadWorkspaceRoadmapContext } from '@/lib/workspaceLoader';
 import WorkspaceDashboard from '@/components/WorkspaceDashboard';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
@@ -229,6 +233,7 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
   let progress: WorkspaceProgressSummary | null = null;
   let decisions: WorkspaceDecisions | null = null;
   let notifications: WorkspaceNotification[] = [];
+  let todayActions: WorkspaceDecisionAction[] = [];
   let state: CompanyState | null = null;
   let prefectureName = '';
   let municipalityName = '';
@@ -241,20 +246,55 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
 
     advice = generateWorkspaceAdvice(roadmapYears, procedureStatusMap, state);
     progress = summarizeWorkspaceProgress(roadmapYears, procedureStatusMap);
-    decisions = generateWorkspaceDecisions(companyProfile, state, roadmapYears, procedureStatusMap, documentStatusMap);
+    // 【修正】maxActions=Infinityを渡し、本Engine内での早期の件数制限（デフォルトACTION_MAX_ITEMS件）
+    // を無効化する。手続きの全候補を、合流後にmergeDecisionActions側で1回だけ件数制限することで、
+    // 「もし合流前に手続き側だけを先に上限件数へ絞っていたら、本来は合流後の優先順位で選ばれる
+    // はずの売上・資金繰りactionsが不当に排除される」という懸念を構造的に無くす
+    // （レビュー指摘により、早期カットの有無自体を確認した上で修正）。
+    const procedureDecisions = generateWorkspaceDecisions(
+      companyProfile, state, roadmapYears, procedureStatusMap, documentStatusMap, undefined, Number.POSITIVE_INFINITY,
+    );
     const growthNotifications = buildWorkspaceGrowthNotifications(monthlySalesEntry, {
       cashFlowDataAvailable,
       monthlyDataFetchFailed: monthlySalesFetchFailed,
       monthlyDataRegistered,
     });
+
+    // 【追加】手続き起因のactions（procedureDecisions.actions、件数制限なしの全候補）と、
+    // 売上・資金繰り起因のactions（growthNotificationsをそのまま変換、新しい判定ロジックは
+    // 持たない）の全候補を合流・ソートしてから、mergeDecisionActions内で1回だけ
+    // ACTION_MAX_ITEMSへ件数制限する（compareDecisionActions: 重要度→実際の期限の近さ、
+    // 期限の無い項目は架空の期限を付けず最後方へ）。「意思決定」の件数・表示・summaryは
+    // この合流後の配列から一貫して導出するため、二重計上や件数の不整合は起きない。
+    const growthActions = growthNotificationsToDecisionActions(growthNotifications, companyId, currentYearMonth);
+    const mergedActions = mergeDecisionActions(procedureDecisions.actions, growthActions);
+    decisions = { ...procedureDecisions, actions: mergedActions, summary: summarizeDecisionActions(mergedActions) };
+    // 「今日やること」は合流済みactionsのうち最優先の階層のみ（高優先度が無ければ中優先度）。
+    // 既存のselectTodayActionItems（advice.warnings優先）と同じ「上位が無ければ次」という考え方を
+    // 手続き・書類・売上・資金繰りをまとめた配列に対して適用する。
+    todayActions = selectUrgentDecisionActions(mergedActions);
+
+    // 【注意】buildWorkspaceNotifications（既存Engine、Sprint37）には、手続きのみ・合流前かつ
+    // 従来どおり上位ACTION_MAX_ITEMS件に絞ったactionsを渡す。procedureDecisions.actionsは
+    // 上でmaxActions=Infinityとして取得した全候補（既にcompareDecisionActions順にソート済み）
+    // のため、先頭ACTION_MAX_ITEMS件を切り出すだけで、本Engineが従来内部で行っていた
+    // actions.splice(ACTION_MAX_ITEMS)と全く同じ内容になる（＝「確認が必要なこと」の挙動は
+    // 本修正で変化しない）。合流後のdecisions（売上・資金繰りactionsを含む）を渡すと、
+    // decisions.actionsに既に含まれる売上・資金繰りactionsがfromDecisionActions経由で
+    // 'deadline'カテゴリとして再度拾われ、growthNotificationsと二重に通知されてしまう。
+    const procedureDecisionsForNotifications: WorkspaceDecisions = {
+      ...procedureDecisions,
+      actions: procedureDecisions.actions.slice(0, ACTION_MAX_ITEMS),
+    };
     notifications = buildWorkspaceNotifications(
-      companyId, decisions, advice, procedureStatusMap, documentStatusMap, undefined, growthNotifications,
+      companyId, procedureDecisionsForNotifications, advice, procedureStatusMap, documentStatusMap, undefined, growthNotifications,
     );
   } catch {
     advice = null;
     progress = null;
     decisions = null;
     notifications = [];
+    todayActions = [];
     state = null;
   }
 
@@ -298,6 +338,7 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
           advice={advice}
           progress={progress}
           decisions={decisions}
+          todayActions={todayActions}
           notifications={notifications}
           documentsNeedingUpdateCount={documentsNeedingUpdateCount}
         />

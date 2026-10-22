@@ -56,6 +56,7 @@ const MONTHLY_DATA_FETCH_FAILED_NOTIFICATION: WorkspaceNotification = {
   category: 'sales',
   title: '今月の売上・資金繰り',
   message: '売上・資金繰りデータを取得できません。時間をおいて再度お試しください。',
+  dueDate: null, // 取得失敗の時点では実際の状況が分からないため、期限を持たせない
 };
 
 export function buildWorkspaceGrowthNotifications(
@@ -85,6 +86,9 @@ export function buildWorkspaceGrowthNotifications(
       message: salesProgress.daysRemaining > 0
         ? `目標に対して¥${salesProgress.shortfall.toLocaleString('ja-JP')}不足しています（期限: ${dueDateLabel}まであと${salesProgress.daysRemaining}日、1日あたり¥${salesProgress.requiredRevenuePerDay.toLocaleString('ja-JP')}の売上が必要です）。`
         : `目標に対して¥${salesProgress.shortfall.toLocaleString('ja-JP')}不足したまま今月が終了しました。`,
+      // 今月の売上目標期間の終わり（会社自身が設定した会計上の境界）。意思決定・今日のポイントの
+      // 共通優先順位（compareDecisionActions）で、実際の期限として使う。
+      dueDate: monthEndDate(entry.yearMonth),
     });
   }
 
@@ -97,6 +101,8 @@ export function buildWorkspaceGrowthNotifications(
       category: 'cash',
       title: '今月の資金繰り',
       message: `納税予定¥${entry.linkedTaxPayments.toLocaleString('ja-JP')}あり。預金残高・入出金予定を入力して資金繰りを確認してください。`,
+      // 入力案内であり、資金不足が確定した情報ではない。架空の期限を付けない（要件5）。
+      dueDate: null,
     });
   } else if (!cashFlowDataAvailable) {
     // 【レビュー対応】納税予定の取得に失敗し、入力された金額の一部が不明な状態。
@@ -108,6 +114,8 @@ export function buildWorkspaceGrowthNotifications(
       category: 'cash',
       title: '今月の資金繰り',
       message: '資金繰りデータを確認できません。入出金の予定日を確認してください。',
+      // データを確認できていない時点では、確定した期限を示せない（要件5）。
+      dueDate: null,
     });
   } else {
     const cashFlow = calculateMonthlyCashFlow(entry);
@@ -115,12 +123,15 @@ export function buildWorkspaceGrowthNotifications(
       // 【レビュー対応】月末は資金繰りの「確定期限」ではない（入出金予定日はユーザーの見込み入力に
       // 依存し、実際の入出金タイミングはずれうる）。「までに対策が必要」という断定表現を避け、
       // 月次の見込みから算出した不足額であることを明示し、入出金予定日の確認を促す表現にする。
+      // ただし意思決定・今日のポイントの並び順に使うdueDateには、月末という実在するカレンダー
+      // 境界をそのまま使う（架空の期限ではない。本文の表現と並び順の根拠は別の関心事）。
       notifications.push({
         id: `cash:shortage:${entry.yearMonth}`,
         severity: 'high',
         category: 'cash',
         title: '今月の資金繰り',
         message: `入力された月次見込みでは月末残高が¥${cashFlow.fundingGap.toLocaleString('ja-JP')}不足する見込みです。入出金の予定日を確認して資金対策を検討してください。`,
+        dueDate: monthEndDate(entry.yearMonth),
       });
     }
   }

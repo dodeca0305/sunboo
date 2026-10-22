@@ -53,6 +53,12 @@ export type WorkspaceNotification = {
   message: string;
   occurrenceKey?: string;
   href?: string;
+  // 【追加】会社ホーム「今日のポイント」「意思決定」と共通の優先順位（compareDecisionActions、
+  // workspaceDecisions.ts）で並べるために使う。実際の期限が無い項目（入力案内・取得失敗等）は
+  // 必ずnull/未設定にする（架空の期限を付けない）。既存カテゴリ（deadline/hold/document/closing/
+  // information）はdueDateを設定していない（Decision/Advice側が文言に期限を含めて表現済みのため、
+  // 本フィールドは現時点ではsales/cashカテゴリのみが使う）。
+  dueDate?: string | null;
 };
 
 export const DEFAULT_MAX_ITEMS = 5;

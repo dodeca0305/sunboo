@@ -8,8 +8,7 @@ import type {
   WorkspaceAdviceItem,
   WorkspaceProgressSummary,
 } from '@/lib/workspaceAdvice';
-import { selectTodayActionItems } from '@/lib/workspaceAdvicePresentation';
-import type { WorkspaceDecisions, DecisionPriority } from '@/lib/workspaceDecisions';
+import type { WorkspaceDecisionAction, WorkspaceDecisions, DecisionPriority } from '@/lib/workspaceDecisions';
 import type {
   WorkspaceNotification, WorkspaceNotificationCategory, WorkspaceNotificationSeverity,
 } from '@/lib/workspaceNotifications';
@@ -82,6 +81,40 @@ function AdviceItemRow({
           対応内容を確認
         </Link>
       )}
+    </li>
+  );
+}
+
+// 【追加】「今日やること」を手続き起因・売上・資金繰り起因（WorkspaceDecisionAction形に統一済み、
+// page.tsxでmergeDecisionActions済み）の共通の行として描画する。isOverdue（上記、Advice専用）とは
+// 判定対象の型が異なるため別関数にする（文言からの判定という方式は揃える）。
+function isActionOverdue(action: WorkspaceDecisionAction): boolean {
+  return action.reason.includes('期限を過ぎています');
+}
+
+// 遷移先の決定優先順位: ①growth起因actionが直接持つactionHref（該当月の売上目標画面）
+// ②手続き起因actionのprocedureId+dueDateから組み立てるRoadmapの出現単位の深いリンク
+//   （PR#131と同じ既存の仕組み、roadmap?procedureId=...&dueDate=...）
+// ③上記のいずれも無ければ汎用のRoadmapへのリンク
+function actionHrefFor(companyId: number, action: WorkspaceDecisionAction): string {
+  if (action.actionHref) return action.actionHref;
+  if (action.procedureId != null && action.dueDate !== null) {
+    return `/admin/workspaces/${companyId}/roadmap?procedureId=${action.procedureId}&dueDate=${encodeURIComponent(action.dueDate)}`;
+  }
+  return `/admin/workspaces/${companyId}/roadmap`;
+}
+
+function TodayActionRow({ action, companyId }: { action: WorkspaceDecisionAction; companyId: number }) {
+  const toneClass = isActionOverdue(action) ? 'text-sunboo-danger' : 'text-sunboo-ink-muted';
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-2 text-sm">
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <span className="font-medium text-sunboo-ink">{action.title}</span>
+        <span className={`text-xs ${toneClass}`}>{action.reason}</span>
+      </div>
+      <Link href={actionHrefFor(companyId, action)} className="btn-secondary shrink-0 px-3 py-1.5 text-xs">
+        対応内容を確認
+      </Link>
     </li>
   );
 }
@@ -159,6 +192,7 @@ export default function WorkspaceDashboard({
   advice,
   progress,
   decisions,
+  todayActions,
   notifications,
   documentsNeedingUpdateCount,
 }: {
@@ -173,12 +207,16 @@ export default function WorkspaceDashboard({
   advice: WorkspaceAdvice;
   progress: WorkspaceProgressSummary;
   decisions: WorkspaceDecisions;
+  // 【追加】手続き・書類・売上・資金繰りを共通の優先順位（mergeDecisionActions、page.tsx）で
+  // 合流させた上で、最優先の階層だけに絞った「今日やること」用の配列（selectUrgentDecisionActions）。
+  todayActions: WorkspaceDecisionAction[];
   notifications: WorkspaceNotification[];
   documentsNeedingUpdateCount: number;
 }) {
   // 表示専用の並べ替え・差分計算のみ（新しい判定ロジックは追加しない）。
   // 「次の期限」は advice.warnings/advice.priority のうち最も近い1件をそのまま使う
-  // （detail文言は既存Engineが生成済みのものをそのまま表示し、再フォーマットしない）。
+  // （detail文言は既存Engineが生成済みのものをそのまま表示し、再フォーマットしない。
+  // 売上・資金繰りは期限の性質が異なるため「次の期限」には含めない）。
   const upcoming = [...advice.warnings, ...advice.priority].filter(
     (item): item is WorkspaceAdviceItem & { dueDate: string } => item.dueDate !== null,
   );
@@ -186,7 +224,6 @@ export default function WorkspaceDashboard({
     ? upcoming.reduce((soonest, item) => (item.dueDate < soonest.dueDate ? item : soonest))
     : null;
   const remainingCount = Math.max(progress.total - progress.done, 0);
-  const todayActionItems = selectTodayActionItems(advice);
 
   return (
     <div className="space-y-4">
@@ -238,19 +275,10 @@ export default function WorkspaceDashboard({
 
         <div>
           <p className="mb-1.5 text-xs font-semibold text-sunboo-ink-muted">今日やること</p>
-          {todayActionItems.length > 0 ? (
+          {todayActions.length > 0 ? (
             <ul className="space-y-2">
-              {todayActionItems.map((item, idx) => (
-                <AdviceItemRow
-                  key={`${item.procedureId}-${idx}`}
-                  item={item}
-                  tone={isOverdue(item) ? 'red' : 'neutral'}
-                  actionHref={
-                    item.procedureId !== undefined && item.dueDate !== null
-                      ? `/admin/workspaces/${companyId}/roadmap?procedureId=${item.procedureId}&dueDate=${encodeURIComponent(item.dueDate)}`
-                      : `/admin/workspaces/${companyId}/roadmap`
-                  }
-                />
+              {todayActions.map((action, idx) => (
+                <TodayActionRow key={`${action.title}-${idx}`} action={action} companyId={companyId} />
               ))}
             </ul>
           ) : (

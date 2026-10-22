@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildWorkspaceGrowthNotifications } from './workspaceGrowthNotifications.ts';
-import { emptyMonthlySalesEntry, type MonthlySalesEntry } from './monthlySalesProgress.ts';
+import { emptyMonthlySalesEntry, monthEndDate, type MonthlySalesEntry } from './monthlySalesProgress.ts';
 
 function entry(overrides: Partial<MonthlySalesEntry> = {}): MonthlySalesEntry {
   return {
@@ -224,6 +224,55 @@ test('月替わり直前（JSTで10月31日23:59:59、まだ10月）は当月の
   assert.ok(sales);
   assert.match(sales.message, /あと1日/);
   assert.doesNotMatch(sales.message, /終了しました/);
+});
+
+// 【dueDate追加分】意思決定・今日のポイントの共通優先順位（compareDecisionActions）に使う
+// dueDateが、通知の性質（確定した計算結果か／入力案内や取得失敗か）ごとに正しく設定されることを
+// 検証する。入力案内・取得失敗には架空の期限を付けない（要件5）。
+
+test('dueDate: monthlyDataFetchFailed=trueの通知には期限を持たせない（取得失敗時点では実際の状況が分からない）', () => {
+  const notifications = buildWorkspaceGrowthNotifications(null, { monthlyDataFetchFailed: true });
+  assert.equal(notifications[0].dueDate, null);
+});
+
+test('dueDate: 売上未達の通知には今月の売上目標期間の終わり（月末）を実際の期限として設定する', () => {
+  const notifications = buildWorkspaceGrowthNotifications(
+    entry({ targetRevenue: 1_000_000, actualRevenue: 400_000 }),
+    { today: new Date('2026-10-05T00:00:00Z') },
+  );
+  const sales = notifications.find((n) => n.category === 'sales');
+  assert.ok(sales);
+  assert.equal(sales.dueDate, monthEndDate('2026-10'));
+});
+
+test('dueDate: 未登録＋既知の納税予定ありの入力案内には期限を持たせない（資金不足が確定した情報ではない）', () => {
+  const notifications = buildWorkspaceGrowthNotifications(
+    emptyMonthlySalesEntry('2026-10', 500_000),
+    { today: new Date('2026-10-05T00:00:00Z'), monthlyDataRegistered: false },
+  );
+  const cash = notifications.find((n) => n.category === 'cash');
+  assert.ok(cash);
+  assert.equal(cash.dueDate, null);
+});
+
+test('dueDate: cashFlowDataAvailable=falseの確認不能通知には期限を持たせない（確定した期限を示せない）', () => {
+  const notifications = buildWorkspaceGrowthNotifications(
+    entry({ cashBalance: 100_000, expectedCashOutflows: 200_000, plannedTaxPayments: 50_000 }),
+    { today: new Date('2026-10-05T00:00:00Z'), cashFlowDataAvailable: false },
+  );
+  const cash = notifications.find((n) => n.category === 'cash');
+  assert.ok(cash);
+  assert.equal(cash.dueDate, null);
+});
+
+test('dueDate: 計算済みの資金不足通知には月末（実在するカレンダー境界）を期限として設定する', () => {
+  const notifications = buildWorkspaceGrowthNotifications(
+    entry({ cashBalance: 100_000, expectedCashOutflows: 200_000, plannedTaxPayments: 50_000 }),
+    { today: new Date('2026-10-05T00:00:00Z') },
+  );
+  const cash = notifications.find((n) => n.category === 'cash');
+  assert.ok(cash);
+  assert.equal(cash.dueDate, monthEndDate('2026-10'));
 });
 
 test('月替わり直後（JSTで11月1日00:00:00、UTCではまだ10月31日15:00:00）は当月が終了したものとして計算される', () => {
