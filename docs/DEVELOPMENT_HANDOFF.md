@@ -385,7 +385,7 @@ node --testのネイティブESM解決対応として、`workspaceDecisions.ts`�
 
 - `src/lib/taxIntelligence/reviewSummary.ts`: `loadWorkspaceTaxReviewSummary`。ログインユーザーのsession clientで読み、service-roleは使わない
   - `openReviewCount`: 既存`loadWorkspaceTaxReviewItems`（tax-review画面と同じloader）の`status='open'`件数。画面と同範囲
-  - `controlEvaluation`: `tax_controls`の`status='approved' AND is_enabled=true`を母集団にし、`workspace_tax_control_results`をControlごとの最新1件（`as_of_date`→`evaluated_at`→`id`）で集計。結果が無いControlは「未評価」。Control・結果とも`range()`で全ページ取得（既定1000件/頁。結果は`as_of_date`→`evaluated_at`→`id`の降順、Controlはid昇順。全Controlの最新結果が出揃えば打ち切り）し、PostgRESTの返却上限で最新結果が欠落しない。上限超えの回帰テストあり。`applicable=false`は「対象外」
+  - `controlEvaluation`: `tax_controls`の`status='approved' AND is_enabled=true`を母集団にし、`workspace_tax_control_results`をControlごとの最新1件（`as_of_date`→`evaluated_at`→`id`）で集計。結果が無いControlは「未評価」。Control・結果とも`range()`で全ページ取得（既定1000件/頁。結果は`as_of_date`→`evaluated_at`→`id`の降順、Controlはid昇順。全Controlの最新結果が出揃えば打ち切り）し、PostgRESTの返却上限で最新結果が欠落しない。offsetは要求幅ではなく**実際に取得できた件数**だけ進める（サーバー上限<要求ページ幅でも行を飛ばさない）。`pageSize`は有限の正整数のみ許可（不正値はthrow→`controlEvaluation=null`で無限ループしない）。回帰テストは要求/上限の組（5/3・3/3・2/3・1/3）をControl・結果の両方で検証し、fakeは`eq`/`in`/`order`/`range`を実際に適用しつつ呼び出しを記録して、`company_id`絞り込み・Control絞り込み・並び順（Control=id昇順、結果=as_of_date/evaluated_at/id降順）も検証する。`applicable=false`は「対象外」
   - 2つは`Promise.allSettled`で独立取得し、片方の失敗でもう片方を隠さない（失敗は`null`）
 - `src/components/WorkspaceTaxReviewSummaryCard.tsx`: 表示のみ。有効な税務チェック0件は「現在有効な税務チェックはありません」と表示し（過去に判定が無かったとは断言しない）、「問題なし」とは表示しない。専門家確認の注意書きと`/tax-review`へのリンク付き
 - `workspaces/[id]/page.tsx`: 他機能と独立したtry/catchで取得し、カードのみ縮退表示

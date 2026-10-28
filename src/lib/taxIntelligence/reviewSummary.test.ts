@@ -56,40 +56,75 @@ test('applicable=falseは対象外として数える', () => {
   assert.equal(s.passCount, 0);
 });
 
-type Reply = { data: unknown; error: { message: string } | null };
+type Row = Record<string, unknown>;
+type Reply = { data: Row[] | null; error: { message: string } | null };
+type Call = {
+  table: string;
+  eq: Array<[string, unknown]>;
+  in: Array<[string, unknown[]]>;
+  order: Array<[string, boolean]>;
+  range: Array<[number, number]>;
+};
 
-// serverMaxRows: PostgRESTのmax-rows相当。range指定の有無にかかわらずこれ以上は返さない。
+function cmp(a: unknown, b: unknown): number {
+  const x = a as string | number;
+  const y = b as string | number;
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+
+// eq/in/order/rangeを実際に適用し、発行されたクエリ条件を記録するfake。
+// serverMaxRows: PostgRESTのmax-rows相当（range指定の有無にかかわらずこれ以上は返さない）。
 function fakeSupabase(tables: Record<string, Reply>, serverMaxRows = Infinity) {
-  return {
+  const calls: Call[] = [];
+  const client = {
     from(name: string) {
+      const call: Call = { table: name, eq: [], in: [], order: [], range: [] };
+      calls.push(call);
       const b: Record<string, unknown> = {};
-      let rangeFrom = 0;
-      let rangeTo = Infinity;
-      const chain = () => b;
-      b.select = chain;
-      b.eq = chain;
-      b.in = chain;
-      b.order = chain;
+      b.select = () => b;
+      b.eq = (col: string, val: unknown) => {
+        call.eq.push([col, val]);
+        return b;
+      };
+      b.in = (col: string, vals: unknown[]) => {
+        call.in.push([col, vals]);
+        return b;
+      };
+      b.order = (col: string, opts?: { ascending?: boolean }) => {
+        call.order.push([col, opts?.ascending !== false]);
+        return b;
+      };
       b.range = (from: number, to: number) => {
-        rangeFrom = from;
-        rangeTo = to;
+        call.range.push([from, to]);
         return b;
       };
       b.then = (resolve: (v: unknown) => unknown) => {
         const reply = tables[name];
         if (!Array.isArray(reply.data)) return resolve(reply);
-        const rows = reply.data.slice(rangeFrom, rangeTo + 1).slice(0, serverMaxRows);
-        return resolve({ data: rows, error: reply.error });
+        const rows = reply.data
+          .filter((row) => call.eq.every(([c, v]) => row[c] === v) && call.in.every(([c, vs]) => vs.includes(row[c])))
+          .sort((x, y) => {
+            for (const [c, asc] of call.order) {
+              const d = cmp(x[c], y[c]);
+              if (d !== 0) return asc ? d : -d;
+            }
+            return 0;
+          });
+        const [from, to] = call.range[call.range.length - 1] ?? [0, Infinity];
+        return resolve({ data: rows.slice(from, to + 1).slice(0, serverMaxRows), error: reply.error });
       };
       return b;
     },
-  } as never;
+  };
+  return { supabase: client as never, calls };
 }
 
+const noReviews: Reply = { data: [], error: null };
+
 test('レビュー取得失敗でもControl評価状況は返り、openReviewCountはnull', async () => {
-  const supabase = fakeSupabase({
+  const { supabase } = fakeSupabase({
     workspace_tax_review_cases: { data: null, error: { message: 'denied' } },
-    tax_controls: { data: [{ id: 1 }], error: null },
+    tax_controls: { data: [{ id: 1, status: 'approved', is_enabled: true }], error: null },
     workspace_tax_control_results: { data: [], error: null },
   });
   const s = await loadWorkspaceTaxReviewSummary(supabase, 1);
@@ -98,9 +133,10 @@ test('レビュー取得失敗でもControl評価状況は返り、openReviewCou
 });
 
 test('Control取得失敗でもopenReviewCountは返り、controlEvaluationはnull', async () => {
-  const supabase = fakeSupabase({
-    workspace_tax_review_cases: { data: [], error: null },
+  const { supabase } = fakeSupabase({
+    workspace_tax_review_cases: noReviews,
     tax_controls: { data: null, error: { message: 'denied' } },
+    workspace_tax_control_results: { data: [], error: null },
   });
   const s = await loadWorkspaceTaxReviewSummary(supabase, 1);
   assert.equal(s.openReviewCount, 0);
@@ -108,56 +144,111 @@ test('Control取得失敗でもopenReviewCountは返り、controlEvaluationはnu
 });
 
 test('結果取得失敗ならcontrolEvaluationはnull（0件扱いにしない）', async () => {
-  const supabase = fakeSupabase({
-    workspace_tax_review_cases: { data: [], error: null },
-    tax_controls: { data: [{ id: 1 }], error: null },
+  const { supabase } = fakeSupabase({
+    workspace_tax_review_cases: noReviews,
+    tax_controls: { data: [{ id: 1, status: 'approved', is_enabled: true }], error: null },
     workspace_tax_control_results: { data: null, error: { message: 'boom' } },
   });
   const s = await loadWorkspaceTaxReviewSummary(supabase, 1);
   assert.equal(s.controlEvaluation, null);
 });
 
-test('Control母集団が返却上限を超えても全件を数える', async () => {
-  const controls = Array.from({ length: 7 }, (_, i) => ({ id: i + 1 }));
-  const supabase = fakeSupabase(
-    {
-      workspace_tax_review_cases: { data: [], error: null },
-      tax_controls: { data: controls, error: null },
+test('pageSizeが不正（0・負・小数・NaN・Infinity）なら問い合わせずcontrolEvaluationはnull', async () => {
+  for (const bad of [0, -1, 1.5, NaN, Infinity]) {
+    const { supabase, calls } = fakeSupabase({
+      workspace_tax_review_cases: noReviews,
+      tax_controls: { data: [{ id: 1, status: 'approved', is_enabled: true }], error: null },
       workspace_tax_control_results: { data: [], error: null },
-    },
-    3,
-  );
-  const s = await loadWorkspaceTaxReviewSummary(supabase, 1, 3);
-  assert.equal(s.controlEvaluation?.approvedEnabledControlCount, 7);
-  assert.equal(s.controlEvaluation?.unevaluatedCount, 7);
+    });
+    const s = await loadWorkspaceTaxReviewSummary(supabase, 1, bad);
+    assert.equal(s.controlEvaluation, null, `pageSize=${bad}`);
+    assert.equal(calls.filter((c) => c.table === 'tax_controls').length, 0, `pageSize=${bad}`);
+  }
 });
 
-test('結果が返却上限を超えても最新結果を採用する（過去passに引きずられない）', async () => {
-  // 最新順（降順）に並んだ履歴: 先頭に最新review、後続ページに古いpassが続く
-  const history: SummaryResultRow[] = [];
-  let id = 1000;
-  for (let day = 28; day >= 1; day--) {
-    history.push(
-      result({
-        id: id--,
-        tax_control_id: 1,
-        status: day === 28 ? 'review' : 'pass',
-        as_of_date: `2026-09-${String(day).padStart(2, '0')}`,
-      }),
+// 要求サイズ(pageSize)とサーバー上限(serverMax)の大小を変えても取りこぼさない。
+// 特に 要求5 > 上限3 は、offsetを要求幅で進めると4,5件目を飛ばす回帰ケース。
+const PAGE_CASES: Array<{ pageSize: number; serverMax: number }> = [
+  { pageSize: 5, serverMax: 3 },
+  { pageSize: 3, serverMax: 3 },
+  { pageSize: 2, serverMax: 3 },
+  { pageSize: 1, serverMax: 3 },
+];
+
+for (const { pageSize, serverMax } of PAGE_CASES) {
+  const label = `要求${pageSize}/上限${serverMax}`;
+
+  test(`Control母集団: ${label}でも全件を数える`, async () => {
+    // 順不同・対象外（draft / 無効）混在で投入しても、条件とid昇順で読まれることを確認する
+    const controls: Row[] = [7, 3, 1, 6, 2, 5, 4].map((id) => ({ id, status: 'approved', is_enabled: true }));
+    controls.push({ id: 99, status: 'draft', is_enabled: true }, { id: 98, status: 'approved', is_enabled: false });
+    const { supabase, calls } = fakeSupabase(
+      {
+        workspace_tax_review_cases: noReviews,
+        tax_controls: { data: controls, error: null },
+        workspace_tax_control_results: { data: [], error: null },
+      },
+      serverMax,
     );
-  }
-  history.push(result({ id: 5, tax_control_id: 2, status: 'pass', as_of_date: '2026-01-01' }));
-  const supabase = fakeSupabase(
-    {
-      workspace_tax_review_cases: { data: [], error: null },
-      tax_controls: { data: [{ id: 1 }, { id: 2 }], error: null },
-      workspace_tax_control_results: { data: history, error: null },
-    },
-    5,
-  );
-  const s = await loadWorkspaceTaxReviewSummary(supabase, 1, 5);
-  assert.equal(s.controlEvaluation?.evaluatedCount, 2);
-  assert.equal(s.controlEvaluation?.reviewCount, 1);
-  assert.equal(s.controlEvaluation?.passCount, 1);
-  assert.equal(s.controlEvaluation?.unevaluatedCount, 0);
-});
+    const s = await loadWorkspaceTaxReviewSummary(supabase, 1, pageSize);
+    assert.equal(s.controlEvaluation?.approvedEnabledControlCount, 7);
+    assert.equal(s.controlEvaluation?.unevaluatedCount, 7);
+
+    const cs = calls.filter((c) => c.table === 'tax_controls');
+    for (const c of cs) {
+      assert.deepEqual(c.eq, [['status', 'approved'], ['is_enabled', true]]);
+      assert.deepEqual(c.order, [['id', true]]);
+    }
+    // offsetは実際に取得できた件数ぶんだけ進む（要求幅では進まない）
+    const got = Math.min(pageSize, serverMax);
+    cs.forEach((c, i) => assert.deepEqual(c.range, [[i * got, i * got + pageSize - 1]]));
+  });
+
+  test(`結果: ${label}でも最新を採用し会社を分離する`, async () => {
+    const rows: Row[] = [];
+    let id = 1;
+    // Control1: 28日分の履歴（最新日のみreview、他はpass）。Control2: 古いpassのみ。
+    for (let day = 1; day <= 28; day++) {
+      rows.push({
+        ...result({
+          id: id++,
+          tax_control_id: 1,
+          status: day === 28 ? 'review' : 'pass',
+          as_of_date: `2026-09-${String(day).padStart(2, '0')}`,
+        }),
+        company_id: 1,
+      });
+    }
+    rows.push({ ...result({ id: id++, tax_control_id: 2, status: 'pass', as_of_date: '2026-01-01' }), company_id: 1 });
+    // 他会社の新しい結果・対象外Controlの結果が混ざっても数えない
+    rows.push({ ...result({ id: id++, tax_control_id: 2, status: 'review', as_of_date: '2026-10-20' }), company_id: 2 });
+    rows.push({ ...result({ id: id++, tax_control_id: 3, status: 'review', as_of_date: '2026-10-20' }), company_id: 1 });
+
+    const { supabase, calls } = fakeSupabase(
+      {
+        workspace_tax_review_cases: noReviews,
+        tax_controls: {
+          data: [1, 2].map((cid) => ({ id: cid, status: 'approved', is_enabled: true })),
+          error: null,
+        },
+        workspace_tax_control_results: { data: rows, error: null },
+      },
+      serverMax,
+    );
+    const s = await loadWorkspaceTaxReviewSummary(supabase, 1, pageSize);
+    assert.equal(s.controlEvaluation?.evaluatedCount, 2);
+    assert.equal(s.controlEvaluation?.reviewCount, 1);
+    assert.equal(s.controlEvaluation?.passCount, 1);
+    assert.equal(s.controlEvaluation?.unevaluatedCount, 0);
+
+    const rs = calls.filter((c) => c.table === 'workspace_tax_control_results');
+    assert.ok(rs.length > 1, '複数ページにまたがる');
+    for (const c of rs) {
+      assert.deepEqual(c.eq, [['company_id', 1]]);
+      assert.deepEqual(c.in, [['tax_control_id', [1, 2]]]);
+      assert.deepEqual(c.order, [['as_of_date', false], ['evaluated_at', false], ['id', false]]);
+    }
+    const got = Math.min(pageSize, serverMax);
+    rs.forEach((c, i) => assert.deepEqual(c.range, [[i * got, i * got + pageSize - 1]]));
+  });
+}

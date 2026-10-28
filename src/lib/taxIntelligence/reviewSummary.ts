@@ -85,14 +85,20 @@ async function fetchAllPages<T>(
   pageSize: number,
   isDone: (rows: T[]) => boolean = () => false,
 ): Promise<T[]> {
+  if (!Number.isSafeInteger(pageSize) || pageSize <= 0) {
+    throw new Error(`pageSize must be a positive integer: ${pageSize}`);
+  }
   const all: T[] = [];
-  for (let from = 0; ; from += pageSize) {
+  // サーバー側上限（max-rows）がpageSizeより小さいと、要求より少ない行しか返らない。
+  // 要求幅(pageSize)ではなく実際に受け取った件数だけoffsetを進めないと、その間の行を飛ばす。
+  for (let from = 0; ; ) {
     const { data, error } = await fetchPage(from, from + pageSize - 1);
     if (error) throw new Error(error.message);
     const page = (data as T[] | null) ?? [];
     all.push(...page);
-    // 空ページになるまで続ける（サーバー側上限がpageSizeより小さくても取りこぼさない）
+    // 空ページになるまで続ける（page.length>0なら必ずoffsetが進むので無限ループしない）
     if (page.length === 0 || isDone(all)) break;
+    from += page.length;
   }
   return all;
 }
