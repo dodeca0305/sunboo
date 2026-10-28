@@ -385,13 +385,14 @@ node --testのネイティブESM解決対応として、`workspaceDecisions.ts`�
 
 - `src/lib/taxIntelligence/reviewSummary.ts`: `loadWorkspaceTaxReviewSummary`。ログインユーザーのsession clientで読み、service-roleは使わない
   - `openReviewCount`: 既存`loadWorkspaceTaxReviewItems`（tax-review画面と同じloader）の`status='open'`件数。画面と同範囲
-  - `controlEvaluation`: `tax_controls`の`status='approved' AND is_enabled=true`を母集団にし、`workspace_tax_control_results`をControlごとの最新1件（`as_of_date`→`evaluated_at`→`id`）で集計。結果が無いControlは「未評価」。`applicable=false`は「対象外」
+  - `controlEvaluation`: `tax_controls`の`status='approved' AND is_enabled=true`を母集団にし、`workspace_tax_control_results`をControlごとの最新1件（`as_of_date`→`evaluated_at`→`id`）で集計。結果が無いControlは「未評価」。Control・結果とも`range()`で全ページ取得（既定1000件/頁。結果は`as_of_date`→`evaluated_at`→`id`の降順、Controlはid昇順。全Controlの最新結果が出揃えば打ち切り）し、PostgRESTの返却上限で最新結果が欠落しない。上限超えの回帰テストあり。`applicable=false`は「対象外」
   - 2つは`Promise.allSettled`で独立取得し、片方の失敗でもう片方を隠さない（失敗は`null`）
-- `src/components/WorkspaceTaxReviewSummaryCard.tsx`: 表示のみ。承認済みControl0件は「判定は行われていません」と表示し、「問題なし」とは表示しない。専門家確認の注意書きと`/tax-review`へのリンク付き
+- `src/components/WorkspaceTaxReviewSummaryCard.tsx`: 表示のみ。有効な税務チェック0件は「現在有効な税務チェックはありません」と表示し（過去に判定が無かったとは断言しない）、「問題なし」とは表示しない。専門家確認の注意書きと`/tax-review`へのリンク付き
 - `workspaces/[id]/page.tsx`: 他機能と独立したtry/catchで取得し、カードのみ縮退表示
 - テスト: `reviewSummary.test.ts`（最新1件・未評価・対象外・片側取得失敗）
 
 ### 16-3. 未確認事項
 
 - 本セッション（GitHub Actions）では`npm test`・`npm run build`・Playwrightが権限制約で実行できず、未実行。ローカルで実行して確認すること
-- 本番のControl承認状況・評価データ・Cron稼働は未確認。`tax_controls`の読み取りはadmin_users限定RLSのため、admin以外のworkspaceメンバーでは「取得できませんでした」表示になる（既存tax-review画面と同じ制約）
+- 本番のControl承認状況・評価データ・Cron稼働は未確認
+- 権限: `/admin/(protected)`配下は`layout.tsx`の`getAdminSession()`（`admin_users`照合）で非adminを`/admin/login`へredirectするため、非adminは会社ホームに到達できない。よって「RLS拒否が空配列で返り0件と混同される」経路は現状のルーティング上は発生しない。旧記述「非adminは取得失敗表示になる」はコードでは保証できないため撤回。RLS拒否はerrorでなく空配列になりうるので、将来admin以外へこのカードを公開する場合は権限判定を別途設けること（本PRではRLS/GRANT変更・service-role不使用）

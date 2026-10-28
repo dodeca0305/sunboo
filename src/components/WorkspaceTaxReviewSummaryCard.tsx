@@ -3,7 +3,7 @@ import { ShieldCheck } from 'lucide-react';
 import type { WorkspaceTaxReviewSummary } from '@/lib/taxIntelligence/reviewSummary';
 
 // 会社ホームの「税務レビュー要約」。判定・集計は src/lib/taxIntelligence/reviewSummary.ts が担い、
-// ここは表示のみ。「未対応レビュー」(tax-review画面と同範囲)と「承認済み有効Controlの評価状況」は
+// ここは表示のみ。「未対応レビュー」(tax-review画面と同範囲)と「有効な税務チェックの評価状況」は
 // 別の指標として並べ、0件・未評価を「問題なし」と読ませない。
 
 export default function WorkspaceTaxReviewSummaryCard({
@@ -40,15 +40,15 @@ export default function WorkspaceTaxReviewSummaryCard({
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-sunboo-ink-muted">承認済み有効Controlの評価状況</dt>
+          <dt className="text-xs text-sunboo-ink-muted">有効な税務チェックの評価状況</dt>
           <dd className="mt-1 text-sm text-sunboo-ink" data-testid="tax-summary-evaluation">
             {evaluation === null ? (
               '取得できませんでした。'
             ) : evaluation.approvedEnabledControlCount === 0 ? (
-              '評価対象の承認済みControlはありません（判定は行われていません）'
+              '現在有効な税務チェックはありません'
             ) : (
               <>
-                対象 {evaluation.approvedEnabledControlCount}件 / 評価済み {evaluation.evaluatedCount}件
+                有効なチェック {evaluation.approvedEnabledControlCount}件 / 評価済み {evaluation.evaluatedCount}件
                 {evaluation.unevaluatedCount > 0 && <>（未評価 {evaluation.unevaluatedCount}件）</>}
                 <span className="mt-0.5 block text-xs text-sunboo-ink-muted">
                   最新結果: 問題なし {evaluation.passCount} / 要確認 {evaluation.reviewCount} / 判定不能 {evaluation.unknownCount}

@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadWorkspaceTaxReviewItems } from './reviewCases.ts';
 
 // 会社ホームの「税務レビュー要約」用の集計。新しい税務判断は持たず、既存データを読むだけ。
-// 未対応レビュー数（tax-review画面と同じloader）と、承認済み有効Controlの評価状況は別々に取得・
+// 未対応レビュー数（tax-review画面と同じloader）と、現在有効な税務チェック（承認済み・有効なControl）の評価状況は別々に取得・
 // 別々に失敗しうる値として返す（片方の取得失敗でもう片方を隠さない・0件を「問題なし」と断定しない）。
 
 export type ControlEvaluationSummary = {
@@ -19,7 +19,7 @@ export type ControlEvaluationSummary = {
 export type WorkspaceTaxReviewSummary = {
   // tax-review画面と同範囲（status='open'の全ReviewCase）。取得失敗時はnull。
   openReviewCount: number | null;
-  // 承認済み有効Controlの評価状況。取得失敗時はnull。
+  // 現在有効な税務チェック（承認済み・有効なControl）の評価状況。取得失敗時はnull。
   controlEvaluation: ControlEvaluationSummary | null;
 };
 
@@ -76,37 +76,73 @@ export function summarizeControlEvaluation(
   return summary;
 }
 
+// PostgRESTの返却上限（max-rows）を超えても取りこぼさないよう、range()で全ページを読む。
+// 並びを固定（末尾にid）しないとページ境界で行が重複・欠落しうる。
+export const SUMMARY_PAGE_SIZE = 1000;
+
+async function fetchAllPages<T>(
+  fetchPage: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message: string } | null }>,
+  pageSize: number,
+  isDone: (rows: T[]) => boolean = () => false,
+): Promise<T[]> {
+  const all: T[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await fetchPage(from, from + pageSize - 1);
+    if (error) throw new Error(error.message);
+    const page = (data as T[] | null) ?? [];
+    all.push(...page);
+    // 空ページになるまで続ける（サーバー側上限がpageSizeより小さくても取りこぼさない）
+    if (page.length === 0 || isDone(all)) break;
+  }
+  return all;
+}
+
 async function loadControlEvaluation(
   supabase: SupabaseClient,
   companyId: number,
+  pageSize: number,
 ): Promise<ControlEvaluationSummary> {
-  const { data: controlData, error: controlError } = await supabase
-    .from('tax_controls')
-    .select('id')
-    .eq('status', 'approved')
-    .eq('is_enabled', true);
-  if (controlError) throw new Error(controlError.message);
-
-  const controls = (controlData as SummaryControlRow[] | null) ?? [];
+  const controls = await fetchAllPages<SummaryControlRow>(
+    (from, to) =>
+      supabase
+        .from('tax_controls')
+        .select('id')
+        .eq('status', 'approved')
+        .eq('is_enabled', true)
+        .order('id', { ascending: true })
+        .range(from, to),
+    pageSize,
+  );
   if (controls.length === 0) return summarizeControlEvaluation([], []);
 
-  const { data: resultData, error: resultError } = await supabase
-    .from('workspace_tax_control_results')
-    .select('id, tax_control_id, applicable, status, as_of_date, evaluated_at')
-    .eq('company_id', companyId)
-    .in('tax_control_id', controls.map((control) => control.id));
-  if (resultError) throw new Error(resultError.message);
+  const controlIds = controls.map((control) => control.id);
+  // 最新順（as_of_date → evaluated_at → id の降順）で読み、全Controlの最新結果が出揃った時点で打ち切る。
+  const results = await fetchAllPages<SummaryResultRow>(
+    (from, to) =>
+      supabase
+        .from('workspace_tax_control_results')
+        .select('id, tax_control_id, applicable, status, as_of_date, evaluated_at')
+        .eq('company_id', companyId)
+        .in('tax_control_id', controlIds)
+        .order('as_of_date', { ascending: false })
+        .order('evaluated_at', { ascending: false })
+        .order('id', { ascending: false })
+        .range(from, to),
+    pageSize,
+    (rows) => new Set(rows.map((row) => row.tax_control_id)).size >= controlIds.length,
+  );
 
-  return summarizeControlEvaluation(controls, (resultData as SummaryResultRow[] | null) ?? []);
+  return summarizeControlEvaluation(controls, results);
 }
 
 export async function loadWorkspaceTaxReviewSummary(
   supabase: SupabaseClient,
   companyId: number,
+  pageSize: number = SUMMARY_PAGE_SIZE,
 ): Promise<WorkspaceTaxReviewSummary> {
   const [reviews, evaluation] = await Promise.allSettled([
     loadWorkspaceTaxReviewItems(supabase, companyId),
-    loadControlEvaluation(supabase, companyId),
+    loadControlEvaluation(supabase, companyId, pageSize),
   ]);
   return {
     openReviewCount:
