@@ -168,6 +168,18 @@ test('pageSizeが不正（0・負・小数・NaN・Infinity）なら問い合わ
 
 // 要求サイズ(pageSize)とサーバー上限(serverMax)の大小を変えても取りこぼさない。
 // 特に 要求5 > 上限3 は、offsetを要求幅で進めると4,5件目を飛ばす回帰ケース。
+// 実取得件数 min(要求, 上限, 残件数) だけoffsetが進む想定のrange列。untilEmptyなら空ページまで読む。
+function expectedRanges(total: number, pageSize: number, serverMax: number, untilEmpty: boolean): Array<Array<[number, number]>> {
+  const out: Array<Array<[number, number]>> = [];
+  let from = 0;
+  while (from < total) {
+    out.push([[from, from + pageSize - 1]]);
+    from += Math.min(pageSize, serverMax, total - from);
+  }
+  if (untilEmpty) out.push([[from, from + pageSize - 1]]);
+  return out;
+}
+
 const PAGE_CASES: Array<{ pageSize: number; serverMax: number }> = [
   { pageSize: 5, serverMax: 3 },
   { pageSize: 3, serverMax: 3 },
@@ -200,8 +212,8 @@ for (const { pageSize, serverMax } of PAGE_CASES) {
       assert.deepEqual(c.order, [['id', true]]);
     }
     // offsetは実際に取得できた件数ぶんだけ進む（要求幅では進まない）
-    const got = Math.min(pageSize, serverMax);
-    cs.forEach((c, i) => assert.deepEqual(c.range, [[i * got, i * got + pageSize - 1]]));
+    // 7件を読み切るまで進み、最後は空ページで終了する（例: 要求5/上限3 → 開始0,3,6,7）
+    assert.deepEqual(cs.map((c) => c.range), expectedRanges(7, pageSize, serverMax, true));
   });
 
   test(`結果: ${label}でも最新を採用し会社を分離する`, async () => {
@@ -248,7 +260,7 @@ for (const { pageSize, serverMax } of PAGE_CASES) {
       assert.deepEqual(c.in, [['tax_control_id', [1, 2]]]);
       assert.deepEqual(c.order, [['as_of_date', false], ['evaluated_at', false], ['id', false]]);
     }
-    const got = Math.min(pageSize, serverMax);
-    rs.forEach((c, i) => assert.deepEqual(c.range, [[i * got, i * got + pageSize - 1]]));
+    // 該当は会社1・対象Controlの29件。最古のControl2の結果を含むページで打ち切るため空ページは読まない
+    assert.deepEqual(rs.map((c) => c.range), expectedRanges(29, pageSize, serverMax, false));
   });
 }
