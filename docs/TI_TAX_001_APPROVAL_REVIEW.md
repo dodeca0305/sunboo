@@ -42,3 +42,13 @@
 `supabase/migration_ti_tax_001_draft_rule_clarification.sql`に本文補足案を用意した。確認済み旧本文・draft・第1版の一致を条件に更新し、既に同じ補足済み本文なら何もしない。
 未登録・承認済み・異なる本文の場合は停止する。承認情報や有効化状態を変更しない。
 このSQLは未適用で、実PostgreSQL上の検証も未実施。適用前に人間が本文と現行法令を確認する必要がある。
+
+## SQLの隔離検証（2026-10-30）
+
+PGliteの隔離PostgreSQLエンジン上で、実際の修正SQLを6ケース実行して全成功。
+対象下書きの更新、補足済み本文の再実行、approved拒否、retired拒否、別途編集拒否、対象版なし拒否を確認。
+承認情報と無関係な行が変わらないこと、更新後の再実行も確認した。
+再実行用スクリプト: `scripts/validate-tax-rule-clarification.mjs`。
+PGLITE_MODULEに隔離インストールしたPGliteのエントリを指定して実行する（アプリ依存関係には追加しない）。
+これは最小テーブルでのSQL動作確認であり、Supabase本番の権限・RLS・トリガー・接続を検証したものではない。
+Supabase連携は未接続のため、実DBへの適用は未実施。
