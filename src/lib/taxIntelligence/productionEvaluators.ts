@@ -8,7 +8,7 @@ import type {
 } from './types';
 
 export const PRODUCTION_CONTROL_EVALUATOR_VERSION =
-  'ti-0.8-production-v1';
+  'ti-0.8-production-v2';
 
 export const PRODUCTION_CONTROL_EVALUATOR_KEYS = {
   TI_TAX_001:
@@ -287,13 +287,13 @@ export const evaluateCorporateTaxFilingBaselineDeadline:
       });
     }
 
-    if (latest.filedDate < latest.fiscalYearEndDate) {
+    if (latest.filedDate <= latest.fiscalYearEndDate) {
       return result({
         applicable: true,
         status: 'unknown',
-        reasonCode: 'corporate_tax_filed_before_period_end',
+        reasonCode: 'corporate_tax_filed_on_or_before_period_end',
         reasonSummary:
-          '申告日が決算期末日より前のため、このControlでは提出時期を判定できません。',
+          '申告日が決算期末日以前のため、このControlでは提出時期を判定できません。',
         observedInputs: {
           entryId: latest.id,
           fiscalYearEndDate: latest.fiscalYearEndDate,

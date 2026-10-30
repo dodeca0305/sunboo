@@ -275,7 +275,7 @@ test('Production evaluator registryはruntime SourceVersion snapshotを結果へ
 
   assert.equal(
     result.evaluatorVersion,
-    'ti-0.8-production-v1',
+    'ti-0.8-production-v2',
   );
 
   assert.deepEqual(
@@ -322,3 +322,15 @@ test('Production evaluator registryはSourceVersion snapshotなしの実行を�
     /SourceVersion snapshotが必要/,
   );
 });
+
+for (const [filedDate, expected] of [['2027-03-31', 'unknown'], ['2027-04-01', 'pass']] as const) {
+  test(`TI_TAX_001: 期末と翌日の境界 ${filedDate} は ${expected}`, () => {
+    const result = evaluateCorporateTaxFilingBaselineDeadline({
+      companyProfile: company(),
+      corporateTaxFilingContext: { liquidationResidualAssetsCase: 'not_applicable' },
+      taxReturnProfile: profile([entry('boundary', { filedDate })]),
+    });
+    assert.equal(result.status, expected);
+    if (expected === 'unknown') assert.equal(result.reasonCode, 'corporate_tax_filed_on_or_before_period_end');
+  });
+}
