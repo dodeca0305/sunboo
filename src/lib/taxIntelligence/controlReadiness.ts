@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '../supabase';
 
 type Control = { id: number; control_code: string; title: string; control_kind: string; status: string; is_enabled: boolean };
-type Rule = { id: number; rule_code: string; status: string };
+type Rule = { id: number; rule_code: string; status: string; version_no: number; rule_statement: string; applicability_note: string | null; effective_from: string | null; effective_to: string | null };
 export type ControlReadiness = Control & { rules: Rule[]; blockers: string[] };
 
 // offsetはサーバーの返却上限を考慮し、実際の取得件数だけ進める。
@@ -21,7 +21,7 @@ async function readRows<T>(supabase: SupabaseClient, table: string, columns: str
 export async function loadControlReadiness(supabase: SupabaseClient): Promise<ControlReadiness[]> {
   const [controls, rules, links, sources] = await Promise.all([
     readRows<Control>(supabase, 'tax_controls', 'id, control_code, title, control_kind, status, is_enabled', ['id']),
-    readRows<Rule>(supabase, 'tax_rules', 'id, rule_code, status', ['id']),
+    readRows<Rule>(supabase, 'tax_rules', 'id, rule_code, status, version_no, rule_statement, applicability_note, effective_from, effective_to', ['id']),
     readRows<{ tax_control_id: number; tax_rule_id: number }>(supabase, 'tax_control_rules', 'tax_control_id, tax_rule_id', ['tax_control_id', 'tax_rule_id']),
     readRows<{ tax_source_version_id: number; tax_rule_id: number }>(supabase, 'tax_rule_source_versions', 'tax_rule_id, tax_source_version_id', ['tax_rule_id', 'tax_source_version_id']),
   ]);

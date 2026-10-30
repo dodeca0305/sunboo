@@ -62,6 +62,19 @@ export default async function TaxIntelligencePage() {
             <p>チェック：{statusLabel(control.status)} ／ {control.is_enabled ? '有効' : '無効'}</p>
             <p>根拠ルール：{control.rules.length ? control.rules.map(rule => `${rule.rule_code}（${statusLabel(rule.status)}）`).join('、') : 'なし'}</p>
             <p className="mt-2">{control.blockers.length ? `確認が必要：${control.blockers.join('・')}` : '承認・有効化・根拠紐付けの基本条件を満たしています。'}</p>
+            {control.rules.map(rule => (
+              <details key={rule.id} className="mt-3 border-t pt-3">
+                <summary className="cursor-pointer font-medium">根拠ルール本文を確認（第{rule.version_no}版）</summary>
+                <dl className="mt-3 space-y-2">
+                  <dt className="font-medium">保存されているルール本文</dt>
+                  <dd className="whitespace-pre-wrap">{rule.rule_statement || '未登録'}</dd>
+                  <dt className="font-medium">適用範囲・留意事項</dt>
+                  <dd className="whitespace-pre-wrap">{rule.applicability_note || '未登録'}</dd>
+                  <dt className="font-medium">適用期間</dt>
+                  <dd>{rule.effective_from || '開始日未設定'} ～ {rule.effective_to || '終了日未設定'}</dd>
+                </dl>
+              </details>
+            ))}
           </li>
         ))}</ul>}
       </section>
