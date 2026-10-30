@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -52,6 +53,7 @@ export default function WorkspaceTaxReviewView({
   initialItems: WorkspaceTaxReviewItem[];
   canManage: boolean;
 }) {
+  const router = useRouter();
   const [items, setItems] = useState(initialItems);
   const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [savingCaseId, setSavingCaseId] = useState<number | null>(null);
@@ -128,6 +130,9 @@ export default function WorkspaceTaxReviewView({
     if (status === 'open') {
       setDrafts((prev) => ({ ...prev, [item.caseId]: '' }));
     }
+
+    // 見出しの未対応件数はServer Componentで集計しているため再取得する。
+    router.refresh();
   }
 
   if (items.length === 0) {
