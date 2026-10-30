@@ -20,6 +20,8 @@ import WorkspaceDashboard from '@/components/WorkspaceDashboard';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import WorkspaceCompletionFeedback from '@/components/WorkspaceCompletionFeedback';
 import WorkspaceTodaySalesCard from '@/components/WorkspaceTodaySalesCard';
+import WorkspaceTaxReviewSummaryCard from '@/components/WorkspaceTaxReviewSummaryCard';
+import { loadWorkspaceTaxReviewSummary, type WorkspaceTaxReviewSummary } from '@/lib/taxIntelligence/reviewSummary';
 import {
   emptyMonthlySalesEntry, monthEndDate, monthlySalesRowToEntry, todayInJapan,
   type DailySalesActivity, type MonthlySalesEntry, type MonthlySalesRow, type RevenueModel,
@@ -226,6 +228,14 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
     documentsNeedingUpdateCount = 0;
   }
 
+  // 税務レビュー要約は他機能から独立して取得する（失敗してもカードのみ案内。既存RLSのままsession clientで読む）。
+  let taxReviewSummary: WorkspaceTaxReviewSummary | null = null;
+  try {
+    taxReviewSummary = await loadWorkspaceTaxReviewSummary(supabase, companyId);
+  } catch {
+    taxReviewSummary = null;
+  }
+
   // buildAnnualRoadmapは診断エンジン・Rule Engineへの複数のDB問い合わせを内部で行うため、
   // 想定外のデータで例外が出てもダッシュボードが画面全体を巻き込んで落ちないよう、
   // try/catchで捕捉する（roadmap/page.tsxと同じ防御的措置）。取得失敗時はダッシュボード自体を表示しない。
@@ -343,6 +353,8 @@ export default async function WorkspaceCompanyPage({ params }: { params: Promise
           documentsNeedingUpdateCount={documentsNeedingUpdateCount}
         />
       )}
+
+      <WorkspaceTaxReviewSummaryCard companyId={companyId} summary={taxReviewSummary} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {SECTIONS.map(({ icon: Icon, title, description, hrefSuffix, comingSoon }) => {
