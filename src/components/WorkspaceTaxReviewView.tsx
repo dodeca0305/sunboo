@@ -87,52 +87,61 @@ export default function WorkspaceTaxReviewView({
             resolution_summary: summary,
           };
 
-    const { data, error: updateError } = await supabase
-      .from('workspace_tax_review_cases')
-      .update(payload)
-      .eq('id', item.caseId)
-      .eq('company_id', companyId)
-      .select(
-        'status, resolution_summary, resolved_by, resolved_at, updated_at',
-      )
-      .single();
+    try {
+      const { data, error: updateError } = await supabase
+        .from('workspace_tax_review_cases')
+        .update(payload)
+        .eq('id', item.caseId)
+        .eq('company_id', companyId)
+        .select(
+          'status, resolution_summary, resolved_by, resolved_at, updated_at',
+        )
+        .single();
 
-    setSavingCaseId(null);
+      if (updateError) {
+        setError(`保存に失敗しました: ${updateError.message}`);
+        return;
+      }
 
-    if (updateError) {
-      setError(`保存に失敗しました: ${updateError.message}`);
-      return;
+      if (!data) {
+        setError('保存結果を確認できませんでした。再読み込みして状態を確認してください。');
+        return;
+      }
+
+      const updated = data as {
+        status: WorkspaceTaxReviewCaseStatus;
+        resolution_summary: string | null;
+        resolved_by: string | null;
+        resolved_at: string | null;
+        updated_at: string;
+      };
+
+      setItems((prev) =>
+        prev.map((row) =>
+          row.caseId === item.caseId
+            ? {
+                ...row,
+                caseStatus: updated.status,
+                resolutionSummary: updated.resolution_summary,
+                resolvedBy: updated.resolved_by,
+                resolvedAt: updated.resolved_at,
+                updatedAt: updated.updated_at,
+              }
+            : row,
+        ),
+      );
+
+      if (status === 'open') {
+        setDrafts((prev) => ({ ...prev, [item.caseId]: '' }));
+      }
+
+      // 見出しの未対応件数はServer Componentで集計しているため再取得する。
+      router.refresh();
+    } catch {
+      setError('保存結果を確認できませんでした。通信状態を確認し、再読み込みして状態を確認してください。');
+    } finally {
+      setSavingCaseId(null);
     }
-
-    const updated = data as {
-      status: WorkspaceTaxReviewCaseStatus;
-      resolution_summary: string | null;
-      resolved_by: string | null;
-      resolved_at: string | null;
-      updated_at: string;
-    };
-
-    setItems((prev) =>
-      prev.map((row) =>
-        row.caseId === item.caseId
-          ? {
-              ...row,
-              caseStatus: updated.status,
-              resolutionSummary: updated.resolution_summary,
-              resolvedBy: updated.resolved_by,
-              resolvedAt: updated.resolved_at,
-              updatedAt: updated.updated_at,
-            }
-          : row,
-      ),
-    );
-
-    if (status === 'open') {
-      setDrafts((prev) => ({ ...prev, [item.caseId]: '' }));
-    }
-
-    // 見出しの未対応件数はServer Componentで集計しているため再取得する。
-    router.refresh();
   }
 
   if (items.length === 0) {
