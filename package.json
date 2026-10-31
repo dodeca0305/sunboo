@@ -20,7 +20,8 @@
     "test:e2e:profile-roadmap:headed": "HEADED=1 node playwright/verify-profile-roadmap.mjs",
     "test:e2e:share-link-access": "node playwright/verify-share-link-access.mjs",
     "test:e2e:share-link-access:headed": "HEADED=1 node playwright/verify-share-link-access.mjs",
-    "test:e2e:share-link-expiry": "node playwright/verify-share-link-expiry.mjs"
+    "test:e2e:share-link-expiry": "node playwright/verify-share-link-expiry.mjs",
+    "test:e2e:share-link-expiry:live": "node playwright/verify-share-link-expiry-live.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
