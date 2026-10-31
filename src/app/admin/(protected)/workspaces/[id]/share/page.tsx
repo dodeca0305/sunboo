@@ -48,8 +48,8 @@ export default async function WorkspaceSharePage({ params }: { params: Promise<{
       <InformationCard kind="info">
         発行したリンクを経営者に共有すると、ログイン不要で「会社概要」「年間ロードマップ」を
         閲覧できます（編集はできません）。AI参謀・書類・会計分析はまだ共有できません。
-        現在、共有リンクに有効期限はありません。発行後は「失効させる」を押すまで有効なままに
-        なりますので、不要になったリンクは速やかに失効させてください。
+        有効期限は7日・30日・無期限から選べます（初期値は30日）。
+        期限内でも、不要になったリンクは「失効させる」で無効にできます。
       </InformationCard>
 
       <WorkspaceShareLinksPanel companyId={companyId} initialLinks={links} />
