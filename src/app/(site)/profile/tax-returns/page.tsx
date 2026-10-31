@@ -64,7 +64,7 @@ export type Mismatch = {
 };
 
 // CompanyProfileとTaxReturnProfileが食い違う項目を検出する（申告書を自動で正としない。4節）。
-export function detectMismatches(profile: CompanyProfile, taxReturnProfile: TaxReturnProfile): Mismatch[] {
+function detectMismatches(profile: CompanyProfile, taxReturnProfile: TaxReturnProfile): Mismatch[] {
   const mismatches: Mismatch[] = [];
 
   const suggestedConsumptionTaxStatus = deriveConsumptionTaxStatus(profile.capital, profile.stage, taxReturnProfile);
