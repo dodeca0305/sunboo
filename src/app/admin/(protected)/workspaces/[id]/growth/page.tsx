@@ -6,31 +6,7 @@ import WorkspaceGrowthView from '@/components/WorkspaceGrowthView';
 import InformationCard from '@/components/InformationCard';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { loadWorkspaceCompany } from '@/lib/workspaceLoader';
-import type {
-  DailySalesActivity, MonthlySalesEntry, MonthlySalesRow, WeeklySalesActivity,
-} from '@/lib/monthlySalesProgress';
-import { monthlySalesRowToEntry } from '@/lib/monthlySalesProgress';
-import { sumTaxPaymentPlansByMonth, type WorkspaceTaxPaymentPlanRow } from '@/lib/workspaceTaxPaymentPlan';
-
-type WeeklySalesRow = {
-  week_start: string;
-  target_meetings: number;
-  actual_meetings: number;
-  actual_deals: number;
-  target_customers: number;
-  actual_customers: number;
-  actual_purchases: number;
-  actual_revenue: number;
-  action_note: string;
-};
-
-type DailySalesRow = {
-  activity_date: string;
-  target_units: number;
-  actual_units: number;
-  action_plan: string;
-  outcome_review: string;
-};
+import { loadWorkspaceGrowthData } from '@/lib/workspaceGrowthData';
 
 export default async function WorkspaceGrowthPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -42,54 +18,7 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
   const company = await loadWorkspaceCompany(supabase, companyId);
   if (!company) notFound();
 
-  const { data } = await supabase
-    .from('workspace_monthly_sales')
-    .select('year_month, target_revenue, actual_revenue, target_gross_profit, actual_cost_of_sales, target_operating_profit, actual_fixed_costs, cash_balance, expected_cash_inflows, expected_cash_outflows, planned_tax_payments, action_goal, revenue_model, meeting_count, conversion_rate, average_contract_value, customer_count, purchase_frequency, average_order_value')
-    .eq('company_id', companyId)
-    .order('year_month', { ascending: false });
-
-  const { data: weeklyData } = await supabase
-    .from('workspace_weekly_sales_activities')
-    .select('week_start, target_meetings, actual_meetings, actual_deals, target_customers, actual_customers, actual_purchases, actual_revenue, action_note')
-    .eq('company_id', companyId)
-    .order('week_start', { ascending: false });
-
-  const { data: dailyData } = await supabase
-    .from('workspace_daily_sales_activities')
-    .select('activity_date, target_units, actual_units, action_plan, outcome_review')
-    .eq('company_id', companyId)
-    .order('activity_date', { ascending: false });
-
-  const { data: taxPaymentPlanData } = await supabase
-    .from('workspace_tax_payment_plans')
-    .select('procedure_id, due_date, amount')
-    .eq('company_id', companyId);
-  const linkedTaxPaymentsByMonth = sumTaxPaymentPlansByMonth(
-    (taxPaymentPlanData as WorkspaceTaxPaymentPlanRow[] | null) ?? [],
-  );
-
-  const entries: MonthlySalesEntry[] = ((data as MonthlySalesRow[] | null) ?? []).map((row) =>
-    monthlySalesRowToEntry(row, linkedTaxPaymentsByMonth[row.year_month.slice(0, 7)] ?? 0),
-  );
-
-  const weeklyActivities: WeeklySalesActivity[] = ((weeklyData as WeeklySalesRow[] | null) ?? []).map((row) => ({
-    weekStart: row.week_start,
-    targetMeetings: row.target_meetings,
-    actualMeetings: row.actual_meetings,
-    actualDeals: row.actual_deals,
-    targetCustomers: row.target_customers ?? 0,
-    actualCustomers: row.actual_customers ?? 0,
-    actualPurchases: row.actual_purchases ?? 0,
-    actualRevenue: row.actual_revenue ?? 0,
-    actionNote: row.action_note,
-  }));
-  const dailyActivities: DailySalesActivity[] = ((dailyData as DailySalesRow[] | null) ?? []).map((row) => ({
-    activityDate: row.activity_date,
-    targetUnits: row.target_units,
-    actualUnits: row.actual_units,
-    actionPlan: row.action_plan,
-    outcomeReview: row.outcome_review ?? '',
-  }));
+  const growthData = await loadWorkspaceGrowthData(supabase, companyId);
 
   return (
     <div className="space-y-6">
@@ -104,13 +33,25 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
       <InformationCard kind="disclaimer">
         売上達成を保証する機能ではありません。実績との差を早めに把握し、経営者が行動を見直すための参考情報です。
       </InformationCard>
-      <WorkspaceGrowthView
-        companyId={companyId}
-        initialEntries={entries}
-        initialWeeklyActivities={weeklyActivities}
-        initialDailyActivities={dailyActivities}
-        linkedTaxPaymentsByMonth={linkedTaxPaymentsByMonth}
-      />
+      {growthData.status === 'unavailable' ? (
+        <InformationCard kind="error" title="売上目標データを読み込めませんでした">
+          <p role="alert">
+            月次・週次・日次実績、または納税予定を取得できませんでした。
+            既存の情報を保護するため、編集・保存を停止しています。時間をおいて再読み込みしてください。
+          </p>
+          <a href={`/admin/workspaces/${companyId}/growth`} className="btn-secondary mt-3">
+            再読み込み
+          </a>
+        </InformationCard>
+      ) : (
+        <WorkspaceGrowthView
+          companyId={companyId}
+          initialEntries={growthData.entries}
+          initialWeeklyActivities={growthData.weeklyActivities}
+          initialDailyActivities={growthData.dailyActivities}
+          linkedTaxPaymentsByMonth={growthData.linkedTaxPaymentsByMonth}
+        />
+      )}
     </div>
   );
 }
