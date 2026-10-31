@@ -22,8 +22,9 @@ try {
   await writeFile(`${fixtureDir}/page.tsx`, `
 import Panel from '../admin/(protected)/workspaces/[id]/share/WorkspaceShareLinksPanel';
 const common = {shared_sections: ['company', 'profile', 'roadmap'], revoked_at: null, last_accessed_at: null, created_at: '${now.toISOString()}'};
-export default function TestPage() {
-  return <main className="p-8"><h1>共有リンク期限のテスト</h1><Panel companyId={1} initialLinks={[
+export default async function TestPage({searchParams}: {searchParams: Promise<{failed?: string; empty?: string}>}) {
+  const query = await searchParams;
+  return <main className="p-8"><h1>共有リンク期限のテスト</h1><Panel companyId={1} initialLinks={query.failed ? null : query.empty ? [] : [
     {...common, id: 1, token: 'legacy-unlimited', expires_at: null},
     {...common, id: 2, token: 'expired', expires_at: '${now.toISOString()}'},
     {...common, id: 3, token: 'revoked', expires_at: null, revoked_at: '${now.toISOString()}'},
@@ -48,7 +49,9 @@ export default function TestPage() {
   const session = { access_token: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${payload}.test`, refresh_token: 'test', expires_at: 4102444800, expires_in: 3600, token_type: 'bearer', user };
   await context.addCookies([{ name: `sb-${project}-auth-token`, value: 'base64-' + Buffer.from(JSON.stringify(session)).toString('base64url'), url: origin }]);
   const inserts = [];
-  let failNext = false;
+  let failure = '';
+  let lookupFails = false;
+  const records = new Map();
   await context.route('**/*', async route => {
     const url = new URL(route.request().url());
     if (url.origin === origin) return route.continue();
@@ -56,16 +59,37 @@ export default function TestPage() {
     const headers = { 'access-control-allow-origin': origin, 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET, POST, PATCH, OPTIONS', 'content-type': 'application/json' };
     if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
     if (url.pathname === '/auth/v1/user') return route.fulfill({ headers, json: user });
+    if (url.pathname === '/rest/v1/workspace_share_links' && route.request().method() === 'GET') {
+      if (lookupFails) return route.fulfill({status: 500, headers, json: {message: 'lookup failed'}});
+      const token = url.searchParams.get('token')?.replace(/^eq\./, '');
+      const row = records.get(token);
+      return route.fulfill({headers, json: row ? [row] : []});
+    }
     if (url.pathname === '/rest/v1/workspace_share_links' && route.request().method() === 'POST') {
       const body = route.request().postDataJSON();
       inserts.push(body);
-      if (failNext) { failNext = false; return route.fulfill({ status: 500, headers, json: { message: 'テスト用発行失敗' } }); }
-      return route.fulfill({ status: 201, headers, json: { ...body, id: inserts.length + 10, token: `test-${inserts.length}`, created_at: now.toISOString(), revoked_at: null, last_accessed_at: null } });
+      const mode = failure;
+      failure = '';
+      if (mode === 'before-commit') return route.abort();
+      if (records.has(body.token)) return route.fulfill({status:409,headers,json:{code:'23505'}});
+      const row = { ...body, id: inserts.length + 10, created_at: now.toISOString(), revoked_at: null, last_accessed_at: null };
+      records.set(body.token, row);
+      if (mode === 'after-commit') return route.abort();
+      return route.fulfill({ status: 201, headers, json: row });
     }
     throw new Error(`Unexpected Supabase request: ${url.pathname}`);
   });
   const page = await context.newPage();
   await page.clock.install({ time: now });
+  await page.goto(origin + '/test-share-expiry?failed=1');
+  await page.getByRole('alert').filter({hasText:'発行済みリンクを確認できない'}).waitFor();
+  assert.equal(await page.getByRole('button', {name:'新しい共有リンクを発行',exact:true}).isDisabled(), true);
+  assert.equal(await page.getByText('まだ共有リンクがありません。', {exact:false}).count(), 0);
+  assert.equal(inserts.length, 0);
+  assert.ok(await page.getByRole('link',{name:'再読み込み',exact:true}).getAttribute('href'));
+  await page.goto(origin + '/test-share-expiry?empty=1');
+  await page.getByText('まだ共有リンクがありません。', {exact:false}).waitFor();
+  assert.equal(await page.getByRole('button', {name:'新しい共有リンクを発行',exact:true}).isEnabled(), true);
   await page.goto(origin + '/test-share-expiry');
   const select = page.getByLabel('有効期限', { exact: true });
   await select.waitFor();
@@ -81,23 +105,69 @@ export default function TestPage() {
   for (const expiry of ['30', '7', 'unlimited']) {
     await select.selectOption(expiry);
     const start = await page.evaluate(() => Date.now());
-    const token = `test-${inserts.length + 1}`;
+    const count = inserts.length;
     await create.click();
+    await page.waitForFunction(previous => document.querySelectorAll('input[readonly]').length > previous, 4 + count);
+    const token = inserts.at(-1).token;
     await page.locator(`input[value$="/${token}"]`).waitFor();
     const body = inserts.at(-1);
     assert.equal(body.company_id, 1);
     if (expiry === 'unlimited') assert.equal(body.expires_at, null);
     else assert.ok(Math.abs(Date.parse(body.expires_at) - (start + Number(expiry) * 86400000)) < 2000);
   }
-  failNext = true;
+  // 同一イベント内の連打も、通信前のロックで1件だけ発行する。
+  const doubleClickAttempts = inserts.length;
+  await create.evaluate(button => { button.click(); button.click(); });
+  await page.waitForFunction(previous => document.querySelectorAll('input[readonly]').length > previous, 7);
+  assert.equal(inserts.length, doubleClickAttempts + 1);
+
+  // DB確定後に応答喪失。再読み込み後も既存行を確認するだけで、新規INSERTしない。
+  failure = 'after-commit';
   await create.click();
-  await page.getByText('発行に失敗しました: テスト用発行失敗', { exact: true }).waitFor();
-  assert.equal(await create.isEnabled(), true);
+  await page.getByRole('alert').filter({hasText:'発行結果を確認できませんでした'}).waitFor();
+  const committedToken = inserts.at(-1).token;
+  const attempts = inserts.length;
+  assert.equal(await create.count(), 0);
+  await page.goto(origin + '/test-share-expiry?failed=1');
+  await page.getByRole('alert').filter({hasText:'発行済みリンクを確認できない'}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'発行状況を確認・再試行',exact:true}).isDisabled(), true);
+  assert.equal(inserts.length, attempts);
+  await page.goto(origin + '/test-share-expiry');
+  const retry = page.getByRole('button',{name:'発行状況を確認・再試行',exact:true});
+  await retry.waitFor();
+  lookupFails = true;
+  await retry.click();
+  await page.getByRole('alert').filter({hasText:'発行結果を確認できませんでした'}).waitFor();
+  assert.equal(inserts.length, attempts);
+  lookupFails = false;
+  await retry.click();
+  await page.locator(`input[value$="/${committedToken}"]`).waitFor();
+  assert.equal(inserts.length, attempts);
+
+  // DB未確定の通信エラーも、再読み込み後は同じトークン・期限で再試行する。
+  failure = 'before-commit';
   await create.click();
-  await page.locator(`input[value$="/test-5"]`).waitFor();
+  await page.getByRole('alert').filter({hasText:'発行結果を確認できませんでした'}).waitFor();
+  const uncommitted = inserts.at(-1);
+  const retryAttempts = inserts.length;
+  await page.goto(origin + '/test-share-expiry');
+  await retry.click();
+  await page.locator(`input[value$="/${uncommitted.token}"]`).waitFor();
+  assert.equal(inserts.length, retryAttempts + 1);
+  assert.deepEqual(inserts.at(-1), uncommitted);
+  assert.equal(records.size, 6);
+
+  // ブラウザ保存が使えなければ、応答不明の要求を失わないため発行しない。
+  const blockedContext = await browser.newContext();
+  await blockedContext.addInitScript(() => Object.defineProperty(window, 'sessionStorage', {get(){throw new Error('blocked');}}));
+  const blocked = await blockedContext.newPage();
+  await blocked.goto(origin + '/test-share-expiry');
+  await blocked.getByRole('alert').filter({hasText:'前回の発行情報をブラウザで確認できない'}).waitFor();
+  assert.equal(await blocked.getByRole('button',{name:'新しい共有リンクを発行',exact:true}).isDisabled(), true);
+  await blockedContext.close();
   await mkdir('test-results', { recursive: true });
   await page.screenshot({ path: 'test-results/share-link-expiry.png', fullPage: true });
-  console.log('PASS: default 30 days; 7/30/unlimited persisted; existing unlimited; expired/revoked copy disabled; automatic expiry; failure and retry. No live DB writes.');
+  console.log('PASS: expiry regressions; failed versus empty listing; creation blocked until loaded; storage failure; lost responses before/after commit; reload and same-request retry; lookup failure; zero duplicate records. No live DB writes.');
 } finally {
   await browser?.close();
   if (server?.pid) { try { process.kill(-server.pid, 'SIGTERM'); } catch {} }
