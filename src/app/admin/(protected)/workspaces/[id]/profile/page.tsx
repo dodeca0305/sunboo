@@ -1,16 +1,18 @@
 import { notFound } from 'next/navigation';
 import { Building2 } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { loadWorkspaceCompany, loadWorkspaceCompanyProfile } from '@/lib/workspaceLoader';
+import { loadWorkspaceCompany } from '@/lib/workspaceLoader';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import WorkspaceProfileForm from './WorkspaceProfileForm';
 import PageHeader from '@/components/PageHeader';
+import InformationCard from '@/components/InformationCard';
+import { loadWorkspaceProfileForEditing } from '@/lib/workspaceProfileData';
 
 // ── Company Workspace — 会社プロフィール（Sprint 23 Phase23.2・Sprint 34）─────────
 // 【Sprint34でデータ取得を共通化】company取得・CompanyProfile変換はDashboard・Roadmapと重複していた。
 // src/lib/workspaceLoader.ts（loadWorkspaceCompany・loadWorkspaceCompanyProfile）へ切り出した。
 // 本ページはAnnual Roadmapの計算（診断エンジンへの追加問い合わせを伴う）を必要としないため、
-// loadWorkspaceRoadmapContextではなくloadWorkspaceCompanyProfileのみを呼ぶ
+// loadWorkspaceRoadmapContextではなく編集画面専用のloadWorkspaceProfileForEditingを呼ぶ
 // （問い合わせ回数を従来通り3件に保つ）。
 
 export default async function WorkspaceCompanyProfilePage({ params }: { params: Promise<{ id: string }> }) {
@@ -24,7 +26,7 @@ export default async function WorkspaceCompanyProfilePage({ params }: { params: 
   const company = await loadWorkspaceCompany(supabase, companyId);
   if (!company) notFound();
 
-  const initialProfile = await loadWorkspaceCompanyProfile(supabase, company);
+  const initialProfile = await loadWorkspaceProfileForEditing(supabase, company);
 
   return (
     <div className="space-y-6">
@@ -36,7 +38,17 @@ export default async function WorkspaceCompanyProfilePage({ params }: { params: 
         subtitle={`${company.name}の税務・労務の現況。手続きの判定に使う情報を登録します。`}
       />
       <WorkspaceSubNav companyId={companyId} />
-      <WorkspaceProfileForm companyId={companyId} initialProfile={initialProfile} />
+      {initialProfile === null ? (
+        <InformationCard kind="error" title="会社プロフィールを読み込めませんでした">
+          <p role="alert">
+            登録済みの情報を確認できないため、編集・保存を停止しています。
+            空欄や0で上書きしないよう、時間をおいて再読み込みしてください。
+          </p>
+          <a href={`/admin/workspaces/${companyId}/profile`} className="btn-secondary mt-3">再読み込み</a>
+        </InformationCard>
+      ) : (
+        <WorkspaceProfileForm companyId={companyId} initialProfile={initialProfile} />
+      )}
     </div>
   );
 }

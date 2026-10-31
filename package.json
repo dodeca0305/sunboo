@@ -22,7 +22,8 @@
     "test:e2e:share-link-access:headed": "HEADED=1 node playwright/verify-share-link-access.mjs",
     "test:e2e:share-link-expiry": "node playwright/verify-share-link-expiry.mjs",
     "test:e2e:share-link-expiry:live": "node playwright/verify-share-link-expiry-live.mjs",
-    "test:e2e:growth-load-failure": "node playwright/verify-growth-load-failure.mjs"
+    "test:e2e:growth-load-failure": "node playwright/verify-growth-load-failure.mjs",
+    "test:e2e:profile-load-failure": "node playwright/verify-profile-load-failure.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
