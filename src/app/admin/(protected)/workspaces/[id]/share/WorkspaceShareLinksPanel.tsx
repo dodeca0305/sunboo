@@ -1,25 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link2, Copy, Check, Ban } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import InformationCard from '@/components/InformationCard';
 import { trackEvent } from '@/lib/analytics';
 import { DEFAULT_SHARE_LINK_EXPIRY, getShareLinkExpiresAt, getShareLinkStatus, type ShareLinkExpiry } from '@/lib/shareLinkExpiry';
-
-export type ShareLinkRow = {
-  id: number;
-  token: string;
-  shared_sections: string[];
-  expires_at: string | null;
-  revoked_at: string | null;
-  last_accessed_at: string | null;
-  created_at: string;
-};
-
-// 本Sprintでは共有対象を固定にする（項目単位のトグルUIは次Sprint以降、
-// docs/COMPANY_WORKSPACE.md 5-11節「Share Settings」参照）。
-const SHARED_SECTIONS = ['company', 'profile', 'roadmap'];
+import { issueWorkspaceShareLink, parseShareLinkRequest, pendingShareLinkKey, type ShareLinkRow, type ShareLinkRequest } from '@/lib/workspaceShareLinks';
+export type { ShareLinkRow } from '@/lib/workspaceShareLinks';
 
 function shareUrl(token: string): string {
   if (typeof window === 'undefined') return '';
@@ -31,9 +19,14 @@ export default function WorkspaceShareLinksPanel({
   initialLinks,
 }: {
   companyId: number;
-  initialLinks: ShareLinkRow[];
+  initialLinks: ShareLinkRow[] | null;
 }) {
-  const [links, setLinks] = useState<ShareLinkRow[]>(initialLinks);
+  const [links, setLinks] = useState<ShareLinkRow[]>(initialLinks ?? []);
+  const listLoaded = initialLinks !== null;
+  const [storageReady, setStorageReady] = useState(false);
+  const [pending, setPending] = useState<ShareLinkRequest | null>(null);
+  const pendingRef = useRef<ShareLinkRequest | null>(null);
+  const busyRef = useRef(false);
   const [creating, setCreating] = useState(false);
   const [expiry, setExpiry] = useState<ShareLinkExpiry>(DEFAULT_SHARE_LINK_EXPIRY);
   const [now, setNow] = useState(() => Date.now());
@@ -46,44 +39,74 @@ export default function WorkspaceShareLinksPanel({
     return () => window.clearInterval(timer);
   }, []);
 
-  async function handleCreate() {
-    setError(null);
-    const supabase = createBrowserSupabase();
-    if (!supabase) {
-      setError('Supabase が設定されていません。');
-      return;
-    }
-
-    setCreating(true);
+  // SSRではsessionStorageを読めないため、発行を無効にしたままhydration後に復元する。
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const key = pendingShareLinkKey(companyId);
+      let request = parseShareLinkRequest(window.sessionStorage.getItem(key), companyId);
+      if (listLoaded && request && initialLinks.some((link) => link.token === request?.token)) {
+        window.sessionStorage.removeItem(key);
+        request = null;
+      }
+      pendingRef.current = request;
+      setPending(request);
+      setStorageReady(true);
+    } catch {
+      setError('前回の発行情報をブラウザで確認できないため、発行を停止しています。ブラウザの保存設定を確認して再読み込みしてください。');
+    }
+  }, [companyId, initialLinks, listLoaded]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  async function handleCreate() {
+    if (!listLoaded || !storageReady || busyRef.current) return;
+    busyRef.current = true;
+    setCreating(true);
+    setError(null);
+    try {
+      const supabase = createBrowserSupabase();
+      if (!supabase) {
+        setError('Supabase が設定されていません。');
+        return;
+      }
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) {
         setError('ログイン情報を確認できませんでした。再度ログインしてください。');
         return;
       }
-
-      const { data, error: insertError } = await supabase
-        .from('workspace_share_links')
-        .insert({
-          company_id: companyId,
-          shared_sections: SHARED_SECTIONS,
-          created_by: user.email,
-          expires_at: getShareLinkExpiresAt(expiry),
-        })
-        .select('id, token, shared_sections, expires_at, revoked_at, last_accessed_at, created_at')
-        .single();
-
-      if (insertError || !data) {
-        setError(`発行に失敗しました: ${insertError?.message ?? '不明なエラー'}`);
+      let request = pendingRef.current;
+      if (request && request.created_by !== user.email) {
+        setError('前回発行したアカウントでログインし直して、発行状況を確認してください。');
         return;
       }
-      setLinks((prev) => [data as ShareLinkRow, ...prev]);
+      if (!request) {
+        const bytes = window.crypto.getRandomValues(new Uint8Array(32));
+        request = {
+          company_id: companyId,
+          token: Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(''),
+          created_by: user.email,
+          expires_at: getShareLinkExpiresAt(expiry),
+        };
+        // INSERTより前に永続化する。応答喪失や再読み込み後も同じ要求で照会・再試行する。
+        window.sessionStorage.setItem(pendingShareLinkKey(companyId), JSON.stringify(request));
+        pendingRef.current = request;
+        setPending(request);
+      }
+      const link = await issueWorkspaceShareLink(supabase, request);
+      if (!link) {
+        setError('発行結果を確認できませんでした。新しいリンクの発行を停止しています。「発行状況を確認・再試行」から同じ発行の結果を確認してください。');
+        return;
+      }
+      setLinks((prev) => [link, ...prev.filter((item) => item.id !== link.id)]);
+      window.sessionStorage.removeItem(pendingShareLinkKey(companyId));
+      pendingRef.current = null;
+      setPending(null);
       trackEvent('share_created', { workspace_id: companyId, company_id: companyId });
     } catch {
-      setError('発行に失敗しました。通信状況を確認して再度お試しください。');
+      setStorageReady(false);
+      setError('通信またはブラウザの保存処理を確認できませんでした。再読み込み後、前回の発行が残っている場合は同じ発行の確認・再試行を行ってください。');
     } finally {
+      busyRef.current = false;
       setCreating(false);
     }
   }
@@ -116,31 +139,42 @@ export default function WorkspaceShareLinksPanel({
 
   return (
     <div className="space-y-4">
-      {error && <InformationCard kind="error">{error}</InformationCard>}
+      {!listLoaded && (
+        <InformationCard kind="error" title="共有リンク一覧を読み込めませんでした">
+          <p role="alert">発行済みリンクを確認できないため、新しい共有リンクの発行を停止しています。再読み込みしてください。</p>
+        </InformationCard>
+      )}
+      {error && <InformationCard kind="error"><p role="alert">{error}</p></InformationCard>}
+      {pending && (
+        <InformationCard kind="caution">前回の発行結果の確認が必要です。新しく発行せず、同じ発行の確認・再試行を行います。</InformationCard>
+      )}
+      {(!listLoaded || pending || error) && (
+        <a href={`/admin/workspaces/${companyId}/share`} className="btn-secondary">再読み込み</a>
+      )}
 
       <div className="flex flex-wrap items-end gap-3">
-        <div>
+        {pending ? <p className="text-sm text-sunboo-ink-muted">前回の発行条件・有効期限を維持して確認します。</p> : <div>
           <label htmlFor="share-link-expiry" className="form-label">有効期限</label>
           <select
             id="share-link-expiry"
             value={expiry}
             onChange={(event) => setExpiry(event.target.value as ShareLinkExpiry)}
-            disabled={creating}
+            disabled={creating || !listLoaded || !storageReady || Boolean(pending)}
             className="form-select"
           >
             <option value="7">7日</option>
             <option value="30">30日</option>
             <option value="unlimited">無期限</option>
           </select>
-        </div>
-        <button type="button" onClick={handleCreate} disabled={creating} className="btn-primary disabled:opacity-60">
+        </div>}
+        <button type="button" onClick={handleCreate} disabled={creating || !listLoaded || !storageReady} className="btn-primary disabled:opacity-60">
           <Link2 className="h-4 w-4" />
-          {creating ? '発行中…' : '新しい共有リンクを発行'}
+          {creating ? '発行状況を確認中…' : pending ? '発行状況を確認・再試行' : '新しい共有リンクを発行'}
         </button>
       </div>
       <p className="text-xs text-sunboo-ink-muted">発行時から選択した期間だけ有効です。無期限の場合も、手動で失効させられます。</p>
 
-      {links.length === 0 ? (
+      {listLoaded && storageReady && !pending && links.length === 0 ? (
         <div className="card text-sm text-sunboo-ink-muted">
           まだ共有リンクがありません。発行すると、経営者へそのまま渡せる年間ロードマップのURLができます。
         </div>

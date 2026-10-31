@@ -70,8 +70,9 @@ try {
     await select.selectOption(expiry);
     const before = new Set(issued.keys());
     const start = Date.now();
+    const response = page.waitForResponse(response => response.url().includes('/rest/v1/workspace_share_links') && response.request().method() === 'POST');
     await page.getByRole('button', { name: '新しい共有リンクを発行', exact: true }).click();
-    await page.waitForFunction(() => ![...document.querySelectorAll('button')].some(b => b.textContent.includes('発行中')));
+    await response;
     await Promise.all(observations);
     const row = [...issued.values()].find(link => !before.has(link.id));
     assert.ok(row, 'New test link was not returned by the database');
