@@ -61,7 +61,7 @@ try {
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
   await context.addCookies(
-    auth.cookies.map(({ name, value }) => ({
+    auth.cookies.filter(c => c.name.includes('auth-token')).map(({ name, value }) => ({
       name,
       value,
       url: origin,

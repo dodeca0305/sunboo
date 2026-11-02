@@ -189,3 +189,16 @@ PR #143反映済みmain `6c619b8` を起点に、オープンPRなし・旧作�
 - 合成画面試験でプロフィール/実績/Rule取得失敗の保存0、再読み込み後の停止維持、復旧後の同ID保存、保存応答喪失後の保存済み結果確認（再送0）、保存失敗復旧を確認。本番への業務書込みは遮断。
 - 適用前の本番関数定義/ACLは `backups/2026-11-03-tax-execution/` に保存。[対象限定適用・安全停止の復旧手順](PRODUCTION_TAX_EXECUTION_RECOVERY.md) を用意。PR/CI・DB限定適用・マージ・本番読み取り確認の確定結果は後続追記。現時点では本番反映済みと扱わない。
 - 残課題: 共有/ロードマップ/書類の共用失敗表示、他の会社サブページ、ブラウザのタブ終了/ストレージ消去/別端末をまたぐ実行要求一覧の共有。過去からの全権限監査/全画面保護を完了したとは扱わない。
+
+### PR #153 の反映・本番確認（2026-11-03 確定）
+
+- [PR #153](https://github.com/dodeca0305/sunboo/pull/153)、製品main `5820226a33edd80cba82883d6aebe71a5603a2f1`。PR CI [41546952494](https://github.com/dodeca0305/sunboo/actions/runs/41546952494)・main CI [41547360696](https://github.com/dodeca0305/sunboo/actions/runs/41547360696)でLint・全771テスト・通常ビルドが成功。Lintは既存WorkspaceGrowthViewの警告1件のみ。追加90テスト（取得/復旧59、DB31）を含む。合成画面試験と型チェック、ローカルPostgreSQL独立2接続の同時送信も成功。
+- 限定マイグレーション `20261102232415_protect_tax_execution_requests.sql` は既存保存関数1つだけをCREATE OR REPLACE。Supabaseの管理履歴は `20261102234114 / protect_tax_execution_requests`。timestamp差はAPI側採番であり、再適用しない。既存SQLの一括適用なし。
+- 適用前定義/所有者/ACLをバックアップし、適用直前にも一致を確認。適用後は新定義・SECURITY INVOKER・search_path・実行ACLの維持を確認。全public表のRLS有効状態と既存ポリシーの確認値も不変。テーブル/列/索引/追加DB関数/GRANT/REVOKE/RLS変更なし。判定器と期限計算も変更なし。
+- Vercel `sunboo333/sunboo` のproduction `dpl_D47qbvYqhWw6dFgYgmUgUps3jrYx` がREADY、mainコミット一致、`www.sunboo-keiei.com` の割当先一致を確認。
+- 本番は架空会社ID 23の会社ホームと税務レビュー画面を読み取り確認し、HTTP 200・架空会社名・新しい実行保護の説明表示を確認。実行ボタンも保存結果確認ボタンも操作していない。ブラウザのREST書込/RPC/Server Actionを遮断し、業務書込・保存RPC・Server Actionは0件、ページ例外0件。
+- 会社23の会社/プロフィール/決算実績/税務結果/レビュー/レビュー履歴の6種類について、適用前・適用後・本番画面確認後の件数/確認値が一致。実税務実行、業務データの登録/変更/削除、本番の障害注入は0件。本番の正常保存実行を試験済みとは報告しない。
+- 当該配信のerrorレベルRuntime Logsに該当記録なし（確認時点の範囲のみ）。Log Drainsは未設定で、継続監視を新規導入したものではない。
+- バックアップ/2接続試験/画面読み取り/前後確認値はBusiness側 `backups/2026-11-03-tax-execution/` に保存。[復旧手順](PRODUCTION_TAX_EXECUTION_RECOVERY.md) と安全停止SQLを同梱。文書確定後のmainは後続文書PRを含み得るが、製品変更はPR #153。
+- 対応済み: 本番税務実行の必要データ取得失敗停止、正常未登録との区別、既存結果/レビュー維持、同時送信/同ID異入力拒否、全体ロールバック、応答喪失・同じタブの再読み込み後の結果確認。下記は未対応として残す。
+- 残課題: 公開共有RPC・ロードマップ/書類の共用context取得失敗表示、他の会社サブページ等の取得保護。タブ終了/ストレージ消去/別端末をまたぐ実行要求一覧の共有も未実装。既存の直接テーブルAPI権限は変更せず、今回の再送保護は保存RPC経路を対象とする。全呼び出し元/全権限の監査完了とは扱わない。
