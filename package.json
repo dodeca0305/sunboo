@@ -29,7 +29,8 @@
     "test:e2e:rule-save-safety": "node playwright/verify-rule-save-safety.mjs",
     "test:e2e:procedure-status-safety": "node playwright/verify-procedure-status-safety.mjs",
     "test:e2e:office-save-safety": "node playwright/verify-office-save-safety.mjs",
-    "test:e2e:tax-return-safety": "node playwright/verify-tax-return-safety.mjs"
+    "test:e2e:tax-return-safety": "node playwright/verify-tax-return-safety.mjs",
+    "test:e2e:home-read-safety": "node playwright/verify-home-read-safety.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
