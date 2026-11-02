@@ -1,12 +1,8 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import test from "node:test";
+import assert from "node:assert/strict";
 
-import {
-  loadProductionTaxControlRuntime,
-} from './productionExecutionContext.ts';
-import {
-  PRODUCTION_CONTROL_EVALUATOR_KEYS,
-} from './productionEvaluators.ts';
+import { loadProductionTaxControlRuntime } from "./productionExecutionContext.ts";
+import { PRODUCTION_CONTROL_EVALUATOR_KEYS } from "./productionEvaluators.ts";
 
 type Row = Record<string, unknown>;
 
@@ -21,45 +17,45 @@ type FixtureTables = {
 
 function createSupabaseFixture(
   tables: FixtureTables,
-): Parameters<
-  typeof loadProductionTaxControlRuntime
->[0] {
+): Parameters<typeof loadProductionTaxControlRuntime>[0] {
   const fixture = {
     from(tableName: keyof FixtureTables) {
       const rows = tables[tableName] ?? [];
 
-      return {
+      let selected = rows,
+        offset = 0,
+        end = 499;
+      const q = {
         select() {
-          return {
-            eq(column: string, value: unknown) {
-              const matches = rows.filter(
-                (row) => row[column] === value,
-              );
-
-              return {
-                async maybeSingle() {
-                  return {
-                    data: matches[0] ?? null,
-                    error: null,
-                  };
-                },
-              };
-            },
-
-            async in(
-              column: string,
-              values: unknown[],
-            ) {
-              return {
-                data: rows.filter((row) =>
-                  values.includes(row[column]),
-                ),
-                error: null,
-              };
-            },
-          };
+          return q;
+        },
+        eq(k: string, v: unknown) {
+          selected = selected.filter((r) => r[k] === v);
+          return q;
+        },
+        in(k: string, values: unknown[]) {
+          selected = selected.filter((r) => values.includes(r[k]));
+          return q;
+        },
+        order() {
+          return q;
+        },
+        range(a: number, b: number) {
+          offset = a;
+          end = b;
+          return q;
+        },
+        async maybeSingle() {
+          return { data: selected[0] ?? null, error: null };
+        },
+        then(resolve: (v: unknown) => unknown) {
+          return Promise.resolve({
+            data: selected.slice(offset, end + 1),
+            error: null,
+          }).then(resolve);
         },
       };
+      return q;
     },
   };
 
@@ -73,13 +69,12 @@ function validTables(): FixtureTables {
     tax_controls: [
       {
         id: 10,
-        control_code: 'TI_TAX_001',
-        title: '法人税確定申告の提出時期確認',
-        control_kind: 'tax_rule',
-        status: 'approved',
+        control_code: "TI_TAX_001",
+        title: "法人税確定申告の提出時期確認",
+        control_kind: "tax_rule",
+        status: "approved",
         is_enabled: true,
-        evaluator_key:
-          PRODUCTION_CONTROL_EVALUATOR_KEYS.TI_TAX_001,
+        evaluator_key: PRODUCTION_CONTROL_EVALUATOR_KEYS.TI_TAX_001,
       },
     ],
     tax_control_rules: [
@@ -91,7 +86,7 @@ function validTables(): FixtureTables {
     tax_rules: [
       {
         id: 20,
-        status: 'approved',
+        status: "approved",
       },
     ],
     tax_rule_source_versions: [
@@ -108,90 +103,78 @@ function validTables(): FixtureTables {
       {
         id: 30,
         tax_source_id: 40,
-        version_label: 'v2',
-        content_hash: 'hash-egov',
+        version_label: "v2",
+        content_hash: "hash-egov",
       },
       {
         id: 31,
         tax_source_id: 41,
-        version_label: 'v1',
-        content_hash: 'hash-nta',
+        version_label: "v1",
+        content_hash: "hash-nta",
       },
     ],
     tax_sources: [
       {
         id: 40,
-        provider: 'e_gov',
-        canonical_locator: 'egov:test',
+        provider: "e_gov",
+        canonical_locator: "egov:test",
       },
       {
         id: 41,
-        provider: 'nta',
-        canonical_locator: 'https://example.test/nta',
+        provider: "nta",
+        canonical_locator: "https://example.test/nta",
       },
     ],
   };
 }
 
-test('approved+enabled Controlからexact SourceVersion snapshotを構築する', async () => {
-  const runtime =
-    await loadProductionTaxControlRuntime(
-      createSupabaseFixture(validTables()),
-      10,
-    );
+test("approved+enabled Controlからexact SourceVersion snapshotを構築する", async () => {
+  const runtime = await loadProductionTaxControlRuntime(
+    createSupabaseFixture(validTables()),
+    10,
+  );
 
   assert.equal(runtime.taxControlId, 10);
-  assert.equal(runtime.controlCode, 'TI_TAX_001');
-  assert.equal(
-    runtime.controlTitle,
-    '法人税確定申告の提出時期確認',
-  );
+  assert.equal(runtime.controlCode, "TI_TAX_001");
+  assert.equal(runtime.controlTitle, "法人税確定申告の提出時期確認");
   assert.equal(
     runtime.evaluatorKey,
     PRODUCTION_CONTROL_EVALUATOR_KEYS.TI_TAX_001,
   );
 
-  assert.deepEqual(
-    runtime.executionContext.sourceVersionSnapshot,
-    [
-      {
-        provider: 'e_gov',
-        canonicalLocator: 'egov:test',
-        versionLabel: 'v2',
-        contentHash: 'hash-egov',
-      },
-      {
-        provider: 'nta',
-        canonicalLocator:
-          'https://example.test/nta',
-        versionLabel: 'v1',
-        contentHash: 'hash-nta',
-      },
-    ],
-  );
+  assert.deepEqual(runtime.executionContext.sourceVersionSnapshot, [
+    {
+      provider: "e_gov",
+      canonicalLocator: "egov:test",
+      versionLabel: "v2",
+      contentHash: "hash-egov",
+    },
+    {
+      provider: "nta",
+      canonicalLocator: "https://example.test/nta",
+      versionLabel: "v1",
+      contentHash: "hash-nta",
+    },
+  ]);
 });
 
-test('draft Controlは実行対象にしない', async () => {
+test("draft Controlは実行対象にしない", async () => {
   const tables = validTables();
 
   tables.tax_controls = [
     {
       ...tables.tax_controls![0],
-      status: 'draft',
+      status: "draft",
     },
   ];
 
   await assert.rejects(
-    () =>
-      loadProductionTaxControlRuntime(
-        createSupabaseFixture(tables),
-        10,
-      ),
+    () => loadProductionTaxControlRuntime(createSupabaseFixture(tables), 10),
     /approvedではありません/,
   );
 });
 
-test('disabled Controlは実行対象にしない', async () => {
+test("disabled Controlは実行対象にしない", async () => {
   const tables = validTables();
 
   tables.tax_controls = [
@@ -202,51 +185,39 @@ test('disabled Controlは実行対象にしない', async () => {
   ];
 
   await assert.rejects(
-    () =>
-      loadProductionTaxControlRuntime(
-        createSupabaseFixture(tables),
-        10,
-      ),
+    () => loadProductionTaxControlRuntime(createSupabaseFixture(tables), 10),
     /無効です/,
   );
 });
 
-test('approvedでないRuleがリンクされていれば実行を拒否する', async () => {
+test("approvedでないRuleがリンクされていれば実行を拒否する", async () => {
   const tables = validTables();
 
   tables.tax_rules = [
     {
       id: 20,
-      status: 'draft',
+      status: "draft",
     },
   ];
 
   await assert.rejects(
-    () =>
-      loadProductionTaxControlRuntime(
-        createSupabaseFixture(tables),
-        10,
-      ),
+    () => loadProductionTaxControlRuntime(createSupabaseFixture(tables), 10),
     /approvedでないTaxRule/,
   );
 });
 
-test('approved RuleにSourceVersionがなければ実行を拒否する', async () => {
+test("approved RuleにSourceVersionがなければ実行を拒否する", async () => {
   const tables = validTables();
 
   tables.tax_rule_source_versions = [];
 
   await assert.rejects(
-    () =>
-      loadProductionTaxControlRuntime(
-        createSupabaseFixture(tables),
-        10,
-      ),
+    () => loadProductionTaxControlRuntime(createSupabaseFixture(tables), 10),
     /SourceVersionがありません/,
   );
 });
 
-test('同じSourceVersionが複数Ruleから参照されてもsnapshotは重複しない', async () => {
+test("同じSourceVersionが複数Ruleから参照されてもsnapshotは重複しない", async () => {
   const tables = validTables();
 
   tables.tax_control_rules = [
@@ -263,11 +234,11 @@ test('同じSourceVersionが複数Ruleから参照されてもsnapshotは重複�
   tables.tax_rules = [
     {
       id: 20,
-      status: 'approved',
+      status: "approved",
     },
     {
       id: 21,
-      status: 'approved',
+      status: "approved",
     },
   ];
 
@@ -286,48 +257,39 @@ test('同じSourceVersionが複数Ruleから参照されてもsnapshotは重複�
     {
       id: 30,
       tax_source_id: 40,
-      version_label: 'v2',
-      content_hash: 'hash-egov',
+      version_label: "v2",
+      content_hash: "hash-egov",
     },
   ];
 
   tables.tax_sources = [
     {
       id: 40,
-      provider: 'e_gov',
-      canonical_locator: 'egov:test',
+      provider: "e_gov",
+      canonical_locator: "egov:test",
     },
   ];
 
-  const runtime =
-    await loadProductionTaxControlRuntime(
-      createSupabaseFixture(tables),
-      10,
-    );
-
-  assert.equal(
-    runtime.executionContext
-      .sourceVersionSnapshot.length,
-    1,
+  const runtime = await loadProductionTaxControlRuntime(
+    createSupabaseFixture(tables),
+    10,
   );
+
+  assert.equal(runtime.executionContext.sourceVersionSnapshot.length, 1);
 });
 
-test('Production registryに存在しないevaluator_keyは実行を拒否する', async () => {
+test("Production registryに存在しないevaluator_keyは実行を拒否する", async () => {
   const tables = validTables();
 
   tables.tax_controls = [
     {
       ...tables.tax_controls![0],
-      evaluator_key: 'evaluator/not-registered',
+      evaluator_key: "evaluator/not-registered",
     },
   ];
 
   await assert.rejects(
-    () =>
-      loadProductionTaxControlRuntime(
-        createSupabaseFixture(tables),
-        10,
-      ),
+    () => loadProductionTaxControlRuntime(createSupabaseFixture(tables), 10),
     /Production registryに存在しません/,
   );
 });
