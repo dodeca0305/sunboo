@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { CheckCircle2, Circle, AlertTriangle, CalendarClock, FileText, LoaderCircle } from 'lucide-react';
 import {
   WORKSPACE_DOCUMENT_TYPES, WORKSPACE_DOCUMENT_TYPE_LABEL,
@@ -19,7 +19,7 @@ import {
 
 // ── Company Workspace — 書類一覧（Sprint 26 Workspace Documents MVP・Sprint 85）─────────
 // workspace_documents（本Sprint新設）のステータスを表示・変更する。ファイルアップロードは
-// スコープ外（メタデータのみ）。AnnualRoadmapView（Sprint23.3・24.1）の楽観的更新パターンを踏襲する。
+// スコープ外（メタデータのみ）。取得済みの状態だけを編集し、保存成功後に表示を更新する。
 // 【Sprint85で追加】各行を「今年提出した書類の記録」として読めるよう、状態をアイコンで示す
 // （registered=Moss・needs_update=MorningSun系・not_registered=中立）。ステータス種別・DB問い合わせは無変更。
 
@@ -51,49 +51,63 @@ export default function WorkspaceDocumentsView({
   const [localRequiredStatusMap, setLocalRequiredStatusMap] =
     useState<WorkspaceRequiredDocumentStatusMap>(requiredDocumentStatusMap);
 
-  async function handleStatusChange(documentType: WorkspaceDocumentType, status: WorkspaceDocumentStatus) {
-    const previous = localStatusMap[documentType] ?? 'not_registered';
-    setLocalStatusMap((prev) => ({ ...prev, [documentType]: status })); // 楽観的更新
+  const [saving, setSaving] = useState(false);
+  const [requiresReload, setRequiresReload] = useState(false);
+  // 同一描画中の連続操作も止め、結果不明の要求は再読み込みまで再送しない。
+  const saveBlocked = useRef(false);
+
+  async function saveStatus(
+    table: 'workspace_documents' | 'workspace_required_document_statuses',
+    payload: { document_type: WorkspaceDocumentType; status: WorkspaceDocumentStatus }
+      | { document_name: string; status: WorkspaceRequiredDocumentStatus },
+    onConflict: string,
+  ): Promise<boolean> {
+    if (saveBlocked.current) return false;
+    saveBlocked.current = true;
+    setSaving(true);
     setError(null);
-
-    const supabase = createBrowserSupabase();
-    if (!supabase) return;
-    const { error: upsertError } = await supabase
-      .from('workspace_documents')
-      .upsert({ company_id: companyId, document_type: documentType, status }, { onConflict: 'company_id,document_type' });
-
-    if (upsertError) {
-      setLocalStatusMap((prev) => ({ ...prev, [documentType]: previous }));
-      setError(`保存に失敗しました: ${upsertError.message}`);
+    let confirmed = false;
+    try {
+      const supabase = createBrowserSupabase();
+      if (!supabase) throw new Error('Document client unavailable');
+      const { error: upsertError } = await supabase.from(table)
+        .upsert({ company_id: companyId, ...payload }, { onConflict });
+      if (upsertError) throw upsertError;
+      confirmed = true;
+      return true;
+    } catch {
+      setRequiresReload(true);
+      setError('書類の保存結果を確認できませんでした。再読み込みして登録内容を確認してください。');
+      return false;
+    } finally {
+      saveBlocked.current = !confirmed;
+      setSaving(false);
     }
   }
 
-  async function handleRequiredStatusChange(
-    documentName: string,
-    status: WorkspaceRequiredDocumentStatus,
-  ) {
-    const previous = localRequiredStatusMap[documentName] ?? 'not_ready';
-    setLocalRequiredStatusMap((prev) => ({ ...prev, [documentName]: status }));
-    setError(null);
+  async function handleStatusChange(documentType: WorkspaceDocumentType, status: WorkspaceDocumentStatus) {
+    if (await saveStatus('workspace_documents', { document_type: documentType, status }, 'company_id,document_type')) {
+      setLocalStatusMap(previous => ({ ...previous, [documentType]: status }));
+    }
+  }
 
-    const supabase = createBrowserSupabase();
-    if (!supabase) return;
-    const { error: upsertError } = await supabase
-      .from('workspace_required_document_statuses')
-      .upsert(
-        { company_id: companyId, document_name: documentName, status },
-        { onConflict: 'company_id,document_name' },
-      );
-
-    if (upsertError) {
-      setLocalRequiredStatusMap((prev) => ({ ...prev, [documentName]: previous }));
-      setError(`保存に失敗しました: ${upsertError.message}`);
+  async function handleRequiredStatusChange(documentName: string, status: WorkspaceRequiredDocumentStatus) {
+    if (await saveStatus('workspace_required_document_statuses', { document_name: documentName, status }, 'company_id,document_name')) {
+      setLocalRequiredStatusMap(previous => ({ ...previous, [documentName]: status }));
     }
   }
 
   return (
     <div className="space-y-3">
-      {error && <InformationCard kind="error">{error}</InformationCard>}
+      {error && (
+        <div role="alert">
+          <InformationCard kind="error">
+            {error}
+            <a className="mt-2 block underline" href={`/admin/workspaces/${companyId}/documents`}>再読み込み</a>
+          </InformationCard>
+        </div>
+      )}
+      {saving && <p role="status" className="text-xs text-sunboo-ink-muted">保存中…</p>}
       <ul className="space-y-2">
         {WORKSPACE_DOCUMENT_TYPES.map((documentType) => {
           const status = localStatusMap[documentType] ?? 'not_registered';
@@ -105,6 +119,7 @@ export default function WorkspaceDocumentsView({
               {status === 'needs_update' && <span className="tag tag--caution">要更新</span>}
               <select
                 value={status}
+                disabled={saving || requiresReload}
                 aria-label={`${WORKSPACE_DOCUMENT_TYPE_LABEL[documentType]}の登録状況`}
                 onChange={(e) => handleStatusChange(documentType, e.target.value as WorkspaceDocumentStatus)}
                 className="form-select ml-auto w-auto py-1 text-xs"
@@ -162,6 +177,7 @@ export default function WorkspaceDocumentsView({
                     <PreparationIcon className={`h-4 w-4 ${preparationIconClass}`} aria-hidden="true" />
                     <select
                       value={preparationStatus}
+                      disabled={saving || requiresReload}
                       aria-label={`${document.name}の準備状況`}
                       onChange={(event) => handleRequiredStatusChange(
                         document.name,

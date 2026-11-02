@@ -3,8 +3,6 @@ import { FileStack } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
 import {
   loadWorkspaceCompany,
-  loadWorkspaceDocumentStatuses,
-  loadWorkspaceRequiredDocumentStatuses,
   loadWorkspaceRoadmapContext,
 } from '@/lib/workspaceLoader';
 import WorkspaceDocumentsView from '@/components/WorkspaceDocumentsView';
@@ -12,7 +10,8 @@ import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import PageHeader from '@/components/PageHeader';
 import InformationCard from '@/components/InformationCard';
 import { WORKSPACE_DOCUMENT_TYPES } from '@/lib/workspaceDocumentStatus';
-import { buildWorkspaceRequiredDocuments } from '@/lib/workspaceRequiredDocuments';
+import { buildWorkspaceRequiredDocuments, type WorkspaceRequiredDocument } from '@/lib/workspaceRequiredDocuments';
+import { loadWorkspaceDocumentsForEditing } from '@/lib/workspaceDocumentData';
 
 // ── Company Workspace — 書類（Sprint 26 Workspace Documents MVP・Sprint 34・Sprint 85）───────
 // workspace_documents（Sprint26新設）のステータス（メタデータのみ）を一覧表示・変更する。
@@ -35,16 +34,26 @@ export default async function WorkspaceDocumentsPage({ params }: { params: Promi
   const company = await loadWorkspaceCompany(supabase, companyId);
   if (!company) notFound();
 
-  const [{ statusMap }, requiredDocumentStatusMap, roadmapContext] = await Promise.all([
-    loadWorkspaceDocumentStatuses(supabase, companyId),
-    loadWorkspaceRequiredDocumentStatuses(supabase, companyId),
-    loadWorkspaceRoadmapContext(supabase, company),
-  ]);
-  const registeredCount = WORKSPACE_DOCUMENT_TYPES.filter((t) => statusMap[t] === 'registered').length;
-  const requiredDocuments = buildWorkspaceRequiredDocuments(
-    roadmapContext.roadmapYears,
-    roadmapContext.procedureStatusMap,
-  );
+  let documents: Awaited<ReturnType<typeof loadWorkspaceDocumentsForEditing>> = null;
+  let requiredDocuments: WorkspaceRequiredDocument[] = [];
+  try {
+    const [loaded, roadmapContext] = await Promise.all([
+      loadWorkspaceDocumentsForEditing(supabase, companyId),
+      loadWorkspaceRoadmapContext(supabase, company),
+    ]);
+    if (loaded) {
+      requiredDocuments = buildWorkspaceRequiredDocuments(
+        roadmapContext.roadmapYears,
+        roadmapContext.procedureStatusMap,
+      );
+      documents = loaded;
+    }
+  } catch {
+    // 必要書類の組み立てに失敗しても「必要なし」や空の編集画面へ退避しない。
+  }
+  const registeredCount = documents
+    ? WORKSPACE_DOCUMENT_TYPES.filter((type) => documents.statusMap[type] === 'registered').length
+    : null;
 
   return (
     <div className="space-y-6">
@@ -53,7 +62,9 @@ export default async function WorkspaceDocumentsPage({ params }: { params: Promi
         backLabel={`${company.name} に戻る`}
         icon={FileStack}
         title="今年提出した書類"
-        subtitle={`${company.name}の代表的な書類の登録状況（${registeredCount}/${WORKSPACE_DOCUMENT_TYPES.length}件登録済み）`}
+        subtitle={registeredCount === null
+          ? `${company.name}の書類の登録状況を取得できませんでした。`
+          : `${company.name}の代表的な書類の登録状況（${registeredCount}/${WORKSPACE_DOCUMENT_TYPES.length}件登録済み）`}
       />
 
       <WorkspaceSubNav companyId={companyId} />
@@ -63,12 +74,22 @@ export default async function WorkspaceDocumentsPage({ params }: { params: Promi
         添付は行わず、状態のみを記録します）。「要更新」はDashboardにも件数が表示されます。
       </InformationCard>
 
-      <WorkspaceDocumentsView
-        companyId={companyId}
-        statusMap={statusMap}
-        requiredDocuments={requiredDocuments}
-        requiredDocumentStatusMap={requiredDocumentStatusMap}
-      />
+      {documents === null ? (
+        <div role="alert">
+          <InformationCard kind="error" title="書類の登録状況を取得できませんでした">
+            登録済み・準備済みの状態を確認できないため、書類の状態変更を停止しています。
+            <a className="mt-2 block underline" href={`/admin/workspaces/${companyId}/documents`}>再読み込み</a>
+          </InformationCard>
+        </div>
+      ) : (
+        <WorkspaceDocumentsView
+          key={`${companyId}:${JSON.stringify(documents)}`}
+          companyId={companyId}
+          statusMap={documents.statusMap}
+          requiredDocuments={requiredDocuments}
+          requiredDocumentStatusMap={documents.requiredDocumentStatusMap}
+        />
+      )}
     </div>
   );
 }
