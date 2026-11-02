@@ -1,6 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import InformationCard from '@/components/InformationCard';
+import {
+  isProcedureStatusSaveIntent, procedureStatusSaveKey, loadWorkspaceProcedureStatusesForEditing,
+  subscribeProcedureStatusSave, notifyProcedureStatusSave,
+  saveWorkspaceProcedureStatus, reconcileWorkspaceProcedureStatus, type ProcedureStatusSaveIntent,
+} from '@/lib/workspaceProcedureStatusData';
 import { useRouter } from 'next/navigation';
 import type { RoadmapItem, RoadmapYear } from '@/lib/roadmap';
 import type { ProcedureCategory } from '@/lib/types';
@@ -183,6 +189,12 @@ export default function AnnualRoadmapView({
 }) {
   const router = useRouter();
   const [localStatusMap, setLocalStatusMap] = useState<WorkspaceProcedureStatusMap>(statusMap ?? {});
+  // サーバー再取得で状態だけを同期し、未保存の予定税額ドラフトを再マウントで失わない。
+  const [statusSource, setStatusSource] = useState(statusMap);
+  if (statusSource !== statusMap) {
+    setStatusSource(statusMap);
+    setLocalStatusMap(statusMap ?? {});
+  }
   const [statusError, setStatusError] = useState<string | null>(null);
   const [localTaxPaymentPlanMap, setLocalTaxPaymentPlanMap] = useState<WorkspaceTaxPaymentPlanMap>(taxPaymentPlanMap ?? {});
   const [savingTaxPaymentKey, setSavingTaxPaymentKey] = useState<string | null>(null);
@@ -190,6 +202,84 @@ export default function AnnualRoadmapView({
   const [taxSaveUncertain, setTaxSaveUncertain] = useState(false);
   const taxEditable = companyId !== undefined && taxPaymentPlanMap !== undefined && !taxSaveUncertain;
   const editable = statusMap !== undefined && companyId !== undefined;
+
+  const [procedureError, setProcedureError] = useState<string | null>(null);
+  const [savingProcedure, setSavingProcedure] = useState(false);
+  const [checkingProcedure, setCheckingProcedure] = useState(false);
+  const procedureLock = useRef(false);
+  const storageKey = companyId === undefined ? '' : procedureStatusSaveKey(companyId);
+  const rawPending = useSyncExternalStore(subscribeProcedureStatusSave, () => {
+    if (companyId === undefined) return '';
+    try { return sessionStorage.getItem(storageKey) ?? ''; } catch { return 'storage-unavailable'; }
+  }, () => null);
+  let pendingProcedure: ProcedureStatusSaveIntent | null = null;
+  let procedureStorageBroken = false;
+  if (rawPending && companyId !== undefined) {
+    try {
+      const value: unknown = JSON.parse(rawPending);
+      if (!isProcedureStatusSaveIntent(value, companyId)) throw new Error('Invalid pending status');
+      pendingProcedure = value;
+    } catch { procedureStorageBroken = true; }
+  }
+  const procedureBlocked = rawPending === null || procedureStorageBroken || pendingProcedure !== null || savingProcedure || checkingProcedure;
+  const procedureMessage = procedureError ?? (procedureStorageBroken
+    ? '前回の保存記録を確認できません。登録状態を再取得してください。'
+    : pendingProcedure && !savingProcedure ? '手続き状態の保存結果が未確認です。再送する前に保存結果を確認してください。' : null);
+
+  function clearProcedureAttempt() {
+    sessionStorage.removeItem(storageKey);
+    notifyProcedureStatusSave();
+  }
+  function confirmProcedureSave(intent: ProcedureStatusSaveIntent, map?: WorkspaceProcedureStatusMap) {
+    clearProcedureAttempt();
+    setLocalStatusMap(previous => map ?? ({ ...previous, [workspaceProcedureOccurrenceKey(intent.procedureId, intent.dueDate)]: intent.status }));
+    setProcedureError(null);
+    trackEvent('procedure_status_changed', { workspace_id: companyId, company_id: companyId });
+    if (intent.status === 'done') {
+      try {
+        const feedback: WorkspaceCompletionFeedbackPayload = {
+          procedureId: intent.procedureId, dueDate: intent.dueDate,
+          procedureName: intent.procedureName, previousStatus: intent.previousStatus,
+        };
+        sessionStorage.setItem(workspaceCompletionFeedbackKey(intent.companyId), serializeWorkspaceCompletionFeedback(feedback));
+      } catch { /* 保存確認済み。通知を保持できなくても登録結果は変わらない。 */ }
+      router.push(`/admin/workspaces/${intent.companyId}`);
+    } else {
+      router.refresh();
+    }
+    procedureLock.current = false;
+  }
+  async function checkProcedureSave() {
+    if (companyId === undefined || checkingProcedure) return;
+    setCheckingProcedure(true);
+    try {
+      const client = createBrowserSupabase();
+      if (!client) throw new Error('Client unavailable');
+      if (pendingProcedure) {
+        const result = await reconcileWorkspaceProcedureStatus(client, pendingProcedure);
+        if (result.status === 'unavailable') throw new Error('Status unavailable');
+        if (result.status === 'saved') {
+          confirmProcedureSave(pendingProcedure, result.map);
+          return;
+        }
+        clearProcedureAttempt();
+        setLocalStatusMap(result.map);
+        setProcedureError('再取得した状態は送信した状態と異なります。現在の状態を確認して操作してください。');
+      } else {
+        const map = await loadWorkspaceProcedureStatusesForEditing(client, companyId);
+        if (map === null) throw new Error('Status unavailable');
+        clearProcedureAttempt();
+        setLocalStatusMap(map);
+        setProcedureError('現在の登録状態を取得しました。内容を確認して操作してください。');
+      }
+      procedureLock.current = false;
+      router.refresh();
+    } catch {
+      setProcedureError('手続き状態の保存結果を取得できませんでした。時間をおいて再度確認してください。');
+    } finally {
+      setCheckingProcedure(false);
+    }
+  }
 
   useEffect(() => {
     if (focusProcedureId === undefined || focusDueDate === undefined) {
@@ -217,48 +307,29 @@ export default function AnnualRoadmapView({
     procedureName: string,
     status: WorkspaceProcedureStatus,
   ) {
-    if (!companyId) return;
-    const key = workspaceProcedureOccurrenceKey(procedureId, dueDate);
-    const previous = localStatusMap[key] ?? 'not_started';
-    setLocalStatusMap((prev) => ({ ...prev, [key]: status })); // 楽観的更新
-    setStatusError(null);
-
-    const supabase = createBrowserSupabase();
-    if (!supabase) return;
-    const { error } = await supabase
-      .from('workspace_procedure_statuses')
-      .upsert(
-        { company_id: companyId, procedure_id: procedureId, occurrence_key: dueDate, status },
-        { onConflict: 'company_id,procedure_id,occurrence_key' },
-      );
-
-    if (error) {
-      // 保存に失敗した場合は表示を元に戻す（DB未反映のまま見た目だけ変わった状態にしない）
-      setLocalStatusMap((prev) => ({ ...prev, [key]: previous }));
-      setStatusError(`保存に失敗しました: ${error.message}`);
+    if (!companyId || !editable || procedureBlocked || procedureLock.current) return;
+    const intent: ProcedureStatusSaveIntent = {
+      version: 1, companyId, procedureId, dueDate, procedureName, status,
+      previousStatus: localStatusMap[workspaceProcedureOccurrenceKey(procedureId, dueDate)] ?? 'not_started',
+    };
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(intent));
+    } catch {
+      setProcedureError('保存結果の記録を保持できないため、手続き状態の保存を停止しました。');
       return;
     }
-
-    trackEvent('procedure_status_changed', { workspace_id: companyId, company_id: companyId });
-
-    if (status === 'done') {
-      try {
-        const feedback: WorkspaceCompletionFeedbackPayload = {
-          procedureId,
-          dueDate,
-          procedureName,
-          previousStatus: previous,
-        };
-
-        window.sessionStorage.setItem(
-          workspaceCompletionFeedbackKey(companyId),
-          serializeWorkspaceCompletionFeedback(feedback),
-        );
-      } catch {
-        // sessionStorageを利用できない環境でも画面遷移は継続する。
-      }
-
-      router.push(`/admin/workspaces/${companyId}`);
+    procedureLock.current = true;
+    notifyProcedureStatusSave();
+    setSavingProcedure(true);
+    setProcedureError(null);
+    try {
+      const client = createBrowserSupabase();
+      if (!client || !await saveWorkspaceProcedureStatus(client, intent)) throw new Error('Save result unavailable');
+      confirmProcedureSave(intent);
+    } catch {
+      setProcedureError('手続き状態の保存結果を確認できませんでした。再送する前に保存結果を確認してください。');
+    } finally {
+      setSavingProcedure(false);
     }
   }
 
@@ -297,6 +368,15 @@ export default function AnnualRoadmapView({
 
   return (
     <div className="space-y-10">
+      {procedureMessage && (
+        <div role="alert"><InformationCard kind="error">{procedureMessage}</InformationCard></div>
+      )}
+      {savingProcedure && <p role="status" className="text-xs text-sunboo-ink-muted">手続き状態を保存中…</p>}
+      {(pendingProcedure || procedureStorageBroken) && !savingProcedure && (
+        <button type="button" className="btn-secondary" disabled={checkingProcedure} onClick={checkProcedureSave}>
+          {checkingProcedure ? '確認中…' : '保存結果を確認'}
+        </button>
+      )}
       {statusError && (
         <div className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
@@ -440,6 +520,7 @@ export default function AnnualRoadmapView({
                                   {editable ? (
                                     <select
                                       value={status}
+                                      disabled={procedureBlocked}
                                       aria-label={`${item.procedure.name}のステータス`}
                                       onChange={(e) =>
                                           handleStatusChange(

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { procedureStatusSaveKey, saveWorkspaceProcedureStatus, subscribeProcedureStatusSave, notifyProcedureStatusSave, type ProcedureStatusSaveIntent } from '@/lib/workspaceProcedureStatusData';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2, RotateCcw } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
@@ -21,6 +22,11 @@ export default function WorkspaceCompletionFeedback({
     useState<WorkspaceCompletionFeedbackPayload | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreError, setRestoreError] = useState<string | null>(null);
+
+  const statusSaveKey = procedureStatusSaveKey(companyId);
+  const pendingSave = useSyncExternalStore(subscribeProcedureStatusSave, () => {
+    try { return sessionStorage.getItem(statusSaveKey) ?? ''; } catch { return 'storage-unavailable'; }
+  }, () => null);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -49,49 +55,35 @@ export default function WorkspaceCompletionFeedback({
   }, [companyId]);
 
   async function handleUndo() {
-    if (!feedback || isRestoring) {
+    if (!feedback || isRestoring || pendingSave === null || pendingSave) return;
+    // セッション記録を同期的に確保し、同一描画中の二重操作も止める。
+    const intent: ProcedureStatusSaveIntent = {
+      version: 1, companyId, procedureId: feedback.procedureId, dueDate: feedback.dueDate,
+      procedureName: feedback.procedureName, status: feedback.previousStatus, previousStatus: 'done',
+    };
+    try {
+      if (sessionStorage.getItem(statusSaveKey) !== null) return;
+      sessionStorage.setItem(statusSaveKey, JSON.stringify(intent));
+      notifyProcedureStatusSave();
+    } catch {
+      setRestoreError('保存結果の記録を保持できないため、状態変更を停止しました。');
       return;
     }
-
     setIsRestoring(true);
     setRestoreError(null);
-
-    const supabase = createBrowserSupabase();
-
-    if (!supabase) {
-      setRestoreError('ステータスを元に戻せませんでした。');
+    try {
+      const supabase = createBrowserSupabase();
+      if (!supabase || !await saveWorkspaceProcedureStatus(supabase, intent)) throw new Error('Restore result unavailable');
+      sessionStorage.removeItem(statusSaveKey);
+      notifyProcedureStatusSave();
+      trackEvent('procedure_status_changed', { workspace_id: companyId, company_id: companyId });
+      setFeedback(null);
+      router.refresh();
+    } catch {
+      setRestoreError('元に戻す操作の保存結果を確認できませんでした。再送する前に保存結果を確認してください。');
+    } finally {
       setIsRestoring(false);
-      return;
     }
-
-    const { error } = await supabase
-      .from('workspace_procedure_statuses')
-      .upsert(
-        {
-          company_id: companyId,
-          procedure_id: feedback.procedureId,
-          occurrence_key: feedback.dueDate,
-          status: feedback.previousStatus,
-        },
-        {
-          onConflict: 'company_id,procedure_id,occurrence_key',
-        },
-      );
-
-    if (error) {
-      setRestoreError(`元に戻せませんでした: ${error.message}`);
-      setIsRestoring(false);
-      return;
-    }
-
-    trackEvent('procedure_status_changed', {
-      workspace_id: companyId,
-      company_id: companyId,
-    });
-
-    setFeedback(null);
-    setIsRestoring(false);
-    router.refresh();
   }
 
   if (!feedback) {
@@ -113,17 +105,19 @@ export default function WorkspaceCompletionFeedback({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-sunboo-ink">
-              完了しました
+              {pendingSave ? '状態変更の結果が未確認です' : '完了しました'}
             </p>
             <p className="mt-0.5 text-xs leading-relaxed text-sunboo-ink-muted">
-              「{feedback.procedureName}」を完了として記録しました。
+              {pendingSave
+                ? '再送する前に年間ロードマップで保存結果を確認してください。'
+                : `「${feedback.procedureName}」を完了として記録しました。`}
             </p>
           </div>
 
           <button
             type="button"
             onClick={handleUndo}
-            disabled={isRestoring}
+            disabled={isRestoring || pendingSave === null || !!pendingSave}
             className="btn-secondary inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-0"
           >
             <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
@@ -131,9 +125,11 @@ export default function WorkspaceCompletionFeedback({
           </button>
         </div>
 
+        {pendingSave && !restoreError && <a className="mt-2 block underline" href={`/admin/workspaces/${companyId}/roadmap`}>保存結果を確認</a>}
         {restoreError && (
           <p role="alert" className="mt-2 text-xs text-sunboo-danger">
             {restoreError}
+            <a className="ml-2 underline" href={`/admin/workspaces/${companyId}/roadmap`}>保存結果を確認</a>
           </p>
         )}
       </div>
