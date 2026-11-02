@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState, useSyncExternalStore } from 'react';
+import Link from 'next/link';
+import { isRuleSaveIntent, reconcileRuleSave, type RuleSaveIntent, type RuleConfiguration } from '@/lib/adminRuleData';
 import { useRouter } from 'next/navigation';
 import { Plus, Trash2 } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
@@ -22,6 +24,7 @@ export type ActionFormRow = {
 
 export type RuleFormValues = {
   id?: number;
+  updated_at?: string;
   name: string;
   description: string;
   priority: number;
@@ -44,12 +47,24 @@ function emptyAction(): ActionFormRow {
   return { key: newKey(), action_type: 'add_procedure', procedure_id: '', payload: '' };
 }
 
+function subscribePendingSave(callback: () => void) {
+  window.addEventListener('storage', callback);
+  window.addEventListener('sunboo:rule-save', callback);
+  return () => {
+    window.removeEventListener('storage', callback);
+    window.removeEventListener('sunboo:rule-save', callback);
+  };
+}
+function pendingChanged() { window.dispatchEvent(new Event('sunboo:rule-save')); }
+
 export default function RuleForm({
   initialRule,
   initialConditions,
   initialActions,
   procedures,
+  initialConfiguration,
 }: {
+  initialConfiguration?: RuleConfiguration;
   initialRule?: RuleFormValues;
   initialConditions?: ConditionFormRow[];
   initialActions?: ActionFormRow[];
@@ -60,13 +75,66 @@ export default function RuleForm({
 
   const [rule, setRule] = useState<RuleFormValues>(initialRule ?? EMPTY_RULE);
   const [conditions, setConditions] = useState<ConditionFormRow[]>(
-    initialConditions && initialConditions.length > 0 ? initialConditions : [emptyCondition()],
+    initialConditions ?? [emptyCondition()],
   );
   const [actions, setActions] = useState<ActionFormRow[]>(
-    initialActions && initialActions.length > 0 ? initialActions : [emptyAction()],
+    initialActions ?? [emptyAction()],
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const storageKey = `sunboo:pending-rule-save:${initialRule?.id ?? 'new'}`;
+  const rawPending = useSyncExternalStore(subscribePendingSave, () => {
+    try { return sessionStorage.getItem(storageKey) ?? ''; } catch { return 'storage-unavailable'; }
+  }, () => null);
+  const ready = rawPending !== null;
+  let pending: RuleSaveIntent | null = null;
+  let storageBroken = false;
+  if (rawPending) {
+    try {
+      const parsed: unknown = JSON.parse(rawPending);
+      if (!isRuleSaveIntent(parsed)) throw new Error('Invalid pending save');
+      pending = parsed;
+    } catch { storageBroken = true; }
+  }
+  const [checking, setChecking] = useState(false);
+  const [conflictId, setConflictId] = useState<number | null>(null);
+  const saveLock = useRef(false);
+  const displayedError = error ?? (storageBroken
+    ? '保存結果の記録を確認できません。ルール一覧で登録内容を確認してください。'
+    : pending && !saving ? '前回の保存結果が未確認です。保存結果を確認してください。' : null);
+
+  async function checkSaveResult() {
+    if (!pending || checking) return;
+    setChecking(true);
+    try {
+      const client = createBrowserSupabase();
+      if (!client) throw new Error('Client unavailable');
+      const result = await reconcileRuleSave(client, pending);
+      if (result.status === 'unavailable') {
+        setError('保存結果を取得できませんでした。時間をおいて再度確認してください。');
+        return;
+      }
+      if (result.status === 'conflict') {
+        setConflictId(result.id);
+        setError('送信内容と異なる設定が登録されています。最新の設定を読み直してください。');
+        return;
+      }
+      sessionStorage.removeItem(storageKey);
+      pendingChanged();
+      if (result.status === 'saved') {
+        router.push('/admin/rules');
+        router.refresh();
+      } else {
+        saveLock.current = false;
+        setError('再取得した登録内容に今回の保存は反映されていません。内容を確認してから保存してください。');
+      }
+    } catch {
+      setError('保存結果を確認できませんでした。時間をおいて再度確認してください。');
+    } finally {
+      setChecking(false);
+    }
+  }
 
   function setRuleField<K extends keyof RuleFormValues>(key: K, value: RuleFormValues[K]) {
     setRule((v) => ({ ...v, [key]: value }));
@@ -91,6 +159,7 @@ export default function RuleForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!ready || storageBroken || pending || saveLock.current) return;
     setError(null);
 
     if (!rule.name.trim()) {
@@ -156,71 +225,65 @@ export default function RuleForm({
       return;
     }
 
-    setSaving(true);
-
-    const rulePayload = {
-      name: rule.name.trim(),
-      description: rule.description.trim() || null,
-      priority: rule.priority,
-      is_active: rule.is_active,
+    const configuration: RuleConfiguration = {
+      rule: { name: rule.name.trim(), description: rule.description.trim() || null, priority: rule.priority, is_active: rule.is_active },
+      conditions: parsedConditions.map(({ field, operator, value }) => ({ field, operator, value })),
+      actions: parsedActions.map(({ action_type, procedure_id, payload }) => ({ action_type, procedure_id, payload })),
     };
-
-    let ruleId = rule.id;
-    if (isEdit && ruleId) {
-      const { error: updateError } = await supabase.from('rules').update(rulePayload).eq('id', ruleId);
-      if (updateError) {
-        setSaving(false);
-        setError(`保存に失敗しました: ${updateError.message}`);
-        return;
-      }
-      // 既存の条件・実行内容を全て削除してから作り直す（MVP: 差分更新はせず全置換）
-      await supabase.from('rule_conditions').delete().eq('rule_id', ruleId);
-      await supabase.from('rule_actions').delete().eq('rule_id', ruleId);
-    } else {
-      const { data: inserted, error: insertError } = await supabase
-        .from('rules')
-        .insert(rulePayload)
-        .select('id')
-        .single();
-      if (insertError || !inserted) {
-        setSaving(false);
-        setError(`保存に失敗しました: ${insertError?.message ?? '不明なエラー'}`);
-        return;
-      }
-      ruleId = (inserted as { id: number }).id;
-    }
-
-    if (parsedConditions.length > 0) {
-      const { error: condError } = await supabase
-        .from('rule_conditions')
-        .insert(parsedConditions.map((c) => ({ ...c, rule_id: ruleId })));
-      if (condError) {
-        setSaving(false);
-        setError(`条件の保存に失敗しました: ${condError.message}`);
-        return;
-      }
-    }
-
-    const { error: actionError } = await supabase
-      .from('rule_actions')
-      .insert(parsedActions.map((a) => ({ ...a, rule_id: ruleId })));
-    if (actionError) {
-      setSaving(false);
-      setError(`実行内容の保存に失敗しました: ${actionError.message}`);
+    const intent: RuleSaveIntent = {
+      version: 1, id: rule.id ?? null, expectedUpdatedAt: rule.updated_at ?? null,
+      configuration, baseline: initialConfiguration,
+    };
+    // 先に記録する。応答喪失・ページ再読み込み後も再取得するまで再送しない。
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(intent));
+    } catch {
+      setError('保存結果の記録を保持できないため保存を停止しました。ブラウザの設定をご確認ください。');
       return;
     }
-
-    setSaving(false);
-    router.push('/admin/rules');
-    router.refresh();
+    saveLock.current = true;
+    pendingChanged();
+    setSaving(true);
+    try {
+      const { data, error: saveError } = await supabase.rpc('save_admin_rule', {
+        p_rule_id: intent.id, p_expected_updated_at: intent.expectedUpdatedAt,
+        p_rule: configuration.rule, p_conditions: configuration.conditions, p_actions: configuration.actions,
+      });
+      if (saveError || !data || !Number.isSafeInteger(data.id) || data.id <= 0
+        || (intent.id !== null && data.id !== intent.id)
+        || typeof data.updated_at !== 'string' || !Number.isFinite(Date.parse(data.updated_at))) {
+        throw new Error('Save result unavailable');
+      }
+      sessionStorage.removeItem(storageKey);
+      pendingChanged();
+      router.push('/admin/rules');
+      router.refresh();
+    } catch {
+      setError('保存結果を確認できませんでした。再送する前に保存結果を確認してください。');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl space-y-6">
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">{error}</div>
+      {displayedError && (
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">{displayedError}</div>
       )}
 
+      {storageBroken && <Link href="/admin/rules" prefetch={false} className="underline">ルール一覧を確認</Link>}
+      {pending && !saving && (
+        <div className="space-y-2" role="status">
+          <button type="button" className="btn-secondary" disabled={checking} onClick={checkSaveResult}>
+            {checking ? '確認中…' : '保存結果を確認'}
+          </button>
+          {conflictId !== null && <a className="ml-3 underline" href={`/admin/rules/${conflictId}`} onClick={(event) => {
+            try { sessionStorage.removeItem(storageKey); } catch { event.preventDefault(); }
+          }}>最新の設定を読み直す</a>}
+          <Link className="ml-3 underline" href="/admin/rules" prefetch={false}>ルール一覧を確認</Link>
+        </div>
+      )}
+      <fieldset disabled={!ready || storageBroken || saving || pending !== null} className="space-y-6">
       {/* ── ルール基本情報 ── */}
       <div className="card space-y-4">
         <p className="text-xs font-semibold text-gray-500">ルール</p>
@@ -432,6 +495,7 @@ export default function RuleForm({
           キャンセル
         </button>
       </div>
+      </fieldset>
     </form>
   );
 }

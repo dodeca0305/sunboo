@@ -2,15 +2,14 @@ import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
 import RuleForm from '../RuleForm';
+import RuleLoadError from '../RuleLoadError';
+import { loadAdminRuleProcedures } from '@/lib/adminRuleData';
 
 export default async function NewRulePage() {
   const supabase = await createServerSupabase();
 
-  let procedures: { id: number; code: string; name: string }[] = [];
-  if (supabase) {
-    const { data } = await supabase.from('procedures').select('id, code, name').order('name');
-    procedures = (data as { id: number; code: string; name: string }[] | null) ?? [];
-  }
+  const procedures = supabase ? await loadAdminRuleProcedures(supabase) : null;
+  if (procedures === null) return <RuleLoadError href="/admin/rules/new" />;
 
   return (
     <div className="space-y-6">

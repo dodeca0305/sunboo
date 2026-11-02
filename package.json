@@ -25,7 +25,8 @@
     "test:e2e:growth-load-failure": "node playwright/verify-growth-load-failure.mjs",
     "test:e2e:profile-load-failure": "node playwright/verify-profile-load-failure.mjs",
     "test:e2e:roadmap-tax-load-failure": "node playwright/verify-roadmap-tax-load-failure.mjs",
-    "test:e2e:document-load-failure": "node playwright/verify-document-load-failure.mjs"
+    "test:e2e:document-load-failure": "node playwright/verify-document-load-failure.mjs",
+    "test:e2e:rule-save-safety": "node playwright/verify-rule-save-safety.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
@@ -40,6 +41,7 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.14",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/papaparse": "^5.5.2",
