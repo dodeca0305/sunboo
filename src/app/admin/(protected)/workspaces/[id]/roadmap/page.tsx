@@ -12,7 +12,8 @@ import RoadmapPdfExportButton from '@/components/RoadmapPdfExportButton';
 import PageHeader from '@/components/PageHeader';
 import InformationCard from '@/components/InformationCard';
 import AnalyticsPageEvent from '@/components/AnalyticsPageEvent';
-import { taxPaymentPlanRowsToMap, type WorkspaceTaxPaymentPlanRow } from '@/lib/workspaceTaxPaymentPlan';
+import type { WorkspaceTaxPaymentPlanMap } from '@/lib/workspaceTaxPaymentPlan';
+import { loadWorkspaceTaxPaymentPlansForEditing } from '@/lib/workspaceTaxPaymentPlanData';
 
 // ── Company Workspace — 年間ロードマップ（Sprint 23 Phase23.3・Phase23.4）─────
 // buildAnnualRoadmap（src/lib/roadmap.ts）・buildStateFromTimeline（src/lib/state.ts）は
@@ -90,22 +91,14 @@ export default async function WorkspaceRoadmapPage({
   let roadmapYears: RoadmapYear[] = [];
   let statusMap: WorkspaceProcedureStatusMap = {};
   let companyAddress = '';
-  let taxPaymentPlanMap = {};
+  let taxPaymentPlanMap: WorkspaceTaxPaymentPlanMap | null = null;
   let computeError: string | null = null;
   try {
     const context = await loadWorkspaceRoadmapContext(supabase, company);
     roadmapYears = context.roadmapYears;
     statusMap = context.procedureStatusMap;
     companyAddress = formatCompanyAddress(context.companyProfile);
-    const { data: taxPaymentPlanData, error: taxPaymentPlanError } = await supabase
-      .from('workspace_tax_payment_plans')
-      .select('procedure_id, due_date, amount')
-      .eq('company_id', companyId);
-    if (!taxPaymentPlanError) {
-      taxPaymentPlanMap = taxPaymentPlanRowsToMap(
-        (taxPaymentPlanData as WorkspaceTaxPaymentPlanRow[] | null) ?? [],
-      );
-    }
+    taxPaymentPlanMap = await loadWorkspaceTaxPaymentPlansForEditing(supabase, companyId);
   } catch (err) {
     computeError = err instanceof Error ? err.message : '不明なエラー';
   }
@@ -165,13 +158,20 @@ export default async function WorkspaceRoadmapPage({
             event="roadmap_generated"
             properties={{ workspace_id: companyId, company_id: companyId }}
           />
+          {taxPaymentPlanMap === null && (
+            <InformationCard kind="error" title="納税予定を取得できませんでした">
+              登録済みの予定税額を確認できないため、予定税額の入力・保存を停止しています。
+              <a className="mt-2 block underline" href={`/admin/workspaces/${companyId}/roadmap`}>再読み込み</a>
+            </InformationCard>
+          )}
           <AnnualRoadmapView
+            key={`${companyId}:${JSON.stringify(taxPaymentPlanMap)}`}
             roadmapYears={roadmapYears}
             statusMap={statusMap}
             companyId={companyId}
             focusProcedureId={focusProcedureId}
             focusDueDate={focusDueDate}
-            taxPaymentPlanMap={taxPaymentPlanMap}
+            taxPaymentPlanMap={taxPaymentPlanMap ?? undefined}
           />
         </>
       )}

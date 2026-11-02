@@ -187,6 +187,8 @@ export default function AnnualRoadmapView({
   const [localTaxPaymentPlanMap, setLocalTaxPaymentPlanMap] = useState<WorkspaceTaxPaymentPlanMap>(taxPaymentPlanMap ?? {});
   const [savingTaxPaymentKey, setSavingTaxPaymentKey] = useState<string | null>(null);
   const [savedTaxPaymentKey, setSavedTaxPaymentKey] = useState<string | null>(null);
+  const [taxSaveUncertain, setTaxSaveUncertain] = useState(false);
+  const taxEditable = companyId !== undefined && taxPaymentPlanMap !== undefined && !taxSaveUncertain;
   const editable = statusMap !== undefined && companyId !== undefined;
 
   useEffect(() => {
@@ -261,7 +263,7 @@ export default function AnnualRoadmapView({
   }
 
   async function saveTaxPaymentPlan(procedureId: number, dueDate: string) {
-    if (!companyId) return;
+    if (!companyId || !taxEditable || savingTaxPaymentKey !== null) return;
     const key = workspaceTaxPaymentPlanKey(procedureId, dueDate);
     const amount = localTaxPaymentPlanMap[key] ?? 0;
     const supabase = createBrowserSupabase();
@@ -270,20 +272,27 @@ export default function AnnualRoadmapView({
     setSavingTaxPaymentKey(key);
     setSavedTaxPaymentKey(null);
     setStatusError(null);
-    const { error } = await supabase.from('workspace_tax_payment_plans').upsert({
-      company_id: companyId,
-      procedure_id: procedureId,
-      due_date: dueDate,
-      amount,
-    }, { onConflict: 'company_id,procedure_id,due_date' });
-    setSavingTaxPaymentKey(null);
-
-    if (error) {
-      setStatusError(`予定税額の保存に失敗しました: ${error.message}`);
-      return;
+    try {
+      const { error } = await supabase.from('workspace_tax_payment_plans').upsert({
+        company_id: companyId,
+        procedure_id: procedureId,
+        due_date: dueDate,
+        amount,
+      }, { onConflict: 'company_id,procedure_id,due_date' });
+      if (error) {
+        setTaxSaveUncertain(true);
+        setStatusError('予定税額の保存に失敗しました。再読み込みして登録内容を確認してください。');
+        return;
+      }
+      setSavedTaxPaymentKey(key);
+      trackEvent('tax_payment_plan_saved', { workspace_id: companyId, company_id: companyId });
+    } catch {
+      // 結果不明の書き込みは再送せず、再取得してから編集を再開する。
+      setTaxSaveUncertain(true);
+      setStatusError('予定税額の保存結果を確認できませんでした。再読み込みして登録内容を確認してください。');
+    } finally {
+      setSavingTaxPaymentKey(null);
     }
-    setSavedTaxPaymentKey(key);
-    trackEvent('tax_payment_plan_saved', { workspace_id: companyId, company_id: companyId });
   }
 
   return (
@@ -292,6 +301,7 @@ export default function AnnualRoadmapView({
         <div className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
           {statusError}
+          {taxSaveUncertain && <a className="underline" href={`/admin/workspaces/${companyId}/roadmap`}>再読み込み</a>}
         </div>
       )}
       {roadmapYears.map((yearBlock) => (
@@ -339,7 +349,7 @@ export default function AnnualRoadmapView({
                               <span className="tag">{CATEGORY_LABEL[item.procedure.category] ?? 'その他'}</span>
                             </div>
 
-                            {editable && isTaxProcedure && (
+                            {taxEditable && isTaxProcedure && (
                               <div className="border-t border-sunboo-mist pt-3">
                                 <SectionLabel>予定税額（資金繰りへ連携）</SectionLabel>
                                 <div className="mt-1.5 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -360,7 +370,7 @@ export default function AnnualRoadmapView({
                                   <button
                                     type="button"
                                     className="btn-secondary min-h-11 sm:min-h-0"
-                                    disabled={savingTaxPaymentKey === taxPaymentKey}
+                                    disabled={savingTaxPaymentKey !== null}
                                     onClick={() => saveTaxPaymentPlan(item.procedure.id, item.dueDate)}
                                   >
                                     {savingTaxPaymentKey === taxPaymentKey ? '保存中…' : '予定税額を保存'}
