@@ -1,38 +1,45 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
-import OfficeForm, { type MunicipalityOption, type OrganizationTypeOption } from '../OfficeForm';
-
-type RawMunicipality = { id: number; code: string; name: string; prefectures: { name: string } | null };
-
+import { loadOfficeEditor } from '@/lib/adminOfficeData';
+import OfficeForm from '../OfficeForm';
 export default async function NewOfficePage() {
-  const supabase = await createServerSupabase();
-
-  let municipalities: MunicipalityOption[] = [];
-  let organizationTypes: OrganizationTypeOption[] = [];
-  if (supabase) {
-    const [{ data: muniData }, { data: typeData }] = await Promise.all([
-      supabase.from('municipalities').select('id, code, name, prefectures(name)').order('code'),
-      supabase.from('organization_types').select('id, code, name').eq('is_active', true).order('sort_order'),
-    ]);
-
-    municipalities = ((muniData as unknown as RawMunicipality[] | null) ?? []).map((m) => ({
-      id: m.id,
-      code: m.code,
-      name: m.name,
-      prefecture_name: m.prefectures?.name ?? '',
-    }));
-    organizationTypes = (typeData as OrganizationTypeOption[] | null) ?? [];
-  }
-
+  const officeId = null;
+  const data = await loadOfficeEditor(await createServerSupabase(), officeId);
+  if (data.status === 'missing') notFound();
+  if (data.status !== 'loaded')
+    return (
+      <div role="alert" className="card space-y-3">
+        <p>
+          窓口情報・管轄地域・選択肢を取得できませんでした。編集と保存を停止しています。
+        </p>
+        <Link
+          className="btn-secondary"
+          href={
+            officeId === null
+              ? '/admin/offices/new'
+              : `/admin/offices/${officeId}`
+          }
+        >
+          再読み込み
+        </Link>
+      </div>
+    );
   return (
     <div className="space-y-6">
-      <Link href="/admin/offices" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900">
+      <Link
+        href="/admin/offices"
+        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900"
+      >
         <ChevronLeft className="h-4 w-4" />
         管轄機関一覧に戻る
       </Link>
       <h1 className="text-xl font-bold text-gray-900">管轄機関を追加</h1>
-      <OfficeForm municipalities={municipalities} organizationTypes={organizationTypes} />
+      <OfficeForm
+        municipalities={data.municipalities}
+        organizationTypes={data.organizationTypes}
+      />
     </div>
   );
 }

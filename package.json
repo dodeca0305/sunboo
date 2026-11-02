@@ -27,7 +27,8 @@
     "test:e2e:roadmap-tax-load-failure": "node playwright/verify-roadmap-tax-load-failure.mjs",
     "test:e2e:document-load-failure": "node playwright/verify-document-load-failure.mjs",
     "test:e2e:rule-save-safety": "node playwright/verify-rule-save-safety.mjs",
-    "test:e2e:procedure-status-safety": "node playwright/verify-procedure-status-safety.mjs"
+    "test:e2e:procedure-status-safety": "node playwright/verify-procedure-status-safety.mjs",
+    "test:e2e:office-save-safety": "node playwright/verify-office-save-safety.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
