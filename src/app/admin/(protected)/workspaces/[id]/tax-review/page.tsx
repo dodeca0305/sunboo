@@ -91,7 +91,7 @@ export default async function WorkspaceTaxReviewPage({
         REVIEWやUNKNOWNは税務上の問題を断定するものではなく、人による確認が必要な状態を示します。
       </InformationCard>
 
-      {canManage && <ExecutionPanel companyId={companyId} controls={controls} loadError={controlLoadError} />}
+      {canManage && <ExecutionPanel key={`${user?.id}:${companyId}`} actor={user?.id ?? ""} companyId={companyId} controls={controls} loadError={controlLoadError} />}
 
       {loadError ? (
         <InformationCard kind="error">{loadError}</InformationCard>

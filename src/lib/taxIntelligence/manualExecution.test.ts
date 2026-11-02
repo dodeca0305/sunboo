@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { executeManualTaxControl } from './manualExecution.ts';
 
-const input = { companyId: 17, taxControlId: 2, asOfDate: '2026-10-30' };
+const input = { executionId: '11111111-1111-4111-8111-111111111111', companyId: 17, taxControlId: 2, asOfDate: '2026-10-30' };
 for (const role of ['owner', 'member', 'viewer', null, 'lookup_error']) {
   test(`手動評価: ${role ?? '非メンバー'}の会社権限を保存前に検証`, async () => {
     const filters: Array<[string, unknown]> = [];

@@ -157,6 +157,7 @@ test('UNKNOWN評価をControlResultとReviewCaseへatomic保存する', async ()
         companyId: 1,
         taxControlId: 10,
         asOfDate: '2026-08-14',
+        executionId: '11111111-1111-4111-8111-111111111111',
       },
       createDependencies(),
     );
@@ -211,6 +212,7 @@ test('PASS評価ではReviewCase payloadを送らない', async () => {
         companyId: 1,
         taxControlId: 10,
         asOfDate: '2026-08-14',
+        executionId: '11111111-1111-4111-8111-111111111111',
       },
       dependencies,
     );
@@ -250,6 +252,7 @@ test('対象外評価ではstatus=nullかつReviewCaseなしで保存する', as
       companyId: 1,
       taxControlId: 10,
       asOfDate: '2026-08-14',
+        executionId: '11111111-1111-4111-8111-111111111111',
     },
     dependencies,
   );
@@ -285,6 +288,7 @@ test('Workspace companyが存在しなければ評価も保存もしない', asy
           companyId: 999,
           taxControlId: 10,
           asOfDate: '2026-08-14',
+        executionId: '11111111-1111-4111-8111-111111111111',
         },
         dependencies,
       ),
@@ -307,6 +311,7 @@ test('RPC保存失敗は呼び出し元へ伝播する', async () => {
           companyId: 1,
           taxControlId: 10,
           asOfDate: '2026-08-14',
+        executionId: '11111111-1111-4111-8111-111111111111',
         },
         createDependencies(),
       ),
@@ -327,6 +332,7 @@ test('UNKNOWN評価なのにReviewCase IDが返らなければ拒否する', asy
           companyId: 1,
           taxControlId: 10,
           asOfDate: '2026-08-14',
+        executionId: '11111111-1111-4111-8111-111111111111',
         },
         createDependencies(),
       ),

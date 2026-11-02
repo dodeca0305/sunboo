@@ -37,6 +37,10 @@ type MaybeSingleResult = {
 
 class FakeQuery {
   private readonly rows: Row[];
+  private offset = 0;
+  private end = Infinity;
+  order(): this { return this; }
+  range(a: number, b: number): this { this.offset = a; this.end = b; return this; }
   private readonly filters: Array<
     (row: Row) => boolean
   > = [];
@@ -109,7 +113,7 @@ class FakeQuery {
       | null,
   ): Promise<TResult1 | TResult2> {
     return Promise.resolve({
-      data: this.filteredRows(),
+      data: this.filteredRows().slice(this.offset, this.end + 1),
       error: null,
     }).then(
       onfulfilled,
@@ -361,6 +365,7 @@ test(
           taxControlId:
             approvedSuccessorControlId,
           asOfDate: '2026-08-15',
+          executionId: '11111111-1111-4111-8111-111111111111',
         },
         dependencies,
       );
