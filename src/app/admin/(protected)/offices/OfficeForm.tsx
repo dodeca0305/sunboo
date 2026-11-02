@@ -12,6 +12,7 @@ import {
   type OfficeSaveIntent,
 } from '@/lib/adminOfficeData';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import { LINK_STATUSES } from '@/lib/adminConstants';
 
@@ -274,9 +275,9 @@ export default function OfficeForm({
       )}
 
       {storageBroken && (
-        <a href="/admin/offices" className="btn-secondary">
+        <Link href="/admin/offices" className="btn-secondary">
           窓口一覧で確認
-        </a>
+        </Link>
       )}
       {(pending || storageBroken) && (
         <div className="space-y-2">
