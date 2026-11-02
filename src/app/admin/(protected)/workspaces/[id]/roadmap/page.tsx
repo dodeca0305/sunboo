@@ -14,6 +14,7 @@ import InformationCard from '@/components/InformationCard';
 import AnalyticsPageEvent from '@/components/AnalyticsPageEvent';
 import type { WorkspaceTaxPaymentPlanMap } from '@/lib/workspaceTaxPaymentPlan';
 import { loadWorkspaceTaxPaymentPlansForEditing } from '@/lib/workspaceTaxPaymentPlanData';
+import { loadWorkspaceProcedureStatusesForEditing } from '@/lib/workspaceProcedureStatusData';
 
 // ── Company Workspace — 年間ロードマップ（Sprint 23 Phase23.3・Phase23.4）─────
 // buildAnnualRoadmap（src/lib/roadmap.ts）・buildStateFromTimeline（src/lib/state.ts）は
@@ -89,16 +90,20 @@ export default async function WorkspaceRoadmapPage({
   // 想定外のデータ（DB行の欠落・形式不一致等）で例外が出ても画面が真っ白/無反応にならないよう、
   // try/catchで捕捉してエラーカードを表示する（Sprint23.3レビューで追加した防御的措置）。
   let roadmapYears: RoadmapYear[] = [];
-  let statusMap: WorkspaceProcedureStatusMap = {};
+  let statusMap: WorkspaceProcedureStatusMap | null = null;
   let companyAddress = '';
   let taxPaymentPlanMap: WorkspaceTaxPaymentPlanMap | null = null;
   let computeError: string | null = null;
   try {
-    const context = await loadWorkspaceRoadmapContext(supabase, company);
+    const [context, loadedStatuses, loadedTaxPlans] = await Promise.all([
+      loadWorkspaceRoadmapContext(supabase, company, 3, { loadProcedureStatuses: false }),
+      loadWorkspaceProcedureStatusesForEditing(supabase, companyId),
+      loadWorkspaceTaxPaymentPlansForEditing(supabase, companyId),
+    ]);
     roadmapYears = context.roadmapYears;
-    statusMap = context.procedureStatusMap;
+    statusMap = loadedStatuses;
     companyAddress = formatCompanyAddress(context.companyProfile);
-    taxPaymentPlanMap = await loadWorkspaceTaxPaymentPlansForEditing(supabase, companyId);
+    taxPaymentPlanMap = loadedTaxPlans;
   } catch (err) {
     computeError = err instanceof Error ? err.message : '不明なエラー';
   }
@@ -114,7 +119,7 @@ export default async function WorkspaceRoadmapPage({
         title="年間ロードマップ"
         subtitle={`${company.name}が今年行う行政手続き・提出先・期限を一覧で確認できます。`}
         action={
-          !computeError && totalItemCount > 0 ? (
+          !computeError && statusMap !== null && totalItemCount > 0 ? (
             <>
               <RoadmapExcelExportButton
                 roadmapYears={roadmapYears}
@@ -143,6 +148,15 @@ export default async function WorkspaceRoadmapPage({
         会社プロフィールや決算実績の登録状況によって内容が変わる可能性があります。
       </InformationCard>
 
+      {!computeError && statusMap === null && (
+        <div role="alert">
+          <InformationCard kind="error" title="手続き状態を取得できませんでした">
+            登録済みの状態を確認できないため、状態変更とExcel・PDF出力を停止しています。
+            <a className="mt-2 block underline" href={`/admin/workspaces/${companyId}/roadmap`}>再読み込み</a>
+          </InformationCard>
+        </div>
+      )}
+
       {computeError ? (
         <InformationCard kind="error" title="ロードマップを計算できませんでした">
           時間をおいて再度お試しください。解決しない場合は会社プロフィールの登録内容をご確認ください。
@@ -167,7 +181,7 @@ export default async function WorkspaceRoadmapPage({
           <AnnualRoadmapView
             key={`${companyId}:${JSON.stringify(taxPaymentPlanMap)}`}
             roadmapYears={roadmapYears}
-            statusMap={statusMap}
+            statusMap={statusMap ?? undefined}
             companyId={companyId}
             focusProcedureId={focusProcedureId}
             focusDueDate={focusDueDate}

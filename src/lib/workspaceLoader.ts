@@ -175,11 +175,13 @@ export async function loadWorkspaceRoadmapContext(
   supabase: SupabaseClient,
   company: WorkspaceCompanyRow,
   horizonYears = 3,
+  options: { loadProcedureStatuses?: boolean } = {},
 ): Promise<WorkspaceRoadmapContext> {
   const [companyProfile, taxReturnProfile, procedureStatusMap] = await Promise.all([
     loadWorkspaceCompanyProfile(supabase, company),
     loadWorkspaceTaxReturnProfile(supabase, company.id),
-    loadWorkspaceProcedureStatusMap(supabase, company.id),
+    // ロードマップ編集ページは失敗を区別する専用loaderで並列取得する。
+    options.loadProcedureStatuses === false ? Promise.resolve({}) : loadWorkspaceProcedureStatusMap(supabase, company.id),
   ]);
 
   const state = deriveWorkspaceState(companyProfile, taxReturnProfile);

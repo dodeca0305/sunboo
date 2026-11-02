@@ -73,11 +73,13 @@ try {
     assert.equal(writes.length, 0);
     await setControl({ mode: 'loaded' });
     await page.getByRole('link', { name: '再読み込み', exact: true }).click();
+    await page.waitForLoadState('networkidle');
     await input.waitFor();
     assert.equal((await input.inputValue()).replaceAll(',', ''), '500000');
   }
   await page.screenshot({ path: 'test-results/roadmap-tax-recovered.png', fullPage: true });
   // 既存額の保存payloadと、明示的な0の保存は維持。
+  await page.waitForLoadState('networkidle');
   await save.click();
   await page.getByText('保存しました', { exact: true }).waitFor();
   assert.equal(writes.at(-1).amount, 500000);
@@ -95,6 +97,7 @@ try {
     assert.equal(await page.getByRole('textbox', { name: /の予定税額$/ }).count(), 0);
     saveMode = 'success';
     await page.getByRole('link', { name: '再読み込み', exact: true }).click();
+    await page.waitForLoadState('networkidle');
     await input.waitFor();
     assert.equal((await input.inputValue()).replaceAll(',', ''), '500000');
   }
