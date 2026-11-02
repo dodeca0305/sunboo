@@ -175,9 +175,11 @@ export async function loadWorkspaceRoadmapContext(
   supabase: SupabaseClient,
   company: WorkspaceCompanyRow,
   horizonYears = 3,
-  options: { loadProcedureStatuses?: boolean } = {},
+  options: { loadProcedureStatuses?: boolean; readInputs?: Pick<WorkspaceRoadmapContext, 'companyProfile' | 'taxReturnProfile' | 'procedureStatusMap'> } = {},
 ): Promise<WorkspaceRoadmapContext> {
-  const [companyProfile, taxReturnProfile, procedureStatusMap] = await Promise.all([
+  const [companyProfile, taxReturnProfile, procedureStatusMap] = options.readInputs
+    ? [options.readInputs.companyProfile, options.readInputs.taxReturnProfile, options.readInputs.procedureStatusMap]
+    : await Promise.all([
     loadWorkspaceCompanyProfile(supabase, company),
     loadWorkspaceTaxReturnProfile(supabase, company.id),
     // ロードマップ編集ページは失敗を区別する専用loaderで並列取得する。
