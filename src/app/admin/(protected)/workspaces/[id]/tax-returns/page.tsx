@@ -2,31 +2,40 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ChevronLeft, Receipt, Info } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { loadWorkspaceCompany, loadWorkspaceCompanyProfile, loadWorkspaceTaxReturnProfile } from '@/lib/workspaceLoader';
+import { loadTaxReturnEditor } from '@/lib/workspaceTaxReturnData';
+import { workspaceRowsToTaxReturnProfile } from '@/lib/workspaceTaxReturnProfile';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import WorkspaceTaxReturnsView from '@/components/WorkspaceTaxReturnsView';
+import WorkspaceTaxReturnReloadButton from '@/components/WorkspaceTaxReturnReloadButton';
 
 // ── Company Workspace — 決算実績（Sprint 35 Tax Return Profile）─────────────
 // workspace_tax_return_profiles（Sprint35 migration）の一覧・登録・編集・削除。
-// company取得・CompanyProfile取得はsrc/lib/workspaceLoader.tsの既存関数をそのまま使う
-// （corporateType・employeeCountは入力フォームの表示条件分岐にのみ使う。profile/page.tsxと
-// 同様、Annual Roadmap計算は不要なためloadWorkspaceRoadmapContextではなく個別関数を呼ぶ）。
+// 編集専用loaderで会社・プロフィール・決算実績を取得し、失敗と正常未登録を区別する。
 
-export default async function WorkspaceTaxReturnsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function WorkspaceTaxReturnsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const companyId = Number(id);
-  if (!Number.isInteger(companyId)) notFound();
-
-  const supabase = await createServerSupabase();
-  if (!supabase) notFound();
-
-  const company = await loadWorkspaceCompany(supabase, companyId);
-  if (!company) notFound();
-
-  const [companyProfile, taxReturnProfile] = await Promise.all([
-    loadWorkspaceCompanyProfile(supabase, company),
-    loadWorkspaceTaxReturnProfile(supabase, companyId),
-  ]);
+  if (!Number.isSafeInteger(companyId) || companyId <= 0) notFound();
+  const data = await loadTaxReturnEditor(
+    await createServerSupabase(),
+    companyId,
+  );
+  if (data.status === 'missing') notFound();
+  if (data.status !== 'loaded')
+    return (
+      <div role="alert" className="card space-y-3">
+        <p>
+          決算実績または会社プロフィールを取得できませんでした。実績の有無と入力条件を確認できないため、登録・編集・保存を停止しています。
+        </p>
+        <WorkspaceTaxReturnReloadButton />
+      </div>
+    );
+  const { company, companyProfile, rows } = data;
+  const taxReturnProfile = workspaceRowsToTaxReturnProfile(rows);
 
   return (
     <div className="space-y-6">
@@ -40,7 +49,9 @@ export default async function WorkspaceTaxReturnsPage({ params }: { params: Prom
 
       <div className="flex items-center gap-2.5">
         <Receipt className="h-6 w-6 text-blue-600" />
-        <h1 className="text-xl font-bold text-gray-900">決算実績 — {company.name}</h1>
+        <h1 className="text-xl font-bold text-gray-900">
+          決算実績 — {company.name}
+        </h1>
       </div>
 
       <WorkspaceSubNav companyId={companyId} />
@@ -54,6 +65,7 @@ export default async function WorkspaceTaxReturnsPage({ params }: { params: Prom
       </div>
 
       <WorkspaceTaxReturnsView
+        key={JSON.stringify([rows, companyProfile])}
         companyId={companyId}
         initialEntries={taxReturnProfile.entries}
         companyProfile={companyProfile}
