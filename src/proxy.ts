@@ -1,25 +1,23 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { isPublicAdminPath } from './lib/adminPublicRoutes';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-const PUBLIC_ADMIN_PATHS = ['/admin/login'];
 
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request });
 
-  const isPublicAdminPath = PUBLIC_ADMIN_PATHS.some((p) => request.nextUrl.pathname === p);
+  const publicPath = isPublicAdminPath(request.nextUrl.pathname);
+  if (publicPath) return response;
 
   if (!supabaseUrl || !supabaseAnonKey) {
     // Supabase未設定時は管理画面を使えないため、ログイン画面のみ表示させる
     // （そこで設定不足のメッセージを出す）。
-    if (!isPublicAdminPath) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/admin/login';
-      return NextResponse.redirect(url);
-    }
-    return response;
+    const url = request.nextUrl.clone();
+    url.pathname = '/admin/login';
+    return NextResponse.redirect(url);
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -37,10 +35,6 @@ export async function proxy(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  if (isPublicAdminPath) {
-    return response;
-  }
 
   if (!user?.email) {
     const url = request.nextUrl.clone();

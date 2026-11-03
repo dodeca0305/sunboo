@@ -1,0 +1,3 @@
+// Local authentication fixtures only: no real emails, password changes, or business queries.
+const previous=globalThis.fetch;
+globalThis.fetch=async(input,init)=>{const u=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url);if(u.origin===process.env.NEXT_PUBLIC_SUPABASE_URL){if(u.pathname.startsWith('/rest/v1/'))return Response.json([]);if(u.pathname==='/auth/v1/user')return Response.json({id:'00000000-0000-4000-8000-000000000001',email:'synthetic@example.invalid',aud:'authenticated',role:'authenticated',app_metadata:{},user_metadata:{},created_at:'2026-01-01T00:00:00Z'});throw Error('Unexpected synthetic server auth request')}return previous(input,init)};

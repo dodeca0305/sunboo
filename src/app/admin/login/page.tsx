@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, Suspense } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Lock, ShieldAlert } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
@@ -98,6 +99,7 @@ function LoginForm() {
             {loading ? 'ログイン中…' : 'ログイン'}
           </button>
         </form>
+        <Link href="/admin/forgot-password" className="mt-4 block text-sm underline">パスワードを忘れた方</Link>
       </div>
     </div>
   );
