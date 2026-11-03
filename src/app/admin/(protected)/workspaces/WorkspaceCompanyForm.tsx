@@ -47,7 +47,7 @@ export default function WorkspaceCompanyForm({ prefectures }: { prefectures: Pre
     })();return()=>{active=false};
   },[]);
   async function handlePrefectureChange(code:string){
-    const request=++municipalityRequest.current;setPrefectureCode(code);setMunicipalityCode('');setMunicipalities([]);setMunicipalityError(false);
+    const request=++municipalityRequest.current;setPrefectureCode(code);setMunicipalityCode('');setMunicipalities([]);setMunicipalityError(false);setLoadingMunicipalities(false);
     if(!code)return;
     setLoadingMunicipalities(true);
     try{const client=createBrowserSupabase();const rows=client?await loadCreationMunicipalities(client,code):null;if(request!==municipalityRequest.current)return;
@@ -65,7 +65,7 @@ export default function WorkspaceCompanyForm({ prefectures }: { prefectures: Pre
       }else if(result.status==='not_found'){
         setKnownMissing(true);setError('この要求の登録は見つかりませんでした。同じ入力・要求IDでのみ再試行できます。');
       }else if(result.status==='deleted'){
-        sessionStorage.removeItem(storageKey.current);setPending(null);setError('前回の要求に対応する会社は削除済みです。古い要求では再作成しません。必要なら新しい登録内容を確認して開始してください。');
+        sessionStorage.removeItem(storageKey.current);setPending(null);setMunicipalityCode('');setPrefectureCode('');setMunicipalities([]);setError('前回の要求に対応する会社は削除済みです。古い要求では再作成しません。必要なら新しい登録内容を確認して開始してください。');
       }else setError('登録結果を確認できません。新しい要求で再送せず、「登録結果を確認」で保存済みか確認してください。');
     }catch{setError('通信または登録記録を確認できません。再送せず、再読み込み後に登録結果を確認してください。');}
     finally{lock.current=false;setSaving(false);}

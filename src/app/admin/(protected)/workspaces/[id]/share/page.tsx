@@ -12,7 +12,7 @@ import { loadWorkspaceShareLinks } from '@/lib/workspaceShareLinks';
 // ── Company Workspace — 共有（Sprint 24 Phase24.0・Sprint 34）───────────────
 // workspace_share_links・get_shared_workspace_view（いずれもSprint22.4 MVP migrationで
 // 実装済み、DBスキーマ変更なし）を利用する。共有対象は本Sprintでは
-// company/profile/roadmapの3項目固定（項目単位のトグルは次Sprint以降）。
+// company/profile/roadmapを基本範囲とし、決算実績だけ発行時に明示的に追加できる。
 // 【Sprint34でデータ取得を共通化】company取得をsrc/lib/workspaceLoader.ts
 // （loadWorkspaceCompany）へ切り出した。共有リンク自体の取得は本ページ固有のため変更なし。
 
