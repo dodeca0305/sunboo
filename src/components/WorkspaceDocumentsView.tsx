@@ -9,6 +9,7 @@ import {
 } from '@/lib/workspaceDocumentStatus';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import InformationCard from '@/components/InformationCard';
+import WorkspaceReadReloadButton from '@/components/WorkspaceReadReloadButton';
 import type { WorkspaceRequiredDocument } from '@/lib/workspaceRequiredDocuments';
 import {
   WORKSPACE_REQUIRED_DOCUMENT_STATUSES,
@@ -40,10 +41,12 @@ export default function WorkspaceDocumentsView({
   statusMap,
   requiredDocuments,
   requiredDocumentStatusMap,
+  requiredDocumentsMissingFiscalMonth = false,
 }: {
   companyId: number;
   statusMap: WorkspaceDocumentStatusMap;
-  requiredDocuments: WorkspaceRequiredDocument[];
+  requiredDocuments: WorkspaceRequiredDocument[] | null;
+  requiredDocumentsMissingFiscalMonth?: boolean;
   requiredDocumentStatusMap: WorkspaceRequiredDocumentStatusMap;
 }) {
   const [localStatusMap, setLocalStatusMap] = useState<WorkspaceDocumentStatusMap>(statusMap);
@@ -141,7 +144,18 @@ export default function WorkspaceDocumentsView({
           </p>
         </div>
 
-        {requiredDocuments.length === 0 ? (
+        {requiredDocuments === null && requiredDocumentsMissingFiscalMonth ? (
+          <InformationCard kind="info" title="必要書類の算出を保留しています">
+            決算月が未登録です。会社プロフィールに決算月を登録すると、今後の手続きに必要な書類を算出できます。
+          </InformationCard>
+        ) : requiredDocuments === null ? (
+          <div role="alert" data-testid="required-documents-unavailable">
+            <InformationCard kind="error" title="必要書類を取得できません">
+              予定や手続き状態の取得が完了していないため、必要書類の算出・準備状況の変更を保留しています。
+              <WorkspaceReadReloadButton />
+            </InformationCard>
+          </div>
+        ) : requiredDocuments.length === 0 ? (
           <InformationCard kind="info">現在のロードマップに未準備の必須書類はありません。</InformationCard>
         ) : (
           <ul className="space-y-2">

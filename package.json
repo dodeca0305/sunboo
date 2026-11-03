@@ -31,6 +31,7 @@
     "test:e2e:office-save-safety": "node playwright/verify-office-save-safety.mjs",
     "test:e2e:tax-return-safety": "node playwright/verify-tax-return-safety.mjs",
     "test:e2e:home-read-safety": "node playwright/verify-home-read-safety.mjs",
+    "test:e2e:planning-read-safety": "node playwright/verify-planning-read-safety.mjs",
     "test:e2e:tax-execution-safety": "node playwright/verify-tax-execution-safety.mjs"
   },
   "dependencies": {

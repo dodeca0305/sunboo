@@ -1,16 +1,24 @@
+import { loadWorkspaceCompanyForRead } from '@/lib/workspaceHomeData';
+import {
+  loadPlanningSources,
+  loadPlanningDerived,
+  planningRead,
+} from '@/lib/workspacePlanningData';
+import WorkspacePlanningSources from '@/components/WorkspacePlanningSources';
+import WorkspaceReadReloadButton from '@/components/WorkspaceReadReloadButton';
 import { notFound } from 'next/navigation';
 import { FileStack } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
-import {
-  loadWorkspaceCompany,
-  loadWorkspaceRoadmapContext,
-} from '@/lib/workspaceLoader';
+import { loadWorkspaceRoadmapContext } from '@/lib/workspaceLoader';
 import WorkspaceDocumentsView from '@/components/WorkspaceDocumentsView';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import PageHeader from '@/components/PageHeader';
 import InformationCard from '@/components/InformationCard';
 import { WORKSPACE_DOCUMENT_TYPES } from '@/lib/workspaceDocumentStatus';
-import { buildWorkspaceRequiredDocuments, type WorkspaceRequiredDocument } from '@/lib/workspaceRequiredDocuments';
+import {
+  buildWorkspaceRequiredDocuments,
+  type WorkspaceRequiredDocument,
+} from '@/lib/workspaceRequiredDocuments';
 import { loadWorkspaceDocumentsForEditing } from '@/lib/workspaceDocumentData';
 
 // ── Company Workspace — 書類（Sprint 26 Workspace Documents MVP・Sprint 34・Sprint 85）───────
@@ -23,36 +31,62 @@ import { loadWorkspaceDocumentsForEditing } from '@/lib/workspaceDocumentData';
 // 既存statusMapから登録済み件数を数えるだけの表示専用の集計を追加した（新しいDB問い合わせ・
 // 新しいステータス種別は追加していない）。
 
-export default async function WorkspaceDocumentsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function WorkspaceDocumentsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const companyId = Number(id);
   if (!Number.isInteger(companyId)) notFound();
 
   const supabase = await createServerSupabase();
-  if (!supabase) notFound();
+  const companyRead = await loadWorkspaceCompanyForRead(supabase, companyId);
+  if (companyRead.status === 'missing') notFound();
+  if (!supabase || companyRead.status !== 'loaded')
+    return (
+      <div role="alert">
+        <InformationCard kind="error" title="会社情報を取得できません">
+          通信状態をご確認のうえ、再読み込みしてください。
+          <WorkspaceReadReloadButton />
+        </InformationCard>
+      </div>
+    );
+  const company = companyRead.company;
 
-  const company = await loadWorkspaceCompany(supabase, companyId);
-  if (!company) notFound();
-
-  let documents: Awaited<ReturnType<typeof loadWorkspaceDocumentsForEditing>> = null;
-  let requiredDocuments: WorkspaceRequiredDocument[] = [];
-  try {
-    const [loaded, roadmapContext] = await Promise.all([
-      loadWorkspaceDocumentsForEditing(supabase, companyId),
-      loadWorkspaceRoadmapContext(supabase, company),
-    ]);
-    if (loaded) {
-      requiredDocuments = buildWorkspaceRequiredDocuments(
-        roadmapContext.roadmapYears,
-        roadmapContext.procedureStatusMap,
-      );
-      documents = loaded;
-    }
-  } catch {
-    // 必要書類の組み立てに失敗しても「必要なし」や空の編集画面へ退避しない。
+  const [sources, documentsRead] = await Promise.all([
+    loadPlanningSources(supabase, company),
+    planningRead(supabase, companyId, (c) =>
+      loadWorkspaceDocumentsForEditing(c, companyId),
+    ),
+  ]);
+  const derived = await loadPlanningDerived(
+    supabase,
+    companyId,
+    sources,
+    (client, readInputs) =>
+      loadWorkspaceRoadmapContext(client, company, 3, { readInputs }),
+  );
+  const documents =
+    documentsRead.status === 'loaded' ? documentsRead.value : null;
+  const missingFiscalMonth =
+    sources.profile.status === 'loaded' &&
+    sources.profile.value.fiscalMonth === null;
+  let requiredDocuments: WorkspaceRequiredDocument[] | null = null;
+  if (
+    derived.status === 'loaded' &&
+    sources.statuses.status === 'loaded' &&
+    !missingFiscalMonth
+  ) {
+    requiredDocuments = buildWorkspaceRequiredDocuments(
+      derived.value.roadmapYears,
+      sources.statuses.value,
+    );
   }
   const registeredCount = documents
-    ? WORKSPACE_DOCUMENT_TYPES.filter((type) => documents.statusMap[type] === 'registered').length
+    ? WORKSPACE_DOCUMENT_TYPES.filter(
+        (type) => documents.statusMap[type] === 'registered',
+      ).length
     : null;
 
   return (
@@ -62,9 +96,11 @@ export default async function WorkspaceDocumentsPage({ params }: { params: Promi
         backLabel={`${company.name} に戻る`}
         icon={FileStack}
         title="今年提出した書類"
-        subtitle={registeredCount === null
-          ? `${company.name}の書類の登録状況を取得できませんでした。`
-          : `${company.name}の代表的な書類の登録状況（${registeredCount}/${WORKSPACE_DOCUMENT_TYPES.length}件登録済み）`}
+        subtitle={
+          registeredCount === null
+            ? `${company.name}の書類の登録状況を取得できませんでした。`
+            : `${company.name}の代表的な書類の登録状況（${registeredCount}/${WORKSPACE_DOCUMENT_TYPES.length}件登録済み）`
+        }
       />
 
       <WorkspaceSubNav companyId={companyId} />
@@ -74,19 +110,52 @@ export default async function WorkspaceDocumentsPage({ params }: { params: Promi
         添付は行わず、状態のみを記録します）。「要更新」はDashboardにも件数が表示されます。
       </InformationCard>
 
+      <WorkspacePlanningSources sources={sources} />
+
       {documents === null ? (
-        <div role="alert">
-          <InformationCard kind="error" title="書類の登録状況を取得できませんでした">
-            登録済み・準備済みの状態を確認できないため、書類の状態変更を停止しています。
-            <a className="mt-2 block underline" href={`/admin/workspaces/${companyId}/documents`}>再読み込み</a>
-          </InformationCard>
-        </div>
+        <>
+          <div role="alert">
+            <InformationCard
+              kind="error"
+              title="書類の登録状況を取得できませんでした"
+            >
+              登録済み・準備済みの状態を確認できないため、書類の状態変更を停止しています。
+              <a
+                className="mt-2 block underline"
+                href={`/admin/workspaces/${companyId}/documents`}
+              >
+                再読み込み
+              </a>
+            </InformationCard>
+          </div>
+          {requiredDocuments !== null && requiredDocuments.length > 0 && (
+            <section
+              className="card p-4 space-y-2"
+              data-testid="required-documents-readonly"
+            >
+              <h2 className="font-semibold">算出できた必要書類</h2>
+              <p>準備状況は取得できません。状態の変更は停止しています。</p>
+              <ul>
+                {requiredDocuments.map((document) => (
+                  <li key={document.name}>
+                    {document.name}（最も近い期限：{document.nearestDueDate}）
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
       ) : (
         <WorkspaceDocumentsView
           key={`${companyId}:${JSON.stringify(documents)}`}
           companyId={companyId}
           statusMap={documents.statusMap}
           requiredDocuments={requiredDocuments}
+          requiredDocumentsMissingFiscalMonth={
+            missingFiscalMonth &&
+            derived.status === 'loaded' &&
+            sources.statuses.status === 'loaded'
+          }
           requiredDocumentStatusMap={documents.requiredDocumentStatusMap}
         />
       )}
