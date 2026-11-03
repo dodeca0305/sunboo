@@ -356,7 +356,7 @@ try {
     0,
   );
   assert.ok((await page.getByRole('combobox').count()) > 0);
-  await page.goto(origin + '/share/synthetic-home-read-safety', {
+  await page.goto(origin + '/share/' + 'b'.repeat(64), {
     waitUntil: 'networkidle',
   });
   await page

@@ -4,6 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
+import { initial as inputFixture } from '../tests/fixtures/taxExecutionInputs.mjs';
 process.loadEnvFile('.env.local');
 const origin = 'http://127.0.0.1:3117',
   companyId = 900023,
@@ -62,6 +63,7 @@ const initial = {
     ],
     workspace_company_profiles: [
       {
+        ...inputFixture.workspace_company_profiles[0],
         company_id: companyId,
         employee_count: 7,
         consumption_tax_status: 'taxable',

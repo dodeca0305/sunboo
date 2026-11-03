@@ -1,15 +1,22 @@
 import Link from 'next/link';
 import { ChevronLeft, Info } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
+import WorkspaceReadReloadButton from '@/components/WorkspaceReadReloadButton';
 import WorkspaceCompanyForm, { type PrefectureOption } from '../WorkspaceCompanyForm';
 
 export default async function NewWorkspaceCompanyPage() {
   const supabase = await createServerSupabase();
 
+  if(!supabase)return <div role="alert">会社登録に接続できません。<WorkspaceReadReloadButton /></div>;
   let prefectures: PrefectureOption[] = [];
-  if (supabase) {
-    const { data } = await supabase.from('prefectures').select('code, name').order('code');
-    prefectures = (data as PrefectureOption[] | null) ?? [];
+  try {
+    const { data, error } = await supabase.from('prefectures').select('code, name').order('code');
+    if (error || !Array.isArray(data) || data.length >= 1000 ||
+        data.some(r => typeof r.code !== 'string' || typeof r.name !== 'string') ||
+        new Set(data.map(r => r.code)).size !== data.length) throw Error('Prefectures unavailable');
+    prefectures = data as PrefectureOption[];
+  } catch {
+    return <div role="alert">都道府県を取得できません。会社登録を停止しています。<WorkspaceReadReloadButton /></div>;
   }
 
   return (

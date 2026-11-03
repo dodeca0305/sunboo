@@ -5,8 +5,21 @@ import { Link2, Copy, Check, Ban } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import InformationCard from '@/components/InformationCard';
 import { trackEvent } from '@/lib/analytics';
-import { DEFAULT_SHARE_LINK_EXPIRY, getShareLinkExpiresAt, getShareLinkStatus, type ShareLinkExpiry } from '@/lib/shareLinkExpiry';
-import { issueWorkspaceShareLink, parseShareLinkRequest, pendingShareLinkKey, type ShareLinkRow, type ShareLinkRequest } from '@/lib/workspaceShareLinks';
+import {
+  DEFAULT_SHARE_LINK_EXPIRY,
+  getShareLinkExpiresAt,
+  getShareLinkStatus,
+  type ShareLinkExpiry,
+} from '@/lib/shareLinkExpiry';
+import {
+  issueWorkspaceShareLink,
+  revokeShareLink,
+  confirmShareRevocation,
+  parseShareLinkRequest,
+  pendingShareLinkKey,
+  type ShareLinkRow,
+  type ShareLinkRequest,
+} from '@/lib/workspaceShareLinks';
 export type { ShareLinkRow } from '@/lib/workspaceShareLinks';
 
 function shareUrl(token: string): string {
@@ -28,7 +41,12 @@ export default function WorkspaceShareLinksPanel({
   const pendingRef = useRef<ShareLinkRequest | null>(null);
   const busyRef = useRef(false);
   const [creating, setCreating] = useState(false);
-  const [expiry, setExpiry] = useState<ShareLinkExpiry>(DEFAULT_SHARE_LINK_EXPIRY);
+  const [includeTaxReturns, setIncludeTaxReturns] = useState(false);
+  const [pendingRevoke, setPendingRevoke] = useState<ShareLinkRow | null>(null);
+  const [checkingRevoke, setCheckingRevoke] = useState(false);
+  const [expiry, setExpiry] = useState<ShareLinkExpiry>(
+    DEFAULT_SHARE_LINK_EXPIRY,
+  );
   const [now, setNow] = useState(() => Date.now());
 
   const [error, setError] = useState<string | null>(null);
@@ -44,8 +62,15 @@ export default function WorkspaceShareLinksPanel({
   useEffect(() => {
     try {
       const key = pendingShareLinkKey(companyId);
-      let request = parseShareLinkRequest(window.sessionStorage.getItem(key), companyId);
-      if (listLoaded && request && initialLinks.some((link) => link.token === request?.token)) {
+      let request = parseShareLinkRequest(
+        window.sessionStorage.getItem(key),
+        companyId,
+      );
+      if (
+        listLoaded &&
+        request &&
+        initialLinks.some((link) => link.token === request?.token)
+      ) {
         window.sessionStorage.removeItem(key);
         request = null;
       }
@@ -53,13 +78,16 @@ export default function WorkspaceShareLinksPanel({
       setPending(request);
       setStorageReady(true);
     } catch {
-      setError('前回の発行情報をブラウザで確認できないため、発行を停止しています。ブラウザの保存設定を確認して再読み込みしてください。');
+      setError(
+        '前回の発行情報をブラウザで確認できないため、発行を停止しています。ブラウザの保存設定を確認して再読み込みしてください。',
+      );
     }
   }, [companyId, initialLinks, listLoaded]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   async function handleCreate() {
-    if (!listLoaded || !storageReady || busyRef.current) return;
+    if (!listLoaded || !storageReady || busyRef.current || pendingRevoke)
+      return;
     busyRef.current = true;
     setCreating(true);
     setError(null);
@@ -69,62 +97,131 @@ export default function WorkspaceShareLinksPanel({
         setError('Supabase が設定されていません。');
         return;
       }
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user?.email) {
-        setError('ログイン情報を確認できませんでした。再度ログインしてください。');
+        setError(
+          'ログイン情報を確認できませんでした。再度ログインしてください。',
+        );
         return;
       }
       let request = pendingRef.current;
       if (request && request.created_by !== user.email) {
-        setError('前回発行したアカウントでログインし直して、発行状況を確認してください。');
+        setError(
+          '前回発行したアカウントでログインし直して、発行状況を確認してください。',
+        );
         return;
       }
       if (!request) {
         const bytes = window.crypto.getRandomValues(new Uint8Array(32));
         request = {
           company_id: companyId,
-          token: Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(''),
+          token: Array.from(bytes, (byte) =>
+            byte.toString(16).padStart(2, '0'),
+          ).join(''),
           created_by: user.email,
           expires_at: getShareLinkExpiresAt(expiry),
+          include_tax_returns: includeTaxReturns,
         };
         // INSERTより前に永続化する。応答喪失や再読み込み後も同じ要求で照会・再試行する。
-        window.sessionStorage.setItem(pendingShareLinkKey(companyId), JSON.stringify(request));
+        window.sessionStorage.setItem(
+          pendingShareLinkKey(companyId),
+          JSON.stringify(request),
+        );
         pendingRef.current = request;
         setPending(request);
       }
       const link = await issueWorkspaceShareLink(supabase, request);
       if (!link) {
-        setError('発行結果を確認できませんでした。新しいリンクの発行を停止しています。「発行状況を確認・再試行」から同じ発行の結果を確認してください。');
+        setError(
+          '発行結果を確認できませんでした。新しいリンクの発行を停止しています。「発行状況を確認・再試行」から同じ発行の結果を確認してください。',
+        );
         return;
       }
       setLinks((prev) => [link, ...prev.filter((item) => item.id !== link.id)]);
       window.sessionStorage.removeItem(pendingShareLinkKey(companyId));
       pendingRef.current = null;
       setPending(null);
-      trackEvent('share_created', { workspace_id: companyId, company_id: companyId });
+      trackEvent('share_created', {
+        workspace_id: companyId,
+        company_id: companyId,
+      });
     } catch {
       setStorageReady(false);
-      setError('通信またはブラウザの保存処理を確認できませんでした。再読み込み後、前回の発行が残っている場合は同じ発行の確認・再試行を行ってください。');
+      setError(
+        '通信またはブラウザの保存処理を確認できませんでした。再読み込み後、前回の発行が残っている場合は同じ発行の確認・再試行を行ってください。',
+      );
     } finally {
       busyRef.current = false;
       setCreating(false);
     }
   }
 
-  async function handleRevoke(linkId: number) {
-    if (!window.confirm('この共有リンクを失効させます。経営者はこのリンクを使えなくなります。よろしいですか？')) return;
-    const supabase = createBrowserSupabase();
-    if (!supabase) return;
-    const revokedAt = new Date().toISOString();
-    const { error: updateError } = await supabase
-      .from('workspace_share_links')
-      .update({ revoked_at: revokedAt })
-      .eq('id', linkId);
-    if (updateError) {
-      setError(`失効に失敗しました: ${updateError.message}`);
+  async function handleRevoke(link: ShareLinkRow) {
+    if (busyRef.current || pendingRevoke) return;
+    if (
+      !window.confirm(
+        'この共有リンクを失効させます。経営者はこのリンクを使えなくなります。よろしいですか？',
+      )
+    )
       return;
+    busyRef.current = true;
+    setCheckingRevoke(true);
+    setError(null);
+    try {
+      const client = createBrowserSupabase();
+      if (!client || !(await revokeShareLink(client, companyId, link))) {
+        setPendingRevoke(link);
+        setError(
+          '失効結果を確認できません。失効済みとは表示せず、結果を確認するまで再送を停止しています。',
+        );
+        return;
+      }
+      setLinks((prev) =>
+        prev.map((l) =>
+          l.id === link.id ? { ...l, revoked_at: new Date().toISOString() } : l,
+        ),
+      );
+    } catch {
+      setPendingRevoke(link);
+      setError('失効結果を確認できません。再送せず結果を確認してください。');
+    } finally {
+      busyRef.current = false;
+      setCheckingRevoke(false);
     }
-    setLinks((prev) => prev.map((l) => (l.id === linkId ? { ...l, revoked_at: revokedAt } : l)));
+  }
+  async function checkRevoke() {
+    if (!pendingRevoke || busyRef.current) return;
+    busyRef.current = true;
+    setCheckingRevoke(true);
+    try {
+      const client = createBrowserSupabase();
+      const result = client
+        ? await confirmShareRevocation(client, companyId, pendingRevoke)
+        : 'unavailable';
+      if (result === 'unavailable') {
+        setError('失効結果を取得できません。再送せず再確認してください。');
+        return;
+      }
+      if (result === 'revoked')
+        setLinks((prev) =>
+          prev.map((l) =>
+            l.id === pendingRevoke.id
+              ? { ...l, revoked_at: new Date().toISOString() }
+              : l,
+          ),
+        );
+      setError(
+        result === 'active'
+          ? '現在は有効なリンクとして取得しました。失効が必要なら改めて操作してください。'
+          : null,
+      );
+      setPendingRevoke(null);
+    } finally {
+      busyRef.current = false;
+      setCheckingRevoke(false);
+    }
   }
 
   async function handleCopy(link: ShareLinkRow) {
@@ -140,39 +237,110 @@ export default function WorkspaceShareLinksPanel({
   return (
     <div className="space-y-4">
       {!listLoaded && (
-        <InformationCard kind="error" title="共有リンク一覧を読み込めませんでした">
-          <p role="alert">発行済みリンクを確認できないため、新しい共有リンクの発行を停止しています。再読み込みしてください。</p>
+        <InformationCard
+          kind="error"
+          title="共有リンク一覧を読み込めませんでした"
+        >
+          <p role="alert">
+            発行済みリンクを確認できないため、新しい共有リンクの発行を停止しています。再読み込みしてください。
+          </p>
         </InformationCard>
       )}
-      {error && <InformationCard kind="error"><p role="alert">{error}</p></InformationCard>}
+      {error && (
+        <InformationCard kind="error">
+          <p role="alert">{error}</p>
+        </InformationCard>
+      )}
+      {pendingRevoke && (
+        <InformationCard kind="caution">
+          失効結果が未確認です。
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={checkingRevoke}
+            onClick={checkRevoke}
+          >
+            失効結果を確認
+          </button>
+        </InformationCard>
+      )}
       {pending && (
-        <InformationCard kind="caution">前回の発行結果の確認が必要です。新しく発行せず、同じ発行の確認・再試行を行います。</InformationCard>
+        <InformationCard kind="caution">
+          前回の発行結果の確認が必要です。新しく発行せず、同じ発行の確認・再試行を行います。
+        </InformationCard>
       )}
       {(!listLoaded || pending || error) && (
-        <a href={`/admin/workspaces/${companyId}/share`} className="btn-secondary">再読み込み</a>
+        <a
+          href={`/admin/workspaces/${companyId}/share`}
+          className="btn-secondary"
+        >
+          再読み込み
+        </a>
       )}
 
+      <div className="card space-y-2 p-4">
+        <p className="text-sm">
+          会社名・所在地・資本金・従業員数等の会社プロフィールと対応状況は、リンクを知る人がログインなしで取得できる公開範囲です。必要な相手にだけ渡し、不要になったら失効させてください。
+        </p>
+        <label className="flex gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={includeTaxReturns}
+            disabled={creating || Boolean(pending) || Boolean(pendingRevoke)}
+            onChange={(e) => setIncludeTaxReturns(e.target.checked)}
+          />
+          決算実績を公開範囲に含め、管理画面と同じ入力でロードマップを共有する
+        </label>
+        <p className="text-xs text-sunboo-ink-muted">
+          含める場合、税額等を含む決算実績がリンクを知る人に取得可能になります。試用は架空データで行ってください。含めないリンクは会社概要のみを確認でき、必要入力が足りない予定は算出を保留します。発行済みリンクの公開範囲は変更しません。
+        </p>
+      </div>
       <div className="flex flex-wrap items-end gap-3">
-        {pending ? <p className="text-sm text-sunboo-ink-muted">前回の発行条件・有効期限を維持して確認します。</p> : <div>
-          <label htmlFor="share-link-expiry" className="form-label">有効期限</label>
-          <select
-            id="share-link-expiry"
-            value={expiry}
-            onChange={(event) => setExpiry(event.target.value as ShareLinkExpiry)}
-            disabled={creating || !listLoaded || !storageReady || Boolean(pending)}
-            className="form-select"
-          >
-            <option value="7">7日</option>
-            <option value="30">30日</option>
-            <option value="unlimited">無期限</option>
-          </select>
-        </div>}
-        <button type="button" onClick={handleCreate} disabled={creating || !listLoaded || !storageReady} className="btn-primary disabled:opacity-60">
+        {pending ? (
+          <p className="text-sm text-sunboo-ink-muted">
+            前回の発行条件・有効期限を維持して確認します。
+          </p>
+        ) : (
+          <div>
+            <label htmlFor="share-link-expiry" className="form-label">
+              有効期限
+            </label>
+            <select
+              id="share-link-expiry"
+              value={expiry}
+              onChange={(event) =>
+                setExpiry(event.target.value as ShareLinkExpiry)
+              }
+              disabled={
+                creating || !listLoaded || !storageReady || Boolean(pending)
+              }
+              className="form-select"
+            >
+              <option value="7">7日</option>
+              <option value="30">30日</option>
+              <option value="unlimited">無期限</option>
+            </select>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={handleCreate}
+          disabled={
+            creating || !listLoaded || !storageReady || Boolean(pendingRevoke)
+          }
+          className="btn-primary disabled:opacity-60"
+        >
           <Link2 className="h-4 w-4" />
-          {creating ? '発行状況を確認中…' : pending ? '発行状況を確認・再試行' : '新しい共有リンクを発行'}
+          {creating
+            ? '発行状況を確認中…'
+            : pending
+              ? '発行状況を確認・再試行'
+              : '新しい共有リンクを発行'}
         </button>
       </div>
-      <p className="text-xs text-sunboo-ink-muted">発行時から選択した期間だけ有効です。無期限の場合も、手動で失効させられます。</p>
+      <p className="text-xs text-sunboo-ink-muted">
+        発行時から選択した期間だけ有効です。無期限の場合も、手動で失効させられます。
+      </p>
 
       {listLoaded && storageReady && !pending && links.length === 0 ? (
         <div className="card text-sm text-sunboo-ink-muted">
@@ -187,13 +355,30 @@ export default function WorkspaceShareLinksPanel({
               <div key={link.id} className="card space-y-2.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="tag">{status}</span>
-                  <span className="text-xs text-sunboo-ink-muted">発行日: {new Date(link.created_at).toLocaleDateString('ja-JP')}</span>
+                  <span className="text-xs">
+                    公開範囲：会社概要・プロフィール・ロードマップ
+                    {link.shared_sections.includes('tax_returns')
+                      ? '・決算実績'
+                      : '（決算実績は非公開、予定算出は保留）'}
+                  </span>
                   <span className="text-xs text-sunboo-ink-muted">
-                    有効期限: {link.expires_at ? new Date(link.expires_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) + '（日本時間）' : '無期限'}
+                    発行日:{' '}
+                    {new Date(link.created_at).toLocaleDateString('ja-JP')}
+                  </span>
+                  <span className="text-xs text-sunboo-ink-muted">
+                    有効期限:{' '}
+                    {link.expires_at
+                      ? new Date(link.expires_at).toLocaleString('ja-JP', {
+                          timeZone: 'Asia/Tokyo',
+                        }) + '（日本時間）'
+                      : '無期限'}
                   </span>
                   {link.last_accessed_at && (
                     <span className="text-xs text-sunboo-ink-muted">
-                      最終アクセス: {new Date(link.last_accessed_at).toLocaleDateString('ja-JP')}
+                      最終アクセス:{' '}
+                      {new Date(link.last_accessed_at).toLocaleDateString(
+                        'ja-JP',
+                      )}
                     </span>
                   )}
                 </div>
@@ -210,13 +395,18 @@ export default function WorkspaceShareLinksPanel({
                     disabled={inactive}
                     className="btn-secondary shrink-0 px-3 py-1.5 text-xs disabled:opacity-50"
                   >
-                    {copiedId === link.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copiedId === link.id ? (
+                      <Check className="h-3.5 w-3.5" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
                     {copiedId === link.id ? 'コピー済み' : 'コピー'}
                   </button>
                   {!inactive && (
                     <button
                       type="button"
-                      onClick={() => handleRevoke(link.id)}
+                      onClick={() => handleRevoke(link)}
+                      disabled={checkingRevoke || Boolean(pendingRevoke)}
                       className="btn-secondary shrink-0 px-3 py-1.5 text-xs text-sunboo-danger hover:border-sunboo-danger"
                     >
                       <Ban className="h-3.5 w-3.5" />

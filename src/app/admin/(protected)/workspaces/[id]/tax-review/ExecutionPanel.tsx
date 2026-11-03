@@ -1,10 +1,11 @@
-"use client";
-import { useEffect, useRef, useState } from "react";
-import { runTaxControlAction, type EvaluationActionState } from "./actions";
+'use client';
+import { TAX_TRIAL_SCOPE } from '@/lib/trialActionGuide';
+import { useEffect, useRef, useState } from 'react';
+import { runTaxControlAction, type EvaluationActionState } from './actions';
 import {
   validPendingExecution,
   type PendingExecution,
-} from "@/lib/taxIntelligence/executionRecovery";
+} from '@/lib/taxIntelligence/executionRecovery';
 export default function ExecutionPanel({
   companyId,
   actor,
@@ -32,9 +33,9 @@ export default function ExecutionPanel({
           if (!validPendingExecution(value, companyId)) throw Error();
           setIntent(value);
           setState({
-            status: "unknown",
+            status: 'unknown',
             message:
-              "前の実行の保存結果を確認してください。確認が終わるまで新しい評価を停止します。",
+              '前の実行の保存結果を確認してください。確認が終わるまで新しい評価を停止します。',
           });
         }
         setReady(true);
@@ -44,7 +45,7 @@ export default function ExecutionPanel({
     }, 0);
     return () => window.clearTimeout(timer);
   }, [key, companyId]);
-  async function send(pending: PendingExecution, mode: "execute" | "verify") {
+  async function send(pending: PendingExecution, mode: 'execute' | 'verify') {
     if (lock.current) return;
     lock.current = true;
     setBusy(true);
@@ -57,12 +58,12 @@ export default function ExecutionPanel({
         result = await runTaxControlAction(pending, mode);
       } catch {
         result = {
-          status: "unknown",
-          message: "応答を取得できません。再送せず保存結果を確認してください。",
+          status: 'unknown',
+          message: '応答を取得できません。再送せず保存結果を確認してください。',
         };
       }
       setState(result);
-      if (result.status === "success") {
+      if (result.status === 'success') {
         sessionStorage.removeItem(key);
         setIntent(null);
       }
@@ -81,6 +82,23 @@ export default function ExecutionPanel({
       <p className="text-sm text-gray-600">
         必要な会社情報・実績・根拠を取得してから評価結果を保存します。確認が必要な場合はレビューを追加します。
       </p>
+      <div
+        className="space-y-2 text-sm"
+        aria-label="税務チェックの対象と必要入力"
+      >
+        <h3 className="font-semibold">{TAX_TRIAL_SCOPE.title}</h3>
+        <p>{TAX_TRIAL_SCOPE.scope}</p>
+        <p className="font-medium">必要な入力・確認</p>
+        <ul className="list-disc pl-5">
+          {TAX_TRIAL_SCOPE.inputs.map((input) => (
+            <li key={input}>{input}</li>
+          ))}
+        </ul>
+        <p>{TAX_TRIAL_SCOPE.outcomes}</p>
+        <p>
+          実行できるのは、この会社の操作権限を持つ管理者です。結果の確認・最終判断は担当者と専門家が行ってください。
+        </p>
+      </div>
       {storageError && (
         <p role="alert">
           実行要求の記録を確認できません。安全に保存できないため実行を停止しています。
@@ -101,16 +119,16 @@ export default function ExecutionPanel({
               executionId: crypto.randomUUID(),
               intent: {
                 companyId,
-                taxControlId: Number(data.get("taxControlId")),
-                asOfDate: new Intl.DateTimeFormat("sv-SE", {
-                  timeZone: "Asia/Tokyo",
+                taxControlId: Number(data.get('taxControlId')),
+                asOfDate: new Intl.DateTimeFormat('sv-SE', {
+                  timeZone: 'Asia/Tokyo',
                 }).format(new Date()),
                 liquidationResidualAssetsCase: data.get(
-                  "liquidationResidualAssetsCase",
-                ) as PendingExecution["intent"]["liquidationResidualAssetsCase"],
+                  'liquidationResidualAssetsCase',
+                ) as PendingExecution['intent']['liquidationResidualAssetsCase'],
               },
             };
-            void send(pending, "execute");
+            void send(pending, 'execute');
           }}
         >
           <label className="block text-sm">
@@ -144,7 +162,7 @@ export default function ExecutionPanel({
             未確認の場合は推測せず、判定不能として確認対象にします。
           </p>
           <button type="submit" className="btn-primary" disabled={blocked}>
-            {busy ? "確認中…" : "評価して保存"}
+            {busy ? '確認中…' : '評価して保存'}
           </button>
         </form>
       )}
@@ -157,16 +175,16 @@ export default function ExecutionPanel({
             type="button"
             className="btn-secondary"
             disabled={busy || storageError}
-            onClick={() => void send(intent, "verify")}
+            onClick={() => void send(intent, 'verify')}
           >
             保存結果を確認
           </button>
-          {state?.status === "missing" && (
+          {state?.status === 'missing' && (
             <button
               type="button"
               className="btn-primary"
               disabled={busy || storageError || loadError}
-              onClick={() => void send(intent, "execute")}
+              onClick={() => void send(intent, 'execute')}
             >
               同じ実行IDで再試行
             </button>
@@ -174,8 +192,8 @@ export default function ExecutionPanel({
         </div>
       )}
       {(loadError ||
-        state?.status === "error" ||
-        state?.status === "unknown" ||
+        state?.status === 'error' ||
+        state?.status === 'unknown' ||
         storageError) && (
         <button
           type="button"
@@ -189,7 +207,7 @@ export default function ExecutionPanel({
       {state?.message && (
         <p
           role={
-            ["error", "unknown"].includes(state.status) ? "alert" : "status"
+            ['error', 'unknown'].includes(state.status) ? 'alert' : 'status'
           }
           className="text-sm"
         >

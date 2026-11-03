@@ -1,18 +1,19 @@
 import { notFound } from 'next/navigation';
 import { Building2 } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { loadWorkspaceCompany } from '@/lib/workspaceLoader';
+import { loadWorkspaceCompanyForRead } from '@/lib/workspaceHomeData';
+import WorkspaceReadReloadButton from '@/components/WorkspaceReadReloadButton';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import WorkspaceProfileForm from './WorkspaceProfileForm';
 import PageHeader from '@/components/PageHeader';
 import InformationCard from '@/components/InformationCard';
-import { loadWorkspaceProfileForEditing } from '@/lib/workspaceProfileData';
+import { loadWorkspaceProfileEditor } from '@/lib/workspaceProfileData';
 
 // ── Company Workspace — 会社プロフィール（Sprint 23 Phase23.2・Sprint 34）─────────
 // 【Sprint34でデータ取得を共通化】company取得・CompanyProfile変換はDashboard・Roadmapと重複していた。
 // src/lib/workspaceLoader.ts（loadWorkspaceCompany・loadWorkspaceCompanyProfile）へ切り出した。
 // 本ページはAnnual Roadmapの計算（診断エンジンへの追加問い合わせを伴う）を必要としないため、
-// loadWorkspaceRoadmapContextではなく編集画面専用のloadWorkspaceProfileForEditingを呼ぶ
+// loadWorkspaceRoadmapContextではなく編集画面専用のloadWorkspaceProfileEditorを呼ぶ
 // （問い合わせ回数を従来通り3件に保つ）。
 
 export default async function WorkspaceCompanyProfilePage({ params }: { params: Promise<{ id: string }> }) {
@@ -21,12 +22,12 @@ export default async function WorkspaceCompanyProfilePage({ params }: { params: 
   if (!Number.isInteger(companyId)) notFound();
 
   const supabase = await createServerSupabase();
-  if (!supabase) notFound();
+  const read = await loadWorkspaceCompanyForRead(supabase,companyId);
+  if(read.status==='missing')notFound();
+  if(!supabase||read.status!=='loaded')return <div role="alert">会社情報を取得できません。編集・保存を停止しています。<WorkspaceReadReloadButton /></div>;
+  const company=read.company;
 
-  const company = await loadWorkspaceCompany(supabase, companyId);
-  if (!company) notFound();
-
-  const initialProfile = await loadWorkspaceProfileForEditing(supabase, company);
+  const initialProfile = await loadWorkspaceProfileEditor(supabase, company);
 
   return (
     <div className="space-y-6">
@@ -47,7 +48,7 @@ export default async function WorkspaceCompanyProfilePage({ params }: { params: 
           <a href={`/admin/workspaces/${companyId}/profile`} className="btn-secondary mt-3">再読み込み</a>
         </InformationCard>
       ) : (
-        <WorkspaceProfileForm companyId={companyId} initialProfile={initialProfile} />
+        <WorkspaceProfileForm key={companyId} companyId={companyId} initialProfile={initialProfile.profile} initialSnapshot={initialProfile.snapshot} />
       )}
     </div>
   );

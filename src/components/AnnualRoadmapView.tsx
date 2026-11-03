@@ -1,4 +1,5 @@
 'use client';
+import { procedureTrialGuide, trialExecutionLinks } from '@/lib/trialActionGuide';
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import InformationCard from '@/components/InformationCard';
@@ -396,6 +397,7 @@ export default function AnnualRoadmapView({
                     const status = localStatusMap[workspaceProcedureOccurrenceKey(item.procedure.id, item.dueDate)] ?? 'not_started';
                     const taxPaymentKey = workspaceTaxPaymentPlanKey(item.procedure.id, item.dueDate);
                     const isTaxProcedure = item.procedure.category === 'tax' || item.procedure.category === 'local_tax';
+                    const guide = procedureTrialGuide(item.procedure, item.confidence);
                     const submission = buildRoadmapSubmissionInfo(item.procedure);
                     const docGroups = buildRoadmapDocumentItems(item.procedure);
                     const hasDocGuide = hasAnyRoadmapDocumentItems(docGroups);
@@ -465,6 +467,18 @@ export default function AnnualRoadmapView({
                               </div>
                             )}
 
+                            <section className="space-y-2 border-t border-sunboo-mist pt-3" aria-label="対応の案内">
+                              <p className="text-sm font-semibold">{guide.kind}</p>
+                              <dl className="space-y-1 text-sm">
+                                <div><dt className="font-medium">理由</dt><dd>{guide.reason}</dd></div>
+                                <div><dt className="font-medium">担当</dt><dd>未設定。役割の目安：{guide.owner}</dd></div>
+                                <div><dt className="font-medium">期限</dt><dd>{item.dueDate}（個別事情・公式案内で最終確認）</dd></div>
+                                <div><dt className="font-medium">完了条件</dt><dd>{guide.completion}</dd></div>
+                                <div><dt className="font-medium">実行先</dt><dd>下の提出先・公式ページから手続き内容を確認してください。未登録の提出先は推測しません。</dd></div>
+                              </dl>
+                              <p className="text-xs text-sunboo-ink-muted">担当者名の割当や提出・納付の代行は行いません。「完了」は対応状況の記録であり、行政機関の受付確認の代わりにはなりません。</p>
+                            </section>
+
                             {/* 3〜5. 提出先／提出方法／公式ページ */}
                             <div>
                               <SectionLabel>提出先</SectionLabel>
@@ -502,6 +516,18 @@ export default function AnnualRoadmapView({
                                 </div>
                               )}
                             </div>
+
+                            {trialExecutionLinks(item.procedure).length > 0 && <div>
+                              <SectionLabel>手続きの案内・様式</SectionLabel>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {trialExecutionLinks(item.procedure).map(link=><div key={link.url}>
+                                  <a href={link.url} target="_blank" rel="noopener noreferrer" className="btn-secondary inline-flex min-h-11 items-center gap-1 text-xs">
+                                    {link.label}<ExternalLink className="h-3 w-3" aria-hidden="true" />
+                                  </a>
+                                  {link.unchecked && <span className="ml-1 text-xs text-sunboo-ink-muted">リンク未確認</span>}
+                                </div>)}
+                              </div>
+                            </div>}
 
                             {/* 6〜8. 必要書類／事前準備／提出前チェック（同じデータソース、見出しを分けて表示） */}
                             {hasDocGuide && (

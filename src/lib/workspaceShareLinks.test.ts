@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { issueWorkspaceShareLink, loadWorkspaceShareLinks, parseShareLinkRequest, pendingShareLinkKey, type ShareLinkRequest, type ShareLinkRow } from './workspaceShareLinks.ts';
+import { issueWorkspaceShareLink, loadWorkspaceShareLinks, parseShareLinkRequest, pendingShareLinkKey, confirmShareRevocation, revokeShareLink, type ShareLinkRequest, type ShareLinkRow } from './workspaceShareLinks.ts';
 
 const request: ShareLinkRequest = { company_id: 23, token: 'a'.repeat(64), created_by: 'test@example.invalid', expires_at: '2026-11-30T03:00:00Z' };
 const row: ShareLinkRow = { id: 1, token: request.token, expires_at: request.expires_at, shared_sections: ['company', 'profile', 'roadmap'], revoked_at: null, last_accessed_at: null, created_at: '2026-10-31T03:00:00Z' };
@@ -99,4 +99,23 @@ test('再読み込み用の要求を復元し、会社違い・壊れた保存�
   for (const raw of ['broken', 'null', JSON.stringify({ ...request, company_id: 24 }), JSON.stringify({ ...request, token: 'bad' }), JSON.stringify({ ...request, expires_at: 'bad' })]) {
     assert.throws(() => parseShareLinkRequest(raw, 23));
   }
+});
+
+
+test('financial sharing requires explicit opt-in and is not sent as an unknown DB column', async()=>{
+ const {client,state}=fake();row.shared_sections.push('tax_returns');
+ try{const optIn={...request,include_tax_returns:true};assert.deepEqual(parseShareLinkRequest(JSON.stringify(optIn),23),optIn);assert.ok(await issueWorkspaceShareLink(client,optIn));assert.deepEqual(state.inserts[0],{...request,shared_sections:['company','profile','roadmap','tax_returns']});assert.equal(await issueWorkspaceShareLink(client,request),null);assert.equal(state.inserts.length,1);}finally{row.shared_sections.pop();}
+ assert.throws(()=>parseShareLinkRequest(JSON.stringify({...request,include_tax_returns:'true'}),23));
+});
+test('scope/expiry mismatch and malformed list responses are held',async()=>{
+ const {client,state}=fake();state.rows.push({...row,expires_at:null});assert.equal(await issueWorkspaceShareLink(client,request),null);assert.equal(state.inserts.length,0);
+ for(const bad of [{...row,token:'bad'},{...row,shared_sections:['unknown']},{...row,created_at:'bad'}]){state.rows=[bad];assert.equal(await loadWorkspaceShareLinks(client,23),null)}
+ state.rows=[row,row];assert.equal(await loadWorkspaceShareLinks(client,23),null);
+});
+test('revocation requires a matching company, link and acknowledged time; unknown result is confirmed without resending',async()=>{
+ let writes=0,filters:unknown[][]=[],value:Record<string,unknown>|null=null,lose=true;
+ const client={from(){const q={update(v:Record<string,unknown>){writes++;value={id:row.id,company_id:23,token:row.token,...v};return q},select(){return q},eq(k:string,v:unknown){filters.push([k,v]);return q},async maybeSingle(){return lose?{data:null,error:{}}:{data:value,error:null}}};return q}} as unknown as Parameters<typeof revokeShareLink>[0];
+ assert.equal(await revokeShareLink(client,23,row),false);assert.deepEqual(filters,[['company_id',23],['id',1],['token',request.token]]);assert.equal(writes,1);
+ lose=false;filters=[];assert.equal(await confirmShareRevocation(client,23,row),'revoked');assert.equal(writes,1);assert.deepEqual(filters,[['company_id',23],['id',1]]);
+ assert.equal(await confirmShareRevocation(client,24,row),'unavailable');
 });
