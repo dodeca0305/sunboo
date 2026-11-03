@@ -1,6 +1,7 @@
 'use client';
 
 import Script from 'next/script';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 const CONSENT_KEY = 'sunboo:analytics-consent';
@@ -9,6 +10,7 @@ const CONSENT_EVENT = 'sunboo:analytics-consent-changed';
 export { CONSENT_EVENT, CONSENT_KEY };
 
 export default function GoogleAnalytics() {
+  const pathname=usePathname();
   const measurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
   const [enabled, setEnabled] = useState(false);
 
@@ -19,7 +21,7 @@ export default function GoogleAnalytics() {
     return () => window.removeEventListener(CONSENT_EVENT, update);
   }, []);
 
-  if (!measurementId || !enabled) return null;
+  if (pathname==='/admin/reset-password' || !measurementId || !enabled) return null;
 
   return (
     <>
