@@ -87,6 +87,11 @@ try {
   }
   await page.screenshot({ path: 'test-results/document-load-recovered.png', fullPage: true });
   // 保存中は両方の操作を止め、保存成功後だけ表示を更新。
+  // Wait for React's change handler, not just server-rendered native controls.
+  await page.waitForFunction(() => {
+    const element = document.querySelector('select[aria-label="定款の登録状況"]');
+    return element && Object.keys(element).some(key => key.startsWith('__reactProps$') && typeof element[key]?.onChange === 'function');
+  });
   saveMode = 'pending';
   await articles.selectOption('needs_update');
   await page.getByRole('status', { name: '' }).filter({ hasText: '保存中' }).waitFor();

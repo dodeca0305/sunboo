@@ -20,7 +20,7 @@ globalThis.fetch = async (input, init) => {
     if (table === 'procedures') {
       const response = await syntheticFetch(input, init);
       const rows = await response.json();
-      return Response.json(rows.map(row => ({ ...row, procedure_documents: [{ name: '合成必要書類', is_required: true, item_type: 'document', sort_order: 0 }] })));
+      return Response.json(rows.map(row => ({ ...row, procedure_documents: [{ name: '合成必要書類', form_number: null, notes: null, is_required: true, item_type: 'document', sort_order: 0 }] })));
     }
   }
   return syntheticFetch(input, init);
