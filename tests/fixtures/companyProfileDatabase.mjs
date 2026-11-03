@@ -1,0 +1,22 @@
+import{readFileSync}from'node:fs';
+import{setup as creationSetup,claims,identity}from'./companyCreationDatabase.mjs';
+import{initial}from'./taxExecutionInputs.mjs';
+export{claims,identity};
+const old=readFileSync(new URL('../../supabase/migration_workspace_mvp.sql',import.meta.url),'utf8');
+const profileTable=old.match(/CREATE TABLE IF NOT EXISTS workspace_company_profiles[\s\S]+?\n\);/)[0];
+export const migration=readFileSync(new URL('../../supabase/migrations/20261103045800_save_workspace_company_profile_atomic.sql',import.meta.url),'utf8');
+export const setup=creationSetup+profileTable+`
+ALTER TABLE public.workspace_company_profiles ADD COLUMN resident_tax_payment_cycle text NOT NULL DEFAULT 'unknown' CHECK(resident_tax_payment_cycle IN('unknown','monthly','special')),ADD COLUMN next_officer_change_date date,ADD COLUMN address text;
+ALTER TABLE public.workspace_company_profiles ENABLE ROW LEVEL SECURITY;
+GRANT SELECT,INSERT,UPDATE,DELETE ON public.workspace_company_profiles TO authenticated;
+CREATE POLICY member_select ON public.workspace_company_profiles FOR SELECT USING(public.is_workspace_member(company_id));
+CREATE POLICY member_insert ON public.workspace_company_profiles FOR INSERT WITH CHECK(public.is_workspace_member(company_id,ARRAY['owner','member']));
+CREATE POLICY member_update ON public.workspace_company_profiles FOR UPDATE USING(public.is_workspace_member(company_id,ARRAY['owner','member'])) WITH CHECK(public.is_workspace_member(company_id,ARRAY['owner','member']));
+CREATE TRIGGER synthetic_profile_failure AFTER INSERT OR UPDATE ON public.workspace_company_profiles FOR EACH ROW EXECUTE FUNCTION synthetic_create_failure();
+`+migration;
+export const fields=Object.fromEntries(Object.entries(initial.workspace_company_profiles[0]).filter(([k])=>k!=='company_id'));
+export const initialSnapshot={companyFields:{corporate_type:'kabushiki',fiscal_month:3},profileFields:null};
+export const desired={companyFields:{corporate_type:'godo',fiscal_month:6},profileFields:fields};
+export const callSQL='select public.save_workspace_company_profile($1,$2,$3) as result';
+export const params=(id=1,expected=initialSnapshot,values=desired)=>[id,JSON.stringify(expected),JSON.stringify(values)];
+export const snapshotSQL="select jsonb_build_object('companies',(select jsonb_agg(to_jsonb(t) order by id) from workspace_companies t),'profiles',(select coalesce(jsonb_agg(to_jsonb(t) order by company_id),'[]'::jsonb) from workspace_company_profiles t)) as data";

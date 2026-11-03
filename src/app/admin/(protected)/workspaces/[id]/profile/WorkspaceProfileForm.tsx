@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, ArrowRight } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
@@ -9,7 +9,8 @@ import type {
   CompanyProfile, CompanyStage, ConsumptionTaxStatus, InvoiceRegistrationStatus,
   ResidentTaxPaymentCycle, WithholdingTaxCycle,
 } from '@/lib/companyProfile';
-import { companyProfileToWorkspaceUpdatePayload } from '@/lib/workspaceCompanyProfile';
+import { companyProfileToWorkspaceUpdatePayload, workspaceRowsToCompanyProfile } from '@/lib/workspaceCompanyProfile';
+import { profileSaveKey, validProfileSaveIntent, saveCompanyProfile, reconcileProfileSave, type ProfileSaveIntent, type ProfileSnapshot } from '@/lib/workspaceProfileSave';
 import InformationCard from '@/components/InformationCard';
 import ManualDateInput from '@/components/ManualDateInput';
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
@@ -73,9 +74,11 @@ function FieldHint({ children }: { children: React.ReactNode }) {
 export default function WorkspaceProfileForm({
   companyId,
   initialProfile,
+  initialSnapshot,
 }: {
   companyId: number;
   initialProfile: CompanyProfile;
+  initialSnapshot: ProfileSnapshot;
 }) {
   const [profile, setProfile] = useState<CompanyProfile>(initialProfile);
   const [employeeCountText, setEmployeeCountText] = useState(
@@ -90,47 +93,60 @@ export default function WorkspaceProfileForm({
     setSaved(false);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-
-    const supabase = createBrowserSupabase();
-    if (!supabase) {
-      setError('Supabase が設定されていません。');
-      return;
-    }
-
-    setSaving(true);
-    const { companyFields, profileFields } = companyProfileToWorkspaceUpdatePayload(profile);
-
-    const { error: companyError } = await supabase
-      .from('workspace_companies')
-      .update(companyFields)
-      .eq('id', companyId);
-
-    if (companyError) {
-      setSaving(false);
-      setError(`会社情報の保存に失敗しました: ${companyError.message}`);
-      return;
-    }
-
-    const { error: profileError } = await supabase
-      .from('workspace_company_profiles')
-      .upsert({ company_id: companyId, ...profileFields }, { onConflict: 'company_id' });
-
-    setSaving(false);
-    if (profileError) {
-      setError(`プロフィールの保存に失敗しました: ${profileError.message}`);
-      return;
-    }
-
-    setSaved(true);
-    trackEvent('profile_completed', { workspace_id: companyId, company_id: companyId });
+  const [expected,setExpected]=useState(initialSnapshot);
+  const [ready,setReady]=useState(false);
+  const [pending,setPending]=useState<ProfileSaveIntent|null>(null);
+  const [mayRetry,setMayRetry]=useState(false);
+  const lock=useRef(false),storageKey=useRef('');
+  useEffect(()=>{let active=true;void(async()=>{
+    try{const client=createBrowserSupabase();if(!client)throw Error();
+      const user=await client.auth.getUser();if(user.error||!user.data.user?.id)throw Error();
+      const key=profileSaveKey(companyId,user.data.user.id);const raw=sessionStorage.getItem(key);const previous:unknown=raw?JSON.parse(raw):null;
+      if(previous!==null&&!validProfileSaveIntent(previous,companyId))throw Error();
+      if(!active)return;storageKey.current=key;
+      if(previous){setPending(previous);setError('前回の保存結果を確認してください。再取得で確認するまで編集・再送を停止しています。');}
+      setReady(true);
+    }catch{if(active)setError('ログイン状態または前回の保存記録を確認できません。編集・保存を停止しています。再ログイン後に再読み込みしてください。');}
+  })();return()=>{active=false};},[companyId]);
+  function acknowledge(intent:ProfileSaveIntent){
+    setProfile(p=>workspaceRowsToCompanyProfile({id:companyId,name:'',prefecture_code:p.prefectureCode,municipality_code:p.municipalityCode,...intent.values.companyFields},{company_id:companyId,...intent.values.profileFields},p.prefectureName,p.municipalityName));
+    setEmployeeCountText(String(intent.values.profileFields.employee_count));
+    sessionStorage.removeItem(storageKey.current);setPending(null);setMayRetry(false);setExpected(intent.values);setError(null);setSaved(true);
+    trackEvent('profile_completed',{workspace_id:companyId,company_id:companyId});
   }
+  async function send(intent:ProfileSaveIntent,confirm=false){
+    if(lock.current||!ready)return;lock.current=true;setSaving(true);setSaved(false);setError(null);setMayRetry(false);
+    try{
+      sessionStorage.setItem(storageKey.current,JSON.stringify(intent));setPending(intent);
+      const client=createBrowserSupabase();if(!client)throw Error();
+      const result=confirm?await reconcileProfileSave(client,intent):await saveCompanyProfile(client,intent);
+      if(result==='saved')acknowledge(intent);
+      else if(result==='unchanged'){setMayRetry(true);setError('再取得した結果、保存前の値のままでした。入力と保存前の値を固定したまま、同じ内容を再試行できます。');}
+      else if(result==='conflict')setError('別の更新があるため上書きを停止しました。現在の情報を再読み込みし、内容を確認してください。');
+      else setError('保存結果を確認できません。成功とは表示せず再送を停止しています。「保存結果を確認」で再取得してください。');
+    }catch{setError('通信または保存記録を確認できません。再送せず、再読み込み後に保存結果を確認してください。');}
+    finally{lock.current=false;setSaving(false);}
+  }
+  async function handleSubmit(e:React.FormEvent){
+    e.preventDefault();if(!ready||saving||pending||lock.current)return;
+    const intent:ProfileSaveIntent={version:1,companyId,expected,values:companyProfileToWorkspaceUpdatePayload(profile)};
+    if(!validProfileSaveIntent(intent,companyId)){setError('入力内容を確認してください。保存は行っていません。');return;}
+    await send(intent);
+  }
+  const blocked=!ready||saving||pending!==null;
 
   return (
     <form onSubmit={handleSubmit} className="card max-w-2xl space-y-5">
-      {error && <InformationCard kind="error">{error}</InformationCard>}
+      {error && <div role="alert"><InformationCard kind="error">{error}</InformationCard></div>}
+      {!ready && <button type="button" className="btn-secondary" onClick={()=>window.location.reload()}>再読み込み</button>}
+      {pending && <div className="space-y-2">
+        <p>保存したい内容：決算月 {pending.values.companyFields.fiscal_month??'未設定'}、従業員 {pending.values.profileFields.employee_count}人。保存結果の確認中は編集できません。</p>
+        <button type="button" className="btn-secondary" disabled={saving||!ready} onClick={()=>send(pending,true)}>保存結果を確認</button>
+        {mayRetry && <button type="button" className="btn-secondary" disabled={saving} onClick={()=>send(pending)}>確認した同じ内容で再試行</button>}
+        <button type="button" className="btn-secondary" disabled={saving||!ready} onClick={()=>{sessionStorage.removeItem(storageKey.current);window.location.reload();}}>現在の情報を再読み込みして編集し直す</button>
+        <p className="text-xs">再読み込みは保存を取り消しません。再送せず現在の保存値を取得してから編集し直します。</p>
+      </div>}
+      <fieldset disabled={blocked} className="space-y-5">
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
@@ -348,7 +364,7 @@ export default function WorkspaceProfileForm({
       </div>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-5">
-        <button type="submit" disabled={saving} className="btn-primary disabled:opacity-60">
+        <button type="submit" disabled={blocked} className="btn-primary disabled:opacity-60">
           {saving ? '保存中…' : '保存する'}
         </button>
         {saved && (
@@ -367,6 +383,7 @@ export default function WorkspaceProfileForm({
           </>
         )}
       </div>
+      </fieldset>
     </form>
   );
 }

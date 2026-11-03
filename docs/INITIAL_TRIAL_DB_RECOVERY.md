@@ -32,3 +32,24 @@ $$;
 ```
 
 置換は既存の実行ACLを維持する。復旧判断が終わるまで登録・再試行は再開しない。本番業務データの書き込みを伴う復旧試験は行わない。
+
+
+## 追加承認済みのプロフィール関数
+
+追加適用対象は `20261103045800_save_workspace_company_profile_atomic.sql` 1件だけ。既存表/列/ポリシーの変更はない。登録用と合わせてこの2件を指定して適用し、既存SQLの一括実行は行わない。
+
+適用前の不存在/既存関数確認値・全列/ポリシー/GRANT・会社23の10種の確認値はBusiness側 `backups/2026-11-03-initial-trial/before-final-*.json` に保存。新規2関数には以前の定義が存在しないため、その事実をバックアップに残す。既存4ポリシーの旧定義も保存済み。
+
+プロフィール保存の異常時は、次の関数1つの安全停止で新画面の保存を止め、取得済み値・未確定意図を維持する。旧版の2要求保存画面へ戻さない。旧タブは再読み込みし、新画面だけで操作する。台帳/既存データの削除や既存RLSの変更による復旧は含めない。
+
+```sql
+CREATE OR REPLACE FUNCTION public.save_workspace_company_profile(
+ p_company_id integer,p_expected jsonb,p_values jsonb
+) RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path=pg_catalog AS $$
+BEGIN
+ RAISE EXCEPTION 'company profile save temporarily unavailable' USING ERRCODE='55000';
+END;
+$$;
+```
+
+修正後はレビュー済みマイグレーション内のこの関数定義をCREATE OR REPLACEとして適用する。既存ACLを維持し、テーブルやポリシーを再作成しない。安全停止→全行/ACL不変→関数だけの復旧は合成DBで実行済み。結果不明の保存は再取得で照合してから扱い、機械的に新しい内容で再送しない。
