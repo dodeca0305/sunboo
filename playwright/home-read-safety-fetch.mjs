@@ -35,7 +35,8 @@ globalThis.fetch = async (input, init) => {
         c.share ?? {
           company: c.data.workspace_companies[0],
           profile: c.data.workspace_company_profiles[0] ?? null,
-          shared_sections: ['roadmap'],
+          shared_sections: ['company', 'profile', 'roadmap', 'tax_returns'],
+          tax_returns: c.data.workspace_tax_return_profiles ?? [],
           statuses: [],
         },
       );

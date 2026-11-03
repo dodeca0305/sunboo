@@ -32,7 +32,9 @@
     "test:e2e:tax-return-safety": "node playwright/verify-tax-return-safety.mjs",
     "test:e2e:home-read-safety": "node playwright/verify-home-read-safety.mjs",
     "test:e2e:planning-read-safety": "node playwright/verify-planning-read-safety.mjs",
-    "test:e2e:tax-execution-safety": "node playwright/verify-tax-execution-safety.mjs"
+    "test:e2e:tax-execution-safety": "node playwright/verify-tax-execution-safety.mjs",
+    "test:e2e:initial-trial-creation": "node playwright/verify-initial-trial-creation.mjs",
+    "test:e2e:initial-trial-sharing": "node playwright/verify-initial-trial-sharing.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
 import { Share2 } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { loadWorkspaceCompany } from '@/lib/workspaceLoader';
+import { loadWorkspaceCompanyForRead } from '@/lib/workspaceHomeData';
+import WorkspaceReadReloadButton from '@/components/WorkspaceReadReloadButton';
 import WorkspaceShareLinksPanel from './WorkspaceShareLinksPanel';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import PageHeader from '@/components/PageHeader';
@@ -15,16 +16,27 @@ import { loadWorkspaceShareLinks } from '@/lib/workspaceShareLinks';
 // 【Sprint34でデータ取得を共通化】company取得をsrc/lib/workspaceLoader.ts
 // （loadWorkspaceCompany）へ切り出した。共有リンク自体の取得は本ページ固有のため変更なし。
 
-export default async function WorkspaceSharePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function WorkspaceSharePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const companyId = Number(id);
   if (!Number.isInteger(companyId)) notFound();
 
   const supabase = await createServerSupabase();
-  if (!supabase) notFound();
-
-  const company = await loadWorkspaceCompany(supabase, companyId);
-  if (!company) notFound();
+  const result = await loadWorkspaceCompanyForRead(supabase, companyId);
+  if (result.status === 'missing') notFound();
+  if (!supabase || result.status !== 'loaded')
+    return (
+      <div role="alert">
+        <InformationCard kind="error" title="会社情報を取得できません">
+          <WorkspaceReadReloadButton />
+        </InformationCard>
+      </div>
+    );
+  const company = result.company;
 
   const links = await loadWorkspaceShareLinks(supabase, companyId);
 
@@ -42,7 +54,7 @@ export default async function WorkspaceSharePage({ params }: { params: Promise<{
 
       <InformationCard kind="info">
         発行したリンクを経営者に共有すると、ログイン不要で「会社概要」「年間ロードマップ」を
-        閲覧できます（編集はできません）。AI参謀・書類・会計分析はまだ共有できません。
+        閲覧できます（編集はできません）。管理画面と同じ判定入力を共有する場合は、発行前に決算実績の公開を明示的に選んでください。AI参謀・書類・会計分析はまだ共有できません。
         有効期限は7日・30日・無期限から選べます（初期値は30日）。
         期限内でも、不要になったリンクは「失効させる」で無効にできます。
       </InformationCard>

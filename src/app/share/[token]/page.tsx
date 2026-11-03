@@ -1,12 +1,13 @@
 import { AlertTriangle, Building2, CalendarRange } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import {
-  workspaceRowsToCompanyProfile, type WorkspaceCompanyProfileRow, type WorkspaceCompanyRow,
-} from '@/lib/workspaceCompanyProfile';
 import { buildWorkspaceTimelineEvents } from '@/lib/workspaceTimelineProducer';
 import { buildStateFromTimeline } from '@/lib/state';
 import { buildAnnualRoadmap } from '@/lib/roadmap';
-import { workspaceProcedureOccurrenceKey, type WorkspaceProcedureStatus, type WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus';
+import {
+  loadSharedWorkspaceRead,
+  loadSharedRoadmap,
+} from '@/lib/workspaceSharedReadData';
+import WorkspaceReadReloadButton from '@/components/WorkspaceReadReloadButton';
 import { applyCutoverToRoadmapYears } from '@/lib/submissionDirectoryCutover';
 import AnnualRoadmapView from '@/components/AnnualRoadmapView';
 import InformationCard from '@/components/InformationCard';
@@ -41,70 +42,64 @@ function InvalidLinkNotice({ message }: { message: string }) {
   );
 }
 
-export default async function SharedWorkspacePage({ params }: { params: Promise<{ token: string }> }) {
+export default async function SharedWorkspacePage({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}) {
   const { token } = await params;
 
-  if (!supabase) {
-    return <InvalidLinkNotice message="データベースに接続できませんでした。時間をおいて再度お試しください。" />;
-  }
-
-  const { data: viewData } = await supabase.rpc('get_shared_workspace_view', { p_token: token });
-  const view = viewData as {
-    company?: WorkspaceCompanyRow;
-    profile?: WorkspaceCompanyProfileRow | null;
-    shared_sections?: string[];
-    statuses?: { procedure_id: number; occurrence_key: string; status: WorkspaceProcedureStatus }[];
-  } | null;
-
-  if (!view || !view.company) {
-    return <InvalidLinkNotice message="このリンクは無効か、有効期限が切れています。共有元にお問い合わせください。" />;
-  }
-
+  const view = await loadSharedWorkspaceRead(supabase, token);
+  if (view.status === 'invalid')
+    return (
+      <InvalidLinkNotice message="このリンクは無効か、有効期限が切れています。共有元にお問い合わせください。" />
+    );
+  if (view.status === 'not_shared')
+    return (
+      <InvalidLinkNotice message="会社概要は共有されていません。共有元に公開範囲をご確認ください。" />
+    );
+  if (view.status !== 'loaded' || !supabase)
+    return (
+      <div className="mx-auto max-w-md px-4 py-20" role="alert">
+        <InformationCard kind="error" title="共有情報を取得できません">
+          リンクが無効とは判定できません。通信状態をご確認のうえ再読み込みしてください。
+          <WorkspaceReadReloadButton />
+        </InformationCard>
+      </div>
+    );
   const company = view.company;
-  const profile = view.profile ?? null;
-
-  // 共有範囲が取得できない場合は安全側に倒し、何も追加共有しない。
-  const sharedSections = view.shared_sections ?? [];
-  const roadmapShared = sharedSections.includes('roadmap');
-
-  const statusMap: WorkspaceProcedureStatusMap = {};
-  if (roadmapShared) {
-    for (const row of view.statuses ?? []) {
-      statusMap[workspaceProcedureOccurrenceKey(row.procedure_id, row.occurrence_key)] = row.status;
-    }
-  }
-
-  const [{ data: prefData }, { data: muniData }] = await Promise.all([
-    supabase.from('prefectures').select('name').eq('code', company.prefecture_code).maybeSingle(),
-    supabase.from('municipalities').select('name').eq('code', company.municipality_code).maybeSingle(),
-  ]);
-  const prefectureName = (prefData as { name: string } | null)?.name ?? '';
-  const municipalityName = (muniData as { name: string } | null)?.name ?? '';
-
-  const companyProfile = workspaceRowsToCompanyProfile(company, profile, prefectureName, municipalityName);
-
-  let roadmapYears: Awaited<ReturnType<typeof buildAnnualRoadmap>> = [];
-
-  if (roadmapShared) {
-    try {
-      const timelineEvents = buildWorkspaceTimelineEvents(companyProfile);
-      const state = buildStateFromTimeline(timelineEvents);
-      roadmapYears = await buildAnnualRoadmap(supabase, companyProfile, state, 3);
-    } catch {
-      // ロードマップの計算に失敗しても会社概要は表示を続ける
-    }
-
-    // 【Phase5-2b】Workspace（workspaceLoader.ts）と同じCutoverをShareにも適用する。
-    try {
-      roadmapYears = await applyCutoverToRoadmapYears(supabase, roadmapYears, {
-        municipalityCode: company.municipality_code,
-        prefectureCode: company.prefecture_code,
-      });
-    } catch {
-      // Cutoverの失敗時は旧Resolverの結果をそのまま表示する
-    }
-  }
-  const totalItemCount = roadmapYears.reduce((sum, y) => sum + y.items.length, 0);
+  const roadmapShared = view.sections.includes('roadmap');
+  const companyProfile =
+    view.profile.status === 'loaded' ? view.profile.value : null;
+  const prefectureName = companyProfile?.prefectureName ?? '';
+  const municipalityName = companyProfile?.municipalityName ?? '';
+  const statusMap =
+    view.statuses.status === 'loaded' ? view.statuses.value : undefined;
+  const derived = roadmapShared
+    ? await loadSharedRoadmap(
+        supabase,
+        view,
+        async (client, profile, taxReturns) => {
+          const state = buildStateFromTimeline(
+            buildWorkspaceTimelineEvents(profile, taxReturns),
+          );
+          const years = await buildAnnualRoadmap(client, profile, state, 3);
+          return applyCutoverToRoadmapYears(client, years, {
+            municipalityCode: company.municipality_code,
+            prefectureCode: company.prefecture_code,
+          });
+        },
+      )
+    : null;
+  const roadmapYears = derived?.status === 'loaded' ? derived.value : [];
+  const missingInputScope =
+    roadmapShared &&
+    (view.profile.status === 'not_shared' ||
+      view.taxReturns.status === 'not_shared');
+  const totalItemCount = roadmapYears.reduce(
+    (sum, y) => sum + y.items.length,
+    0,
+  );
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -122,23 +117,43 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
         <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-sunboo-ink-muted" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-sunboo-card-title text-sunboo-ink">{company.name}</h1>
-            <span className="tag">{CORPORATE_TYPE_LABEL[company.corporate_type] ?? company.corporate_type}</span>
+            <h1 className="text-sunboo-card-title text-sunboo-ink">
+              {company.name}
+            </h1>
+            <span className="tag">
+              {CORPORATE_TYPE_LABEL[company.corporate_type] ??
+                company.corporate_type}
+            </span>
           </div>
           <p className="mt-1 text-xs text-sunboo-ink-muted">
             {prefectureName}
             {municipalityName}
-            {companyProfile.address ?? ''}
-            {company.fiscal_month ? ` ／ 決算月: ${company.fiscal_month}月` : ''}
+            {companyProfile?.address ?? ''}
+            {company.fiscal_month
+              ? ` ／ 決算月: ${company.fiscal_month}月`
+              : ''}
           </p>
         </div>
       </div>
 
+      {view.profile.status === 'unavailable' && (
+        <div role="alert">
+          <InformationCard
+            kind="error"
+            title="会社プロフィール・所在地を取得できません"
+          >
+            会社名は表示しています。未取得の入力を既定値に置き換えず、予定の算出を保留しています。
+            <WorkspaceReadReloadButton />
+          </InformationCard>
+        </div>
+      )}
       {roadmapShared && (
         <>
           <div className="mb-4 flex items-center gap-2">
             <CalendarRange className="h-5 w-5 text-sunboo-ink-muted" />
-            <h2 className="text-sm font-bold text-sunboo-ink">年間ロードマップ</h2>
+            <h2 className="text-sm font-bold text-sunboo-ink">
+              年間ロードマップ
+            </h2>
           </div>
 
           {/* Confidence（情報不足・推定タグ）の説明は控えめなDisclaimerとして小さく表示する */}
@@ -148,12 +163,41 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
             付いた手続きは、会社情報の登録状況によって内容が変わる可能性があるという意味です。
           </InformationCard>
 
-          {totalItemCount === 0 ? (
+          {view.statuses.status === 'unavailable' && (
+            <div role="alert">
+              <InformationCard kind="error" title="対応状況を取得できません">
+                未着手とは表示しません。
+                <WorkspaceReadReloadButton />
+              </InformationCard>
+            </div>
+          )}
+          {missingInputScope ? (
+            <InformationCard
+              kind="info"
+              title="予定の算出に必要な入力が共有されていません"
+            >
+              このリンクの公開範囲では管理画面と同じ入力を確認できないため、予定を保留しています。共有元に必要な公開範囲の確認を依頼してください。決算実績を許可なく取得することはありません。
+            </InformationCard>
+          ) : derived?.status !== 'loaded' ? (
+            <div role="alert" data-testid="shared-roadmap-unavailable">
+              <InformationCard kind="error" title="予定を取得できません">
+                必要な入力・診断ルール・窓口・提出先の取得が完了するまで、予定なしとは判定しません。
+                <WorkspaceReadReloadButton />
+              </InformationCard>
+            </div>
+          ) : company.fiscal_month === null ? (
             <InformationCard kind="info">
-              今年の手続き予定はまだ登録されていません。
+              決算月が未登録のため、予定の算出を保留しています。
+            </InformationCard>
+          ) : totalItemCount === 0 ? (
+            <InformationCard kind="info">
+              共有された入力から算出される手続き予定はありません。登録情報と対象範囲を共有元にご確認ください。
             </InformationCard>
           ) : (
-            <AnnualRoadmapView roadmapYears={roadmapYears} statusMap={statusMap} />
+            <AnnualRoadmapView
+              roadmapYears={roadmapYears}
+              statusMap={statusMap}
+            />
           )}
         </>
       )}
@@ -163,7 +207,9 @@ export default async function SharedWorkspacePage({ params }: { params: Promise<
         税務・労務の最終判断は必ず税理士・社労士等の専門家にご確認ください。
       </InformationCard>
 
-      <p className="mt-6 text-center text-[11px] text-sunboo-mist">Powered by SUNBOO経営ナビ</p>
+      <p className="mt-6 text-center text-[11px] text-sunboo-mist">
+        Powered by SUNBOO経営ナビ
+      </p>
     </div>
   );
 }

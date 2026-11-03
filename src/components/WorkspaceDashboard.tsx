@@ -109,8 +109,10 @@ function TodayActionRow({ action, companyId }: { action: WorkspaceDecisionAction
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 text-sm">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <span className="tag">{action.procedureId ? '手続きの対応候補・該当要否を確認' : 'した方がいいこと'}</span>
         <span className="font-medium text-sunboo-ink">{action.title}</span>
-        <span className={`text-xs ${toneClass}`}>{action.reason}</span>
+        <span className={`text-xs ${toneClass}`}>理由：{action.reason}</span>
+        <p className="w-full text-xs text-sunboo-ink-muted">担当：未設定（会社の担当者・必要に応じて顧問専門家）／期限：{action.dueDate ?? '未設定・要確認'}／完了条件：対応先で必要な作業と記録を確認してください。</p>
       </div>
       <Link href={actionHrefFor(companyId, action)} className="btn-secondary shrink-0 px-3 py-1.5 text-xs">
         対応内容を確認
