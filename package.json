@@ -36,7 +36,8 @@
     "test:e2e:initial-trial-creation": "node playwright/verify-initial-trial-creation.mjs",
     "test:e2e:initial-trial-sharing": "node playwright/verify-initial-trial-sharing.mjs",
     "test:e2e:initial-trial-flow": "node playwright/verify-initial-trial-flow.mjs",
-    "test:e2e:password-recovery": "node playwright/verify-password-recovery.mjs"
+    "test:e2e:password-recovery": "node playwright/verify-password-recovery.mjs",
+    "test:e2e:recovery-resend-safety": "node playwright/verify-recovery-resend-safety.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

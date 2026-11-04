@@ -3,14 +3,17 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import { recoveryKey, recoveryPendingKey, updateRecoveredPassword } from '@/lib/passwordRecovery';
+import { RECOVERY_REQUEST_KEY, RECOVERY_REQUEST_LOCK, clearRecoveryRequest, parseRecoveryAttempt } from '@/lib/recoveryRequestGuard';
 export default function ResetPasswordForm() {
     const [user, setUser] = useState<{
         id: string;
         email: string;
     } | null>(null), [password, setPassword] = useState(''), [confirmation, setConfirmation] = useState(''), [busy, setBusy] = useState(false), [saved, setSaved] = useState(false), [pending, setPending] = useState(false), [message, setMessage] = useState('リンクを確認しています…');
     const lock = useRef(false);
+    const requestId = useRef<string | undefined>(undefined);
     useEffect(() => {
         let active = true;
+        try { requestId.current = parseRecoveryAttempt(localStorage.getItem(RECOVERY_REQUEST_KEY))?.id; } catch { /* Password verification remains mandatory. */ }
         const client = createBrowserSupabase();
         if (!client) {
             const frame = requestAnimationFrame(() => setMessage('認証に接続できません。再設定メールを依頼し直してください。'));
@@ -67,6 +70,13 @@ export default function ResetPasswordForm() {
                 throw Error();
             const result = await updateRecoveredPassword(client, user.id, password);
             if (result === 'saved') {
+                try {
+                    // Use the send lock for the compare/remove as well: another
+                    // tab's newer intent must never be cleared between them.
+                    await navigator.locks?.request(RECOVERY_REQUEST_LOCK, { ifAvailable: true }, held => {
+                        if (held) clearRecoveryRequest(localStorage, requestId.current);
+                    });
+                } catch { /* Never resend a confirmed password update. */ }
                 sessionStorage.removeItem(recoveryKey(user.id));
                 sessionStorage.removeItem(recoveryPendingKey(user.id));
                 setSaved(true);
