@@ -13,26 +13,25 @@ export default function ResetPasswordForm() {
     const requestId = useRef<string | undefined>(undefined);
     useEffect(() => {
         let active = true;
-        try { requestId.current = parseRecoveryAttempt(localStorage.getItem(RECOVERY_REQUEST_KEY))?.id; } catch { /* Password verification remains mandatory. */ }
-        const client = createBrowserSupabase();
-        if (!client) {
-            const frame = requestAnimationFrame(() => setMessage('認証に接続できません。再設定メールを依頼し直してください。'));
-            return () => cancelAnimationFrame(frame);
-        }
-        const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
-            if (event === 'PASSWORD_RECOVERY' && session?.user.id) {
-                try {
-                    sessionStorage.setItem(recoveryKey(session.user.id), 'active');
-                    sessionStorage.removeItem(recoveryPendingKey(session.user.id));
+        let unsubscribe: (() => void) | undefined;
+        const abort = new AbortController();
+        const initialize = async () => {
+            if (!active) return;
+            try { requestId.current = parseRecoveryAttempt(localStorage.getItem(RECOVERY_REQUEST_KEY))?.id; } catch { /* Password verification remains mandatory. */ }
+            const client = createBrowserSupabase();
+            if (!client) { setMessage('認証に接続できません。再設定メールを依頼し直してください。'); return; }
+            const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
+                if (event === 'PASSWORD_RECOVERY' && session?.user.id) {
+                    try {
+                        sessionStorage.setItem(recoveryKey(session.user.id), 'active');
+                        sessionStorage.removeItem(recoveryPendingKey(session.user.id));
+                    } catch { /* The submit step requires storage before changing credentials. */ }
                 }
-                catch { /* The submit step requires storage before changing credentials. */ }
-            }
-        });
-        void (async () => {
+            });
+            unsubscribe = () => subscription.unsubscribe();
             try {
                 const r = await client.auth.getUser();
-                if (!active)
-                    return;
+                if (!active) return;
                 window.history.replaceState(null, '', '/admin/reset-password');
                 const u = r.data.user;
                 if (r.error || !u?.email || sessionStorage.getItem(recoveryKey(u.id)) !== 'active') {
@@ -43,13 +42,22 @@ export default function ResetPasswordForm() {
                 const unknown = sessionStorage.getItem(recoveryPendingKey(u.id)) === 'unknown';
                 setPending(unknown);
                 setMessage(unknown ? '前回の変更結果を確認できません。再送せず、新しいパスワードでログインを確認してください。' : 'メールの認証を確認しました。新しいパスワードを入力してください。');
+            } catch {
+                if (active) setMessage('再設定リンクを確認できません。接続を確認し、同じブラウザで再設定メールを依頼し直してください。');
             }
-            catch {
-                if (active)
-                    setMessage('再設定リンクを確認できません。接続を確認し、同じブラウザで再設定メールを依頼し直してください。');
+        };
+        // A callback must not consume a code while another tab is publishing or
+        // restoring its verifier. Reloading the sender releases this lock; the
+        // pre-published verifier still permits the callback to finish.
+        void (async () => {
+            try {
+                if (navigator.locks) await navigator.locks.request(RECOVERY_REQUEST_LOCK, { signal: abort.signal }, initialize);
+                else await initialize();
+            } catch {
+                if (active) setMessage('本人確認を開始できません。接続とブラウザの設定を確認してください。');
             }
         })();
-        return () => { active = false; subscription.unsubscribe(); };
+        return () => { active = false; abort.abort(); unsubscribe?.(); };
     }, []);
     async function submit(e: React.FormEvent) {
         e.preventDefault();

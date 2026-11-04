@@ -13,6 +13,11 @@ export function createRecoveryRequestClient() {
     const client = createBrowserClient(url, key, {
         isSingleton: false, cookies: buffer.cookies,
         auth: { autoRefreshToken: false, detectSessionInUrl: false },
+        global: { fetch: async (input, init) => {
+            const target = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
+            if (target.origin === new URL(url).origin && target.pathname === '/auth/v1/recover') buffer.commit();
+            return fetch(input, init);
+        } },
     });
-    return { client, commit: buffer.commit };
+    return { client, commit: buffer.commit, rollback: buffer.rollback };
 }

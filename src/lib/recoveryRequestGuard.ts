@@ -12,7 +12,7 @@ export type RecoveryRequestResult = RecoveryAttempt['outcome'] | 'blocked' | 'un
 type Dependencies = {
     storage: Storage;
     exclusive: (work: () => Promise<RecoveryRequestResult>) => Promise<RecoveryRequestResult>;
-    prepare: () => { client: Pick<BrowserSupabaseClient, 'auth'>; commit: () => void };
+    prepare: () => { client: Pick<BrowserSupabaseClient, 'auth'>; commit: () => void; rollback: () => void };
     now: () => number;
     id: () => string;
 };
@@ -52,12 +52,16 @@ export async function requestRecoverySafely(deps: Dependencies, input: { email: 
                 else if (error.status === 429) result = 'rate_limited';
                 else if (typeof error.status === 'number' && error.status >= 400 && error.status < 500 && error.status !== 408) result = 'rejected';
             } catch { /* A delivery may have occurred; no automatic resend. */ }
+            const serviceRateLimited = result === 'rate_limited';
             if (result === 'sent' || result === 'unknown') {
                 try { prepared.commit(); } catch { result = 'unknown'; }
+            } else {
+                try { prepared.rollback(); } catch { result = 'unknown'; }
             }
-            // A definite rejection leaves the original live cookies untouched.
+            // A definite rejection restores the earlier verifier; an uncertain
+            // response keeps the published key and must never auto-resend.
             attempt.outcome = result;
-            if (result === 'rate_limited') attempt.notBefore = now + 3_600_000;
+            if (serviceRateLimited) attempt.notBefore = now + 3_600_000;
             save();
             return result;
         });
