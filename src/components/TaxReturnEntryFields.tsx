@@ -6,7 +6,7 @@ import {
 } from '@/lib/taxReturnProfile';
 import type {
   ConsumptionTaxInterimFrequency, ConsumptionTaxStatus, InterimFilingStatus,
-  InvoiceRegistrationStatus, TaxationMethod, WithholdingTaxCycle,
+  InvoiceRegistrationStatus, TaxationMethod,
 } from '@/lib/companyProfile';
 import SegmentedControl from '@/components/SegmentedControl';
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
@@ -44,11 +44,7 @@ export const CONSUMPTION_INTERIM_FREQ_LABEL: Record<ConsumptionTaxInterimFrequen
   '11': '年11回',
 };
 
-export const WITHHOLDING_CYCLE_LABEL: Record<WithholdingTaxCycle, string> = {
-  monthly: '毎月納付',
-  special_exception: '年2回（納期の特例）',
-  unset: '未設定',
-};
+export { WITHHOLDING_CYCLE_LABEL } from '@/lib/paymentFrequencyLabels';
 
 const CONFIDENCE_LABEL: Record<'high' | 'medium' | 'low', string> = {
   high: '正確',

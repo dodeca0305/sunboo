@@ -121,7 +121,7 @@ function detectMismatches(profile: CompanyProfile, taxReturnProfile: TaxReturnPr
     const actual = latest.withholdingTaxCycleActual;
     mismatches.push({
       field: 'withholdingTaxCycle',
-      label: '源泉所得税の納付サイクル',
+      label: '源泉所得税を納める回数',
       currentLabel: WITHHOLDING_CYCLE_LABEL[profile.withholdingTaxCycle],
       suggestedLabel: WITHHOLDING_CYCLE_LABEL[actual],
       apply: (p) => ({ ...p, withholdingTaxCycle: actual }),

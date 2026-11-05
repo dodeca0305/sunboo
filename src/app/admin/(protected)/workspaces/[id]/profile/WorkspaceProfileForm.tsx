@@ -1,5 +1,6 @@
 'use client';
 
+import { WITHHOLDING_CYCLE_LABEL, RESIDENT_TAX_CYCLE_LABEL, WITHHOLDING_FREQUENCY_TITLE, RESIDENT_TAX_FREQUENCY_TITLE, WITHHOLDING_FREQUENCY_HELP, RESIDENT_TAX_FREQUENCY_HELP } from '@/lib/paymentFrequencyLabels';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, ArrowRight } from 'lucide-react';
@@ -47,22 +48,8 @@ const INVOICE_LABEL: Record<InvoiceRegistrationStatus, string> = {
   not_registered: '未登録',
 };
 
-const WITHHOLDING_CYCLE_LABEL: Record<WithholdingTaxCycle, string> = {
-  monthly: '毎月納付',
-  special_exception: '納期の特例（年2回）',
-  unset: '未設定',
-};
 
-// 住民税特別徴収（地方税）の納期区分。源泉所得税の納期（WITHHOLDING_CYCLE_LABEL、国税）とは
-// 別制度のため、文言を「住民税特別徴収の納期」と明示し混同を避ける。
-// 【Sprint47レビュー対応】「special」は従業員数等から自動的に該当するものではなく、市区町村へ
-// 申請し承認を受けて初めて選べる制度のため、ラベル自体に「承認済み」であることを明記する
-// （従業員数だけで自動判定しない、利用者の明示選択を維持する設計）。
-const RESIDENT_TAX_CYCLE_LABEL: Record<ResidentTaxPaymentCycle, string> = {
-  unknown: '未設定',
-  monthly: '毎月納付',
-  special: '年2回納付（納期の特例・自治体の承認済み）',
-};
+// Shared labels preserve separate national/local values and approval requirements.
 
 const FISCAL_MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 
@@ -362,7 +349,7 @@ export default function WorkspaceProfileForm({
       </div>
 
       <div>
-        <ProfileFieldLabel field="withholdingTaxCycle" kind="confirm">源泉所得税の納付サイクル</ProfileFieldLabel>
+        <ProfileFieldLabel field="withholdingTaxCycle" kind="confirm">{WITHHOLDING_FREQUENCY_TITLE}</ProfileFieldLabel>
         <select
           id={profileInputId("withholdingTaxCycle")}
           value={profile.withholdingTaxCycle}
@@ -374,11 +361,12 @@ export default function WorkspaceProfileForm({
           ))}
         </select>
         <FieldHint>この情報は源泉所得税の納付期限の判定に利用します。</FieldHint>
+        <p className="mt-1.5 text-xs leading-relaxed text-amber-800">{WITHHOLDING_FREQUENCY_HELP}</p>
       </div>
 
       {profile.localTaxCollectionMethod === 'special_collection' && (
         <div>
-          <ProfileFieldLabel field="residentTaxPaymentCycle" kind="confirm">住民税特別徴収の納期</ProfileFieldLabel>
+          <ProfileFieldLabel field="residentTaxPaymentCycle" kind="confirm">{RESIDENT_TAX_FREQUENCY_TITLE}</ProfileFieldLabel>
           <select
             id={profileInputId("residentTaxPaymentCycle")}
             value={profile.residentTaxPaymentCycle}
@@ -390,10 +378,7 @@ export default function WorkspaceProfileForm({
             ))}
           </select>
           <FieldHint>この情報は住民税特別徴収の納付期限の判定に利用します。</FieldHint>
-          <p className="mt-1.5 text-xs leading-relaxed text-amber-700">
-            「年2回納付」は、市区町村への申請が承認されている場合にのみ選択してください。従業員数だけで
-            自動的に対象になるものではありません。未承認・未確認の場合は「未設定」のままにしてください。
-          </p>
+          <p className="mt-1.5 text-xs leading-relaxed text-amber-700">{RESIDENT_TAX_FREQUENCY_HELP}</p>
         </div>
       )}
 
