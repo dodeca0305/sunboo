@@ -12,11 +12,11 @@ import { LayoutDashboard, Building2, Receipt, CalendarRange, FileStack, ShieldCh
 const TABS = [
   { label: 'ホーム', hrefSuffix: '', icon: LayoutDashboard },
   { label: '会社プロフィール', hrefSuffix: '/profile', icon: Building2 },
-  { label: '決算実績', hrefSuffix: '/tax-returns', icon: Receipt },
+  { label: '過去の決算・申告情報', hrefSuffix: '/tax-returns', icon: Receipt },
   { label: '売上目標', hrefSuffix: '/growth', icon: TrendingUp },
   { label: '年間ロードマップ', hrefSuffix: '/roadmap', icon: CalendarRange },
   { label: '書類', hrefSuffix: '/documents', icon: FileStack },
-  { label: '税務レビュー', hrefSuffix: '/tax-review', icon: ShieldCheck },
+  { label: '税金の確認結果', hrefSuffix: '/tax-review', icon: ShieldCheck },
   { label: '共有', hrefSuffix: '/share', icon: Share2 },
 ] as const;
 

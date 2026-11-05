@@ -192,7 +192,7 @@ export default async function WorkspaceCompanyPage({
             )}
           </span>
         }
-        subtitle="今日確認すべきことと、今年の手続きの見通しをまとめています。"
+        subtitle="まず「今日やること」を確認してください。必要な情報や手続きはメニューから開けます。"
       />
       <WorkspaceCompletionFeedback companyId={companyId} />
       {failed && (
@@ -230,12 +230,12 @@ export default async function WorkspaceCompanyPage({
         >
           <h2 className="font-semibold">今日やること</h2>
           <p>
-            取得できません。必要な情報が揃っていないため、残件数・期限・対応不要の判断は確定していません。
+            必要なデータを取得できないため、対応が必要かどうかはまだ判断していません。上の「再読み込み」を押してください。
           </p>
         </section>
       )}
       <details className="card space-y-3" open={failed} data-testid="home-source-details">
-        <summary className="cursor-pointer font-semibold">登録情報・今月の数値を見る</summary>
+        <summary className="cursor-pointer font-semibold">会社情報・今月の売上やお金を見る</summary>
         <div className="space-y-4 pt-3">
           <section className="card space-y-3" aria-label="取得済み情報">
             <h2 className="font-semibold">登録情報・今月の数値</h2>

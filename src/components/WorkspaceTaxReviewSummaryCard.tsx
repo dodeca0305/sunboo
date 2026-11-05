@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { ShieldCheck } from 'lucide-react';
 import type { WorkspaceTaxReviewSummary } from '@/lib/taxIntelligence/reviewSummary';
 
-// 会社ホームの「税務レビュー要約」。判定・集計は src/lib/taxIntelligence/reviewSummary.ts が担い、
+// 会社ホームの「税金の確認状況」。判定・集計は src/lib/taxIntelligence/reviewSummary.ts が担い、
 // ここは表示のみ。「未対応レビュー」(tax-review画面と同範囲)と「有効な税務チェックの評価状況」は
 // 別の指標として並べ、0件・未評価を「問題なし」と読ませない。
 
@@ -22,21 +22,21 @@ export default function WorkspaceTaxReviewSummaryCard({
       <div className="flex items-start gap-3">
         <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-sunboo-ink-muted" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-sunboo-ink">税務レビュー要約</p>
+          <p className="text-sm font-semibold text-sunboo-ink">税金の確認状況</p>
           <p className="mt-1 text-xs leading-relaxed text-sunboo-ink-muted">
-            Tax Intelligenceの確認状況です。件数が0でも税務上の問題が無いことを示すものではありません。
+            登録情報を使った税金のチェック状況です。0件や未チェックは、税務上の問題がないという意味ではありません。
           </p>
         </div>
         <Link href={`/admin/workspaces/${companyId}/tax-review`} className="btn-secondary shrink-0 text-xs">
-          税務レビューを開く
+          税金の確認結果を見る
         </Link>
       </div>
 
       <dl className="grid gap-3 sm:grid-cols-2">
         <div>
-          <dt className="text-xs text-sunboo-ink-muted">未対応レビュー（税務レビュー画面と同範囲）</dt>
+          <dt className="text-xs text-sunboo-ink-muted">まだ確認が終わっていない項目</dt>
           <dd className="mt-1 text-sm text-sunboo-ink" data-testid="tax-summary-open">
-            {openCount === null ? '取得できませんでした。税務レビュー画面で確認してください。' : `${openCount}件`}
+            {openCount === null ? '取得できませんでした。「税金の確認結果」を開いて確認してください。' : `${openCount}件`}
           </dd>
         </div>
         <div>
