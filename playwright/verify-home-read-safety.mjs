@@ -461,6 +461,29 @@ try {
   await page.waitForURL(home+'/profile#company-profile-fiscalMonth');
   await page.waitForFunction(()=>document.activeElement?.id==='company-profile-fiscalMonth');
   const guidance = page.getByRole('region',{name:'入力する項目の案内',exact:true});
+  async function selectArrows() {
+    const arrows = await page.locator('select.form-select:not([multiple]):not([size]),select.form-input:not([multiple]):not([size])').evaluateAll(elements=>elements.filter(el=>el.getBoundingClientRect().width>0).map(el=>({image:getComputedStyle(el).backgroundImage,padding:Number.parseFloat(getComputedStyle(el).paddingRight)})));
+    assert.ok(arrows.length>0);
+    assert.ok(arrows.every(value=>value.image!=='none' && value.padding>=32));
+  }
+  await selectArrows();
+  await page.locator('#company-profile-fiscalMonth').focus();
+  await page.keyboard.press('Tab');
+  assert.equal(await page.locator('#company-profile-address').evaluate(el=>el===document.activeElement),true);
+  await page.keyboard.press('Shift+Tab');
+  assert.equal(await page.locator('#company-profile-fiscalMonth').evaluate(el=>el===document.activeElement),true);
+  await page.locator('#company-profile-fiscalMonth').selectOption('1');
+  assert.equal(await page.locator('#company-profile-fiscalMonth').inputValue(),'1');
+  await page.locator('#company-profile-fiscalMonth').selectOption('');
+  assert.equal(await page.getByRole('textbox',{name:'資本金',exact:true}).evaluate(el=>getComputedStyle(el).backgroundImage),'none');
+  await page.getByRole('combobox',{name:/^源泉所得税を納める回数/}).waitFor();
+  await page.getByRole('combobox',{name:/^住民税（給与から天引きする分）を納める回数/}).waitFor();
+  assert.equal(await page.getByRole('option',{name:'毎月納める',exact:true}).count(),2);
+  assert.equal(await page.getByRole('option',{name:'わからない・未確認',exact:true}).count(),2);
+  await page.emulateMedia({forcedColors:'active'});
+  assert.equal(await page.locator('#company-profile-fiscalMonth').evaluate(el=>getComputedStyle(el).appearance),'auto');
+  await page.emulateMedia({forcedColors:'none'});
+
   assert.match(await guidance.textContent(),/未入力 3項目/);
   assert.match(await guidance.textContent(),/選択済みの項目や初期値/);
   assert.equal(await page.getByText('未入力',{exact:true}).count(),3);
@@ -485,6 +508,8 @@ try {
   assert.equal(await page.getByRole('textbox',{name:'資本金',exact:true}).evaluate(el=>el===document.activeElement),true);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
   await page.screenshot({path:'test-results/profile-missing-mobile.png',fullPage:false});
+  await page.locator('#company-profile-residentTaxPaymentCycle').scrollIntoViewIfNeeded();
+  await page.screenshot({path:'test-results/profile-select-mobile.png',fullPage:false});
   await page.setViewportSize({width:1280,height:900});
   await page.screenshot({path:'test-results/profile-missing-desktop.png',fullPage:true});
   await update({failTable:'workspace_company_profiles',failure:'error'});
@@ -498,6 +523,22 @@ try {
   await update();
   await page.goto(home,{waitUntil:'networkidle'});
   assert.equal(await page.getByTestId('home-missing-profile').count(),0);
+  await page.goto(home+'/tax-returns',{waitUntil:'networkidle'});
+  await page.getByRole('button',{name:'新しい申告実績を追加',exact:true}).click();
+  await page.getByRole('combobox',{name:'対象年度（決算日の年・必須）',exact:true}).waitFor();
+  await selectArrows();
+  await page.goto(home+'/documents',{waitUntil:'networkidle'});
+  await selectArrows();
+  await page.setViewportSize({width:375,height:812});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+  await page.setViewportSize({width:1280,height:900});
+  await page.goto(origin+'/start',{waitUntil:'networkidle'});
+  await selectArrows();
+  assert.equal(await page.getByText('▾',{exact:true}).count(),0);
+  await page.goto(origin+'/profile',{waitUntil:'networkidle'});
+  await page.getByText('源泉所得税を納める回数',{exact:true}).waitFor();
+  await page.getByText('住民税（給与から天引きする分）を納める回数',{exact:true}).waitFor();
+  assert.ok(await page.getByRole('button',{name:'毎月納める',exact:true}).count()>=2);
   // P08: filing is not payment; fixtures and auth remain local and synthetic.
   state = structuredClone(initial);
   await update();

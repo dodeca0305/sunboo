@@ -281,9 +281,6 @@ export default function StartPage() {
                   </option>
                 ))}
               </select>
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sunboo-ink-muted">
-                ▾
-              </span>
             </div>
             {errors.pref && (
               <p className="mt-1.5 flex items-center gap-1 text-xs text-red-500">
@@ -321,9 +318,6 @@ export default function StartPage() {
                       </option>
                     ))}
                   </select>
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sunboo-ink-muted">
-                    ▾
-                  </span>
                 </div>
               )}
               {errors.muni && (
@@ -492,9 +486,6 @@ export default function StartPage() {
                 </option>
               ))}
             </select>
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sunboo-ink-muted">
-              ▾
-            </span>
           </div>
           {errors.fm && (
             <p className="flex items-center gap-1 text-xs text-red-500">
