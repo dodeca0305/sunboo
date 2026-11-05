@@ -227,12 +227,16 @@ try {
   // Home/nav layout uses the same guarded sources; no writes while navigating.
   const companyNav=()=>page.getByRole('navigation',{name:'この会社のメニュー',exact:true});
   assert.equal(await companyNav().count(),1);
-  const links=[['ホーム',''],['会社プロフィール','/profile'],['決算実績','/tax-returns'],['売上目標','/growth'],['年間ロードマップ','/roadmap'],['書類','/documents'],['税務レビュー','/tax-review'],['共有','/share']];
+  const links=[['ホーム',''],['会社プロフィール','/profile'],['過去の決算・申告情報','/tax-returns'],['売上目標','/growth'],['年間ロードマップ','/roadmap'],['書類','/documents'],['税金の確認結果','/tax-review'],['共有','/share']];
   for(const [label,suffix] of links) assert.equal(await companyNav().getByRole('link',{name:label,exact:true}).getAttribute('href'),`/admin/workspaces/${companyId}${suffix}`);
   const todayCard=page.getByTestId('home-today');
   assert.equal(await page.getByTestId('home-source-details').getAttribute('open'),null);
   assert.equal(await page.getByTestId('home-progress-details').getAttribute('open'),null);
   assert.equal(await todayCard.getByRole('heading',{name:'今日やること',exact:true}).isVisible(),true);
+  await todayCard.getByText('先に確認したい対応候補です。期限を確認し、自社に必要なものから進めてください。',{exact:true}).waitFor();
+  const growthLink=todayCard.getByRole('link',{name:'今月の売上・お金を確認する',exact:true});
+  assert.equal(await growthLink.getAttribute('href'),`/admin/workspaces/${companyId}/growth?date=${month}-01`);
+  assert.ok((await todayCard.textContent()).includes('担当：未設定'));
   const todayBox=await todayCard.boundingBox();assert.ok(todayBox.y<450);
   assert.ok(await page.getByTestId('home-notification-details').getAttribute('open')!==null,'high-priority notices stay expanded');
   const administration=page.locator('aside:visible').getByText('管理メニュー',{exact:true});
@@ -249,6 +253,16 @@ try {
   await page.goto(origin+'/admin/offices',{waitUntil:'networkidle'});
   assert.equal(await companyNav().count(),0);
   assert.equal(await page.getByRole('navigation',{name:'管理メニュー',exact:true}).getByRole('link',{name:'管轄機関',exact:true}).getAttribute('aria-current'),'page');
+  // A failed tax-result read cannot claim zero items in the page subtitle.
+  await update({failTable:'workspace_tax_review_cases',failure:'error'});
+  await page.goto(home+'/tax-review',{waitUntil:'networkidle'});
+  await page.getByRole('heading',{name:'税金の確認結果',exact:true}).waitFor();
+  await page.getByText(`${initial.data.workspace_companies[0].name}の確認結果を取得できません`,{exact:true}).waitFor();
+  await page.getByText('確認結果を取得できませんでした。項目が0件かどうかはまだ分かりません。',{exact:true}).waitFor();
+  assert.equal(await page.getByText(`${initial.data.workspace_companies[0].name}のまだ確認が終わっていない項目：0件`,{exact:true}).count(),0);
+  await update({failTable:null});await page.getByRole('button',{name:'再読み込み',exact:true}).click();
+  await page.getByText(`${initial.data.workspace_companies[0].name}のまだ確認が終わっていない項目：0件`,{exact:true}).waitFor();
+  await page.getByText('登録情報をもとに、税金について確認したい項目を表示します。',{exact:false}).waitFor();
   // A different company URL must never keep links to the previously selected company.
   await page.goto(origin+'/admin/workspaces/900024/tax-returns',{waitUntil:'networkidle'});
   for(const [,suffix] of links) assert.ok(await companyNav().locator(`a[href="/admin/workspaces/900024${suffix}"]`).count());

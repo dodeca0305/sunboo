@@ -11,6 +11,7 @@ import {
 import WorkspaceTaxReviewView from '@/components/WorkspaceTaxReviewView';
 import PageHeader from '@/components/PageHeader';
 import InformationCard from '@/components/InformationCard';
+import WorkspaceReadReloadButton from '@/components/WorkspaceReadReloadButton';
 
 export default async function WorkspaceTaxReviewPage({
   params,
@@ -79,20 +80,24 @@ export default async function WorkspaceTaxReviewPage({
         backHref={`/admin/workspaces/${companyId}`}
         backLabel={`${company.name} に戻る`}
         icon={ShieldCheck}
-        title="税務レビュー"
-        subtitle={`${company.name}の確認が必要な税務論点（未対応 ${openCount}件）`}
+        title="税金の確認結果"
+        subtitle={loadError ? `${company.name}の確認結果を取得できません` : `${company.name}のまだ確認が終わっていない項目：${openCount}件`}
       />
 
 
       <InformationCard kind="disclaimer">
-        Tax Intelligenceの判定結果を確認するためのレビュー画面です。
-        REVIEWやUNKNOWNは税務上の問題を断定するものではなく、人による確認が必要な状態を示します。
+        登録情報をもとに、税金について確認したい項目を表示します。
+        「要確認（REVIEW）」は内容を確かめる必要があり、「判定不能（UNKNOWN）」は情報などが足りず判断できない状態です。
+        どちらも問題があると断定するものではありません。表示内容を確認し、必要に応じて税理士などの専門家へ相談してください。
       </InformationCard>
 
       {canManage && <ExecutionPanel key={`${user?.id}:${companyId}`} actor={user?.id ?? ""} companyId={companyId} controls={controls} loadError={controlLoadError} />}
 
       {loadError ? (
-        <InformationCard kind="error">{loadError}</InformationCard>
+        <InformationCard kind="error">
+          <p>確認結果を取得できませんでした。項目が0件かどうかはまだ分かりません。</p>
+          <WorkspaceReadReloadButton />
+        </InformationCard>
       ) : (
         <WorkspaceTaxReviewView
           key={items.map((item) => item.caseId).join(',')}

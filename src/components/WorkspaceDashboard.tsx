@@ -23,7 +23,7 @@ import { PRIORITY_TAG_CLASS, type StatusBadgeKind } from '@/lib/statusBadge';
 // 受け取って表示するだけで、計算は一切行わない。
 //
 // 【Sprint85で再構成】「朝一番に開く画面」として、優先順位を
-// 1)今日やること 2)次の期限 3)今年あと何件 4)最近完了したこと に統一した最上部カード
+// 1)今日やること 2)次の期限 3)未完了の手続き 4)最近完了したこと に統一した最上部カード
 // 「今日のポイント」を新設した。ただし新しい集計・DB問い合わせは一切行わず、既存の
 // advice.priority／advice.warnings／progress.total-progress.done／decisions.completed を
 // 並べ替えて表示するだけ（docs/SUNBOO_BRAND_EXPERIENCE_REVIEW.md参照）。
@@ -78,7 +78,7 @@ function AdviceItemRow({
           href={actionHref}
           className="btn-secondary shrink-0 px-3 py-1.5 text-xs"
         >
-          対応内容を確認
+          案内の詳細を見る
         </Link>
       )}
     </li>
@@ -106,16 +106,18 @@ function actionHrefFor(companyId: number, action: WorkspaceDecisionAction): stri
 
 function TodayActionRow({ action, companyId }: { action: WorkspaceDecisionAction; companyId: number }) {
   const toneClass = isActionOverdue(action) ? 'text-sunboo-danger' : 'text-sunboo-ink-muted';
+  const href = actionHrefFor(companyId, action);
+  const linkLabel = href.startsWith(`/admin/workspaces/${companyId}/growth`) ? '今月の売上・お金を確認する' : href.startsWith(`/admin/workspaces/${companyId}/roadmap`) ? '手続きの詳細を見る' : '案内の詳細を見る';
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 text-sm">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <span className="tag">{action.procedureId ? '手続きの対応候補・該当要否を確認' : 'した方がいいこと'}</span>
+        <span className="tag">{action.procedureId ? '自社に必要か確認' : 'した方がいいこと'}</span>
         <span className="font-medium text-sunboo-ink">{action.title}</span>
         <span className={`text-xs ${toneClass}`}>理由：{action.reason}</span>
         <p className="w-full text-xs text-sunboo-ink-muted">担当：未設定（会社の担当者・必要に応じて顧問専門家）／期限：{action.dueDate ?? '未設定・要確認'}／完了条件：対応先で必要な作業と記録を確認してください。</p>
       </div>
-      <Link href={actionHrefFor(companyId, action)} className="btn-secondary shrink-0 px-3 py-1.5 text-xs">
-        対応内容を確認
+      <Link href={href} className="btn-secondary shrink-0 px-3 py-1.5 text-xs">
+        {linkLabel}
       </Link>
     </li>
   );
@@ -229,11 +231,12 @@ export default function WorkspaceDashboard({
 
   return (
     <div className="space-y-4">
-      {/* 1〜4. 今日のポイント（今日やること／次の期限／今年あと何件／最近完了したこと） */}
+      {/* 1〜4. 今日のポイント（今日やること／次の期限／未完了の手続き／最近完了したこと） */}
       <section className="card space-y-3" data-testid="home-today" aria-label="今日やること">
         <CardEyebrow icon={Sunrise}>今日のポイント</CardEyebrow>
         <div>
           <h2 className="mb-2 text-lg font-semibold text-sunboo-ink">今日やること</h2>
+          <p className="mb-3 text-sm text-sunboo-ink-muted">先に確認したい対応候補です。期限を確認し、自社に必要なものから進めてください。</p>
           {todayActions.length > 0 ? (
             <ul className="space-y-2">
               {todayActions.map((action, idx) => (
@@ -242,7 +245,7 @@ export default function WorkspaceDashboard({
             </ul>
           ) : (
             <p className="text-sm text-sunboo-ink-muted">
-              直近で対応が必要な手続きはありません。安心して本業に集中してください。
+              今の登録情報から、優先して表示する対応候補はありません。今後の予定は「年間ロードマップ」で確認できます。
             </p>
           )}
         </div>
@@ -258,13 +261,13 @@ export default function WorkspaceDashboard({
                 </p>
               </>
             ) : (
-              <p className="mt-0.5 text-sm font-semibold text-sunboo-ink">しばらく期限はありません</p>
+              <p className="mt-0.5 text-sm font-semibold text-sunboo-ink">現在の案内には、期限のある手続きがありません</p>
             )}
           </div>
           <div>
-            <p className="text-sunboo-tiny uppercase text-sunboo-ink-muted">今年あと何件</p>
+            <p className="text-sunboo-tiny uppercase text-sunboo-ink-muted">未完了の手続き</p>
             <p className="mt-0.5 text-sm font-semibold text-sunboo-ink">
-              {progress.total > 0 ? `${remainingCount}件` : '計算中'}
+              {progress.total > 0 ? `${remainingCount}件` : '未集計'}
             </p>
           </div>
         </div>
@@ -312,6 +315,7 @@ export default function WorkspaceDashboard({
           {/* 確認が必要なこと（Sprint37「通知センター」をSprint85で改称・再整理） */}
           <div className="card space-y-2">
             <CardEyebrow icon={Bell}>確認が必要なこと</CardEyebrow>
+            <p className="text-sm text-sunboo-ink-muted">入力内容や期限などの注意点です。それぞれの説明を確認してください。</p>
             {notifications.length > 0 ? (
               <div className="divide-y divide-sunboo-mist">
                 {notifications.map((notification) => (
@@ -319,17 +323,17 @@ export default function WorkspaceDashboard({
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-sunboo-ink-muted">今、確認が必要なことはありません。安心して本業に集中してください。</p>
+              <p className="text-sm text-sunboo-ink-muted">今の登録情報では、お知らせする注意点はありません。会社の状況が変わったら入力内容も更新してください。</p>
             )}
           </div>
 
         </div>
       </details>
       <details className="card" data-testid="home-progress-details">
-        <summary className="cursor-pointer font-semibold">進捗・詳しい案内を見る</summary>
+        <summary className="cursor-pointer font-semibold">対応状況・詳しい案内を見る</summary>
         <div className="space-y-4 pt-3">
           <div className="card space-y-3">
-            <CardEyebrow icon={Compass}>意思決定</CardEyebrow>
+            <CardEyebrow icon={Compass}>対応候補の一覧</CardEyebrow>
             <p className="text-sm text-sunboo-ink">{decisions.summary}</p>
 
             {decisions.actions.length > 0 && (
@@ -346,7 +350,7 @@ export default function WorkspaceDashboard({
 
             {decisions.watchItems.length > 0 && (
               <div>
-                <div className="mb-1 text-xs font-semibold text-sunboo-ink-muted">注視事項</div>
+                <div className="mb-1 text-xs font-semibold text-sunboo-ink-muted">引き続き確認したいこと</div>
                 <ul className="space-y-1">
                   {decisions.watchItems.map((item, idx) => (
                     <li key={idx} className="text-xs text-sunboo-ink-muted">
@@ -360,7 +364,7 @@ export default function WorkspaceDashboard({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="card space-y-3">
-              <CardEyebrow icon={PieChart}>進捗サマリー</CardEyebrow>
+              <CardEyebrow icon={PieChart}>手続きの対応状況</CardEyebrow>
               {progress.total > 0 ? (
                 <>
                   <div>

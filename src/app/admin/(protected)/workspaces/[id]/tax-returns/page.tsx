@@ -49,7 +49,7 @@ export default async function WorkspaceTaxReturnsPage({
       <div className="flex items-center gap-2.5">
         <Receipt className="h-6 w-6 text-blue-600" />
         <h1 className="text-xl font-bold text-gray-900">
-          決算実績 — {company.name}
+          過去の決算・申告情報 — {company.name}
         </h1>
       </div>
 
@@ -57,8 +57,8 @@ export default async function WorkspaceTaxReturnsPage({
       <div className="card flex items-start gap-3 border-gray-200 bg-gray-50/60">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
         <p className="text-xs leading-relaxed text-gray-500">
-          決算のたびの申告実績（前期の確定値）を記録する一般的な参考情報です。消費税ステータス等の
-          State・年間ロードマップの精度向上に使われます。申告内容の最終確認は税理士等の専門家にご確認ください。
+          過去に提出した申告書を見ながら、決算の期間や税額などを入力します。入力した情報は、今後の手続きの案内に使われます。
+          分からない項目は推測せず、申告書や税理士などの専門家に確認してください。
         </p>
       </div>
 
