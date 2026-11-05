@@ -4,7 +4,6 @@ import { createServerSupabase } from '@/lib/supabase/server';
 import { loadWorkspaceCompanyForRead } from '@/lib/workspaceHomeData';
 import WorkspaceReadReloadButton from '@/components/WorkspaceReadReloadButton';
 import WorkspaceShareLinksPanel from './WorkspaceShareLinksPanel';
-import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import PageHeader from '@/components/PageHeader';
 import InformationCard from '@/components/InformationCard';
 import { loadWorkspaceShareLinks } from '@/lib/workspaceShareLinks';
@@ -50,7 +49,6 @@ export default async function WorkspaceSharePage({
         subtitle={`${company.name}の年間ロードマップを、経営者へそのまま渡せる形で共有します。`}
       />
 
-      <WorkspaceSubNav companyId={companyId} />
 
       <InformationCard kind="info">
         公開範囲を選んでリンクを発行し、相手に渡します。共有先は閲覧のみです。

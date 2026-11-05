@@ -9,7 +9,6 @@ import {
   type WorkspaceTaxReviewItem,
 } from '@/lib/taxIntelligence/reviewCases';
 import WorkspaceTaxReviewView from '@/components/WorkspaceTaxReviewView';
-import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import PageHeader from '@/components/PageHeader';
 import InformationCard from '@/components/InformationCard';
 
@@ -84,7 +83,6 @@ export default async function WorkspaceTaxReviewPage({
         subtitle={`${company.name}の確認が必要な税務論点（未対応 ${openCount}件）`}
       />
 
-      <WorkspaceSubNav companyId={companyId} />
 
       <InformationCard kind="disclaimer">
         Tax Intelligenceの判定結果を確認するためのレビュー画面です。

@@ -3,7 +3,6 @@ import { Building2 } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { loadWorkspaceCompanyForRead } from '@/lib/workspaceHomeData';
 import WorkspaceReadReloadButton from '@/components/WorkspaceReadReloadButton';
-import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import WorkspaceProfileForm from './WorkspaceProfileForm';
 import PageHeader from '@/components/PageHeader';
 import InformationCard from '@/components/InformationCard';
@@ -38,7 +37,6 @@ export default async function WorkspaceCompanyProfilePage({ params }: { params: 
         title="会社プロフィール"
         subtitle={`${company.name}の税務・労務の現況。手続きの判定に使う情報を登録します。`}
       />
-      <WorkspaceSubNav companyId={companyId} />
       {initialProfile === null ? (
         <InformationCard kind="error" title="会社プロフィールを読み込めませんでした">
           <p role="alert">

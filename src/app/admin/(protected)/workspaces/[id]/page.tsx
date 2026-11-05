@@ -1,17 +1,7 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import {
-  Building2,
-  Receipt,
-  CalendarRange,
-  Share2,
-  BarChart3,
-  FileStack,
-} from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
 import PageHeader from '@/components/PageHeader';
 import WorkspaceDashboard from '@/components/WorkspaceDashboard';
-import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import WorkspaceCompletionFeedback from '@/components/WorkspaceCompletionFeedback';
 import WorkspaceTodaySalesCard from '@/components/WorkspaceTodaySalesCard';
 import WorkspaceTaxReviewSummaryCard from '@/components/WorkspaceTaxReviewSummaryCard';
@@ -48,51 +38,6 @@ const CORPORATE_TYPE_LABEL: Record<string, string> = {
   kabushiki: '株式会社',
   godo: '合同会社',
 };
-
-const SECTIONS = [
-  {
-    icon: Building2,
-    title: '会社プロフィール',
-    description: '税務・労務の現況（CompanyProfile）',
-    hrefSuffix: '/profile',
-    comingSoon: false,
-  },
-  {
-    icon: Receipt,
-    title: '決算実績',
-    description: '決算のたびの申告実績（TaxReturnProfile）',
-    hrefSuffix: '/tax-returns',
-    comingSoon: false,
-  },
-  {
-    icon: CalendarRange,
-    title: '年間ロードマップ',
-    description: '今後の手続き予定の一覧',
-    hrefSuffix: '/roadmap',
-    comingSoon: false,
-  },
-  {
-    icon: Share2,
-    title: '共有',
-    description: '経営者への共有リンクの発行・管理',
-    hrefSuffix: '/share',
-    comingSoon: false,
-  },
-  {
-    icon: BarChart3,
-    title: '売上目標',
-    description: '月間目標・実績・行動の管理',
-    hrefSuffix: '/growth',
-    comingSoon: false,
-  },
-  {
-    icon: FileStack,
-    title: '書類',
-    description: '定款・登記簿謄本等の登録状況',
-    hrefSuffix: '/documents',
-    comingSoon: false,
-  },
-] as const;
 
 export default async function WorkspaceCompanyPage({
   params,
@@ -249,7 +194,6 @@ export default async function WorkspaceCompanyPage({
         }
         subtitle="今日確認すべきことと、今年の手続きの見通しをまとめています。"
       />
-      <WorkspaceSubNav companyId={companyId} />
       <WorkspaceCompletionFeedback companyId={companyId} />
       {failed && (
         <section role="alert" className="card space-y-3">
@@ -257,101 +201,6 @@ export default async function WorkspaceCompanyPage({
             一部の情報を取得できません。取得できた情報だけを表示しています。
           </p>
           <WorkspaceReadReloadButton />
-        </section>
-      )}
-      <section className="card space-y-3" aria-label="取得済み情報">
-        <h2 className="font-semibold">登録情報・今月の数値</h2>
-        <dl className="grid gap-3 sm:grid-cols-2">
-          <div data-testid="home-profile">
-            <dt>会社プロフィール・所在地</dt>
-            <dd>
-              {profile
-                ? profile.registered
-                  ? `従業員 ${profile.profile.employeeCount}人 / ${profile.profile.prefectureName}${profile.profile.municipalityName}`
-                  : '未登録'
-                : '取得できません'}
-            </dd>
-          </div>
-          <div data-testid="home-returns">
-            <dt>決算実績</dt>
-            <dd>
-              {sources.taxReturns.status === 'loaded'
-                ? `${sources.taxReturns.value.length}件${sources.taxReturns.value.length === 0 ? '（未登録）' : ''}`
-                : '取得できません'}
-            </dd>
-          </div>
-          <div data-testid="home-statuses">
-            <dt>登録済みの手続き状態</dt>
-            <dd>
-              {sources.procedureStatuses.status === 'loaded'
-                ? `${Object.keys(sources.procedureStatuses.value).length}件`
-                : '取得できません'}
-            </dd>
-          </div>
-          <div data-testid="home-documents">
-            <dt>要更新書類</dt>
-            <dd>
-              {sources.documents.status === 'loaded'
-                ? `${sources.documents.value.needsUpdateCount}件`
-                : '取得できません'}
-            </dd>
-          </div>
-          <div data-testid="home-monthly">
-            <dt>今月の売上・資金繰り登録値</dt>
-            <dd>
-              {sources.monthly.status !== 'loaded' ? (
-                '取得できません'
-              ) : sources.monthly.value ? (
-                <>
-                  <span className="block">
-                    売上目標 ¥
-                    {sources.monthly.value.target_revenue.toLocaleString(
-                      'ja-JP',
-                    )}{' '}
-                    / 売上実績 ¥
-                    {sources.monthly.value.actual_revenue.toLocaleString(
-                      'ja-JP',
-                    )}
-                  </span>
-                  <span className="block">
-                    預金残高 ¥
-                    {sources.monthly.value.cash_balance.toLocaleString('ja-JP')}
-                  </span>
-                </>
-              ) : (
-                '未登録'
-              )}
-            </dd>
-          </div>
-          <div data-testid="home-tax-plans">
-            <dt>今月の連携納税予定</dt>
-            <dd>
-              {sources.taxPlans.status === 'loaded'
-                ? `¥${sources.taxPlans.value.toLocaleString('ja-JP')}`
-                : '取得できません'}
-            </dd>
-          </div>
-        </dl>
-      </section>
-      {sources.monthly.status === 'loaded' ? (
-        <WorkspaceTodaySalesCard
-          companyId={companyId}
-          activity={
-            sources.daily.status === 'loaded' ? sources.daily.value : null
-          }
-          revenueModel={sources.monthly.value?.revenue_model ?? 'sales_funnel'}
-          fetchFailed={sources.daily.status !== 'loaded'}
-        />
-      ) : (
-        <section className="card" data-testid="home-daily">
-          <h2 className="font-semibold">今日の売上行動</h2>
-          <p>
-            {sources.daily.status !== 'loaded'
-              ? '取得できません'
-              : sources.daily.value
-                ? `登録値: 目標 ${sources.daily.value.targetUnits} / 実績 ${sources.daily.value.actualUnits}（売上モデル未確認のため参照のみ）`
-                : '未登録（売上モデル未確認のため参照のみ）'}
-          </p>
         </section>
       )}
       {derived.status === 'loaded' ? (
@@ -379,28 +228,113 @@ export default async function WorkspaceCompanyPage({
           className="card space-y-2"
           data-testid="home-derived-unavailable"
         >
-          <h2 className="font-semibold">集計・優先順位・推奨行動</h2>
+          <h2 className="font-semibold">今日やること</h2>
           <p>
             取得できません。必要な情報が揃っていないため、残件数・期限・対応不要の判断は確定していません。
           </p>
         </section>
       )}
-      <WorkspaceTaxReviewSummaryCard companyId={companyId} summary={summary} />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {SECTIONS.map(({ icon: Icon, title, description, hrefSuffix }) => (
-          <Link
-            key={title}
-            href={`/admin/workspaces/${companyId}${hrefSuffix}`}
-            className="card flex min-h-26 items-start gap-3"
-          >
-            <Icon className="mt-0.5 h-5 w-5 shrink-0" />
-            <div>
-              <p className="font-semibold">{title}</p>
-              <p className="text-xs">{description}</p>
-            </div>
-          </Link>
-        ))}
-      </div>
+      <details className="card space-y-3" open={failed} data-testid="home-source-details">
+        <summary className="cursor-pointer font-semibold">登録情報・今月の数値を見る</summary>
+        <div className="space-y-4 pt-3">
+          <section className="card space-y-3" aria-label="取得済み情報">
+            <h2 className="font-semibold">登録情報・今月の数値</h2>
+            <dl className="grid gap-3 sm:grid-cols-2">
+              <div data-testid="home-profile">
+                <dt>会社プロフィール・所在地</dt>
+                <dd>
+                  {profile
+                    ? profile.registered
+                      ? `従業員 ${profile.profile.employeeCount}人 / ${profile.profile.prefectureName}${profile.profile.municipalityName}`
+                      : '未登録'
+                    : '取得できません'}
+                </dd>
+              </div>
+              <div data-testid="home-returns">
+                <dt>決算実績</dt>
+                <dd>
+                  {sources.taxReturns.status === 'loaded'
+                    ? `${sources.taxReturns.value.length}件${sources.taxReturns.value.length === 0 ? '（未登録）' : ''}`
+                    : '取得できません'}
+                </dd>
+              </div>
+              <div data-testid="home-statuses">
+                <dt>登録済みの手続き状態</dt>
+                <dd>
+                  {sources.procedureStatuses.status === 'loaded'
+                    ? `${Object.keys(sources.procedureStatuses.value).length}件`
+                    : '取得できません'}
+                </dd>
+              </div>
+              <div data-testid="home-documents">
+                <dt>要更新書類</dt>
+                <dd>
+                  {sources.documents.status === 'loaded'
+                    ? `${sources.documents.value.needsUpdateCount}件`
+                    : '取得できません'}
+                </dd>
+              </div>
+              <div data-testid="home-monthly">
+                <dt>今月の売上・資金繰り登録値</dt>
+                <dd>
+                  {sources.monthly.status !== 'loaded' ? (
+                    '取得できません'
+                  ) : sources.monthly.value ? (
+                    <>
+                      <span className="block">
+                        売上目標 ¥
+                        {sources.monthly.value.target_revenue.toLocaleString(
+                          'ja-JP',
+                        )}{' '}
+                        / 売上実績 ¥
+                        {sources.monthly.value.actual_revenue.toLocaleString(
+                          'ja-JP',
+                        )}
+                      </span>
+                      <span className="block">
+                        預金残高 ¥
+                        {sources.monthly.value.cash_balance.toLocaleString('ja-JP')}
+                      </span>
+                    </>
+                  ) : (
+                    '未登録'
+                  )}
+                </dd>
+              </div>
+              <div data-testid="home-tax-plans">
+                <dt>今月の連携納税予定</dt>
+                <dd>
+                  {sources.taxPlans.status === 'loaded'
+                    ? `¥${sources.taxPlans.value.toLocaleString('ja-JP')}`
+                    : '取得できません'}
+                </dd>
+              </div>
+            </dl>
+          </section>
+          {sources.monthly.status === 'loaded' ? (
+            <WorkspaceTodaySalesCard
+              companyId={companyId}
+              activity={
+                sources.daily.status === 'loaded' ? sources.daily.value : null
+              }
+              revenueModel={sources.monthly.value?.revenue_model ?? 'sales_funnel'}
+              fetchFailed={sources.daily.status !== 'loaded'}
+            />
+          ) : (
+            <section className="card" data-testid="home-daily">
+              <h2 className="font-semibold">今日の売上行動</h2>
+              <p>
+                {sources.daily.status !== 'loaded'
+                  ? '取得できません'
+                  : sources.daily.value
+                    ? `登録値: 目標 ${sources.daily.value.targetUnits} / 実績 ${sources.daily.value.actualUnits}（売上モデル未確認のため参照のみ）`
+                    : '未登録（売上モデル未確認のため参照のみ）'}
+              </p>
+            </section>
+          )}
+          <WorkspaceTaxReviewSummaryCard companyId={companyId} summary={summary} />
+        </div>
+      </details>
       {isOwner && (
         <WorkspaceDeleteButton
           companyId={companyId}

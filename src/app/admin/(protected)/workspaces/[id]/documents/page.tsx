@@ -11,7 +11,6 @@ import { FileStack } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { loadWorkspaceRoadmapContext } from '@/lib/workspaceLoader';
 import WorkspaceDocumentsView from '@/components/WorkspaceDocumentsView';
-import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import PageHeader from '@/components/PageHeader';
 import InformationCard from '@/components/InformationCard';
 import { WORKSPACE_DOCUMENT_TYPES } from '@/lib/workspaceDocumentStatus';
@@ -103,7 +102,6 @@ export default async function WorkspaceDocumentsPage({
         }
       />
 
-      <WorkspaceSubNav companyId={companyId} />
 
       <InformationCard kind="disclaimer">
         決算書・登記簿謄本等、代表的な書類の登録状況を記録する参考情報です（本MVPではファイルの
