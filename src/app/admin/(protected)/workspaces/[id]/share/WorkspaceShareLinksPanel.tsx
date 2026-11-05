@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link2, Copy, Check, Ban } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import InformationCard from '@/components/InformationCard';
+import WorkspaceShareScopeSettings from '@/components/WorkspaceShareScopeSettings';
 import { trackEvent } from '@/lib/analytics';
 import {
   DEFAULT_SHARE_LINK_EXPIRY,
@@ -278,23 +279,12 @@ export default function WorkspaceShareLinksPanel({
         </a>
       )}
 
-      <div className="card space-y-2 p-4">
-        <p className="text-sm">
-          会社名・所在地・資本金・従業員数等の会社プロフィールと対応状況は、リンクを知る人がログインなしで取得できる公開範囲です。必要な相手にだけ渡し、不要になったら失効させてください。
-        </p>
-        <label className="flex gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={includeTaxReturns}
-            disabled={creating || Boolean(pending) || Boolean(pendingRevoke)}
-            onChange={(e) => setIncludeTaxReturns(e.target.checked)}
-          />
-          決算実績を公開範囲に含め、管理画面と同じ入力でロードマップを共有する
-        </label>
-        <p className="text-xs text-sunboo-ink-muted">
-          含める場合、税額等を含む決算実績がリンクを知る人に取得可能になります。試用は架空データで行ってください。含めないリンクは会社概要のみを確認でき、必要入力が足りない予定は算出を保留します。発行済みリンクの公開範囲は変更しません。
-        </p>
-      </div>
+      <WorkspaceShareScopeSettings
+        includeTaxReturns={pending ? pending.include_tax_returns === true : includeTaxReturns}
+        disabled={creating || Boolean(pending) || Boolean(pendingRevoke)}
+        pending={Boolean(pending)}
+        onChange={setIncludeTaxReturns}
+      />
       <div className="flex flex-wrap items-end gap-3">
         {pending ? (
           <p className="text-sm text-sunboo-ink-muted">
@@ -352,15 +342,10 @@ export default function WorkspaceShareLinksPanel({
             const status = getShareLinkStatus(link, now);
             const inactive = status !== '有効';
             return (
-              <div key={link.id} className="card space-y-2.5">
+              <div key={link.id} data-testid={`share-link-card-${link.id}`} className="card space-y-2.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="tag">{status}</span>
-                  <span className="text-xs">
-                    公開範囲：会社概要・プロフィール・ロードマップ
-                    {link.shared_sections.includes('tax_returns')
-                      ? '・決算実績'
-                      : '（決算実績は非公開、予定算出は保留）'}
-                  </span>
+                  <span className="text-sm font-medium">このリンクの公開範囲</span>
                   <span className="text-xs text-sunboo-ink-muted">
                     発行日:{' '}
                     {new Date(link.created_at).toLocaleDateString('ja-JP')}
@@ -382,6 +367,19 @@ export default function WorkspaceShareLinksPanel({
                     </span>
                   )}
                 </div>
+                <ul aria-label="共有する情報" className="flex flex-wrap gap-2 text-sm">
+                  {([
+                    ['company', '会社概要'],
+                    ['profile', '会社プロフィール'],
+                    ['roadmap', '手続きの予定・対応状況'],
+                    ['tax_returns', '決算実績（税額を含む）'],
+                  ] as const).filter(([section]) => link.shared_sections.includes(section)).map(([section, label]) => (
+                    <li key={section} className={`rounded-md border px-2 py-1 ${section === 'tax_returns' ? 'border-amber-300 bg-amber-50 text-amber-950' : 'border-sky-200 bg-sky-50 text-sky-900'}`}>{label}</li>
+                  ))}
+                </ul>
+                {!link.shared_sections.includes('tax_returns') && (
+                  <p className="text-sm text-slate-600">決算実績は非公開です。{link.shared_sections.includes('roadmap') && '手続きの予定は保留になります。'}</p>
+                )}
                 <div className="flex items-center gap-2">
                   <input
                     readOnly

@@ -53,10 +53,8 @@ export default async function WorkspaceSharePage({
       <WorkspaceSubNav companyId={companyId} />
 
       <InformationCard kind="info">
-        発行したリンクを経営者に共有すると、ログイン不要で「会社概要」「年間ロードマップ」を
-        閲覧できます（編集はできません）。管理画面と同じ判定入力を共有する場合は、発行前に決算実績の公開を明示的に選んでください。AI参謀・書類・会計分析はまだ共有できません。
-        有効期限は7日・30日・無期限から選べます（初期値は30日）。
-        期限内でも、不要になったリンクは「失効させる」で無効にできます。
+        公開範囲を選んでリンクを発行し、相手に渡します。共有先は閲覧のみです。
+        AI参謀・書類・会計分析は共有されません。
       </InformationCard>
 
       <WorkspaceShareLinksPanel companyId={companyId} initialLinks={links} />
