@@ -229,29 +229,23 @@ export default function WorkspaceDashboard({
 
   return (
     <div className="space-y-4">
-      {progress.total === 0 && (
-        <div className="information-card information-card--info flex items-start gap-3">
-          <Compass className="mt-0.5 h-4 w-4 shrink-0 text-sunboo-ink-muted" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-sunboo-ink">次に行うこと</p>
-            <p className="mt-1 text-xs leading-relaxed text-sunboo-ink-muted">
-              {company.fiscalMonth === null
-                ? '決算月が未設定のため、年間ロードマップをまだ作成できません。会社プロフィールで決算月を設定してください。'
-                : '会社プロフィールを入力すると、年間ロードマップが自動作成されます。'}
-            </p>
-          </div>
-          <Link
-            href={`/admin/workspaces/${companyId}/profile`}
-            className="btn-secondary shrink-0 px-3 py-1.5 text-xs whitespace-nowrap"
-          >
-            会社プロフィールを入力する
-          </Link>
-        </div>
-      )}
-
       {/* 1〜4. 今日のポイント（今日やること／次の期限／今年あと何件／最近完了したこと） */}
-      <div className="card space-y-3">
+      <section className="card space-y-3" data-testid="home-today" aria-label="今日やること">
         <CardEyebrow icon={Sunrise}>今日のポイント</CardEyebrow>
+        <div>
+          <h2 className="mb-2 text-lg font-semibold text-sunboo-ink">今日やること</h2>
+          {todayActions.length > 0 ? (
+            <ul className="space-y-2">
+              {todayActions.map((action, idx) => (
+                <TodayActionRow key={`${action.title}-${idx}`} action={action} companyId={companyId} />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-sunboo-ink-muted">
+              直近で対応が必要な手続きはありません。安心して本業に集中してください。
+            </p>
+          )}
+        </div>
 
         <div className="grid grid-cols-2 gap-4 border-b border-sunboo-mist pb-3">
           <div>
@@ -275,21 +269,6 @@ export default function WorkspaceDashboard({
           </div>
         </div>
 
-        <div>
-          <p className="mb-1.5 text-xs font-semibold text-sunboo-ink-muted">今日やること</p>
-          {todayActions.length > 0 ? (
-            <ul className="space-y-2">
-              {todayActions.map((action, idx) => (
-                <TodayActionRow key={`${action.title}-${idx}`} action={action} companyId={companyId} />
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-sunboo-ink-muted">
-              直近で対応が必要な手続きはありません。安心して本業に集中してください。
-            </p>
-          )}
-        </div>
-
 
         {decisions.completed.length > 0 && (
           <div className="border-t border-sunboo-mist pt-3">
@@ -304,118 +283,149 @@ export default function WorkspaceDashboard({
             </div>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* 確認が必要なこと（Sprint37「通知センター」をSprint85で改称・再整理） */}
-      <div className="card space-y-2">
-        <CardEyebrow icon={Bell}>確認が必要なこと</CardEyebrow>
-        {notifications.length > 0 ? (
-          <div className="divide-y divide-sunboo-mist">
-            {notifications.map((notification) => (
-              <NotificationRow key={notification.id} notification={notification} />
-            ))}
+      {progress.total === 0 && (
+        <div className="information-card information-card--info flex items-start gap-3">
+          <Compass className="mt-0.5 h-4 w-4 shrink-0 text-sunboo-ink-muted" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-sunboo-ink">次に行うこと</p>
+            <p className="mt-1 text-xs leading-relaxed text-sunboo-ink-muted">
+              {company.fiscalMonth === null
+                ? '決算月が未設定のため、年間ロードマップをまだ作成できません。会社プロフィールで決算月を設定してください。'
+                : '会社プロフィールを入力すると、年間ロードマップが自動作成されます。'}
+            </p>
           </div>
-        ) : (
-          <p className="text-sm text-sunboo-ink-muted">今、確認が必要なことはありません。安心して本業に集中してください。</p>
-        )}
-      </div>
-
-      <div className="card space-y-3">
-        <CardEyebrow icon={Compass}>意思決定</CardEyebrow>
-        <p className="text-sm text-sunboo-ink">{decisions.summary}</p>
-
-        {decisions.actions.length > 0 && (
-          <ul className="space-y-1.5">
-            {decisions.actions.map((action, idx) => (
-              <li key={idx} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
-                <span className={`tag ${DECISION_PRIORITY_TAG_CLASS[action.priority]}`}>{DECISION_PRIORITY_LABEL[action.priority]}</span>
-                <span className="font-medium text-sunboo-ink">{action.title}</span>
-                <span className="text-xs text-sunboo-ink-muted">{action.reason}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {decisions.watchItems.length > 0 && (
-          <div>
-            <div className="mb-1 text-xs font-semibold text-sunboo-ink-muted">注視事項</div>
-            <ul className="space-y-1">
-              {decisions.watchItems.map((item, idx) => (
-                <li key={idx} className="text-xs text-sunboo-ink-muted">
-                  <span className="font-medium text-sunboo-ink">{item.title}</span> — {item.reason}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="card space-y-3">
-          <CardEyebrow icon={PieChart}>進捗サマリー</CardEyebrow>
-          {progress.total > 0 ? (
-            <>
-              <div>
-                <div className="mb-1 flex items-baseline justify-between text-xs text-sunboo-ink-muted">
-                  <span>完了率</span>
-                  <span className="font-semibold text-sunboo-ink">{progress.completionRate}%</span>
-                </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-sunboo-mist">
-                  <div className="h-full rounded-full bg-sunboo-moss" style={{ width: `${progress.completionRate}%` }} />
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {PROGRESS_STAT_BADGE.map(({ key, kind }) => (
-                  <StatusBadge key={key} kind={kind} suffix={` ${progress[key]}件`} />
-                ))}
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-sunboo-ink-muted">今年の手続きはまだ計算できていません。</p>
-          )}
-        </div>
-
-        <div className="card space-y-3">
-          <CardEyebrow icon={Sparkles}>AI参謀</CardEyebrow>
-          <p className="text-sm text-sunboo-ink">{advice.summary}</p>
-          {advice.opportunities.length > 0 && (
-            <ul className="space-y-1.5">
-              {advice.opportunities.map((item, idx) => (
-                <AdviceItemRow key={`${item.procedureId ?? 'general'}-${idx}`} item={item} tone="neutral" />
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      <div className="card space-y-3">
-        <CardEyebrow icon={Building2}>会社概要</CardEyebrow>
-        <div className="flex flex-wrap gap-1.5">
-          <span className="tag">{CORPORATE_TYPE_LABEL[company.corporateType] ?? company.corporateType}</span>
-          {company.fiscalMonth && <span className="tag">決算月: {company.fiscalMonth}月</span>}
-          {(company.prefectureName || company.municipalityName) && (
-            <span className="tag">{company.prefectureName}{company.municipalityName}</span>
-          )}
-          {state.stage.value && (
-            <span className="tag inline-flex items-center gap-1">
-              {STAGE_LABEL[state.stage.value]}
-              <ConfidenceTag confidence={state.stage.confidence} />
-            </span>
-          )}
-          {state.consumptionTaxStatus.value && (
-            <span className="tag inline-flex items-center gap-1">
-              {CONSUMPTION_TAX_LABEL[state.consumptionTaxStatus.value]}
-              <ConfidenceTag confidence={state.consumptionTaxStatus.confidence} />
-            </span>
-          )}
           <Link
-            href={`/admin/workspaces/${companyId}/documents`}
-            className={`tag hover:bg-sunboo-warm-paper ${documentsNeedingUpdateCount > 0 ? 'tag--caution' : ''}`}
+            href={`/admin/workspaces/${companyId}/profile`}
+            className="btn-secondary shrink-0 px-3 py-1.5 text-xs whitespace-nowrap"
           >
-            要更新書類 {documentsNeedingUpdateCount}件
+            会社プロフィールを入力する
           </Link>
         </div>
-      </div>
+      )}
+
+
+      <details className="card" open={notifications.some((item) => item.severity === 'high')} data-testid="home-notification-details">
+        <summary className="cursor-pointer font-semibold">確認が必要なこと（{notifications.length}件）</summary>
+        <div className="pt-3">
+          {/* 確認が必要なこと（Sprint37「通知センター」をSprint85で改称・再整理） */}
+          <div className="card space-y-2">
+            <CardEyebrow icon={Bell}>確認が必要なこと</CardEyebrow>
+            {notifications.length > 0 ? (
+              <div className="divide-y divide-sunboo-mist">
+                {notifications.map((notification) => (
+                  <NotificationRow key={notification.id} notification={notification} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-sunboo-ink-muted">今、確認が必要なことはありません。安心して本業に集中してください。</p>
+            )}
+          </div>
+
+        </div>
+      </details>
+      <details className="card" data-testid="home-progress-details">
+        <summary className="cursor-pointer font-semibold">進捗・詳しい案内を見る</summary>
+        <div className="space-y-4 pt-3">
+          <div className="card space-y-3">
+            <CardEyebrow icon={Compass}>意思決定</CardEyebrow>
+            <p className="text-sm text-sunboo-ink">{decisions.summary}</p>
+
+            {decisions.actions.length > 0 && (
+              <ul className="space-y-1.5">
+                {decisions.actions.map((action, idx) => (
+                  <li key={idx} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
+                    <span className={`tag ${DECISION_PRIORITY_TAG_CLASS[action.priority]}`}>{DECISION_PRIORITY_LABEL[action.priority]}</span>
+                    <span className="font-medium text-sunboo-ink">{action.title}</span>
+                    <span className="text-xs text-sunboo-ink-muted">{action.reason}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {decisions.watchItems.length > 0 && (
+              <div>
+                <div className="mb-1 text-xs font-semibold text-sunboo-ink-muted">注視事項</div>
+                <ul className="space-y-1">
+                  {decisions.watchItems.map((item, idx) => (
+                    <li key={idx} className="text-xs text-sunboo-ink-muted">
+                      <span className="font-medium text-sunboo-ink">{item.title}</span> — {item.reason}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="card space-y-3">
+              <CardEyebrow icon={PieChart}>進捗サマリー</CardEyebrow>
+              {progress.total > 0 ? (
+                <>
+                  <div>
+                    <div className="mb-1 flex items-baseline justify-between text-xs text-sunboo-ink-muted">
+                      <span>完了率</span>
+                      <span className="font-semibold text-sunboo-ink">{progress.completionRate}%</span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-sunboo-mist">
+                      <div className="h-full rounded-full bg-sunboo-moss" style={{ width: `${progress.completionRate}%` }} />
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PROGRESS_STAT_BADGE.map(({ key, kind }) => (
+                      <StatusBadge key={key} kind={kind} suffix={` ${progress[key]}件`} />
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-sunboo-ink-muted">今年の手続きはまだ計算できていません。</p>
+              )}
+            </div>
+
+            <div className="card space-y-3">
+              <CardEyebrow icon={Sparkles}>AI参謀</CardEyebrow>
+              <p className="text-sm text-sunboo-ink">{advice.summary}</p>
+              {advice.opportunities.length > 0 && (
+                <ul className="space-y-1.5">
+                  {advice.opportunities.map((item, idx) => (
+                    <AdviceItemRow key={`${item.procedureId ?? 'general'}-${idx}`} item={item} tone="neutral" />
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          <div className="card space-y-3">
+            <CardEyebrow icon={Building2}>会社概要</CardEyebrow>
+            <div className="flex flex-wrap gap-1.5">
+              <span className="tag">{CORPORATE_TYPE_LABEL[company.corporateType] ?? company.corporateType}</span>
+              {company.fiscalMonth && <span className="tag">決算月: {company.fiscalMonth}月</span>}
+              {(company.prefectureName || company.municipalityName) && (
+                <span className="tag">{company.prefectureName}{company.municipalityName}</span>
+              )}
+              {state.stage.value && (
+                <span className="tag inline-flex items-center gap-1">
+                  {STAGE_LABEL[state.stage.value]}
+                  <ConfidenceTag confidence={state.stage.confidence} />
+                </span>
+              )}
+              {state.consumptionTaxStatus.value && (
+                <span className="tag inline-flex items-center gap-1">
+                  {CONSUMPTION_TAX_LABEL[state.consumptionTaxStatus.value]}
+                  <ConfidenceTag confidence={state.consumptionTaxStatus.confidence} />
+                </span>
+              )}
+              <Link
+                href={`/admin/workspaces/${companyId}/documents`}
+                className={`tag hover:bg-sunboo-warm-paper ${documentsNeedingUpdateCount > 0 ? 'tag--caution' : ''}`}
+              >
+                要更新書類 {documentsNeedingUpdateCount}件
+              </Link>
+            </div>
+          </div>
+        </div>
+      </details>
     </div>
   );
 }

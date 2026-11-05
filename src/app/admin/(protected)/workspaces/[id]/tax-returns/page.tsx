@@ -4,7 +4,6 @@ import { ChevronLeft, Receipt, Info } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { loadTaxReturnEditor } from '@/lib/workspaceTaxReturnData';
 import { workspaceRowsToTaxReturnProfile } from '@/lib/workspaceTaxReturnProfile';
-import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import WorkspaceTaxReturnsView from '@/components/WorkspaceTaxReturnsView';
 import WorkspaceTaxReturnReloadButton from '@/components/WorkspaceTaxReturnReloadButton';
 
@@ -54,7 +53,6 @@ export default async function WorkspaceTaxReturnsPage({
         </h1>
       </div>
 
-      <WorkspaceSubNav companyId={companyId} />
 
       <div className="card flex items-start gap-3 border-gray-200 bg-gray-50/60">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />

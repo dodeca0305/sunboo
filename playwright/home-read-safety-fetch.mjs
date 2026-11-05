@@ -1,4 +1,4 @@
-// Local only. Authentication uses the existing session; all business queries are synthetic.
+// Local only. Synthetic authentication and business queries; no production requests.
 import './roadmap-tax-load-failure-fetch.mjs';
 import { readFileSync, appendFileSync } from 'node:fs';
 const fallback = globalThis.fetch;
@@ -26,6 +26,7 @@ globalThis.fetch = async (input, init) => {
           ? init.headers.get('accept')
           : init?.headers?.accept) ??
         (input instanceof Request ? input.headers.get('accept') : '');
+    if (table === 'admin_users' && u.origin === 'https://synthetic-home.supabase.co') return Response.json([{email:c.user.email}]);
     if (table === 'get_shared_workspace_view' && method === 'POST') {
       appendFileSync(
         process.env.ROADMAP_TAX_CONTROL_FILE + '.shared',
@@ -59,5 +60,10 @@ globalThis.fetch = async (input, init) => {
       return Response.json(rows);
     }
   }
+  if(u.origin === 'https://synthetic-home.supabase.co' && u.pathname === '/auth/v1/user') {
+    const c=JSON.parse(readFileSync(process.env.ROADMAP_TAX_CONTROL_FILE,'utf8'));
+    return Response.json(c.user);
+  }
+  if(u.hostname.endsWith('.supabase.co') && u.origin !== process.env.NEXT_PUBLIC_SUPABASE_URL) throw Error('Non-fixture Supabase access blocked');
   return fallback(input, init);
 };

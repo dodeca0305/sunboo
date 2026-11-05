@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import BrandMark from '@/components/BrandMark';
+import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 
 const NAV_ITEMS = [
   { href: '/admin', label: 'ダッシュボード', icon: LayoutDashboard, exact: true },
@@ -45,6 +46,33 @@ export default function AdminShell({
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const workspaceMatch = /^\/admin\/workspaces\/([1-9]\d*)(?:\/|$)/.exec(pathname);
+  const workspaceId = workspaceMatch ? Number(workspaceMatch[1]) : null;
+  const companyId = workspaceId !== null && Number.isSafeInteger(workspaceId) ? workspaceId : null;
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const trigger = menuButton.current;
+    closeButton.current?.focus();
+    return () => trigger?.focus();
+  }, [menuOpen]);
+
+  function handleDrawerKey(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setMenuOpen(false);
+    }
+    if (event.key !== 'Tab') return;
+    const items = event.currentTarget.querySelectorAll<HTMLElement>('button, a[href], summary');
+    const first = items[0], last = items[items.length - 1];
+    // Closed details contain non-tabbable links; filter by rendered geometry.
+    const visible = [...items].filter((item) => item.getClientRects().length > 0);
+    const start = visible[0] ?? first, end = visible[visible.length - 1] ?? last;
+    if (event.shiftKey && document.activeElement === start) { event.preventDefault(); end?.focus(); }
+    else if (!event.shiftKey && document.activeElement === end) { event.preventDefault(); start?.focus(); }
+  }
 
   async function handleLogout() {
     const supabase = createBrowserSupabase();
@@ -58,11 +86,12 @@ export default function AdminShell({
   }
 
   const navLinks = (
-    <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
+    <nav aria-label="管理メニュー" className="flex flex-col gap-1">
       {NAV_ITEMS.map(({ href, label, icon: Icon, exact }) => (
         <Link
           key={href}
           href={href}
+          aria-current={isActive(href, exact) ? 'page' : undefined}
           onClick={() => setMenuOpen(false)}
           className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
             isActive(href, exact)
@@ -77,15 +106,31 @@ export default function AdminShell({
     </nav>
   );
 
+  const navigation = (
+    <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+      {companyId !== null ? (
+        <>
+          <p className="mb-2 px-3 text-xs font-semibold text-gray-500">この会社</p>
+          <WorkspaceSubNav companyId={companyId} onNavigate={() => setMenuOpen(false)} />
+          <Link href="/admin/workspaces" onClick={() => setMenuOpen(false)} className="mt-3 block rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-50">顧問先一覧へ</Link>
+          <details className="mt-3 border-t border-gray-100 pt-3">
+            <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-gray-500">管理メニュー</summary>
+            <div className="mt-1">{navLinks}</div>
+          </details>
+        </>
+      ) : navLinks}
+    </div>
+  );
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* ── デスクトップ用サイドバー ── */}
-      <aside className="hidden w-60 shrink-0 border-r border-gray-100 bg-white lg:flex lg:flex-col">
+      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 border-r border-gray-100 bg-white lg:flex lg:flex-col">
         <div className="flex h-16 items-center gap-2.5 border-b border-gray-100 px-5">
           <BrandMark size={32} />
           <span className="text-sm font-bold text-gray-900">SUNBOO 管理画面</span>
         </div>
-        {navLinks}
+        {navigation}
         <div className="border-t border-gray-100 p-3">
           <p className="truncate px-3 text-xs text-gray-400">{adminEmail}</p>
           <button
@@ -100,16 +145,16 @@ export default function AdminShell({
 
       {/* ── モバイル用ドロワー ── */}
       {menuOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
+        <div role="dialog" aria-modal="true" aria-label="ナビゲーションメニュー" onKeyDown={handleDrawerKey} className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-gray-900/40" onClick={() => setMenuOpen(false)} />
           <aside className="absolute inset-y-0 left-0 flex w-64 flex-col border-r border-gray-100 bg-white">
             <div className="flex h-16 items-center justify-between border-b border-gray-100 px-4">
               <span className="text-sm font-bold text-gray-900">SUNBOO 管理画面</span>
-              <button onClick={() => setMenuOpen(false)} className="rounded-lg p-1.5 hover:bg-gray-50">
+              <button ref={closeButton} aria-label="メニューを閉じる" onClick={() => setMenuOpen(false)} className="rounded-lg p-1.5 hover:bg-gray-50">
                 <X className="h-5 w-5 text-gray-500" />
               </button>
             </div>
-            {navLinks}
+            {navigation}
             <div className="border-t border-gray-100 p-3">
               <p className="truncate px-3 text-xs text-gray-400">{adminEmail}</p>
               <button
@@ -128,6 +173,9 @@ export default function AdminShell({
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-gray-100 bg-white px-4 sm:px-6">
           <button
+            ref={menuButton}
+            aria-expanded={menuOpen}
+            aria-haspopup="dialog"
             onClick={() => setMenuOpen(true)}
             className="rounded-lg p-2 text-gray-500 hover:bg-gray-50 lg:hidden"
             aria-label="メニューを開く"

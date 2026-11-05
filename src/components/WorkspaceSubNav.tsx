@@ -5,8 +5,8 @@ import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Building2, Receipt, CalendarRange, FileStack, ShieldCheck, Share2, TrendingUp } from 'lucide-react';
 
 // ── Company Workspace — サブナビゲーション（Sprint 30 Workspace Navigation & Migration・Sprint 35）─
-// Workspace内の各ページ（Dashboard/Profile/TaxReturns/Roadmap/Documents/Share）を、都度Dashboardへ
-// 戻らなくても直接行き来できるようにする共通タブ。実装済みのタブのみを対象にする
+// 会社のサイドバー内で使用。Workspace内の各ページ（Dashboard/Profile/TaxReturns/Roadmap/Documents/Share）を、都度Dashboardへ
+// 戻らなくても直接行き来できるようにする共通メニュー。実装済みのタブのみを対象にする
 // （会計分析はComing Soonのため含めない）。
 
 const TABS = [
@@ -20,24 +20,26 @@ const TABS = [
   { label: '共有', hrefSuffix: '/share', icon: Share2 },
 ] as const;
 
-export default function WorkspaceSubNav({ companyId }: { companyId: number }) {
+export default function WorkspaceSubNav({ companyId, onNavigate }: { companyId: number; onNavigate?: () => void }) {
   const pathname = usePathname();
   const base = `/admin/workspaces/${companyId}`;
 
   return (
-    <nav className="flex flex-wrap gap-1 border-b border-gray-100 pb-3">
+    <nav aria-label="この会社のメニュー" className="flex flex-col gap-1">
       {TABS.map(({ label, hrefSuffix, icon: Icon }) => {
         const href = `${base}${hrefSuffix}`;
-        const active = pathname === href;
+        const active = pathname === href || (hrefSuffix !== '' && pathname.startsWith(`${href}/`));
         return (
           <Link
             key={label}
             href={href}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+            onClick={onNavigate}
+            aria-current={active ? 'page' : undefined}
+            className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
               active ? 'bg-blue-50 text-blue-700' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
             }`}
           >
-            <Icon className="h-4 w-4" />
+            <Icon className="h-4 w-4 shrink-0" />
             {label}
           </Link>
         );

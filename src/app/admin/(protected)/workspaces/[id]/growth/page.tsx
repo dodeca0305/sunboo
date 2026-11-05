@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation';
 import { TrendingUp } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
-import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import WorkspaceGrowthView from '@/components/WorkspaceGrowthView';
 import InformationCard from '@/components/InformationCard';
 import { createServerSupabase } from '@/lib/supabase/server';
@@ -29,7 +28,6 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
         title="売上目標"
         subtitle={`${company.name}の月間目標と実績を、具体的な行動へつなげます。`}
       />
-      <WorkspaceSubNav companyId={companyId} />
       <InformationCard kind="disclaimer">
         売上達成を保証する機能ではありません。実績との差を早めに把握し、経営者が行動を見直すための参考情報です。
       </InformationCard>

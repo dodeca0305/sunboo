@@ -14,7 +14,6 @@ import type { WorkspaceProcedureStatusMap } from '@/lib/workspaceProcedureStatus
 import { loadWorkspaceRoadmapContext } from '@/lib/workspaceLoader';
 import { formatCompanyAddress } from '@/lib/companyProfile';
 import AnnualRoadmapView from '@/components/AnnualRoadmapView';
-import WorkspaceSubNav from '@/components/WorkspaceSubNav';
 import RoadmapExcelExportButton from '@/components/RoadmapExcelExportButton';
 import RoadmapPdfExportButton from '@/components/RoadmapPdfExportButton';
 import PageHeader from '@/components/PageHeader';
@@ -161,7 +160,6 @@ export default async function WorkspaceRoadmapPage({
         }
       />
 
-      <WorkspaceSubNav companyId={companyId} />
 
       <InformationCard kind="info">
         今年度から今後2年分の手続き予定を一覧表示する参考情報です。実際の手続き・期限・提出先は
