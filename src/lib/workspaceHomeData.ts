@@ -1,3 +1,4 @@
+import { confirmedTaxPaymentPlanRows, LINKED_TAX_PLAN_COLUMNS } from './workspaceTaxPaymentPlan.ts';
 import type { SupabaseClient } from './supabase';
 import type { CompanyProfile } from './companyProfile';
 import {
@@ -258,7 +259,7 @@ export async function loadWorkspaceHomeSources(
     workspaceRead(async () => {
       const r = await client
         .from('workspace_tax_payment_plans')
-        .select('procedure_id,due_date,amount')
+        .select(LINKED_TAX_PLAN_COLUMNS)
         .eq('company_id', id)
         .gte('due_date', month + '-01')
         .lte('due_date', monthEndDate(month));
@@ -280,7 +281,7 @@ export async function loadWorkspaceHomeSources(
         throw Error();
       let total = 0;
       const keys = new Set<string>();
-      for (const row of r.data) {
+      for (const row of confirmedTaxPaymentPlanRows(r.data)) {
         const key = row.procedure_id + ':' + row.due_date;
         if (keys.has(key)) throw Error();
         keys.add(key);

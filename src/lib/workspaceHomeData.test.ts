@@ -302,3 +302,12 @@ test('review fetch failure prevents overall priority but retains all healthy sou
   assert.equal(called, false);
   assert.ok(Object.values(s).every((v) => v.status === 'loaded'));
 });
+
+for (const procedures of [null, {code:'DEPRECIABLE_ASSET_TAX_RETURN'}, {code:'SALARY_PAYMENT_REPORT'}]) {
+  test(`ホームの未確認納付額を0円や部分合計にしない: ${JSON.stringify(procedures)}`, async () => {
+    const {client} = fake({workspace_tax_payment_plans:[{procedure_id:66,due_date:'2026-11-30',amount:1000,procedures}]});
+    const result = await loadWorkspaceHomeSources(client,company,'2026-11-02');
+    assert.equal(result.taxPlans.status,'unavailable');
+    assert.equal(result.companyProfile.status,'loaded');
+  });
+}

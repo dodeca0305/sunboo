@@ -199,6 +199,7 @@ export default async function WorkspaceCompanyPage({
         <section role="alert" className="card space-y-3">
           <p>
             一部の情報を取得できません。取得できた情報だけを表示しています。
+            {sources.taxPlans.status !== 'loaded' && '納税予定は、取得の失敗や納付日を確認できない過去の登録がある場合にも集計を保留します。'}
           </p>
           <WorkspaceReadReloadButton />
         </section>

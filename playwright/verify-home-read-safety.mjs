@@ -64,7 +64,7 @@ const monthly = {
 };
 const proc = {
   id: 90001,
-  code: 'SYNTHETIC_HOME',
+  code: 'WITHHOLDING_TAX',
   name: '合成ホーム手続き',
   description: '合成',
   category: 'tax',
@@ -115,7 +115,7 @@ const initial = {
     ],
     workspace_monthly_sales: [monthly],
     workspace_tax_payment_plans: [
-      { procedure_id: 90001, due_date: month + '-20', amount: 500000 },
+      { procedure_id: 90001, due_date: month + '-20', amount: 500000, procedures: {code:'WITHHOLDING_TAX'} },
     ],
     workspace_tax_review_cases: [],
     tax_controls: [],
@@ -441,6 +441,44 @@ try {
     (await page.getByText('合成ホーム手続き', { exact: true }).count()) > 0,
   );
   }
+  // P08: filing is not payment; fixtures and auth remain local and synthetic.
+  state = structuredClone(initial);
+  await update();
+  await page.goto(home + '/roadmap', {waitUntil:'networkidle'});
+  assert.ok(await page.getByRole('textbox',{name:'合成ホーム手続きの予定税額',exact:true}).count() > 0);
+  for (const code of ['DEPRECIABLE_ASSET_TAX_RETURN','SALARY_PAYMENT_REPORT']) {
+    state.data.procedures = [{...proc,code}];
+    await update();
+    await page.reload({waitUntil:'networkidle'});
+    assert.equal(await page.getByRole('textbox',{name:/の予定税額$/}).count(),0);
+    assert.equal(await page.getByRole('button',{name:'予定税額を保存',exact:true}).count(),0);
+    assert.ok(await page.getByText('税金の支払いとは分けて確認してください',{exact:true}).count()>0);
+    if(code === 'DEPRECIABLE_ASSET_TAX_RETURN') {
+      assert.ok(await page.getByText(/固定資産税の支払いは別の手続き/).count()>0);
+      const filingCard = page.getByRole('heading',{name:'合成ホーム手続き',exact:true}).first().locator('xpath=ancestor::li');
+      const filingDate = (await filingCard.getAttribute('id')).slice(-10);
+      state.data.workspace_tax_payment_plans=[{procedure_id:90001,due_date:filingDate,amount:500000,procedures:{code}}];
+      await update();
+      await page.reload({waitUntil:'networkidle'});
+      assert.ok(await page.getByText(/以前登録した金額は保持しています/).count()>0);
+      await page.screenshot({path:'test-results/filing-payment-roadmap.png',fullPage:false});
+    }
+  }
+  for(const procedures of [null,{code:'DEPRECIABLE_ASSET_TAX_RETURN'}]) {
+    state = structuredClone(initial);
+    state.data.workspace_tax_payment_plans[0].procedures=procedures;
+    await update();
+    await page.goto(home,{waitUntil:'networkidle'});
+    assert.match(await page.getByTestId('home-tax-plans').textContent(),/取得できません/);
+    assert.doesNotMatch(await page.getByTestId('home-profile').textContent(),/取得できません/);
+    await page.goto(home+'/growth',{waitUntil:'networkidle'});
+    await page.getByText('売上目標・資金繰りを確認できません',{exact:true}).waitFor();
+    assert.equal(await page.getByRole('button',{name:'保存',exact:true}).count(),0);
+  }
+  state = structuredClone(initial);
+  await update();
+  await page.goto(home,{waitUntil:'networkidle'});
+  assert.match(await page.getByTestId('home-tax-plans').textContent(),/500,000/);
   assert.equal(writes, 0);
   assert.deepEqual(pageErrors,[]);
   assert.equal(existsSync(file + '.mutations'), false);
