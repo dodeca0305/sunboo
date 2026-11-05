@@ -19,6 +19,8 @@ import {
 } from '@/components/TaxReturnEntryFields';
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import ManualDateInput from '@/components/ManualDateInput';
+import TaxReturnPeriodSelect from '@/components/TaxReturnPeriodSelect';
+import { fiscalYearSelectionError, labelAfterEndDateChange, fiscalPeriodHeading, fiscalPeriodRange } from '@/lib/taxReturnPeriod';
 import { buildClosingUpdateSummary } from '@/lib/adviserScore';
 import { validateTaxReturnDateOrder } from '@/lib/taxReturnConsistency';
 import {
@@ -240,11 +242,16 @@ export default function TaxReturnsPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!draft.fiscalYear.trim()) {
-      setError('対象年度を入力してください');
+      setError('対象年度を選択してください');
       return;
     }
     if (!draft.fiscalYearEndDate) {
       setError('決算日を入力してください');
+      return;
+    }
+    const selectionError = fiscalYearSelectionError(draft.fiscalYear, draft.fiscalYearEndDate);
+    if (selectionError) {
+      setError(selectionError);
       return;
     }
     const dateOrderError = validateTaxReturnDateOrder(draft);
@@ -350,24 +357,22 @@ export default function TaxReturnsPage() {
               <h2 className="font-semibold text-gray-800">{editingId ? '申告実績を編集' : '新しい申告実績'}</h2>
             </div>
 
-            <div>
-              <label className="form-label">対象年度（必須）</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="例: 2025年3月期"
+            <TaxReturnPeriodSelect
                 value={draft.fiscalYear}
-                onChange={(e) => set('fiscalYear', e.target.value)}
+                endDate={draft.fiscalYearEndDate}
+                onChange={(value) => { set('fiscalYear', value); setError(null); }}
               />
-            </div>
+              <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3" aria-live="polite">
+                <p className="font-semibold text-blue-900">{fiscalPeriodHeading(draft.fiscalYearEndDate)}</p>
+                <p className="mt-1 text-sm text-blue-900">対象期間：{fiscalPeriodRange(draft.fiscalYearStartDate, draft.fiscalYearEndDate)}</p>
+                {!draft.fiscalYearStartDate && <p className="mt-1 text-xs text-blue-800">開始日は自動計算しません。短期決算や決算期変更の場合も、実際の期間を入力してください。</p>}
+              </div>
 
             <div>
               <label className="form-label">決算日（必須）</label>
               <ManualDateInput
                 value={draft.fiscalYearEndDate || null}
-                onChange={(value) =>
-                  set('fiscalYearEndDate', value ?? '')
-                }
+                onChange={(value) => { setDraft((previous) => ({ ...previous, fiscalYearEndDate: value ?? '', fiscalYear: labelAfterEndDateChange(previous.fiscalYear, value ?? '') })); setError(null); }}
                 label="決算日"
               />
             </div>

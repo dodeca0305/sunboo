@@ -1,11 +1,17 @@
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { initial as inputFixture } from '../tests/fixtures/taxExecutionInputs.mjs';
-process.loadEnvFile('.env.local');
+const syntheticApi = 'https://synthetic-period.supabase.co';
+process.env.NEXT_PUBLIC_SUPABASE_URL = syntheticApi;
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'synthetic-only';
+process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID = '';
+const user = {id:'00000000-0000-4000-8000-000000000001',email:'synthetic@example.invalid',aud:'authenticated',role:'authenticated',app_metadata:{},user_metadata:{},created_at:'2026-01-01T00:00:00Z'};
+const tokenPayload = Buffer.from(JSON.stringify({sub:user.id,email:user.email,role:'authenticated',aud:'authenticated',exp:4102444800,iat:1793822400})).toString('base64url');
+const session = {access_token:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.'+tokenPayload+'.synthetic',refresh_token:'synthetic',expires_in:86400,expires_at:4102444800,token_type:'bearer',user};
 const origin = 'http://127.0.0.1:3117',
   companyId = 900023,
   file = path.resolve('test-results/tax-return-control.json'),
@@ -48,6 +54,7 @@ const row = {
   updated_at: '2026-01-01T00:00:00Z',
 };
 const initial = {
+  user,
   companyId,
   rows: [],
   data: {
@@ -77,6 +84,7 @@ const initial = {
 };
 let state = structuredClone(initial),
   mode = 'success',
+  clientFailTable = null,
   server,
   browser,
   logs = '',
@@ -101,7 +109,7 @@ try {
     process.execPath,
     [
       '--import',
-      path.resolve('playwright/tax-return-safety-fetch.mjs'),
+      path.resolve('playwright/tax-period-fetch.mjs'),
       'node_modules/next/dist/bin/next',
       'dev',
       '--webpack',
@@ -111,7 +119,7 @@ try {
       '3117',
     ],
     {
-      env: { ...process.env, ROADMAP_TAX_CONTROL_FILE: file },
+      env: { ...process.env, TAX_PERIOD_FIXTURE: file },
       detached: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     },
@@ -137,23 +145,14 @@ try {
   }
   assert.ok(ready);
   browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext(),
-    auth = JSON.parse(
-      readFileSync('playwright/.auth/share-expiry-session.json', 'utf8'),
-    );
-  await context.addCookies(
-    auth.cookies.map(({ name, value }) => ({
-      name,
-      value,
-      url: origin,
-      sameSite: 'Lax',
-    })),
-  );
+  const context = await browser.newContext();
+  await context.route('**/*', route => {const u=new URL(route.request().url());return [origin,syntheticApi].includes(u.origin)?route.continue():route.abort();});
+  await context.addCookies([{name:'sb-synthetic-period-auth-token',value:'base64-'+Buffer.from(JSON.stringify(session)).toString('base64url'),url:origin,sameSite:'Lax'}]);
   await context.addInitScript(() =>
     localStorage.setItem('sunboo:analytics-consent', 'denied'),
   );
   await context.route(origin+'/**', route=>{const h=route.request().headers();if(h['next-router-prefetch']||h.purpose==='prefetch')return route.abort();return route.continue();});
-  await context.route('**/rest/v1/**', async (route) => {
+  await context.route('https://synthetic-period.supabase.co/rest/v1/**', async (route) => {
     const req = route.request(),
       u = new URL(req.url()),
       table = u.pathname.split('/').at(-1),
@@ -169,7 +168,7 @@ try {
         },
       });
     if (req.method() === 'GET') {
-      if (state.failTable === table)
+      if (clientFailTable === table)
         return route.fulfill({
           status: 400,
           json: { message: 'Synthetic read failure' },
@@ -234,7 +233,7 @@ try {
     }),
     check = page.getByRole('button', { name: '保存結果を確認', exact: true }),
     edit = page.getByRole('button', { name: '編集', exact: true }).first(),
-    year = page.getByPlaceholder('例: 2025年3月期', { exact: true });
+    year = page.getByRole('combobox', { name: '対象年度（決算日の年・必須）', exact: true });
   page.on('dialog', (d) => d.accept());
   await page.goto(url, { waitUntil: 'networkidle' });
   await edit.waitFor();
@@ -318,7 +317,7 @@ try {
   await reset([]);
   await page.reload({ waitUntil: 'networkidle' });
   await add.click();
-  await year.fill('合成新規');
+  await year.selectOption('2026');
   await page
     .getByRole('textbox', { name: '決算日', exact: true })
     .fill('20260331');
@@ -346,7 +345,7 @@ try {
     await reset();
     await page.reload({ waitUntil: 'networkidle' });
     await edit.click();
-    await year.fill('合成変更');
+    await year.selectOption('2025');
     const before = writes;
     await page.getByRole('button', { name: '更新する', exact: true }).click();
     await check.waitFor();
@@ -358,7 +357,8 @@ try {
     await page.reload({ waitUntil: 'networkidle' });
     assert.ok(await add.isDisabled());
     assert.equal(writes, before + 1);
-    await update({ failTable: 'workspace_company_profiles' });
+    await check.waitFor();
+    clientFailTable = 'workspace_company_profiles';
     await check.click();
     await page
       .getByRole('alert')
@@ -366,7 +366,7 @@ try {
       .waitFor();
     assert.ok(await add.isDisabled());
     assert.equal(writes, before + 1);
-    await update({ failTable: null });
+    clientFailTable = null;
     await check.click();
     if (failure === 'lost')
       await page
@@ -385,7 +385,7 @@ try {
   await reset([]);
   await page.reload({ waitUntil: 'networkidle' });
   await add.click();
-  await year.fill('合成新規');
+  await year.selectOption('2026');
   await page
     .getByRole('textbox', { name: '決算日', exact: true })
     .fill('20260331');

@@ -1,4 +1,5 @@
 import { Pencil, Trash2 } from 'lucide-react';
+import { fiscalPeriodHeading, fiscalPeriodRange } from '@/lib/taxReturnPeriod';
 import {
   confidenceOfAmount, CORPORATE_TAX_BUCKETS, CONSUMPTION_TAX_BUCKETS, TAXABLE_SALES_BUCKETS,
   type AmountPrecision, type AmountValue, type TaxReturnEntry,
@@ -136,7 +137,11 @@ export function TaxReturnEntryCard({
   return (
     <div className="card space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-semibold text-gray-900">{entry.fiscalYear}</p>
+        <div>
+          <p className="font-semibold text-gray-900">{fiscalPeriodHeading(entry.fiscalYearEndDate)}</p>
+          <p className="mt-1 text-sm text-gray-700">対象期間：{fiscalPeriodRange(entry.fiscalYearStartDate, entry.fiscalYearEndDate)}</p>
+          <p className="mt-1 text-xs text-sunboo-ink-muted">登録時の表記：{entry.fiscalYear}</p>
+        </div>
         <div className="flex gap-1.5">
           <button type="button" onClick={onEdit} className="btn-secondary inline-flex items-center gap-1 px-2.5 py-1 text-xs">
             <Pencil className="h-3 w-3" />
