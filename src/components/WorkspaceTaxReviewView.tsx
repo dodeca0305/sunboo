@@ -149,10 +149,10 @@ export default function WorkspaceTaxReviewView({
       <div className="card py-10 text-center">
         <CheckCircle2 className="mx-auto h-6 w-6 text-sunboo-moss" />
         <p className="mt-3 text-sm font-semibold text-sunboo-ink">
-          現在、確認が必要な税務レビューはありません
+          確認する項目はまだ登録されていません
         </p>
         <p className="mt-1 text-xs text-sunboo-ink-muted">
-          Tax IntelligenceのReviewCaseが作成されると、ここに表示されます。
+          税金のチェックで確認したい項目が見つかると、ここに表示されます。チェック前などでも0件になるため、税務上の問題がないという意味ではありません。
         </p>
       </div>
     );

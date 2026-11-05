@@ -263,6 +263,8 @@ try {
   await update({failTable:null});await page.getByRole('button',{name:'再読み込み',exact:true}).click();
   await page.getByText(`${initial.data.workspace_companies[0].name}のまだ確認が終わっていない項目：0件`,{exact:true}).waitFor();
   await page.getByText('登録情報をもとに、税金について確認したい項目を表示します。',{exact:false}).waitFor();
+  await page.getByText('確認する項目はまだ登録されていません',{exact:true}).waitFor();
+  assert.doesNotMatch(await page.locator('main').textContent(),/Tax Intelligence|ReviewCase/);
   // A different company URL must never keep links to the previously selected company.
   await page.goto(origin+'/admin/workspaces/900024/tax-returns',{waitUntil:'networkidle'});
   for(const [,suffix] of links) assert.ok(await companyNav().locator(`a[href="/admin/workspaces/900024${suffix}"]`).count());
