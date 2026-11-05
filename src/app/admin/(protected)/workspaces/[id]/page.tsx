@@ -1,3 +1,4 @@
+import { missingProfileInputs } from '@/lib/profileInputGuidance';
 import { notFound } from 'next/navigation';
 import { createServerSupabase } from '@/lib/supabase/server';
 import PageHeader from '@/components/PageHeader';
@@ -207,6 +208,7 @@ export default async function WorkspaceCompanyPage({
       {derived.status === 'loaded' ? (
         <WorkspaceDashboard
           companyId={companyId}
+          missingInputs={profile ? missingProfileInputs(profile.profile) : []}
           company={{
             corporateType: company.corporate_type,
             fiscalMonth: company.fiscal_month,

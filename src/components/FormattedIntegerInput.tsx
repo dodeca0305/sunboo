@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { parseIntegerInput } from '@/lib/integerInputValidation';
 
 type FormattedIntegerInputProps = {
+  id?: string;
   value: number | null;
   onChange: (value: number | null) => void;
   placeholder?: string;
@@ -21,6 +22,7 @@ function formatIntegerValue(value: number | null, zeroAsBlank: boolean): string 
 }
 
 export default function FormattedIntegerInput({
+  id,
   value,
   onChange,
   placeholder = '円',
@@ -53,6 +55,7 @@ export default function FormattedIntegerInput({
 
   return (
     <input
+      id={id}
       type="text"
       inputMode="numeric"
       autoComplete="off"

@@ -16,6 +16,7 @@ import {
 } from '@/lib/dateInputValidation';
 
 type ManualDateInputProps = {
+  id?: string;
   value: string | null;
   onChange: (value: string | null) => void;
   label: string;
@@ -24,6 +25,7 @@ type ManualDateInputProps = {
 };
 
 export default function ManualDateInput({
+  id,
   value,
   onChange,
   label,
@@ -140,6 +142,7 @@ export default function ManualDateInput({
     <div>
       <div className="relative flex gap-2">
         <input
+          id={id}
           ref={textInputRef}
           type="text"
           inputMode="numeric"

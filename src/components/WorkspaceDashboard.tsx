@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { profileInputId, type MissingProfileInput } from '@/lib/profileInputGuidance';
 import {
   Sunrise, ListChecks, PieChart, Sparkles, Building2, Compass,
   Bell, Clock, PauseCircle, FileStack, Receipt, Info, TrendingUp, Wallet,
@@ -199,7 +200,9 @@ export default function WorkspaceDashboard({
   todayActions,
   notifications,
   documentsNeedingUpdateCount,
+  missingInputs = [],
 }: {
+  missingInputs?: MissingProfileInput[];
   companyId: number;
   company: {
     corporateType: string;
@@ -245,10 +248,24 @@ export default function WorkspaceDashboard({
             </ul>
           ) : (
             <p className="text-sm text-sunboo-ink-muted">
-              今の登録情報から、優先して表示する対応候補はありません。今後の予定は「年間ロードマップ」で確認できます。
+              {missingInputs.length > 0
+                ? 'まず、下の未入力項目を確認して、会社の案内を整えましょう。'
+                : '今の登録情報から、優先して表示する対応候補はありません。今後の予定は「年間ロードマップ」で確認できます。'}
+              {missingInputs.length === 0 && <Link href={`/admin/workspaces/${companyId}/roadmap`} className="btn-secondary mt-2 flex w-fit">今後の手続きを確認する</Link>}
             </p>
           )}
         </div>
+
+        {missingInputs.length > 0 && (
+          <section aria-label="会社情報の未入力項目" data-testid="home-missing-profile" className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+            <h3 className="font-semibold">会社情報を入力して、手続きの案内を整えましょう</h3>
+            <p>未入力：{missingInputs.map(field => field.label).join('・')}</p>
+            <p>手続きの時期や必要性を案内するために使います。分からない項目は空欄のまま途中保存できます。</p>
+            <Link href={`/admin/workspaces/${companyId}/profile#${profileInputId(missingInputs[0].key)}`} className="btn-primary inline-flex">
+              {missingInputs[0].label}から入力する
+            </Link>
+          </section>
+        )}
 
         <div className="grid grid-cols-2 gap-4 border-b border-sunboo-mist pb-3">
           <div>
@@ -288,7 +305,7 @@ export default function WorkspaceDashboard({
         )}
       </section>
 
-      {progress.total === 0 && (
+      {progress.total === 0 && missingInputs.length === 0 && (
         <div className="information-card information-card--info flex items-start gap-3">
           <Compass className="mt-0.5 h-4 w-4 shrink-0 text-sunboo-ink-muted" />
           <div className="min-w-0 flex-1">
@@ -296,14 +313,14 @@ export default function WorkspaceDashboard({
             <p className="mt-1 text-xs leading-relaxed text-sunboo-ink-muted">
               {company.fiscalMonth === null
                 ? '決算月が未設定のため、年間ロードマップをまだ作成できません。会社プロフィールで決算月を設定してください。'
-                : '会社プロフィールを入力すると、年間ロードマップが自動作成されます。'}
+                : '会社情報は入力されています。年間ロードマップで、現在の登録情報による案内を確認してください。'}
             </p>
           </div>
           <Link
-            href={`/admin/workspaces/${companyId}/profile`}
+            href={`/admin/workspaces/${companyId}/roadmap`}
             className="btn-secondary shrink-0 px-3 py-1.5 text-xs whitespace-nowrap"
           >
-            会社プロフィールを入力する
+            年間ロードマップを見る
           </Link>
         </div>
       )}
