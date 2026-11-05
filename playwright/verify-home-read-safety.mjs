@@ -188,6 +188,7 @@ try {
   const context = await browser.newContext({viewport:{width:1280,height:900}});
   await context.addCookies([{name:'sb-synthetic-home-auth-token',value:'base64-'+Buffer.from(JSON.stringify(session)).toString('base64url'),url:origin,sameSite:'Lax'}]);
   await context.route('**/*', route=>[origin,syntheticApi].includes(new URL(route.request().url()).origin)?route.continue():route.abort());
+  await context.route(syntheticApi+'/auth/v1/user',route=>route.fulfill({json:user,headers:{'access-control-allow-origin':origin}}));
   await context.addInitScript(() =>
     localStorage.setItem('sunboo:analytics-consent', 'denied'),
   );
@@ -441,6 +442,62 @@ try {
     (await page.getByText('合成ホーム手続き', { exact: true }).count()) > 0,
   );
   }
+  // P02/P03: actual missing values, zero, deep links and unsaved edits.
+  state = structuredClone(initial);
+  state.data.workspace_companies[0].fiscal_month = null;
+  state.data.workspace_company_profiles[0].established_date = null;
+  state.data.workspace_company_profiles[0].capital = null;
+  state.data.workspace_company_profiles[0].employee_count = 0;
+  state.data.workspace_monthly_sales = [];
+  state.data.workspace_tax_payment_plans = [];
+  await update();
+  await page.goto(home,{waitUntil:'networkidle'});
+  const missingNotice = page.getByTestId('home-missing-profile');
+  await missingNotice.waitFor();
+  assert.match(await missingNotice.textContent(),/決算月・設立日・資本金/);
+  assert.doesNotMatch(await page.getByTestId('home-today').textContent(),/優先して表示する対応候補はありません/);
+  await page.screenshot({path:'test-results/profile-next-step-home.png',fullPage:false});
+  await missingNotice.getByRole('link',{name:'決算月から入力する',exact:true}).click();
+  await page.waitForURL(home+'/profile#company-profile-fiscalMonth');
+  await page.waitForFunction(()=>document.activeElement?.id==='company-profile-fiscalMonth');
+  const guidance = page.getByRole('region',{name:'入力する項目の案内',exact:true});
+  assert.match(await guidance.textContent(),/未入力 3項目/);
+  assert.match(await guidance.textContent(),/選択済みの項目や初期値/);
+  assert.equal(await page.getByText('未入力',{exact:true}).count(),3);
+  assert.equal(await page.getByRole('textbox',{name:'従業員数',exact:true}).inputValue(),'0');
+  await guidance.getByRole('link',{name:'設立日の入力欄へ',exact:true}).click();
+  assert.equal(await page.getByRole('textbox',{name:'設立日',exact:true}).evaluate(el=>el===document.activeElement),true);
+  await page.getByRole('textbox',{name:'資本金',exact:true}).fill('0');
+  await page.getByRole('textbox',{name:'資本金',exact:true}).blur();
+  assert.match(await guidance.textContent(),/未入力 2項目/);
+  assert.equal(await page.getByRole('textbox',{name:'資本金',exact:true}).inputValue(),'0');
+  await page.locator('#company-profile-fiscalMonth').selectOption('3');
+  assert.match(await guidance.textContent(),/未入力 1項目/);
+  await page.getByRole('textbox',{name:'設立日',exact:true}).fill('20200101');
+  await page.getByRole('textbox',{name:'設立日',exact:true}).blur();
+  assert.match(await guidance.textContent(),/3項目とも入力されています/);
+  assert.equal(await page.getByText('未入力',{exact:true}).count(),0);
+  assert.equal(writes,0);
+  await page.reload({waitUntil:'networkidle'});
+  assert.match(await guidance.textContent(),/未入力 3項目/);
+  await page.setViewportSize({width:375,height:812});
+  await guidance.getByRole('link',{name:'資本金の入力欄へ',exact:true}).click();
+  assert.equal(await page.getByRole('textbox',{name:'資本金',exact:true}).evaluate(el=>el===document.activeElement),true);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+  await page.screenshot({path:'test-results/profile-missing-mobile.png',fullPage:false});
+  await page.setViewportSize({width:1280,height:900});
+  await page.screenshot({path:'test-results/profile-missing-desktop.png',fullPage:true});
+  await update({failTable:'workspace_company_profiles',failure:'error'});
+  await page.goto(home,{waitUntil:'networkidle'});
+  assert.equal(await page.getByTestId('home-missing-profile').count(),0);
+  await page.goto(home+'/profile',{waitUntil:'networkidle'});
+  await page.getByText('会社プロフィールを読み込めませんでした',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'保存する',exact:true}).count(),0);
+  assert.equal(await page.getByText('未入力',{exact:true}).count(),0);
+  state = structuredClone(initial);
+  await update();
+  await page.goto(home,{waitUntil:'networkidle'});
+  assert.equal(await page.getByTestId('home-missing-profile').count(),0);
   // P08: filing is not payment; fixtures and auth remain local and synthetic.
   state = structuredClone(initial);
   await update();

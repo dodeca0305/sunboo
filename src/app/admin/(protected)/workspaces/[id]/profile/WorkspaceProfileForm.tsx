@@ -14,6 +14,7 @@ import { profileSaveKey, validProfileSaveIntent, saveCompanyProfile, reconcilePr
 import InformationCard from '@/components/InformationCard';
 import ManualDateInput from '@/components/ManualDateInput';
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
+import { missingProfileInputs, profileInputId, PROFILE_GUIDANCE_FIELDS } from '@/lib/profileInputGuidance';
 import { trackEvent } from '@/lib/analytics';
 
 // ── Company Workspace — 会社プロフィール編集フォーム（Sprint 23 Phase23.2・Sprint47）───────
@@ -68,7 +69,19 @@ const FISCAL_MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 // 「この情報を◯◯の判定に利用します」という統一パターンで入力理由を表示する（Sprint61）。
 // 各項目の説明文言をここで揃え、フォーム側で個別にクラス名・トーンを書き分けない。
 function FieldHint({ children }: { children: React.ReactNode }) {
-  return <p className="mt-1.5 text-xs leading-relaxed text-gray-400">{children}</p>;
+  return <p className="mt-1.5 text-xs leading-relaxed text-gray-600">{children}</p>;
+}
+
+function ProfileFieldLabel({ field, children, kind, missing = false }: {
+  field: string; children: React.ReactNode; kind: 'required' | 'guidance' | 'optional' | 'confirm'; missing?: boolean;
+}) {
+  return <label htmlFor={profileInputId(field)} className="form-label flex flex-wrap items-center gap-2">
+    <span>{children}</span>
+    <span className={`rounded px-1.5 py-0.5 text-xs ${kind === 'required' ? 'bg-blue-50 text-blue-800' : 'bg-gray-100 text-gray-600'}`}>
+      {{required:'必須',guidance:'案内に使う情報',optional:'任意',confirm:'内容を確認'}[kind]}
+    </span>
+    {missing && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-900">未入力</span>}
+  </label>;
 }
 
 export default function WorkspaceProfileForm({
@@ -134,6 +147,15 @@ export default function WorkspaceProfileForm({
     await send(intent);
   }
   const blocked=!ready||saving||pending!==null;
+  const missing = missingProfileInputs(profile);
+  const focusedAnchor = useRef(false);
+  useEffect(() => {
+    if (blocked || focusedAnchor.current) return;
+    focusedAnchor.current = true;
+    const target = PROFILE_GUIDANCE_FIELDS.find(field => window.location.hash === `#${profileInputId(field.key)}`);
+    if (target) document.getElementById(profileInputId(target.key))?.focus();
+  }, [blocked]);
+
 
   return (
     <form onSubmit={handleSubmit} className="card max-w-2xl space-y-5">
@@ -146,12 +168,26 @@ export default function WorkspaceProfileForm({
         <button type="button" className="btn-secondary" disabled={saving||!ready} onClick={()=>{sessionStorage.removeItem(storageKey.current);window.location.reload();}}>現在の情報を再読み込みして編集し直す</button>
         <p className="text-xs">再読み込みは保存を取り消しません。再送せず現在の保存値を取得してから編集し直します。</p>
       </div>}
-      <fieldset disabled={blocked} className="space-y-5">
+      <section aria-label="入力する項目の案内" className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">
+        <h2 className="font-semibold">まず、分かる会社情報から入力してください</h2>
+        <p>「必須」は保存に必要な項目です。「案内に使う情報」は空欄でも途中保存できます。分からない内容を推測して埋める必要はありません。</p>
+        <p>選択済みの項目や初期値も、実際の会社情報と合っているか確認してください。</p>
+        <p aria-live="polite" className="font-semibold">案内に使う基本情報：{missing.length > 0 ? `未入力 ${missing.length}項目` : '3項目とも入力されています'}</p>
+        {missing.length > 0 && <ul className="space-y-2">
+          {missing.map(field => <li key={field.key}>
+            <a href={`#${profileInputId(field.key)}`} className="font-medium underline underline-offset-2">{field.label}の入力欄へ</a>
+            <span className="ml-2">— {field.reason}</span>
+          </li>)}
+        </ul>}
+        <p className="text-xs">入力しただけでは保存されません。確認したら、下の「保存する」を押してください。</p>
+      </section>
+      <fieldset disabled={blocked} className="space-y-5 [&_input]:scroll-mt-28 [&_select]:scroll-mt-28">
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className="form-label">法人種別</label>
+          <ProfileFieldLabel field="corporateType" kind="required">法人種別</ProfileFieldLabel>
           <select
+            id={profileInputId("corporateType")}
             value={profile.corporateType}
             onChange={(e) => set('corporateType', e.target.value as CorporateType)}
             className="form-select"
@@ -163,8 +199,9 @@ export default function WorkspaceProfileForm({
           <FieldHint>この情報は提出先・登記関連手続きの判定に利用します。</FieldHint>
         </div>
         <div>
-          <label className="form-label">決算月</label>
+          <ProfileFieldLabel field="fiscalMonth" kind="guidance" missing={profile.fiscalMonth === null}>決算月</ProfileFieldLabel>
           <select
+            id={profileInputId("fiscalMonth")}
             value={profile.fiscalMonth ?? ''}
             onChange={(e) => set('fiscalMonth', e.target.value ? Number(e.target.value) : null)}
             className="form-select"
@@ -187,8 +224,9 @@ export default function WorkspaceProfileForm({
       </div>
 
       <div>
-        <label className="form-label">番地・建物名（任意）</label>
+        <ProfileFieldLabel field="address" kind="optional">番地・建物名</ProfileFieldLabel>
         <input
+          id={profileInputId("address")}
           type="text"
           placeholder="例: 1丁目2番3号 ○○ビル4階"
           value={profile.address ?? ''}
@@ -203,8 +241,9 @@ export default function WorkspaceProfileForm({
 
       {profile.corporateType === 'kabushiki' && (
         <div>
-          <label className="form-label">次回の役員変更予定日（任意）</label>
+          <ProfileFieldLabel field="nextOfficerChangeDate" kind="optional">次回の役員変更予定日</ProfileFieldLabel>
           <ManualDateInput
+            id={profileInputId("nextOfficerChangeDate")}
             value={profile.nextOfficerChangeDate}
             onChange={(value) => set('nextOfficerChangeDate', value)}
             label="次回の役員変更予定日"
@@ -219,8 +258,9 @@ export default function WorkspaceProfileForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className="form-label">設立日</label>
+          <ProfileFieldLabel field="establishedDate" kind="guidance" missing={profile.establishedDate === null}>設立日</ProfileFieldLabel>
           <ManualDateInput
+            id={profileInputId("establishedDate")}
             value={profile.establishedDate}
             onChange={(value) => set('establishedDate', value)}
             label="設立日"
@@ -228,8 +268,9 @@ export default function WorkspaceProfileForm({
           <FieldHint>この情報は会社ステージ（1期目/2期目以降）の判定に利用します。</FieldHint>
         </div>
         <div>
-          <label className="form-label">資本金（円）</label>
+          <ProfileFieldLabel field="capital" kind="guidance" missing={profile.capital === null}>資本金（円）</ProfileFieldLabel>
           <FormattedIntegerInput
+            id={profileInputId("capital")}
             value={profile.capital}
             onChange={(value) => set('capital', value)}
             placeholder="例: 5,000,000"
@@ -242,8 +283,9 @@ export default function WorkspaceProfileForm({
       </div>
 
       <div>
-        <label className="form-label">従業員数</label>
+        <ProfileFieldLabel field="employeeCount" kind="required">従業員数</ProfileFieldLabel>
         <FormattedIntegerInput
+          id={profileInputId("employeeCount")}
           value={
             employeeCountText === ''
               ? null
@@ -272,8 +314,9 @@ export default function WorkspaceProfileForm({
       </div>
 
       <div>
-        <label className="form-label">会社ステージ</label>
+        <ProfileFieldLabel field="stage" kind="required">会社ステージ</ProfileFieldLabel>
         <select
+          id={profileInputId("stage")}
           value={profile.stage}
           onChange={(e) => set('stage', e.target.value as CompanyStage)}
           className="form-select"
@@ -289,8 +332,9 @@ export default function WorkspaceProfileForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className="form-label">消費税ステータス</label>
+          <ProfileFieldLabel field="consumptionTaxStatus" kind="required">消費税ステータス</ProfileFieldLabel>
           <select
+            id={profileInputId("consumptionTaxStatus")}
             value={profile.consumptionTaxStatus}
             onChange={(e) => set('consumptionTaxStatus', e.target.value as ConsumptionTaxStatus)}
             className="form-select"
@@ -302,8 +346,9 @@ export default function WorkspaceProfileForm({
           <FieldHint>この情報は消費税確定申告の要否判定に利用します。</FieldHint>
         </div>
         <div>
-          <label className="form-label">インボイス登録状況</label>
+          <ProfileFieldLabel field="invoiceRegistrationStatus" kind="required">インボイス登録状況</ProfileFieldLabel>
           <select
+            id={profileInputId("invoiceRegistrationStatus")}
             value={profile.invoiceRegistrationStatus}
             onChange={(e) => set('invoiceRegistrationStatus', e.target.value as InvoiceRegistrationStatus)}
             className="form-select"
@@ -317,8 +362,9 @@ export default function WorkspaceProfileForm({
       </div>
 
       <div>
-        <label className="form-label">源泉所得税の納付サイクル</label>
+        <ProfileFieldLabel field="withholdingTaxCycle" kind="confirm">源泉所得税の納付サイクル</ProfileFieldLabel>
         <select
+          id={profileInputId("withholdingTaxCycle")}
           value={profile.withholdingTaxCycle}
           onChange={(e) => set('withholdingTaxCycle', e.target.value as WithholdingTaxCycle)}
           className="form-select"
@@ -332,8 +378,9 @@ export default function WorkspaceProfileForm({
 
       {profile.localTaxCollectionMethod === 'special_collection' && (
         <div>
-          <label className="form-label">住民税特別徴収の納期</label>
+          <ProfileFieldLabel field="residentTaxPaymentCycle" kind="confirm">住民税特別徴収の納期</ProfileFieldLabel>
           <select
+            id={profileInputId("residentTaxPaymentCycle")}
             value={profile.residentTaxPaymentCycle}
             onChange={(e) => set('residentTaxPaymentCycle', e.target.value as ResidentTaxPaymentCycle)}
             className="form-select"
