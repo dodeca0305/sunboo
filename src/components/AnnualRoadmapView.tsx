@@ -28,6 +28,7 @@ import {
   type WorkspaceCompletionFeedbackPayload,
 } from '@/lib/workspaceCompletionFeedback';
 import {
+  canPlanTaxPayment,
   workspaceTaxPaymentPlanKey,
   type WorkspaceTaxPaymentPlanMap,
 } from '@/lib/workspaceTaxPaymentPlan';
@@ -336,6 +337,9 @@ export default function AnnualRoadmapView({
 
   async function saveTaxPaymentPlan(procedureId: number, dueDate: string) {
     if (!companyId || !taxEditable || savingTaxPaymentKey !== null) return;
+    const procedure = roadmapYears.flatMap(year => year.items)
+      .find(item => item.procedure.id === procedureId && item.dueDate === dueDate)?.procedure;
+    if (!procedure || !canPlanTaxPayment(procedure.code)) return;
     const key = workspaceTaxPaymentPlanKey(procedureId, dueDate);
     const amount = localTaxPaymentPlanMap[key] ?? 0;
     const supabase = createBrowserSupabase();
@@ -431,7 +435,7 @@ export default function AnnualRoadmapView({
                               <span className="tag">{CATEGORY_LABEL[item.procedure.category] ?? 'その他'}</span>
                             </div>
 
-                            {taxEditable && isTaxProcedure && (
+                            {taxEditable && canPlanTaxPayment(item.procedure.code) && (
                               <div className="border-t border-sunboo-mist pt-3">
                                 <SectionLabel>予定税額（資金繰りへ連携）</SectionLabel>
                                 <div className="mt-1.5 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -464,6 +468,19 @@ export default function AnnualRoadmapView({
                                 <p className="mt-1 text-xs text-sunboo-ink-muted">
                                   この納期限の月にある資金繰りへ自動で加算されます。
                                 </p>
+                              </div>
+                            )}
+
+                            {isTaxProcedure && !canPlanTaxPayment(item.procedure.code) && (
+                              <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                                <p className="font-semibold">税金の支払いとは分けて確認してください</p>
+                                <p className="mt-1">この期限を税金の支払日として扱いません。税額の入力や資金繰りへの自動加算は行いません。</p>
+                                {item.procedure.code === 'DEPRECIABLE_ASSET_TAX_RETURN' && (
+                                  <p className="mt-1">償却資産の申告と、固定資産税の支払いは別の手続きです。支払う金額と期限は、自治体から届く納税通知書で確認してください。</p>
+                                )}
+                                {(taxPaymentPlanMap?.[taxPaymentKey] ?? 0) > 0 && (
+                                  <p className="mt-2 font-semibold">以前登録した金額は保持しています。納付日を確認できないため、この金額を含む資金繰りの集計は保留しています。</p>
+                                )}
                               </div>
                             )}
 

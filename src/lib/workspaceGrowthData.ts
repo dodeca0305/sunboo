@@ -3,7 +3,7 @@ import {
   monthlySalesRowToEntry, type DailySalesActivity, type MonthlySalesEntry,
   type MonthlySalesRow, type WeeklySalesActivity,
 } from './monthlySalesProgress.ts';
-import { sumTaxPaymentPlansByMonth, type WorkspaceTaxPaymentPlanRow } from './workspaceTaxPaymentPlan.ts';
+import { sumTaxPaymentPlansByMonth, confirmedTaxPaymentPlanRows, LINKED_TAX_PLAN_COLUMNS, type LinkedTaxPaymentPlanRow } from './workspaceTaxPaymentPlan.ts';
 
 type WeeklySalesRow = {
   week_start: string;
@@ -60,12 +60,12 @@ export async function loadWorkspaceGrowthData(
         .select('activity_date, target_units, actual_units, action_plan, outcome_review')
         .eq('company_id', companyId)
         .order('activity_date', { ascending: false })),
-      requireRows<WorkspaceTaxPaymentPlanRow>(supabase.from('workspace_tax_payment_plans')
-        .select('procedure_id, due_date, amount')
+      requireRows<LinkedTaxPaymentPlanRow>(supabase.from('workspace_tax_payment_plans')
+        .select(LINKED_TAX_PLAN_COLUMNS)
         .eq('company_id', companyId)),
     ]);
     const linkedTaxPaymentsByMonth = sumTaxPaymentPlansByMonth(
-      taxPaymentPlanData,
+      confirmedTaxPaymentPlanRows(taxPaymentPlanData),
     );
 
     const entries: MonthlySalesEntry[] = data.map((row) =>

@@ -58,7 +58,7 @@ test('既存実績・行動目標・納税予定の変換を維持する', async
     }] },
     workspace_weekly_sales_activities: { error: null, data: [{ week_start: '2026-10-26', target_meetings: 8, actual_meetings: 4, actual_deals: 2, action_note: '既存の週次メモ' }] },
     workspace_daily_sales_activities: { error: null, data: [{ activity_date: '2026-10-30', target_units: 3, actual_units: 2, action_plan: '既存の日次計画', outcome_review: '既存の振り返り' }] },
-    workspace_tax_payment_plans: { error: null, data: [{ procedure_id: 1, due_date: '2026-10-31', amount: 150000 }, { procedure_id: 2, due_date: '2026-10-31', amount: 50000 }] },
+    workspace_tax_payment_plans: { error: null, data: [{ procedure_id: 1, due_date: '2026-10-31', amount: 150000, procedures: {code:'WITHHOLDING_TAX'} }, { procedure_id: 2, due_date: '2026-10-31', amount: 50000, procedures: {code:'CORP_TAX_RETURN'} }] },
   });
   const result = await loadWorkspaceGrowthData(client, 23);
   assert.equal(result.status, 'loaded');
@@ -70,3 +70,10 @@ test('既存実績・行動目標・納税予定の変換を維持する', async
   assert.equal(result.weeklyActivities[0].actionNote, '既存の週次メモ');
   assert.equal(result.dailyActivities[0].outcomeReview, '既存の振り返り');
 });
+
+for (const procedures of [null, {code:'DEPRECIABLE_ASSET_TAX_RETURN'}, {code:'SALARY_PAYMENT_REPORT'}]) {
+  test(`未確認の納付予定は売上画面の部分集計・編集を停止: ${JSON.stringify(procedures)}`, async () => {
+    const {client} = fakeClient({workspace_tax_payment_plans:{error:null,data:[{procedure_id:66,due_date:'2027-01-31',amount:1000,procedures}]}});
+    assert.deepEqual(await loadWorkspaceGrowthData(client,23),{status:'unavailable'});
+  });
+}

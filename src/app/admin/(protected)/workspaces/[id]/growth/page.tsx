@@ -32,10 +32,15 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
         売上達成を保証する機能ではありません。実績との差を早めに把握し、経営者が行動を見直すための参考情報です。
       </InformationCard>
       {growthData.status === 'unavailable' ? (
-        <InformationCard kind="error" title="売上目標データを読み込めませんでした">
+        <InformationCard kind="error" title="売上目標・資金繰りを確認できません">
           <p role="alert">
-            月次・週次・日次実績、または納税予定を取得できませんでした。
-            既存の情報を保護するため、編集・保存を停止しています。時間をおいて再読み込みしてください。
+            月次・週次・日次実績、または納税予定を確認できないため、編集・保存を停止しています。
+          </p>
+          <p className="mt-2">
+            申告の期限に税額を登録した過去の設定がある場合も、誤った集計を防ぐため停止します。登録済みの金額は保持しています。
+          </p>
+          <p className="mt-2">
+            再読み込みしても続く場合は、管理担当者に納税予定の金額・納付日を確認してください。
           </p>
           <a href={`/admin/workspaces/${companyId}/growth`} className="btn-secondary mt-3">
             再読み込み
