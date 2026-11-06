@@ -500,7 +500,11 @@ export default function AnnualRoadmapView({
                             <div>
                               <SectionLabel>提出先</SectionLabel>
                               {submission.officeName === null ? (
-                                <p className="mt-1 text-sm text-sunboo-ink-muted">提出先情報は未登録です</p>
+                                <div className="mt-1 space-y-3" data-testid="submission-destination-unconfirmed">
+                                  <p className="text-sm font-medium text-sunboo-ink">{submission.notice ? '提出先の確認が必要です' : '提出先情報は未登録です'}</p>
+                                  {submission.notice && <p className="text-sm leading-relaxed text-sunboo-ink-muted">{submission.notice}</p>}
+                                  {submission.url && <a className="btn-secondary inline-flex min-h-11 text-xs" href={submission.url} target="_blank" rel="noopener noreferrer">{submission.label}</a>}
+                                </div>
                               ) : (
                                 <div className="mt-1 space-y-2">
                                   <p className="flex items-center gap-1.5 text-sm text-sunboo-ink">
@@ -514,6 +518,7 @@ export default function AnnualRoadmapView({
                                       ))}
                                     </div>
                                   )}
+                                  {submission.notice && <p className="text-sm text-sunboo-ink-muted">{submission.notice}</p>}
                                   {submission.url && (
                                     <div className="flex flex-wrap items-center gap-1.5">
                                       <a
