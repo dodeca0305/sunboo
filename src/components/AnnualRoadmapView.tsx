@@ -341,7 +341,9 @@ export default function AnnualRoadmapView({
       .find(item => item.procedure.id === procedureId && item.dueDate === dueDate)?.procedure;
     if (!procedure || !canPlanTaxPayment(procedure.code)) return;
     const key = workspaceTaxPaymentPlanKey(procedureId, dueDate);
-    const amount = localTaxPaymentPlanMap[key] ?? 0;
+    const amount = localTaxPaymentPlanMap[key];
+    // 空欄は不明な金額。明示された0円と区別し、保存しない。
+    if (amount === undefined) return;
     const supabase = createBrowserSupabase();
     if (!supabase) return;
 
@@ -357,7 +359,7 @@ export default function AnnualRoadmapView({
       }, { onConflict: 'company_id,procedure_id,due_date' });
       if (error) {
         setTaxSaveUncertain(true);
-        setStatusError('予定税額の保存に失敗しました。再読み込みして登録内容を確認してください。');
+        setStatusError('支払う予定額の保存に失敗しました。再読み込みして登録内容を確認してください。');
         return;
       }
       setSavedTaxPaymentKey(key);
@@ -365,11 +367,14 @@ export default function AnnualRoadmapView({
     } catch {
       // 結果不明の書き込みは再送せず、再取得してから編集を再開する。
       setTaxSaveUncertain(true);
-      setStatusError('予定税額の保存結果を確認できませんでした。再読み込みして登録内容を確認してください。');
+      setStatusError('支払う予定額の保存結果を確認できませんでした。再読み込みして登録内容を確認してください。');
     } finally {
       setSavingTaxPaymentKey(null);
     }
   }
+
+  const firstPayment = roadmapYears.flatMap((year) => year.items)
+    .find((item) => canPlanTaxPayment(item.procedure.code));
 
   return (
     <div className="space-y-10">
@@ -388,6 +393,16 @@ export default function AnnualRoadmapView({
           {statusError}
           {taxSaveUncertain && <a className="underline" href={`/admin/workspaces/${companyId}/roadmap`}>再読み込み</a>}
         </div>
+      )}
+      {taxEditable && firstPayment && (
+        <section aria-labelledby="tax-payment-guide-title" data-testid="tax-payment-guide"
+          className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">
+          <h2 id="tax-payment-guide-title" className="font-semibold">税金の支払予定を記録する</h2>
+          <p className="mt-1">納付書や税理士に確認した金額を記録し、支払う月の資金繰りへ反映します。</p>
+          <p className="mt-1 text-xs">税額の自動計算・申告・支払いは行いません。</p>
+          <a href={`#${roadmapCardId(firstPayment.procedure.id, firstPayment.dueDate)}`}
+            className="mt-3 inline-block font-semibold underline underline-offset-4">金額の入力欄へ</a>
+        </section>
       )}
       {roadmapYears.map((yearBlock) => (
         <section key={yearBlock.year}>
@@ -414,7 +429,7 @@ export default function AnnualRoadmapView({
                         <li
                           id={roadmapCardId(item.procedure.id, item.dueDate)}
                           key={`${item.procedure.id}-${item.dueDate}-${idx}`}
-                          tabIndex={isFocused ? -1 : undefined}
+                          tabIndex={isFocused || (taxEditable && canPlanTaxPayment(item.procedure.code)) ? -1 : undefined}
                           className={`card scroll-mt-24 overflow-hidden p-0 break-inside-avoid transition-shadow ${
                             isFocused
                               ? 'ring-2 ring-sunboo-morning-sun-dark ring-offset-2'
@@ -436,37 +451,39 @@ export default function AnnualRoadmapView({
                             </div>
 
                             {taxEditable && canPlanTaxPayment(item.procedure.code) && (
-                              <div className="border-t border-sunboo-mist pt-3">
-                                <SectionLabel>予定税額（資金繰りへ連携）</SectionLabel>
+                              <div data-testid={`tax-payment-editor-${taxPaymentKey}`} className="rounded-xl border border-blue-200 bg-blue-50/60 p-3">
+                                <label htmlFor={`tax-payment-${item.procedure.id}-${item.dueDate}`} className="text-sm font-semibold text-blue-950">支払う予定額（円）</label>
                                 <div className="mt-1.5 flex flex-col gap-2 sm:flex-row sm:items-center">
                                   <FormattedIntegerInput
-                                    value={localTaxPaymentPlanMap[taxPaymentKey] ?? 0}
+                                    id={`tax-payment-${item.procedure.id}-${item.dueDate}`}
+                                    value={localTaxPaymentPlanMap[taxPaymentKey] ?? null}
                                     onChange={(value) => {
-                                      setLocalTaxPaymentPlanMap((previous) => ({
-                                        ...previous,
-                                        [taxPaymentKey]: Math.max(0, value ?? 0),
-                                      }));
+                                      setLocalTaxPaymentPlanMap((previous) => {
+                                        const next = { ...previous };
+                                        if (value === null) delete next[taxPaymentKey];
+                                        else next[taxPaymentKey] = Math.max(0, value);
+                                        return next;
+                                      });
                                       setSavedTaxPaymentKey(null);
                                     }}
                                     placeholder="例：500,000"
-                                    ariaLabel={`${item.procedure.name}の予定税額`}
-                                    zeroAsBlank
-                                    className="sm:max-w-52"
+                                    ariaLabel={`${item.procedure.name}の支払う予定額（円）`}
+                                    className="scroll-mt-28 sm:max-w-52"
                                   />
                                   <button
                                     type="button"
-                                    className="btn-secondary min-h-11 sm:min-h-0"
-                                    disabled={savingTaxPaymentKey !== null}
+                                    className="btn-secondary min-h-11 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0"
+                                    disabled={savingTaxPaymentKey !== null || localTaxPaymentPlanMap[taxPaymentKey] === undefined}
                                     onClick={() => saveTaxPaymentPlan(item.procedure.id, item.dueDate)}
                                   >
-                                    {savingTaxPaymentKey === taxPaymentKey ? '保存中…' : '予定税額を保存'}
+                                    {savingTaxPaymentKey === taxPaymentKey ? '保存中…' : 'この金額を保存'}
                                   </button>
                                   {savedTaxPaymentKey === taxPaymentKey && (
                                     <span className="text-xs font-medium text-sunboo-moss">保存しました</span>
                                   )}
                                 </div>
                                 <p className="mt-1 text-xs text-sunboo-ink-muted">
-                                  この納期限の月にある資金繰りへ自動で加算されます。
+                                  不明なら空欄のまま。支払いがないと確認できた場合だけ「0」を入力してください。
                                 </p>
                               </div>
                             )}

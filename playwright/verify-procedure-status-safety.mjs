@@ -43,14 +43,14 @@ try{
  await existing();
  for(const failure of ['error','throw','null','malformed']){
   await update({statusFailure:failure});await page.reload({waitUntil:'networkidle'});await page.getByRole('alert').filter({hasText:'手続き状態を取得できませんでした'}).waitFor();
-  assert.equal(await statuses.count(),0);assert.equal(await page.getByRole('button',{name:/Excelで出力|PDFで出力/}).count(),0);assert.equal(await page.getByText('未着手',{exact:true}).count(),0);assert.ok(await page.getByRole('button',{name:'予定税額を保存',exact:true}).first().isEnabled());assert.equal(writes,0);
+  assert.equal(await statuses.count(),0);assert.equal(await page.getByRole('button',{name:/Excelで出力|PDFで出力/}).count(),0);assert.equal(await page.getByText('未着手',{exact:true}).count(),0);assert.ok(await page.getByRole('textbox',{name:'合成納税手続きの支払う予定額（円）',exact:true}).first().isEnabled());assert.equal(writes,0);
   if(failure==='error')await page.screenshot({path:'test-results/procedure-status-load-failure.png',fullPage:true});
   await update({statusFailure:null});await page.getByRole('link',{name:'再読み込み',exact:true}).click();await first.waitFor();await existing();
  }
  // 一方の障害が他方の取得済み操作を誤って止めない。
- await update({mode:'error'});await page.reload({waitUntil:'networkidle'});assert.equal(await page.getByRole('button',{name:'予定税額を保存',exact:true}).count(),0);assert.ok(await first.isEnabled());await update({mode:'loaded'});await page.reload({waitUntil:'networkidle'});
- // 確認応答前は元の値を表示。状態再取得でも未保存の予定税額は維持する。
- const tax=page.getByRole('textbox',{name:'合成納税手続きの予定税額',exact:true}).first();await tax.fill('432100');await tax.blur();mode='pending';await first.selectOption('on_hold');await page.getByText('手続き状態を保存中…',{exact:true}).waitFor();assert.equal(await first.inputValue(),'in_progress');assert.ok(await first.isDisabled());assert.ok(await tax.isEnabled());
+ await update({mode:'error'});await page.reload({waitUntil:'networkidle'});assert.equal(await page.getByRole('button',{name:'この金額を保存',exact:true}).count(),0);assert.ok(await first.isEnabled());await update({mode:'loaded'});await page.reload({waitUntil:'networkidle'});
+ // 確認応答前は元の値を表示。状態再取得でも未保存の支払う予定額（円）は維持する。
+ const tax=page.getByRole('textbox',{name:'合成納税手続きの支払う予定額（円）',exact:true}).first();await tax.fill('432100');await tax.blur();mode='pending';await first.selectOption('on_hold');await page.getByText('手続き状態を保存中…',{exact:true}).waitFor();assert.equal(await first.inputValue(),'in_progress');assert.ok(await first.isDisabled());assert.ok(await tax.isEnabled());
  for(let i=0;!release&&i<200;i++)await new Promise(r=>setTimeout(r,10));assert.ok(release);release();await page.waitForFunction(()=>document.querySelector('select[aria-label="合成納税手続きのステータス"]').value==='on_hold'&&!document.querySelector('select[aria-label="合成納税手続きのステータス"]').disabled);await page.waitForLoadState('networkidle');assert.equal((await tax.inputValue()).replaceAll(',',''),'432100');assert.equal(await page.evaluate(k=>sessionStorage.getItem(k),feedbackKey),null);
  for(const failure of ['error','abort-before']){
   mode=failure;await update({statusRows:original});await page.reload({waitUntil:'networkidle'});const before=writes;await first.selectOption('done');await page.getByRole('button',{name:'保存結果を確認',exact:true}).waitFor();assert.equal(await first.inputValue(),'in_progress');assert.ok(await first.isDisabled());assert.equal(page.url(),url);assert.equal(await page.evaluate(k=>sessionStorage.getItem(k),feedbackKey),null);

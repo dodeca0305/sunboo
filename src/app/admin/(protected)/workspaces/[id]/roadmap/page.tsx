@@ -169,7 +169,7 @@ export default async function WorkspaceRoadmapPage({
 
       <WorkspacePlanningSources sources={sources} />
       <p data-testid="planning-tax-plans">
-        納税予定の登録記録:{' '}
+        支払う予定額の登録記録:{' '}
         {taxPaymentPlanMap === null
           ? '取得できません'
           : `${Object.keys(taxPaymentPlanMap).length}件（取得済み）`}
@@ -192,8 +192,8 @@ export default async function WorkspaceRoadmapPage({
       )}
 
       {taxPaymentPlanMap === null && (
-        <InformationCard kind="error" title="納税予定を取得できませんでした">
-          登録済みの予定税額を確認できないため、予定税額の入力・保存とExcel・PDF出力を停止しています。
+        <InformationCard kind="error" title="税金の支払予定を取得できませんでした">
+          保存済みの金額を確認できないため、支払う予定額の入力・保存とExcel・PDF出力を停止しています。
           <a
             className="mt-2 block underline"
             href={`/admin/workspaces/${companyId}/roadmap`}

@@ -320,7 +320,7 @@ try {
     0,
   );
   assert.equal(
-    await page.getByRole('button', { name: '予定税額を保存' }).count(),
+    await page.getByRole('button', { name: 'この金額を保存' }).count(),
     0,
   );
   await update({ failTable: 'workspace_documents' });
@@ -369,7 +369,7 @@ try {
   });
   await visit('roadmap');
   await page
-    .getByText('納税予定を取得できませんでした', { exact: true })
+    .getByText('税金の支払予定を取得できませんでした', { exact: true })
     .waitFor();
   assert.equal(browserWrites, 0);
   assert.equal(existsSync(file + '.writes'), false);

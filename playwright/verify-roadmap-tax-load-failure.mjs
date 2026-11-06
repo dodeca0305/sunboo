@@ -54,8 +54,8 @@ try {
   const url = origin + `/admin/workspaces/${companyId}/roadmap`;
   await page.goto(url, { waitUntil: 'networkidle' });
   assert.ok(!page.url().includes('/admin/login'), 'Authentication unavailable');
-  const input = page.getByRole('textbox', { name: '合成納税手続きの予定税額', exact: true }).first();
-  const save = page.getByRole('button', { name: '予定税額を保存', exact: true }).first();
+  const input = page.getByRole('textbox', { name: '合成納税手続きの支払う予定額（円）', exact: true }).first();
+  const save = page.getByRole('button', { name: 'この金額を保存', exact: true }).first();
   await input.waitFor();
   assert.equal(await input.inputValue(), ''); // 正常な未登録は入力可
   const cardId = await input.locator('xpath=ancestor::li').getAttribute('id');
@@ -67,9 +67,9 @@ try {
   for (const mode of ['error', 'throw', 'null']) {
     await setControl({ mode });
     await page.reload({ waitUntil: 'networkidle' });
-    await page.getByText('納税予定を取得できませんでした', { exact: true }).waitFor();
-    assert.equal(await page.getByRole('textbox', { name: /の予定税額$/ }).count(), 0);
-    assert.equal(await page.getByRole('button', { name: '予定税額を保存', exact: true }).count(), 0);
+    await page.getByText('税金の支払予定を取得できませんでした', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('textbox', { name: /の支払う予定額（円）$/ }).count(), 0);
+    assert.equal(await page.getByRole('button', { name: 'この金額を保存', exact: true }).count(), 0);
     assert.equal(writes.length, 0);
     await setControl({ mode: 'loaded' });
     await page.getByRole('link', { name: '再読み込み', exact: true }).click();
@@ -93,8 +93,8 @@ try {
     await input.fill('123456'); await input.blur();
     await save.click();
     await page.getByRole('link', { name: '再読み込み', exact: true }).waitFor();
-    assert.equal(await page.getByRole('button', { name: /保存中|予定税額を保存/ }).count(), 0);
-    assert.equal(await page.getByRole('textbox', { name: /の予定税額$/ }).count(), 0);
+    assert.equal(await page.getByRole('button', { name: /保存中|この金額を保存/ }).count(), 0);
+    assert.equal(await page.getByRole('textbox', { name: /の支払う予定額（円）$/ }).count(), 0);
     saveMode = 'success';
     await page.getByRole('link', { name: '再読み込み', exact: true }).click();
     await page.waitForLoadState('networkidle');
