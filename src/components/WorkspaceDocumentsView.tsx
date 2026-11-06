@@ -36,6 +36,14 @@ const STATUS_ICON_CLASS: Record<WorkspaceDocumentStatus, string> = {
   needs_update: 'text-sunboo-morning-sun-dark',
 };
 
+const DOCUMENT_TIMING_LABEL: Record<WorkspaceDocumentType, string> = {
+  articles_of_incorporation: '作成・変更日',
+  certificate_of_registered_matters: '発行日',
+  corporate_tax_return: '対象期間',
+  consumption_tax_return: '対象期間',
+  withholding_tax_payment_slip: '対象期間',
+};
+
 export default function WorkspaceDocumentsView({
   companyId,
   statusMap,
@@ -118,7 +126,10 @@ export default function WorkspaceDocumentsView({
           return (
             <li key={documentType} className="card flex flex-wrap items-center gap-3 py-3">
               <Icon className={`h-4 w-4 shrink-0 ${STATUS_ICON_CLASS[status]}`} aria-hidden="true" />
-              <span className="text-sm font-medium text-sunboo-ink">{WORKSPACE_DOCUMENT_TYPE_LABEL[documentType]}</span>
+              <div className="min-w-0 flex-1">
+                <span className="text-sm font-medium text-sunboo-ink">{WORKSPACE_DOCUMENT_TYPE_LABEL[documentType]}</span>
+                {status !== 'not_registered' && <p className="mt-1 text-xs font-medium text-amber-800" data-testid={`document-timing-${documentType}`}>{DOCUMENT_TIMING_LABEL[documentType]}：未記録</p>}
+              </div>
               {status === 'needs_update' && <span className="tag tag--caution">要更新</span>}
               <select
                 value={status}
@@ -141,6 +152,7 @@ export default function WorkspaceDocumentsView({
           <h2 className="text-base font-bold text-sunboo-ink">今後の手続きに必要な書類</h2>
           <p className="mt-1 text-xs text-sunboo-ink-muted">
             未完了のロードマップから、必須書類を重複なくまとめています。
+            準備状況は書類名ごとの共通記録で、年度ごとの提出済み記録ではありません。
           </p>
         </div>
 

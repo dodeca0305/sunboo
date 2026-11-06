@@ -1,4 +1,5 @@
 'use client';
+import { EmployeeCountHelp, OfficerChangeDateHelp } from '@/components/CompanyProfileFieldHelp';
 
 import { WITHHOLDING_CYCLE_LABEL, RESIDENT_TAX_CYCLE_LABEL, WITHHOLDING_FREQUENCY_TITLE, RESIDENT_TAX_FREQUENCY_TITLE, WITHHOLDING_FREQUENCY_HELP, RESIDENT_TAX_FREQUENCY_HELP } from '@/lib/paymentFrequencyLabels';
 import { useEffect, useRef, useState } from 'react';
@@ -235,11 +236,7 @@ export default function WorkspaceProfileForm({
             onChange={(value) => set('nextOfficerChangeDate', value)}
             label="次回の役員変更予定日"
           />
-          <FieldHint>
-            この情報は役員変更登記の期限判定に利用します（登記期限そのものではなく、この日から
-            2週間以内が登記申請期限になります）。任期満了に伴う重任・交代が効力を生じる日
-            （株主総会での重任決議日等）を入力してください。未定の場合は空欄のままにしてください。
-          </FieldHint>
+          <OfficerChangeDateHelp />
         </div>
       )}
 
@@ -297,7 +294,7 @@ export default function WorkspaceProfileForm({
           placeholder="例: 5"
           ariaLabel="従業員数"
         />
-        <FieldHint>この情報は源泉所得税・社会保険関連手続きの判定に利用します。</FieldHint>
+        <EmployeeCountHelp employeeCount={profile.employeeCount} />
       </div>
 
       <div>

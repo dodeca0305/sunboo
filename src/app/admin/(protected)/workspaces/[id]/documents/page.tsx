@@ -94,7 +94,7 @@ export default async function WorkspaceDocumentsPage({
         backHref={`/admin/workspaces/${companyId}`}
         backLabel={`${company.name} に戻る`}
         icon={FileStack}
-        title="今年提出した書類"
+        title="会社の書類"
         subtitle={
           registeredCount === null
             ? `${company.name}の書類の登録状況を取得できませんでした。`
@@ -103,9 +103,10 @@ export default async function WorkspaceDocumentsPage({
       />
 
 
-      <InformationCard kind="disclaimer">
-        決算書・登記簿謄本等、代表的な書類の登録状況を記録する参考情報です（本MVPではファイルの
-        添付は行わず、状態のみを記録します）。「要更新」はDashboardにも件数が表示されます。
+      <InformationCard kind="info" title="いつの書類か、手元の書類で確認してください">
+        <p>現在この画面に記録するのは書類の状態で、対象期間や発行日は記録していません。</p>
+        <p className="mt-2">「登録済み」でも、今年分・最新版・提出済みとは限りません。申告書は対象期間、登記簿謄本は発行日を、原本で確認してください。</p>
+        <p className="mt-2">ファイルの添付や行政機関への提出は行いません。</p>
       </InformationCard>
 
       <WorkspacePlanningSources sources={sources} />
