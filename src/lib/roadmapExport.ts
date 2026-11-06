@@ -4,9 +4,9 @@ import type { StateConfidence } from '@/lib/state';
 import {
   workspaceProcedureOccurrenceKey, WORKSPACE_PROCEDURE_STATUS_LABEL,
   type WorkspaceProcedureStatusMap,
-} from '@/lib/workspaceProcedureStatus';
-import { buildRoadmapSubmissionInfo, type SubmissionLinkKind, type SubmissionUrlStatus } from '@/lib/roadmapSubmissionInfo';
-import { buildRoadmapDocumentItems, type RoadmapDocumentGroups } from '@/lib/roadmapDocuments';
+} from './workspaceProcedureStatus.ts';
+import { buildRoadmapSubmissionInfo, type SubmissionLinkKind, type SubmissionUrlStatus } from './roadmapSubmissionInfo.ts';
+import { buildRoadmapDocumentItems, type RoadmapDocumentGroups } from './roadmapDocuments.ts';
 
 // ── Roadmap 出力行 — 共通データ生成（Sprint 51）──────────────────────
 // 設計: docs/ROADMAP_SUBMISSION_OFFICE_LINKS_DESIGN.md（Sprint50）が定めた
@@ -105,14 +105,14 @@ export function buildRoadmapExportRows(
       dueDate: item.dueDate,
       procedureName: item.procedure.name,
       category: PROCEDURE_CATEGORY_LABEL[item.procedure.category] ?? 'その他',
-      officeName: submission.officeName ?? '',
+      officeName: submission.officeName ?? (submission.notice ? '提出先は要確認' : ''),
       submissionMethod: submission.submissionMethods.join('、'),
-      linkKind: submission.url ? LINK_KIND_LABEL[submission.linkKind] : '',
+      linkKind: submission.url ? (submission.notice ? submission.label : LINK_KIND_LABEL[submission.linkKind]) : '',
       url: submission.url ?? '',
       urlStatus: submission.url && submission.urlStatus ? URL_STATUS_LABEL[submission.urlStatus] : '',
       status: WORKSPACE_PROCEDURE_STATUS_LABEL[status],
       confidence: CONFIDENCE_LABEL[item.confidence],
-      cautionNote: item.procedure.caution_note ?? '',
+      cautionNote: [submission.notice, item.procedure.caution_note].filter(Boolean).join('\n'),
       documentGuide: formatDocumentGuideCell(buildRoadmapDocumentItems(item.procedure)),
       assignee: '',
       memo: '',

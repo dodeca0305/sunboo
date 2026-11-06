@@ -1,4 +1,5 @@
 import type { ProcedureCategory, LinkStatus, ProcedureResult } from '@/lib/types';
+import type { SubmissionGuidance } from './submissionLinkSafety';
 import type { ProcedureDocumentItem } from '@/components/ProcedureDetailExtra';
 
 export type ProcedureStatus = 'not_started' | 'in_progress' | 'done';
@@ -28,6 +29,7 @@ export type ScheduleProcedure = {
     official_url_status?: LinkStatus;
     fallback_url?: string | null;
   } | null;
+  submissionGuidance?: SubmissionGuidance;
   official_links: { label: string; url: string; status?: LinkStatus; fallback_url?: string | null }[];
   procedure_documents?: ProcedureDocumentItem[];
   target_note?: string | null;

@@ -227,7 +227,7 @@ function procedureCard(row: RoadmapExportRow): Content {
   // QRコードは使わずURL文字列のみを表示する（Sprint63要件⑧）。
   if (row.url) {
     inner.push({
-      text: `${row.linkKind === '公式' ? '公式ページ' : '関連ページ'}: ${row.url}`,
+      text: `${row.linkKind === '公式' ? '公式ページ' : row.linkKind === '関連' ? '関連ページ' : row.linkKind || '関連ページ'}: ${row.url}`,
       link: row.url,
       color: COLOR_LINK,
       decoration: 'underline',

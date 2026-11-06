@@ -1,3 +1,4 @@
+import { protectSubmissionDestination } from './submissionLinkSafety';
 import type { SupabaseClient } from './supabase';
 import type { DiagnosisInput, JurisdictionOffice, LinkStatus, ProcedureResult } from './types';
 import { calculateNextDeadline, normalizeProcedureDocuments, runDiagnosis } from './diagnosis';
@@ -221,7 +222,9 @@ export async function buildAnnualRoadmap(
   );
 
   // 4. 複数年ホライズンの展開 + Confidence付与
-  const items: RoadmapItem[] = effectiveProcedures.flatMap((proc) =>
+  const items: RoadmapItem[] = effectiveProcedures.map(proc => protectSubmissionDestination(proc, {
+    prefectureCode: profile.prefectureCode, municipalityCode: profile.municipalityCode,
+  })).flatMap((proc) =>
     expandOccurrences(proc, profile, horizonYears).map((dueDate) => ({
       procedure: proc,
       dueDate,

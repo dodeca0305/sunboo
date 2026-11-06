@@ -1,3 +1,4 @@
+import { isKnownUnavailableSubmissionUrl } from './submissionLinkSafety.ts';
 import type { LinkStatus } from '@/lib/types';
 import type { ScheduleProcedure } from '@/lib/scheduleProcedure';
 
@@ -19,6 +20,7 @@ export type RoadmapSubmissionInfo = {
   urlStatus: SubmissionUrlStatus;
   label: string;
   submissionMethods: string[];
+  notice?: string;
 };
 
 const LINK_KIND_LABEL: Record<Exclude<SubmissionLinkKind, 'none'>, string> = {
@@ -50,13 +52,15 @@ function selectLink(office: NonNullable<ScheduleProcedure['office']>): {
   urlStatus: SubmissionUrlStatus;
 } {
   const officialStatus = normalizeStatus(office.official_url_status);
-  if (office.official_url && officialStatus !== 'broken') {
+  if (office.official_url && officialStatus !== 'broken' && !isKnownUnavailableSubmissionUrl(office.official_url)) {
     return { url: office.official_url, linkKind: 'official', urlStatus: officialStatus };
   }
-  if (office.website_url) {
+  if (office.website_url && !isKnownUnavailableSubmissionUrl(office.website_url)
+    && !(officialStatus === 'broken' && office.website_url === office.official_url)) {
     return { url: office.website_url, linkKind: 'website', urlStatus: null };
   }
-  if (office.fallback_url) {
+  if (office.fallback_url && !isKnownUnavailableSubmissionUrl(office.fallback_url)
+    && !(officialStatus === 'broken' && office.fallback_url === office.official_url)) {
     return { url: office.fallback_url, linkKind: 'fallback', urlStatus: null };
   }
   return { url: null, linkKind: 'none', urlStatus: null };
@@ -90,6 +94,11 @@ export function buildRoadmapSubmissionInfo(proc: ScheduleProcedure): RoadmapSubm
   const office = proc.office;
   const submissionMethods = detectSubmissionMethods(proc);
 
+  if (proc.submissionGuidance) {
+    const guidance = proc.submissionGuidance;
+    return { officeName: null, url: guidance.reference.url, linkKind: 'official', urlStatus: null,
+      label: guidance.reference.label, submissionMethods, notice: guidance.message };
+  }
   if (!office) {
     return { officeName: null, url: null, linkKind: 'none', urlStatus: null, label: '', submissionMethods };
   }
@@ -102,5 +111,6 @@ export function buildRoadmapSubmissionInfo(proc: ScheduleProcedure): RoadmapSubm
     urlStatus,
     label: linkKind === 'none' ? '' : LINK_KIND_LABEL[linkKind],
     submissionMethods,
+    ...(!url && [office.official_url, office.website_url, office.fallback_url].some(isKnownUnavailableSubmissionUrl) ? {notice: '公式リンクを確認中です。登録済みのリンク切れページへの案内を停止しています。'} : {}),
   };
 }

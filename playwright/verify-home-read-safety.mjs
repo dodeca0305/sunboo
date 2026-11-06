@@ -608,6 +608,42 @@ try {
     await page.getByText('売上目標・資金繰りを確認できません',{exact:true}).waitFor();
     assert.equal(await page.getByRole('button',{name:'保存',exact:true}).count(),0);
   }
+  // Submission-link safety: reproduce the legacy Shibuya destination using synthetic data only.
+  state=structuredClone(initial);
+  const brokenOfficeUrl='https://www.city.shibuya.tokyo.jp/kurashi/zeikin/hojin/';
+  state.data.jurisdictions=[{organization_types:{code:'municipal_tax'},organization_offices:{id:90003,name:'合成の誤った区役所窓口',address:null,phone:null,website_url:brokenOfficeUrl,official_url:brokenOfficeUrl,official_url_status:'ok',fallback_url:brokenOfficeUrl,map_url:'https://maps.example.invalid/old'}}];
+  state.data.procedures=[{...proc,id:66,code:'DEPRECIABLE_ASSET_TAX_RETURN',name:'合成償却資産申告',office_type:'municipal_tax'}, {...proc,id:65,code:'MUNICIPAL_RESIDENT_TAX_RETURN',name:'合成法人市民税申告',office_type:'municipal_tax'}];
+  state.data.workspace_tax_payment_plans=[];
+  await update();await page.goto(home+'/roadmap',{waitUntil:'networkidle'});
+  async function assertSubmissionGuidance(){
+    await page.getByRole('link',{name:'東京都の償却資産の説明（23区内の資産）',exact:true}).first().waitFor();
+    assert.equal(await page.getByRole('link',{name:'東京都の償却資産の説明（23区内の資産）',exact:true}).first().getAttribute('href'),'https://www.tax.metro.tokyo.lg.jp/kazei/work/shokyak_sis');
+    assert.equal(await page.getByRole('link',{name:'東京都の法人事業税・法人都民税の説明',exact:true}).first().getAttribute('href'),'https://www.tax.metro.tokyo.lg.jp/shitsumon/work/a1');
+    assert.ok(await page.getByText(/本店所在地だけでは提出先を確定できません/).count()>0);
+    assert.equal(await page.getByText('合成の誤った区役所窓口',{exact:true}).count(),0);
+    assert.equal(await page.locator('a').evaluateAll((links,bad)=>links.filter(a=>a.href.startsWith(bad)).length,brokenOfficeUrl),0);
+  }
+  await assertSubmissionGuidance();
+  // Download only generated synthetic artifacts; this never sends a business write.
+  for(const [button,extension] of [['Excelで出力','xlsx'],['PDFで出力','pdf']]){
+    const downloaded=page.waitForEvent('download');await page.getByRole('button',{name:button,exact:true}).click();
+    const download=await downloaded;await download.saveAs(`test-results/submission-guidance.${extension}`);
+  }
+  await page.setViewportSize({width:375,height:812});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await page.getByTestId('submission-destination-unconfirmed').first().scrollIntoViewIfNeeded();
+  await page.screenshot({path:'test-results/submission-guidance-mobile.png',fullPage:false});
+  await page.setViewportSize({width:1280,height:900});
+  await page.goto(origin+'/share/'+'b'.repeat(64),{waitUntil:'networkidle'});await assertSubmissionGuidance();
+  assert.equal(await page.getByRole('button',{name:'PDFで出力',exact:true}).count(),0);
+  // Other cities retain their existing resolution path; no Tokyo-only guidance leaks to them.
+  state.data.workspace_companies[0].prefecture_code='13';state.data.workspace_companies[0].municipality_code='132012';
+  state.data.municipalities=[{id:1,code:'132012',name:'合成の別市'}];state.data.prefectures=[{id:13,code:'13',name:'合成の別県'}];
+  state.data.jurisdictions[0].organization_offices={...state.data.jurisdictions[0].organization_offices,name:'合成の別市窓口',official_url:'https://city.example.invalid/assets',website_url:null,fallback_url:null};
+  await update();await page.goto(home+'/roadmap',{waitUntil:'networkidle'});
+  assert.equal(await page.getByRole('link',{name:'東京都の償却資産の説明（23区内の資産）',exact:true}).count(),0);
+  assert.ok(await page.getByText('合成の別市窓口',{exact:true}).count()>0);
+  await writeFile('test-results/submission-guidance-summary.json',JSON.stringify({syntheticOnly:true,adminAndShared:true,unconfirmedAssetLocation:true,noBadOfficeOrUrl:true,otherCityUnchanged:true,downloaded:['xlsx','pdf'],mobileNoOverflow:true,productionCalls:0},null,2));
   state = structuredClone(initial);
   await update();
   await page.goto(home,{waitUntil:'networkidle'});
