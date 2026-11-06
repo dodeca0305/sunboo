@@ -4,12 +4,14 @@ import { supabase } from '@/lib/supabase';
 import { runDiagnosis } from '@/lib/diagnosis';
 import { prefectures as staticPrefectures } from '@/data/prefectures';
 import { Building2, MapPin, Phone, ExternalLink, ChevronLeft, AlertTriangle, DatabaseZap } from 'lucide-react';
-import type { CorporateType, LinkStatus } from '@/lib/types';
+import type { CorporateType } from '@/lib/types';
 import ScheduleList from './ScheduleList';
 import { toScheduleProcedure } from '@/lib/scheduleProcedure';
 import { applyCutoverToProcedures } from '@/lib/submissionDirectoryCutover';
 import { mergeOfficeOverlay } from '@/lib/submissionDirectoryCutover';
 import { resolveSubmissionOfficeForCompany } from '@/lib/submissionDirectory';
+import { protectSubmissionDestination } from '@/lib/submissionLinkSafety';
+import { buildDiagnosisOfficeSummaries } from '@/lib/diagnosisSubmissionInfo';
 
 // クエリパラメータ（pref/muni/emp/fm/corp）依存で内容が変わるページであり、パラメータが
 // 無い/不正な場合は空の結果になる。検索エンジンには索引付けさせない（sitemap.tsからも除外済み）。
@@ -22,30 +24,6 @@ const CORPORATE_TYPE_LABEL: Record<CorporateType, string> = {
   kabushiki: '株式会社',
   godo: '合同会社',
 };
-
-function OfficialSiteLink({
-  websiteUrl, officialUrl, status, fallbackUrl,
-}: {
-  websiteUrl: string | null;
-  officialUrl?: string | null;
-  status?: LinkStatus;
-  fallbackUrl?: string | null;
-}) {
-  const s = status ?? 'unchecked';
-  const href = s === 'broken' ? fallbackUrl : (officialUrl ?? websiteUrl);
-  if (!href) return null;
-  return (
-    <a href={href} target="_blank" rel="noopener noreferrer"
-       className="btn-secondary inline-flex items-center gap-1 px-3 py-1 text-xs">
-      {s === 'broken' && <AlertTriangle className="h-3 w-3 text-red-600" />}
-      {s === 'broken' ? '公式一覧で確認' : '公式サイト'}
-      {s !== 'broken' && <ExternalLink className="h-3 w-3" />}
-      {s === 'unchecked' && (
-        <span className="ml-0.5 text-[10px] text-sunboo-ink-muted">（未確認）</span>
-      )}
-    </a>
-  );
-}
 
 const FALLBACK_MUNI_NAMES: Record<string, string> = {
   '13113': '渋谷区',
@@ -170,14 +148,7 @@ export default async function ResultPage({
     paysOfficerCompensation,
   });
 
-  // 【Phase5-2b】Workspace（workspaceLoader.ts）・Share（share/[token]/page.tsx）と同じCutoverを
-  // 「必要手続き」一覧（result.procedures）にのみ適用する。muniCode/prefCodeはmuniListの
-  // <select>がsupabase.from('municipalities')/('prefectures')から直接取得した値をそのまま
-  // 使っているため（src/app/(site)/start/page.tsx）、canonical 6桁のmunicipalities.codeと
-  // 一致することを確認済み。上部の「管轄機関」グリッド（result.offices）はDiagnosis Summaryの
-  // 責務のため対象外とし、変更しない（docs/PHASE5_2B_PLAN.md 5-3節、意思決定は別途）。
-  // 対象外の(municipalityCode, procedureId)・resolved以外は無変更のまま返る非破壊的な設計のため、
-  // 失敗時は旧Resolverの結果（toScheduleProcedureの戻り値）をそのまま表示する。
+  // 既存の窓口解決を終えてから、全表示経路に提出先の保護を適用する。
   let scheduleProcedures = result.procedures.map(toScheduleProcedure);
   if (supabase && scheduleProcedures.length > 0) {
     try {
@@ -209,16 +180,10 @@ export default async function ResultPage({
     }));
   }
 
-  const displayedOffices = [
-    ...result.offices,
-    ...scheduleProcedures.flatMap((p) => p.office ? [{
-      id: -p.id, municipality_id: 0, office_type: p.code, name: p.office.name,
-      address: null, phone: null, website_url: p.office.website_url ?? null,
-      map_url: p.office.map_url ?? null, official_url: p.office.official_url ?? null,
-      official_url_status: p.office.official_url_status,
-      fallback_url: p.office.fallback_url ?? null,
-    }] : []),
-  ].filter((office, index, all) => all.findIndex((x) => x.name === office.name) === index);
+  scheduleProcedures = scheduleProcedures.map((procedure) => protectSubmissionDestination(procedure, {
+    municipalityCode: muniCode, prefectureCode: prefCode,
+  }));
+  const displayedOffices = buildDiagnosisOfficeSummaries(result.offices, scheduleProcedures);
 
   const prefName =
     staticPrefectures.find((p) => p.code === prefCode)?.name ?? prefCode;
@@ -318,7 +283,7 @@ export default async function ResultPage({
       {displayedOffices.length > 0 && (
         <section className="mb-10">
           <h2 className="mb-4 text-lg font-bold text-gray-900">
-            管轄機関
+            手続きに関連する窓口
             <span className="ml-2 text-sm font-normal text-sunboo-ink-muted">
               {displayedOffices.length}件
             </span>
@@ -326,12 +291,13 @@ export default async function ResultPage({
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {displayedOffices.map((office) => (
-              <div key={office.id} className="card flex gap-4">
+              <div key={office.key} className="card flex gap-4">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-50">
                   <Building2 className="h-5 w-5 text-gray-500" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-gray-900">{office.name}</p>
+                  <p className="mt-1 text-xs text-gray-600">対象：{office.procedureNames.join('・')}</p>
                   {office.address && (
                     <p className="mt-1 flex items-start gap-1 truncate text-xs text-gray-500">
                       <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
@@ -355,12 +321,11 @@ export default async function ResultPage({
                         地図
                       </a>
                     )}
-                    <OfficialSiteLink
-                      websiteUrl={office.website_url}
-                      officialUrl={office.official_url}
-                      status={office.official_url_status}
-                      fallbackUrl={office.fallback_url}
-                    />
+                    {office.link.url && <a href={office.link.url} target="_blank" rel="noopener noreferrer"
+                      className="btn-secondary inline-flex items-center gap-1 px-3 py-1 text-xs">
+                      {office.link.label}<ExternalLink className="h-3 w-3" />
+                    </a>}
+                    {office.link.notice && <p className="text-xs text-amber-800">{office.link.notice}</p>}
                   </div>
                 </div>
               </div>
