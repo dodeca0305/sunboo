@@ -624,6 +624,14 @@ try {
     assert.equal(await page.locator('a').evaluateAll((links,bad)=>links.filter(a=>a.href.startsWith(bad)).length,brokenOfficeUrl),0);
   }
   await assertSubmissionGuidance();
+  await page.goto(origin+'/result?pref=13&muni=131130&fm=3&corp=kabushiki&est=2020-01-01',{waitUntil:'networkidle'});
+  await assertSubmissionGuidance();
+  assert.equal(await page.getByRole('heading',{name:/手続きに関連する窓口/}).count(),0);
+  await page.setViewportSize({width:375,height:812});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await page.screenshot({path:'test-results/diagnosis-submission-mobile.png',fullPage:true});
+  await page.setViewportSize({width:1280,height:900});
+  await page.goto(home+'/roadmap',{waitUntil:'networkidle'});
   // Download only generated synthetic artifacts; this never sends a business write.
   for(const [button,extension] of [['Excelで出力','xlsx'],['PDFで出力','pdf']]){
     const downloaded=page.waitForEvent('download');await page.getByRole('button',{name:button,exact:true}).click();
@@ -643,7 +651,7 @@ try {
   await update();await page.goto(home+'/roadmap',{waitUntil:'networkidle'});
   assert.equal(await page.getByRole('link',{name:'東京都の償却資産の説明（23区内の資産）',exact:true}).count(),0);
   assert.ok(await page.getByText('合成の別市窓口',{exact:true}).count()>0);
-  await writeFile('test-results/submission-guidance-summary.json',JSON.stringify({syntheticOnly:true,adminAndShared:true,unconfirmedAssetLocation:true,noBadOfficeOrUrl:true,otherCityUnchanged:true,downloaded:['xlsx','pdf'],mobileNoOverflow:true,productionCalls:0},null,2));
+  await writeFile('test-results/submission-guidance-summary.json',JSON.stringify({syntheticOnly:true,adminAndShared:true,generalDiagnosis:true,unconfirmedAssetLocation:true,noBadOfficeOrUrl:true,otherCityUnchanged:true,downloaded:['xlsx','pdf'],mobileNoOverflow:true,productionCalls:0},null,2));
   state = structuredClone(initial);
   await update();
   await page.goto(home,{waitUntil:'networkidle'});

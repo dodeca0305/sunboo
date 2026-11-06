@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import ProcedureDetailExtra from '@/components/ProcedureDetailExtra';
 import StatusBadge from '@/components/StatusBadge';
+import { selectProcedureReference } from '@/lib/diagnosisSubmissionInfo';
 
 export type { ProcedureStatus } from '@/lib/scheduleProcedure';
 export type { ScheduleProcedure } from '@/lib/scheduleProcedure';
@@ -244,8 +245,10 @@ function StatusButton({ status, onClick }: { status: ProcedureStatus; onClick: (
 }
 
 function ProcedureLink({ link }: { link: ScheduleProcedure['official_links'][number] }) {
-  const s = link.status ?? 'unchecked';
-  const href = s === 'broken' ? (link.fallback_url ?? link.url) : link.url;
+  const selected = selectProcedureReference(link);
+  if (!selected) return <span className="text-xs text-amber-800">{link.label}：リンクを確認中です</span>;
+  const { href, fallback } = selected;
+  const s = fallback ? 'unchecked' : (link.status ?? 'unchecked');
   return (
     <a
       href={href}
@@ -254,7 +257,7 @@ function ProcedureLink({ link }: { link: ScheduleProcedure['official_links'][num
       className="btn-secondary inline-flex items-center gap-1 px-3 py-1 text-xs"
     >
       {s === 'broken' && <AlertTriangle className="h-3 w-3 text-red-600" />}
-      {link.label}
+      {fallback ? `${link.label}（関連ページ）` : link.label}
       {s !== 'broken' && <ExternalLink className="h-3 w-3" />}
       {s === 'unchecked' && <span className="ml-0.5 text-[10px] text-sunboo-ink-muted">（未確認）</span>}
     </a>
@@ -309,6 +312,12 @@ function ProcedureRow({
         </div>
       </div>
 
+      {proc.submissionGuidance && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+        <p className="font-semibold">提出先は確認が必要です</p>
+        <p className="mt-1 leading-relaxed">{proc.submissionGuidance.message}</p>
+        <a href={proc.submissionGuidance.reference.url} target="_blank" rel="noopener noreferrer"
+          className="mt-2 inline-block font-medium underline underline-offset-2">{proc.submissionGuidance.reference.label}</a>
+      </div>}
       <div className="mt-3 flex flex-wrap items-center gap-2 pl-8">
         {mapUrl && (
           <a
