@@ -1,11 +1,11 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { CheckCircle2, Circle, AlertTriangle, CalendarClock, FileText, LoaderCircle } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import WorkspaceDocumentEditor from './WorkspaceDocumentEditor';
+import type { DocumentSnapshotMap } from '@/lib/workspaceDocumentTiming';
+import { CheckCircle2, Circle, CalendarClock, FileText, LoaderCircle } from 'lucide-react';
 import {
-  WORKSPACE_DOCUMENT_TYPES, WORKSPACE_DOCUMENT_TYPE_LABEL,
-  WORKSPACE_DOCUMENT_STATUSES, WORKSPACE_DOCUMENT_STATUS_LABEL,
-  type WorkspaceDocumentType, type WorkspaceDocumentStatus, type WorkspaceDocumentStatusMap,
+  WORKSPACE_DOCUMENT_TYPES,
 } from '@/lib/workspaceDocumentStatus';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import InformationCard from '@/components/InformationCard';
@@ -18,46 +18,24 @@ import {
   type WorkspaceRequiredDocumentStatusMap,
 } from '@/lib/workspaceRequiredDocumentStatus';
 
-// ── Company Workspace — 書類一覧（Sprint 26 Workspace Documents MVP・Sprint 85）─────────
-// workspace_documents（本Sprint新設）のステータスを表示・変更する。ファイルアップロードは
-// スコープ外（メタデータのみ）。取得済みの状態だけを編集し、保存成功後に表示を更新する。
-// 【Sprint85で追加】各行を「今年提出した書類の記録」として読めるよう、状態をアイコンで示す
-// （registered=Moss・needs_update=MorningSun系・not_registered=中立）。ステータス種別・DB問い合わせは無変更。
-
-const STATUS_ICON: Record<WorkspaceDocumentStatus, typeof CheckCircle2> = {
-  not_registered: Circle,
-  registered: CheckCircle2,
-  needs_update: AlertTriangle,
-};
-
-const STATUS_ICON_CLASS: Record<WorkspaceDocumentStatus, string> = {
-  not_registered: 'text-sunboo-mist',
-  registered: 'text-sunboo-moss',
-  needs_update: 'text-sunboo-morning-sun-dark',
-};
-
-const DOCUMENT_TIMING_LABEL: Record<WorkspaceDocumentType, string> = {
-  articles_of_incorporation: '作成・変更日',
-  certificate_of_registered_matters: '発行日',
-  corporate_tax_return: '対象期間',
-  consumption_tax_return: '対象期間',
-  withholding_tax_payment_slip: '対象期間',
-};
+// 書類ごとの状態・時期は専用エディターで原子的に保存する。
+// 必要書類の準備状況は既存の独立した保存先を維持する。
 
 export default function WorkspaceDocumentsView({
   companyId,
-  statusMap,
+  snapshots,
   requiredDocuments,
   requiredDocumentStatusMap,
   requiredDocumentsMissingFiscalMonth = false,
 }: {
   companyId: number;
-  statusMap: WorkspaceDocumentStatusMap;
+  snapshots: DocumentSnapshotMap;
   requiredDocuments: WorkspaceRequiredDocument[] | null;
   requiredDocumentsMissingFiscalMonth?: boolean;
   requiredDocumentStatusMap: WorkspaceRequiredDocumentStatusMap;
 }) {
-  const [localStatusMap, setLocalStatusMap] = useState<WorkspaceDocumentStatusMap>(statusMap);
+  const [confirmed, setConfirmed] = useState(snapshots);
+  const [actorId, setActorId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [localRequiredStatusMap, setLocalRequiredStatusMap] =
     useState<WorkspaceRequiredDocumentStatusMap>(requiredDocumentStatusMap);
@@ -67,11 +45,20 @@ export default function WorkspaceDocumentsView({
   // 同一描画中の連続操作も止め、結果不明の要求は再読み込みまで再送しない。
   const saveBlocked = useRef(false);
 
+  useEffect(() => {
+    let active = true;
+    const client = createBrowserSupabase();
+    if (!client) return;
+    void client.auth.getUser().then(({data, error}) => {
+      if (!active) return;
+      if (!error && data.user) setActorId(data.user.id);
+      else {setRequiresReload(true); setError('ログイン状態を確認できません。再読み込みしてください。');}
+    }).catch(() => {if (active) {setRequiresReload(true); setError('ログイン状態を確認できません。再読み込みしてください。');}});
+    return () => {active = false;};
+  }, []);
+
   async function saveStatus(
-    table: 'workspace_documents' | 'workspace_required_document_statuses',
-    payload: { document_type: WorkspaceDocumentType; status: WorkspaceDocumentStatus }
-      | { document_name: string; status: WorkspaceRequiredDocumentStatus },
-    onConflict: string,
+    payload: { document_name: string; status: WorkspaceRequiredDocumentStatus },
   ): Promise<boolean> {
     if (saveBlocked.current) return false;
     saveBlocked.current = true;
@@ -81,8 +68,8 @@ export default function WorkspaceDocumentsView({
     try {
       const supabase = createBrowserSupabase();
       if (!supabase) throw new Error('Document client unavailable');
-      const { error: upsertError } = await supabase.from(table)
-        .upsert({ company_id: companyId, ...payload }, { onConflict });
+      const { error: upsertError } = await supabase.from('workspace_required_document_statuses')
+        .upsert({ company_id: companyId, ...payload }, { onConflict: 'company_id,document_name' });
       if (upsertError) throw upsertError;
       confirmed = true;
       return true;
@@ -96,14 +83,8 @@ export default function WorkspaceDocumentsView({
     }
   }
 
-  async function handleStatusChange(documentType: WorkspaceDocumentType, status: WorkspaceDocumentStatus) {
-    if (await saveStatus('workspace_documents', { document_type: documentType, status }, 'company_id,document_type')) {
-      setLocalStatusMap(previous => ({ ...previous, [documentType]: status }));
-    }
-  }
-
   async function handleRequiredStatusChange(documentName: string, status: WorkspaceRequiredDocumentStatus) {
-    if (await saveStatus('workspace_required_document_statuses', { document_name: documentName, status }, 'company_id,document_name')) {
+    if (await saveStatus({ document_name: documentName, status })) {
       setLocalRequiredStatusMap(previous => ({ ...previous, [documentName]: status }));
     }
   }
@@ -119,32 +100,13 @@ export default function WorkspaceDocumentsView({
         </div>
       )}
       {saving && <p role="status" className="text-xs text-sunboo-ink-muted">保存中…</p>}
+      <p className="text-sm font-medium" role="status">{Object.values(confirmed).filter(row => row?.status === 'registered').length}/5件登録済み</p>
       <ul className="space-y-2">
-        {WORKSPACE_DOCUMENT_TYPES.map((documentType) => {
-          const status = localStatusMap[documentType] ?? 'not_registered';
-          const Icon = STATUS_ICON[status];
-          return (
-            <li key={documentType} className="card flex flex-wrap items-center gap-3 py-3">
-              <Icon className={`h-4 w-4 shrink-0 ${STATUS_ICON_CLASS[status]}`} aria-hidden="true" />
-              <div className="min-w-0 flex-1">
-                <span className="text-sm font-medium text-sunboo-ink">{WORKSPACE_DOCUMENT_TYPE_LABEL[documentType]}</span>
-                {status !== 'not_registered' && <p className="mt-1 text-xs font-medium text-amber-800" data-testid={`document-timing-${documentType}`}>{DOCUMENT_TIMING_LABEL[documentType]}：未記録</p>}
-              </div>
-              {status === 'needs_update' && <span className="tag tag--caution">要更新</span>}
-              <select
-                value={status}
-                disabled={saving || requiresReload}
-                aria-label={`${WORKSPACE_DOCUMENT_TYPE_LABEL[documentType]}の登録状況`}
-                onChange={(e) => handleStatusChange(documentType, e.target.value as WorkspaceDocumentStatus)}
-                className="form-select ml-auto w-auto py-1 text-xs"
-              >
-                {WORKSPACE_DOCUMENT_STATUSES.map((s) => (
-                  <option key={s} value={s}>{WORKSPACE_DOCUMENT_STATUS_LABEL[s]}</option>
-                ))}
-              </select>
-            </li>
-          );
-        })}
+        {WORKSPACE_DOCUMENT_TYPES.map(documentType => <WorkspaceDocumentEditor
+          key={`${companyId}:${documentType}:${actorId ?? 'checking'}`}
+          companyId={companyId} documentType={documentType} initial={snapshots[documentType] ?? null}
+          actorId={actorId} disabled={saving || requiresReload || !actorId} onSafetyBlock={() => setRequiresReload(true)} onConfirmed={snapshot => setConfirmed(previous => ({...previous,[documentType]:snapshot}))}
+        />)}
       </ul>
 
       <section className="space-y-3 pt-5">
@@ -203,7 +165,7 @@ export default function WorkspaceDocumentsView({
                     <PreparationIcon className={`h-4 w-4 ${preparationIconClass}`} aria-hidden="true" />
                     <select
                       value={preparationStatus}
-                      disabled={saving || requiresReload}
+                      disabled={saving || requiresReload || !actorId}
                       aria-label={`${document.name}の準備状況`}
                       onChange={(event) => handleRequiredStatusChange(
                         document.name,

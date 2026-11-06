@@ -138,9 +138,10 @@ let state = structuredClone(initial),
   writes = 0;
 const pageErrors=[];
 const syntheticDocumentWrites=[];
-let documentSaveMode='off';
+
 async function update(v = {}) {
   state = { ...state, ...v };
+  state.data.workspace_documents=state.data.workspace_documents.map(row=>({company_id:companyId,period_start:null,period_end:null,document_date:null,updated_at:'2026-11-06T01:00:00.123456+00:00',...row}));
   await writeFile(file, JSON.stringify(state));
 }
 try {
@@ -203,18 +204,6 @@ try {
   await context.route('**/rest/v1/**', async (route) => {
     const request=route.request();
     if(request.method()==='OPTIONS') return route.fulfill({status:204,headers:{'access-control-allow-origin':origin,'access-control-allow-methods':'GET,HEAD,POST,OPTIONS','access-control-allow-headers':request.headers()['access-control-request-headers']??'*'}});
-    if(documentSaveMode!=='off' && request.method()==='POST' && new URL(request.url()).pathname.endsWith('/workspace_documents')) {
-      const payload=request.postDataJSON();
-      assert.equal(payload.company_id,companyId);
-      assert.equal(payload.document_type,'corporate_tax_return');
-      assert.deepEqual(Object.keys(payload).sort(),['company_id','document_type','status']);
-      syntheticDocumentWrites.push(payload);
-      if(documentSaveMode==='error') return route.fulfill({status:400,json:{message:'Synthetic rejection'},headers:{'access-control-allow-origin':origin}});
-      const row=state.data.workspace_documents.find(row=>row.document_type===payload.document_type);
-      row.status=payload.status;await update();
-      if(documentSaveMode==='lost') return route.abort('failed');
-      return route.fulfill({status:201,body:'',headers:{'access-control-allow-origin':origin}});
-    }
     if (!['GET', 'HEAD', 'OPTIONS'].includes(route.request().method())) {
       writes++;
       return route.abort();
@@ -566,28 +555,9 @@ try {
     assert.equal(await page.getByTestId('document-timing-'+type).textContent(),label+'：未記録');
   }
   assert.equal(await page.getByRole('heading',{name:'今年提出した書類',exact:true}).count(),0);
+  await page.getByText('状態・対象期間を編集する',{exact:true}).first().click();
   await selectArrows();
-  const documentStatus=page.getByRole('combobox',{name:'法人税申告書の登録状況',exact:true});
-  documentSaveMode='success';
-  await documentStatus.selectOption('not_registered');
-  await page.waitForFunction(()=>!document.querySelector('select[aria-label="法人税申告書の登録状況"]').disabled);
-  assert.equal(await page.getByTestId('document-timing-corporate_tax_return').count(),0);
-  await documentStatus.selectOption('registered');
-  await page.getByTestId('document-timing-corporate_tax_return').waitFor();
-  for(const mode of ['error','lost']) {
-    documentSaveMode=mode;
-    const before=syntheticDocumentWrites.length;
-    await documentStatus.selectOption('needs_update');
-    await page.getByRole('alert').filter({hasText:'書類の保存結果を確認できませんでした'}).waitFor();
-    assert.equal(await documentStatus.inputValue(),'registered');
-    assert.equal(await documentStatus.isDisabled(),true);
-    await page.reload({waitUntil:'networkidle'});
-    assert.equal(syntheticDocumentWrites.length,before+1);
-    assert.equal(await documentStatus.inputValue(),mode==='lost'?'needs_update':'registered');
-    assert.equal(await documentStatus.isDisabled(),false);
-    assert.equal(await page.getByTestId('document-timing-corporate_tax_return').textContent(),'対象期間：未記録');
-  }
-  documentSaveMode='off';
+  // Metadata writes and response-loss recovery are exercised by the isolated document timing harness.
   await page.setViewportSize({width:375,height:812});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
   await page.screenshot({path:'test-results/document-timing-mobile.png',fullPage:false});
