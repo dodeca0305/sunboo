@@ -51,3 +51,7 @@ ALTER TABLE public.workspace_documents
 ## 今回含めないこと
 
 過年度の複数書類や複数バージョンの保存、ファイル添付、共有リンクへの新たな公開、提出代行、書類の有効性/期限の自動判定は含めない。現行どおり書類種類ごとに1つの現在の記録を扱う。これ以上のDB関数/権限等が必要と判明した場合は、その追加分だけ別案を示して止める。
+
+## 2026-11-06 承認後の実装
+
+利用者が限定DB変更案を承認。上記3列/CHECKだけのマイグレーション `20261106021938_add_workspace_document_timing.sql` を作成した。保存保護・試験・復旧の詳細は [DOCUMENT_TIMING_SAVE_SAFETY.md](DOCUMENT_TIMING_SAVE_SAFETY.md)。冒頭の「未承認・未適用」は提案時点の履歴であり、実際の適用結果はBusiness側の完了記録で確認する。

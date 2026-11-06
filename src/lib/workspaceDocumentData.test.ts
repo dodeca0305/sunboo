@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { documentValues } from './workspaceDocumentTiming.ts';
 import { loadWorkspaceDocumentsForEditing } from './workspaceDocumentData.ts';
 
+const meta = { company_id: 23, period_start: null, period_end: null, document_date: null, updated_at: '2026-11-06T01:02:03.123456+00:00' };
 const existing = {
   workspace_documents: { data: [
-    { document_type: 'articles_of_incorporation', status: 'registered' },
-    { document_type: 'corporate_tax_return', status: 'needs_update' },
+    { ...meta, document_type: 'articles_of_incorporation', status: 'registered' },
+    { ...meta, document_type: 'corporate_tax_return', status: 'needs_update' },
   ], error: null },
   workspace_required_document_statuses: { data: [
     { document_name: '合成必要書類', status: 'ready' },
@@ -33,6 +35,7 @@ function fake(overrides: Record<string, Response | Error> = {}) {
 test('登録済み・要更新・準備済み・準備中を保持し、両取得を対象会社で絞り込む', async () => {
   const { client, calls } = fake();
   assert.deepEqual(await loadWorkspaceDocumentsForEditing(client, 23), {
+    snapshots: Object.fromEntries(existing.workspace_documents.data.map(row => [row.document_type, {...documentValues({...row,status:row.status as 'registered' | 'needs_update'}),updated_at:row.updated_at}])),
     statusMap: { articles_of_incorporation: 'registered', corporate_tax_return: 'needs_update' },
     requiredDocumentStatusMap: { 合成必要書類: 'ready', 準備中の書類: 'in_progress' },
   });
@@ -46,7 +49,7 @@ test('正常な0行だけは未登録として入力できる', async () => {
   assert.deepEqual(await loadWorkspaceDocumentsForEditing(fake({
     workspace_documents: { data: [], error: null },
     workspace_required_document_statuses: { data: [], error: null },
-  }).client, 23), { statusMap: {}, requiredDocumentStatusMap: {} });
+  }).client, 23), { statusMap: {}, snapshots: {}, requiredDocumentStatusMap: {} });
 });
 
 for (const table of Object.keys(existing)) {

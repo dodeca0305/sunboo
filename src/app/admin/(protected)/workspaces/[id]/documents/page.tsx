@@ -13,7 +13,6 @@ import { loadWorkspaceRoadmapContext } from '@/lib/workspaceLoader';
 import WorkspaceDocumentsView from '@/components/WorkspaceDocumentsView';
 import PageHeader from '@/components/PageHeader';
 import InformationCard from '@/components/InformationCard';
-import { WORKSPACE_DOCUMENT_TYPES } from '@/lib/workspaceDocumentStatus';
 import {
   buildWorkspaceRequiredDocuments,
   type WorkspaceRequiredDocument,
@@ -82,11 +81,6 @@ export default async function WorkspaceDocumentsPage({
       sources.statuses.value,
     );
   }
-  const registeredCount = documents
-    ? WORKSPACE_DOCUMENT_TYPES.filter(
-        (type) => documents.statusMap[type] === 'registered',
-      ).length
-    : null;
 
   return (
     <div className="space-y-6">
@@ -96,15 +90,15 @@ export default async function WorkspaceDocumentsPage({
         icon={FileStack}
         title="会社の書類"
         subtitle={
-          registeredCount === null
+          documents === null
             ? `${company.name}の書類の登録状況を取得できませんでした。`
-            : `${company.name}の代表的な書類の登録状況（${registeredCount}/${WORKSPACE_DOCUMENT_TYPES.length}件登録済み）`
+            : `${company.name}の代表的な書類の登録状況`
         }
       />
 
 
       <InformationCard kind="info" title="いつの書類か、手元の書類で確認してください">
-        <p>現在この画面に記録するのは書類の状態で、対象期間や発行日は記録していません。</p>
+        <p>書類の状態と、原本で確認した対象期間・発行日を記録できます。不明な時期は空欄のまま残せます。</p>
         <p className="mt-2">「登録済み」でも、今年分・最新版・提出済みとは限りません。申告書は対象期間、登記簿謄本は発行日を、原本で確認してください。</p>
         <p className="mt-2">ファイルの添付や行政機関への提出は行いません。</p>
       </InformationCard>
@@ -148,7 +142,7 @@ export default async function WorkspaceDocumentsPage({
         <WorkspaceDocumentsView
           key={`${companyId}:${JSON.stringify(documents)}`}
           companyId={companyId}
-          statusMap={documents.statusMap}
+          snapshots={documents.snapshots}
           requiredDocuments={requiredDocuments}
           requiredDocumentsMissingFiscalMonth={
             missingFiscalMonth &&
