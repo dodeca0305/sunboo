@@ -138,6 +138,8 @@ let state = structuredClone(initial),
   writes = 0;
 const pageErrors=[];
 const syntheticDocumentWrites=[];
+const syntheticTaxWrites=[];
+let syntheticTaxSaveMode=null;
 
 async function update(v = {}) {
   state = { ...state, ...v };
@@ -204,6 +206,18 @@ try {
   await context.route('**/rest/v1/**', async (route) => {
     const request=route.request();
     if(request.method()==='OPTIONS') return route.fulfill({status:204,headers:{'access-control-allow-origin':origin,'access-control-allow-methods':'GET,HEAD,POST,OPTIONS','access-control-allow-headers':request.headers()['access-control-request-headers']??'*'}});
+    if (syntheticTaxSaveMode && request.method()==='POST' && new URL(request.url()).pathname==='/rest/v1/workspace_tax_payment_plans') {
+      const row=request.postDataJSON();
+      assert.equal(row.company_id,companyId);assert.equal(row.procedure_id,90001);
+      assert.ok(Number.isSafeInteger(row.amount)&&row.amount>=0);
+      syntheticTaxWrites.push(row);
+      const headers={'access-control-allow-origin':origin};
+      if(syntheticTaxSaveMode==='error') return route.fulfill({status:400,json:{message:'Synthetic rejection'},headers});
+      state.data.workspace_tax_payment_plans=[{...row,procedures:{code:'WITHHOLDING_TAX'}}];
+      await update();
+      if(syntheticTaxSaveMode==='lost') return route.abort('failed');
+      return route.fulfill({json:[],headers});
+    }
     if (!['GET', 'HEAD', 'OPTIONS'].includes(route.request().method())) {
       writes++;
       return route.abort();
@@ -574,17 +588,61 @@ try {
   assert.equal(await page.getByTestId('officer-change-date-help').count(),1);
   await page.getByRole('button',{name:'合同会社',exact:true}).click();
   assert.equal(await page.getByTestId('officer-change-date-help').count(),0);
+  // Payment amount clarity: unknown/known zero, saves, failures and response loss stay synthetic.
+  state=structuredClone(initial);state.data.workspace_tax_payment_plans=[];await update();
+  await page.goto(home+'/roadmap',{waitUntil:'networkidle'});
+  const paymentInput=page.getByRole('textbox',{name:'合成ホーム手続きの支払う予定額（円）',exact:true}).first();
+  const paymentSave=page.getByRole('button',{name:'この金額を保存',exact:true}).first();
+  await paymentInput.waitFor();
+  assert.equal(await paymentInput.inputValue(),'');assert.ok(await paymentSave.isDisabled());
+  assert.match(await page.getByTestId('tax-payment-guide').textContent(),/税額の自動計算・申告・支払いは行いません/);
+  await page.getByRole('link',{name:'金額の入力欄へ',exact:true}).click();
+  assert.equal(await page.evaluate(()=>document.activeElement.id),await paymentInput.locator('xpath=ancestor::li').getAttribute('id'));
+  syntheticTaxSaveMode='success';
+  await paymentInput.fill('500000');await paymentInput.blur();await paymentSave.click();
+  await page.getByText('保存しました',{exact:true}).waitFor();assert.equal(syntheticTaxWrites.at(-1).amount,500000);
+  await paymentInput.fill('0');await paymentInput.blur();await paymentSave.click();
+  await page.getByText('保存しました',{exact:true}).waitFor();assert.equal(syntheticTaxWrites.at(-1).amount,0);
+  await page.reload({waitUntil:'networkidle'});assert.equal(await paymentInput.inputValue(),'0');
+  await paymentInput.fill('');await paymentInput.blur();assert.equal(await paymentInput.inputValue(),'');assert.ok(await paymentSave.isDisabled());
+  assert.equal(syntheticTaxWrites.length,2);
+  await page.reload({waitUntil:'networkidle'});assert.equal(await paymentInput.inputValue(),'0');
+  await page.setViewportSize({width:375,height:812});
+  await page.getByRole('link',{name:'金額の入力欄へ',exact:true}).click();
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await page.screenshot({path:'test-results/tax-payment-input-mobile.png',fullPage:false});
+  await page.setViewportSize({width:1280,height:900});
+  await page.getByRole('link',{name:'金額の入力欄へ',exact:true}).click();
+  await page.screenshot({path:'test-results/tax-payment-input-desktop.png',fullPage:false});
+  for(const failure of ['error','throw','null']){
+    await update({failTable:'workspace_tax_payment_plans',failure});await page.reload({waitUntil:'networkidle'});
+    assert.equal(await page.getByRole('textbox',{name:/の支払う予定額（円）$/}).count(),0);
+    assert.equal(await paymentSave.count(),0);assert.equal(await page.getByTestId('tax-payment-guide').count(),0);
+    await update({failTable:null,failure:null});await page.reload({waitUntil:'networkidle'});
+    assert.equal(await paymentInput.inputValue(),'0');assert.equal(syntheticTaxWrites.length,2);
+  }
+  for(const [mode,amount,restored] of [['lost',123456,'123,456'],['error',234567,'123,456']]){
+    syntheticTaxSaveMode=mode;await paymentInput.fill(String(amount));await paymentInput.blur();await paymentSave.click();
+    await page.getByText(/支払う予定額の保存/).waitFor();
+    assert.equal(await page.getByText('保存しました',{exact:true}).count(),0);
+    assert.equal(await paymentSave.count(),0);assert.equal(await paymentInput.count(),0);
+    const attempts=syntheticTaxWrites.length;
+    await page.getByRole('link',{name:'再読み込み',exact:true}).click();await page.waitForLoadState('networkidle');
+    assert.equal(await paymentInput.inputValue(),restored);assert.equal(syntheticTaxWrites.length,attempts);
+  }
+  assert.equal(syntheticTaxWrites.length,4);syntheticTaxSaveMode=null;
+  await writeFile('test-results/tax-payment-input-summary.json',JSON.stringify({syntheticOnly:true,emptyNotSavedAsZero:true,explicitZeroVisible:true,normalSave:true,failedReadsStopped:['error','throw','null'],responseLossReconciled:true,rejectedSaveRestored:true,automaticRetryCount:0,mobileNoOverflow:true,syntheticWrites:syntheticTaxWrites.length,productionCalls:0},null,2));
   // P08: filing is not payment; fixtures and auth remain local and synthetic.
   state = structuredClone(initial);
   await update();
   await page.goto(home + '/roadmap', {waitUntil:'networkidle'});
-  assert.ok(await page.getByRole('textbox',{name:'合成ホーム手続きの予定税額',exact:true}).count() > 0);
+  assert.ok(await page.getByRole('textbox',{name:'合成ホーム手続きの支払う予定額（円）',exact:true}).count() > 0);
   for (const code of ['DEPRECIABLE_ASSET_TAX_RETURN','SALARY_PAYMENT_REPORT']) {
     state.data.procedures = [{...proc,code}];
     await update();
     await page.reload({waitUntil:'networkidle'});
-    assert.equal(await page.getByRole('textbox',{name:/の予定税額$/}).count(),0);
-    assert.equal(await page.getByRole('button',{name:'予定税額を保存',exact:true}).count(),0);
+    assert.equal(await page.getByRole('textbox',{name:/の支払う予定額（円）$/}).count(),0);
+    assert.equal(await page.getByRole('button',{name:'この金額を保存',exact:true}).count(),0);
     assert.ok(await page.getByText('税金の支払いとは分けて確認してください',{exact:true}).count()>0);
     if(code === 'DEPRECIABLE_ASSET_TAX_RETURN') {
       assert.ok(await page.getByText(/固定資産税の支払いは別の手続き/).count()>0);
@@ -659,7 +717,7 @@ try {
   assert.equal(writes, 0);
   assert.deepEqual(pageErrors,[]);
   assert.equal(existsSync(file + '.mutations'), false);
-  await writeFile('test-results/home-sidebar.json',JSON.stringify({syntheticOnly:true,todayFirst:true,sourceAndProgressExpandable:true,highPriorityNoticeVisible:true,eightCompanyDestinations:true,allDestinationActiveStates:true,companySwitchNoStaleLinks:true,mobileDrawerAndKeyboard:true,mobileNoOverflow:true,errorsRemainVisible:true,globalAdminNavigationRetained:true,pageErrors:pageErrors.length,writes,syntheticDocumentWrites:syntheticDocumentWrites.length,productionCalls:0,fullReadRegression:process.env.HOME_NAV_UI_ONLY!=='1'&&!process.env.HOME_FAULT_TABLES},null,2));
+  await writeFile('test-results/home-sidebar.json',JSON.stringify({syntheticOnly:true,todayFirst:true,sourceAndProgressExpandable:true,highPriorityNoticeVisible:true,eightCompanyDestinations:true,allDestinationActiveStates:true,companySwitchNoStaleLinks:true,mobileDrawerAndKeyboard:true,mobileNoOverflow:true,errorsRemainVisible:true,globalAdminNavigationRetained:true,pageErrors:pageErrors.length,writes,syntheticDocumentWrites:syntheticDocumentWrites.length,syntheticTaxWrites:syntheticTaxWrites.length,productionCalls:0,fullReadRegression:process.env.HOME_NAV_UI_ONLY!=='1'&&!process.env.HOME_FAULT_TABLES},null,2));
   console.log('PASS home layout and sidebar destinations, active company, mobile keyboard, errors visible, zero production or unexpected writes');
   if(process.env.HOME_NAV_UI_ONLY!=='1'&&!process.env.HOME_FAULT_TABLES) console.log(
     'PASS: independent source failures and nested engine failures do not become zero/no action; known sections preserved; retries, normal missing/zero, independent review and legacy roadmap/documents/share normal contracts; zero real DB writes.',
