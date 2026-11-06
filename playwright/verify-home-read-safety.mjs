@@ -137,6 +137,8 @@ let state = structuredClone(initial),
   logs = '',
   writes = 0;
 const pageErrors=[];
+const syntheticDocumentWrites=[];
+let documentSaveMode='off';
 async function update(v = {}) {
   state = { ...state, ...v };
   await writeFile(file, JSON.stringify(state));
@@ -198,7 +200,21 @@ try {
       return route.abort();
     return route.continue();
   });
-  await context.route('**/rest/v1/**', (route) => {
+  await context.route('**/rest/v1/**', async (route) => {
+    const request=route.request();
+    if(request.method()==='OPTIONS') return route.fulfill({status:204,headers:{'access-control-allow-origin':origin,'access-control-allow-methods':'GET,HEAD,POST,OPTIONS','access-control-allow-headers':request.headers()['access-control-request-headers']??'*'}});
+    if(documentSaveMode!=='off' && request.method()==='POST' && new URL(request.url()).pathname.endsWith('/workspace_documents')) {
+      const payload=request.postDataJSON();
+      assert.equal(payload.company_id,companyId);
+      assert.equal(payload.document_type,'corporate_tax_return');
+      assert.deepEqual(Object.keys(payload).sort(),['company_id','document_type','status']);
+      syntheticDocumentWrites.push(payload);
+      if(documentSaveMode==='error') return route.fulfill({status:400,json:{message:'Synthetic rejection'},headers:{'access-control-allow-origin':origin}});
+      const row=state.data.workspace_documents.find(row=>row.document_type===payload.document_type);
+      row.status=payload.status;await update();
+      if(documentSaveMode==='lost') return route.abort('failed');
+      return route.fulfill({status:201,body:'',headers:{'access-control-allow-origin':origin}});
+    }
     if (!['GET', 'HEAD', 'OPTIONS'].includes(route.request().method())) {
       writes++;
       return route.abort();
@@ -488,6 +504,14 @@ try {
   assert.match(await guidance.textContent(),/選択済みの項目や初期値/);
   assert.equal(await page.getByText('未入力',{exact:true}).count(),3);
   assert.equal(await page.getByRole('textbox',{name:'従業員数',exact:true}).inputValue(),'0');
+  const employeeHelp = page.getByTestId('employee-count-help');
+  assert.match(await employeeHelp.textContent(),/パート・アルバイト2人なら「5人」/);
+  assert.ok(await employeeHelp.getByText(/0人でも/).isVisible());
+  const officerHelp = page.getByTestId('officer-change-date-help');
+  assert.match(await officerHelp.textContent(),/就任を承諾/);
+  assert.match(await officerHelp.textContent(),/未定なら空欄のまま保存/);
+  assert.equal(await page.getByRole('textbox',{name:'次回の役員変更予定日',exact:true}).inputValue(),'');
+
   await guidance.getByRole('link',{name:'設立日の入力欄へ',exact:true}).click();
   assert.equal(await page.getByRole('textbox',{name:'設立日',exact:true}).evaluate(el=>el===document.activeElement),true);
   await page.getByRole('textbox',{name:'資本金',exact:true}).fill('0');
@@ -517,6 +541,7 @@ try {
   assert.equal(await page.getByTestId('home-missing-profile').count(),0);
   await page.goto(home+'/profile',{waitUntil:'networkidle'});
   await page.getByText('会社プロフィールを読み込めませんでした',{exact:true}).waitFor();
+  assert.equal(await page.getByTestId('employee-count-help').count(),0);
   assert.equal(await page.getByRole('button',{name:'保存する',exact:true}).count(),0);
   assert.equal(await page.getByText('未入力',{exact:true}).count(),0);
   state = structuredClone(initial);
@@ -527,10 +552,45 @@ try {
   await page.getByRole('button',{name:'新しい申告実績を追加',exact:true}).click();
   await page.getByRole('combobox',{name:'対象年度（決算日の年・必須）',exact:true}).waitFor();
   await selectArrows();
+  state.data.workspace_documents = [
+    {document_type:'articles_of_incorporation',status:'registered'},
+    {document_type:'certificate_of_registered_matters',status:'needs_update'},
+    {document_type:'corporate_tax_return',status:'registered'},
+    {document_type:'consumption_tax_return',status:'registered'},
+    {document_type:'withholding_tax_payment_slip',status:'registered'},
+  ];
+  await update();
   await page.goto(home+'/documents',{waitUntil:'networkidle'});
+  await page.getByRole('heading',{name:'会社の書類',exact:true}).waitFor();
+  for(const [type,label] of [['articles_of_incorporation','作成・変更日'],['certificate_of_registered_matters','発行日'],['corporate_tax_return','対象期間'],['consumption_tax_return','対象期間'],['withholding_tax_payment_slip','対象期間']]) {
+    assert.equal(await page.getByTestId('document-timing-'+type).textContent(),label+'：未記録');
+  }
+  assert.equal(await page.getByRole('heading',{name:'今年提出した書類',exact:true}).count(),0);
   await selectArrows();
+  const documentStatus=page.getByRole('combobox',{name:'法人税申告書の登録状況',exact:true});
+  documentSaveMode='success';
+  await documentStatus.selectOption('not_registered');
+  await page.waitForFunction(()=>!document.querySelector('select[aria-label="法人税申告書の登録状況"]').disabled);
+  assert.equal(await page.getByTestId('document-timing-corporate_tax_return').count(),0);
+  await documentStatus.selectOption('registered');
+  await page.getByTestId('document-timing-corporate_tax_return').waitFor();
+  for(const mode of ['error','lost']) {
+    documentSaveMode=mode;
+    const before=syntheticDocumentWrites.length;
+    await documentStatus.selectOption('needs_update');
+    await page.getByRole('alert').filter({hasText:'書類の保存結果を確認できませんでした'}).waitFor();
+    assert.equal(await documentStatus.inputValue(),'registered');
+    assert.equal(await documentStatus.isDisabled(),true);
+    await page.reload({waitUntil:'networkidle'});
+    assert.equal(syntheticDocumentWrites.length,before+1);
+    assert.equal(await documentStatus.inputValue(),mode==='lost'?'needs_update':'registered');
+    assert.equal(await documentStatus.isDisabled(),false);
+    assert.equal(await page.getByTestId('document-timing-corporate_tax_return').textContent(),'対象期間：未記録');
+  }
+  documentSaveMode='off';
   await page.setViewportSize({width:375,height:812});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+  await page.screenshot({path:'test-results/document-timing-mobile.png',fullPage:false});
   await page.setViewportSize({width:1280,height:900});
   await page.goto(origin+'/start',{waitUntil:'networkidle'});
   await selectArrows();
@@ -539,6 +599,11 @@ try {
   await page.getByText('源泉所得税を納める回数',{exact:true}).waitFor();
   await page.getByText('住民税（給与から天引きする分）を納める回数',{exact:true}).waitFor();
   assert.ok(await page.getByRole('button',{name:'毎月納める',exact:true}).count()>=2);
+  assert.equal(await page.getByTestId('employee-count-help').count(),1);
+  await page.getByRole('button',{name:'株式会社',exact:true}).click();
+  assert.equal(await page.getByTestId('officer-change-date-help').count(),1);
+  await page.getByRole('button',{name:'合同会社',exact:true}).click();
+  assert.equal(await page.getByTestId('officer-change-date-help').count(),0);
   // P08: filing is not payment; fixtures and auth remain local and synthetic.
   state = structuredClone(initial);
   await update();
@@ -580,8 +645,8 @@ try {
   assert.equal(writes, 0);
   assert.deepEqual(pageErrors,[]);
   assert.equal(existsSync(file + '.mutations'), false);
-  await writeFile('test-results/home-sidebar.json',JSON.stringify({syntheticOnly:true,todayFirst:true,sourceAndProgressExpandable:true,highPriorityNoticeVisible:true,eightCompanyDestinations:true,allDestinationActiveStates:true,companySwitchNoStaleLinks:true,mobileDrawerAndKeyboard:true,mobileNoOverflow:true,errorsRemainVisible:true,globalAdminNavigationRetained:true,pageErrors:pageErrors.length,writes,productionCalls:0,fullReadRegression:process.env.HOME_NAV_UI_ONLY!=='1'&&!process.env.HOME_FAULT_TABLES},null,2));
-  console.log('PASS home layout and sidebar destinations, active company, mobile keyboard, errors visible, zero writes');
+  await writeFile('test-results/home-sidebar.json',JSON.stringify({syntheticOnly:true,todayFirst:true,sourceAndProgressExpandable:true,highPriorityNoticeVisible:true,eightCompanyDestinations:true,allDestinationActiveStates:true,companySwitchNoStaleLinks:true,mobileDrawerAndKeyboard:true,mobileNoOverflow:true,errorsRemainVisible:true,globalAdminNavigationRetained:true,pageErrors:pageErrors.length,writes,syntheticDocumentWrites:syntheticDocumentWrites.length,productionCalls:0,fullReadRegression:process.env.HOME_NAV_UI_ONLY!=='1'&&!process.env.HOME_FAULT_TABLES},null,2));
+  console.log('PASS home layout and sidebar destinations, active company, mobile keyboard, errors visible, zero production or unexpected writes');
   if(process.env.HOME_NAV_UI_ONLY!=='1'&&!process.env.HOME_FAULT_TABLES) console.log(
     'PASS: independent source failures and nested engine failures do not become zero/no action; known sections preserved; retries, normal missing/zero, independent review and legacy roadmap/documents/share normal contracts; zero real DB writes.',
   );
