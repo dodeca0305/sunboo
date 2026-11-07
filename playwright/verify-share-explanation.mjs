@@ -11,10 +11,20 @@ const base=['company','profile','roadmap'];
 const row=(id,sections=base)=>({id,company_id:23,token:String(id).repeat(64),shared_sections:sections,expires_at:'2030-01-01T00:00:00Z',revoked_at:null,last_accessed_at:null,created_at:'2026-11-01T00:00:00Z'});
 let f={user,company:{id:23,name:'合成・共有説明',prefecture_code:'13',municipality_code:'131130',corporate_type:'kabushiki',fiscal_month:3},links:[row(1),row(2,[...base,'tax_returns']),row(3,['company'])]},server,browser,page,logs='',posts=0,mode='ok',unexpectedWrites=0;
 const contexts=[],pageErrors=[];
+let revocations=0,revokeMode='ok',revokeReadFails=false;
 const sync=()=>writeFile(file,JSON.stringify(f));
 async function context(){const c=await browser.newContext();contexts.push(c);await c.addCookies([{name:'sb-synthetic-share-auth-token',value:'base64-'+Buffer.from(JSON.stringify(session)).toString('base64url'),url:origin,sameSite:'Lax'}]);await c.addInitScript(()=>{try{localStorage.setItem('sunboo:analytics-consent','denied')}catch{/* about:blank has no storage origin */}});c.on('page',p=>p.on('pageerror',e=>pageErrors.push(e.message)));
  await c.route('**/*',async r=>{const req=r.request(),u=new URL(req.url()),m=req.method();if(u.origin===origin)return r.continue();if(u.origin!==api)return r.abort();const headers={'access-control-allow-origin':origin,'access-control-allow-headers':'*','access-control-allow-methods':'GET,POST,PATCH,OPTIONS'};if(m==='OPTIONS')return r.fulfill({headers,status:204});if(u.pathname==='/auth/v1/user'&&m==='GET')return r.fulfill({headers,json:user});if(u.pathname==='/rest/v1/workspace_share_links'){
-  if(m==='GET'){let rows=f.links;for(const[k,v]of u.searchParams)if(v.startsWith('eq.'))rows=rows.filter(x=>String(x[k])===v.slice(3));return r.fulfill({headers,json:req.headers().accept?.includes('vnd.pgrst.object+json')?(rows[0]??null):rows})}
+  if(m==='GET'){if(revokeReadFails)return r.fulfill({headers,status:400,json:{message:'Synthetic read failure'}});let rows=f.links;for(const[k,v]of u.searchParams)if(v.startsWith('eq.'))rows=rows.filter(x=>String(x[k])===v.slice(3));return r.fulfill({headers,json:req.headers().accept?.includes('vnd.pgrst.object+json')?(rows[0]??null):rows})}
+  if(m==='PATCH'){
+    revocations++;
+    const selected=f.links.find(x=>String(x.id)===u.searchParams.get('id')?.slice(3)&&String(x.company_id)===u.searchParams.get('company_id')?.slice(3)&&x.token===u.searchParams.get('token')?.slice(3));
+    assert.ok(selected);const value=req.postDataJSON();assert.ok(Number.isFinite(Date.parse(value.revoked_at)));
+    if(revokeMode==='error')return r.fulfill({headers,status:400,json:{message:'Synthetic rejection'}});
+    selected.revoked_at=value.revoked_at;await sync();
+    if(revokeMode==='lost')return r.abort();
+    return r.fulfill({headers,json:req.headers().accept?.includes('vnd.pgrst.object+json')?selected:[selected]});
+  }
   if(m==='POST'){posts++;if(mode==='lost')return r.abort();const v=req.postDataJSON();assert.equal(v.company_id,23);assert.deepEqual(v.shared_sections,mode==='base'?base:[...base,'tax_returns']);const saved={...row(100+posts,v.shared_sections),...v};f.links.push(saved);await sync();return r.fulfill({headers,status:201,json:saved})}
  }if(!['GET','HEAD'].includes(m))unexpectedWrites++;return r.abort();});return c;}
 async function visit(c){page=await c.newPage();page.setDefaultTimeout(15000);await page.goto(origin+'/admin/workspaces/23/share',{waitUntil:'networkidle'});await page.getByRole('heading',{name:'新しいリンクの公開範囲'}).waitFor();return page}
@@ -33,5 +43,32 @@ try{
  // An unavailable list still stops issuance. Normal empty list stays usable.
  f.failList=true;await sync();const fail=await context();await visit(fail);await page.getByRole('alert').filter({hasText:'発行済みリンクを確認できない'}).waitFor();assert.equal(await page.getByRole('button',{name:'新しい共有リンクを発行',exact:true}).isEnabled(),false);
  f.failList=false;f.links=[];await sync();const empty=await context();await visit(empty);assert.equal(await page.getByRole('button',{name:'新しい共有リンクを発行',exact:true}).isEnabled(),true);assert.equal(await page.getByRole('checkbox').isChecked(),false);assert.equal(posts,beforeReload);assert.equal(unexpectedWrites,0);assert.deepEqual(pageErrors,[]);
- await writeFile('test-results/share-explanation.json',JSON.stringify({syntheticOnly:true,baseScopeAlwaysExplained:true,financialDefaultOff:true,keyboardSelectionShowsRisk:true,scopeChoiceOnlyAffectsNewLink:true,baseAndFinancialPayloadsUnchanged:true,legacyLinkActualScopeLabels:true,mobileNoHorizontalOverflow:true,pendingScopeRetainedWithoutAutoSend:true,listFailureStopsIssuance:true,emptyListUsable:true,syntheticIssuanceAttempts:posts,unexpectedWrites,productionCalls:0,pageErrors:pageErrors.length},null,2));console.log('Share explanation readability, scopes, pending/reload and issuance guards passed');
+ // Wording and stop recovery: local synthetic data only.
+f.links=[row(1),{...row(2),expires_at:'2020-01-01T00:00:00Z'},{...row(3),expires_at:'2020-01-01T00:00:00Z',revoked_at:'2020-01-01T00:00:00Z'},row(4),row(5)];await sync();
+await page.reload({waitUntil:'networkidle'});
+const card=id=>page.getByTestId('share-link-card-'+id);
+await card(2).getByText('期限切れ',{exact:true}).waitFor();await card(3).getByText('共有停止済み',{exact:true}).waitFor();
+for(const id of [2,3])assert.equal(await card(id).getByRole('button',{name:'このリンクの共有を停止する',exact:true}).count(),0);
+page.once('dialog',d=>{assert.match(d.message(),/このリンクの共有を停止/);return d.dismiss()});
+await card(1).getByRole('button',{name:'このリンクの共有を停止する',exact:true}).click();assert.equal(revocations,0);
+const otherRows=JSON.stringify(f.links.slice(1));
+page.once('dialog',d=>d.accept());await card(1).getByRole('button',{name:'このリンクの共有を停止する',exact:true}).click();
+await card(1).getByText('共有停止済み',{exact:true}).waitFor();assert.equal(revocations,1);assert.equal(JSON.stringify(f.links.slice(1)),otherRows);
+revokeMode='lost';page.once('dialog',d=>d.accept());await card(4).getByRole('button',{name:'このリンクの共有を停止する',exact:true}).click();
+await page.getByRole('button',{name:'停止結果を確認',exact:true}).waitFor();assert.equal(await card(4).getByText('共有停止済み',{exact:true}).count(),0);
+await page.getByRole('button',{name:'停止結果を確認',exact:true}).click();await card(4).getByText('共有停止済み',{exact:true}).waitFor();assert.equal(revocations,2);
+revokeMode='error';page.once('dialog',d=>d.accept());await card(5).getByRole('button',{name:'このリンクの共有を停止する',exact:true}).click();
+await page.getByRole('button',{name:'停止結果を確認',exact:true}).waitFor();revokeReadFails=true;
+await page.getByRole('button',{name:'停止結果を確認',exact:true}).click();await page.getByRole('alert').filter({hasText:'停止結果を取得できません'}).waitFor();
+assert.equal(await card(5).getByText('共有停止済み',{exact:true}).count(),0);assert.equal(revocations,3);
+revokeReadFails=false;await page.getByRole('button',{name:'停止結果を確認',exact:true}).click();
+await page.getByRole('alert').filter({hasText:'共有を停止した記録はありません'}).waitFor();
+await card(5).getByText('有効',{exact:true}).waitFor();assert.equal(revocations,3);
+await page.setViewportSize({width:375,height:812});await card(5).scrollIntoViewIfNeeded();
+assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+await page.screenshot({path:'test-results/status-wording-share-mobile.png',fullPage:false});
+assert.equal(unexpectedWrites,0);assert.deepEqual(pageErrors,[]);
+await writeFile('test-results/status-wording-summary.json',JSON.stringify({syntheticOnly:true,expirySeparateFromManualStop:true,cancelNoWrite:true,stoppedOnlyTargetLink:true,responseLossConfirmedWithoutRetry:true,readFailureStopsRetry:true,rejectionRestoresActive:true,syntheticStops:revocations,mobileNoOverflow:true,productionCalls:0},null,2));
+
+await writeFile('test-results/share-explanation.json',JSON.stringify({syntheticOnly:true,baseScopeAlwaysExplained:true,financialDefaultOff:true,keyboardSelectionShowsRisk:true,scopeChoiceOnlyAffectsNewLink:true,baseAndFinancialPayloadsUnchanged:true,legacyLinkActualScopeLabels:true,mobileNoHorizontalOverflow:true,pendingScopeRetainedWithoutAutoSend:true,listFailureStopsIssuance:true,emptyListUsable:true,syntheticIssuanceAttempts:posts,unexpectedWrites,productionCalls:0,pageErrors:pageErrors.length},null,2));console.log('Share explanation readability, scopes, pending/reload and issuance guards passed');
 }catch(e){await writeFile('test-results/share-explanation-server.log',logs);if(page){await writeFile('test-results/share-explanation-failure.txt',await page.locator('body').innerText());await page.screenshot({path:'test-results/share-explanation-failure.png',fullPage:true})}throw e}finally{for(const c of contexts)await c.close();await browser?.close();if(server)try{process.kill(-server.pid,'SIGTERM')}catch{}}

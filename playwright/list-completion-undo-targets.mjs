@@ -89,7 +89,7 @@ async function main() {
       '年間ロードマップ';
 
     const selects = page.locator(
-      'select[aria-label$="のステータス"]',
+      'select[aria-label$="の対応状況"]',
     );
 
     const count = await selects.count();
@@ -112,7 +112,7 @@ async function main() {
         JSON.stringify({
           workspaceId: Number(workspaceId),
           procedureName:
-            label?.replace(/のステータス$/, '') ?? null,
+            label?.replace(/の対応状況$/, '') ?? null,
           status,
         }),
       );

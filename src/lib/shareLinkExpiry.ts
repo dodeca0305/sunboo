@@ -15,8 +15,8 @@ export function getShareLinkExpiresAt(
 export function getShareLinkStatus(
   link: { revoked_at: string | null; expires_at: string | null },
   now: number = Date.now(),
-): '有効' | '期限切れ' | '失効済み' {
-  if (link.revoked_at) return '失効済み';
+): '有効' | '期限切れ' | '共有停止済み' {
+  if (link.revoked_at) return '共有停止済み';
   // DBの expires_at > NOW() と同じ境界で判定する。
   if (link.expires_at !== null && !(Date.parse(link.expires_at) > now)) return '期限切れ';
   return '有効';

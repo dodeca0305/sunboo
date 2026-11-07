@@ -104,7 +104,7 @@ async function findWorkspaceWithRoadmap(page) {
     }
 
     const statusSelects = page.locator(
-      'select[aria-label$="のステータス"]',
+      'select[aria-label$="の対応状況"]',
     );
 
     const procedureCount =
@@ -353,7 +353,7 @@ async function main() {
 
     const roadmapItems =
       page.locator(
-        'select[aria-label$="のステータス"]',
+        'select[aria-label$="の対応状況"]',
       );
 
     const roadmapItemCount =

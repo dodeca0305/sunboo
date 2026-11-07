@@ -66,7 +66,7 @@ export default function WorkspaceShareScopeSettings({
           リンクを渡す相手に注意
         </h3>
         <p className="leading-relaxed"><strong>リンクを知る人は、ログインなしで閲覧できます。</strong>編集はできません。</p>
-        <p className="mt-1 leading-relaxed">必要な相手にだけ渡し、不要になったら「失効させる」で無効にしてください。</p>
+        <p className="mt-1 leading-relaxed">必要な相手にだけ渡し、不要になったら「このリンクの共有を停止する」を押してください。</p>
       </aside>
       <p className="text-sm leading-relaxed text-slate-600">
         {pending ? '前回の発行条件で結果を確認します。発行済みの別のリンクは変わりません。' : 'この設定は、新しく発行するリンクだけに適用されます。発行済みのリンクは変わりません。'}

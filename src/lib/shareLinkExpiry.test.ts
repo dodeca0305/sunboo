@@ -27,6 +27,6 @@ test('期限の直前は有効、期限ちょうどと直後は期限切れ', ()
 
 test('既存の無期限リンクを維持し、手動失効を期限より優先表示する', () => {
   assert.equal(getShareLinkStatus({ revoked_at: null, expires_at: null }, now), '有効');
-  assert.equal(getShareLinkStatus({ revoked_at: new Date(now).toISOString(), expires_at: null }, now), '失効済み');
-  assert.equal(getShareLinkStatus({ revoked_at: new Date(now).toISOString(), expires_at: new Date(now - 1).toISOString() }, now), '失効済み');
+  assert.equal(getShareLinkStatus({ revoked_at: new Date(now).toISOString(), expires_at: null }, now), '共有停止済み');
+  assert.equal(getShareLinkStatus({ revoked_at: new Date(now).toISOString(), expires_at: new Date(now - 1).toISOString() }, now), '共有停止済み');
 });
