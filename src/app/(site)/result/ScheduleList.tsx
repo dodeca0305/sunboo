@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import ProcedureDetailExtra from '@/components/ProcedureDetailExtra';
 import StatusBadge from '@/components/StatusBadge';
+import ElectronicFilingEntry from '@/components/ElectronicFilingEntry';
 import { selectProcedureReference } from '@/lib/diagnosisSubmissionInfo';
 
 export type { ProcedureStatus } from '@/lib/scheduleProcedure';
@@ -318,6 +319,7 @@ function ProcedureRow({
         <a href={proc.submissionGuidance.reference.url} target="_blank" rel="noopener noreferrer"
           className="mt-2 inline-block font-medium underline underline-offset-2">{proc.submissionGuidance.reference.label}</a>
       </div>}
+      <div className="mt-3"><ElectronicFilingEntry procedure={proc} /></div>
       <div className="mt-3 flex flex-wrap items-center gap-2 pl-8">
         {mapUrl && (
           <a
@@ -330,7 +332,7 @@ function ProcedureRow({
             地図
           </a>
         )}
-        {proc.e_filing_system_url && (
+        {proc.e_filing_system_url && !['tax', 'local_tax'].includes(proc.category) && (
           <a
             href={proc.e_filing_system_url}
             target="_blank"
