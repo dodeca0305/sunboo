@@ -9,7 +9,7 @@ function client(result:unknown, throws=false, company:unknown={data:{id:23},erro
 
 test('role loads distinguish empty, null, malformed, other company, duplicate and unexpected role',async()=>{
  assert.deepEqual(parseResponsibilityRows([],23),{});
- for(const data of [null,[{...row,company_id:24}],[{...row,responsible_role:'administrator'}],[{...row,updated_at:'bad'}],[{...row,occurrence_key:'2027-99-99'}],[row,row]])assert.equal(parseResponsibilityRows(data,23),null);
+ for(const data of [null,[{...row,company_id:24}],[{...row,responsible_role:'administrator'}],[{...row,updated_at:'bad'}],[{...row,updated_at:'2026-11-07'}],[{...row,occurrence_key:'2027-99-99'}],[row,row]])assert.equal(parseResponsibilityRows(data,23),null);
  assert.equal((await loadResponsibilities(client({data:[row],error:null}) as never,23))?.['61:2027-05-31'].status,'done');
  assert.equal(await loadResponsibilities(client({data:null,error:null}) as never,23),null);
  assert.equal(await loadResponsibilities(client({},true) as never,23),null);

@@ -21,7 +21,8 @@ export function parseResponsibilityRows(data: unknown, companyId: number): Respo
     if (!row || row.company_id !== companyId || !positive(row.procedure_id) || !date(row.occurrence_key)
       || !WORKSPACE_PROCEDURE_STATUSES.includes(row.status)
       || !(row.responsible_role === null || isResponsibility(row.responsible_role))
-      || typeof row.updated_at !== 'string' || !Number.isFinite(Date.parse(row.updated_at))) return null;
+      || typeof row.updated_at !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(row.updated_at)
+      || !Number.isFinite(Date.parse(row.updated_at))) return null;
     const key = workspaceProcedureOccurrenceKey(row.procedure_id, row.occurrence_key);
     if (Object.hasOwn(rows, key)) return null;
     rows[key] = row;
