@@ -100,8 +100,8 @@ try {
   // 管理画面の手動失効も実行する。
   const activeCard = page.locator('.card').filter({ has: page.locator(`input[value$="/${rows[0].token}"]`) });
   page.once('dialog', dialog => dialog.accept());
-  await activeCard.getByRole('button', { name: '失効させる', exact: true }).click();
-  await activeCard.getByText('失効済み', { exact: true }).waitFor();
+  await activeCard.getByRole('button', { name: 'このリンクの共有を停止する', exact: true }).click();
+  await activeCard.getByText('共有停止済み', { exact: true }).waitFor();
   await publicPage.goto(`${origin}/share/${rows[0].token}`, { waitUntil: 'networkidle' });
   await publicPage.getByText(invalidMessage, { exact: true }).waitFor();
   result.checks.push('manual-revoke-anonymous-denied');

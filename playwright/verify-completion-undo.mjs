@@ -55,7 +55,7 @@ async function assertSuccessfulWrite(response, action) {
 }
 
 async function getUniqueStatusSelect(page) {
-  const label = `${PROCEDURE_NAME}のステータス`;
+  const label = `${PROCEDURE_NAME}の対応状況`;
   const select = page.getByLabel(label, { exact: true });
   const count = await select.count();
 
@@ -332,7 +332,7 @@ async function main() {
             originalStatus
           ) {
             throw new Error(
-              '元のステータスへの後片付けに失敗しました。',
+              '元の対応状況への後片付けに失敗しました。',
             );
           }
         }

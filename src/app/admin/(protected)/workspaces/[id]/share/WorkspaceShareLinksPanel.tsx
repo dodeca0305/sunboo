@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Link2, Copy, Check, Ban } from 'lucide-react';
+import { Link2, Copy, Check } from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import InformationCard from '@/components/InformationCard';
 import WorkspaceShareScopeSettings from '@/components/WorkspaceShareScopeSettings';
@@ -163,7 +163,7 @@ export default function WorkspaceShareLinksPanel({
     if (busyRef.current || pendingRevoke) return;
     if (
       !window.confirm(
-        'この共有リンクを失効させます。経営者はこのリンクを使えなくなります。よろしいですか？',
+        'このリンクの共有を停止します。このリンクを知っている相手も閲覧できなくなります。停止しますか？',
       )
     )
       return;
@@ -175,7 +175,7 @@ export default function WorkspaceShareLinksPanel({
       if (!client || !(await revokeShareLink(client, companyId, link))) {
         setPendingRevoke(link);
         setError(
-          '失効結果を確認できません。失効済みとは表示せず、結果を確認するまで再送を停止しています。',
+          '共有を停止できたか確認できません。もう一度停止する前に、停止結果を確認してください。',
         );
         return;
       }
@@ -186,7 +186,7 @@ export default function WorkspaceShareLinksPanel({
       );
     } catch {
       setPendingRevoke(link);
-      setError('失効結果を確認できません。再送せず結果を確認してください。');
+      setError('共有を停止できたか確認できません。もう一度停止する前に、停止結果を確認してください。');
     } finally {
       busyRef.current = false;
       setCheckingRevoke(false);
@@ -202,7 +202,7 @@ export default function WorkspaceShareLinksPanel({
         ? await confirmShareRevocation(client, companyId, pendingRevoke)
         : 'unavailable';
       if (result === 'unavailable') {
-        setError('失効結果を取得できません。再送せず再確認してください。');
+        setError('停止結果を取得できません。もう一度停止せず、結果を再確認してください。');
         return;
       }
       if (result === 'revoked')
@@ -215,7 +215,7 @@ export default function WorkspaceShareLinksPanel({
         );
       setError(
         result === 'active'
-          ? '現在は有効なリンクとして取得しました。失効が必要なら改めて操作してください。'
+          ? '共有を停止した記録はありません。期限切れかどうかは一覧で確認してください。共有を止める場合は、改めて操作してください。'
           : null,
       );
       setPendingRevoke(null);
@@ -254,14 +254,14 @@ export default function WorkspaceShareLinksPanel({
       )}
       {pendingRevoke && (
         <InformationCard kind="caution">
-          失効結果が未確認です。
+          共有の停止結果が未確認です。
           <button
             type="button"
             className="btn-secondary"
             disabled={checkingRevoke}
             onClick={checkRevoke}
           >
-            失効結果を確認
+            停止結果を確認
           </button>
         </InformationCard>
       )}
@@ -329,7 +329,7 @@ export default function WorkspaceShareLinksPanel({
         </button>
       </div>
       <p className="text-xs text-sunboo-ink-muted">
-        発行時から選択した期間だけ有効です。無期限の場合も、手動で失効させられます。
+        発行時から選択した期間だけ有効です。無期限でも、後からこのリンクの共有を停止できます。
       </p>
 
       {listLoaded && storageReady && !pending && links.length === 0 ? (
@@ -344,7 +344,7 @@ export default function WorkspaceShareLinksPanel({
             return (
               <div key={link.id} data-testid={`share-link-card-${link.id}`} className="card space-y-2.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="tag">{status}</span>
+                  <span className={`tag ${status === '期限切れ' ? 'border-amber-200 bg-amber-50 text-amber-900' : inactive ? 'border-slate-200 bg-slate-100 text-slate-700' : 'border-sky-200 bg-sky-50 text-sky-900'}`}>{status}</span>
                   <span className="text-sm font-medium">このリンクの公開範囲</span>
                   <span className="text-xs text-sunboo-ink-muted">
                     発行日:{' '}
@@ -380,12 +380,12 @@ export default function WorkspaceShareLinksPanel({
                 {!link.shared_sections.includes('tax_returns') && (
                   <p className="text-sm text-slate-600">決算実績は非公開です。{link.shared_sections.includes('roadmap') && '手続きの予定は保留になります。'}</p>
                 )}
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <input
                     readOnly
                     value={shareUrl(link.token)}
                     onFocus={(e) => e.currentTarget.select()}
-                    className="form-input flex-1 text-xs text-sunboo-ink-muted"
+                    className="form-input w-full min-w-0 text-xs text-sunboo-ink-muted sm:w-auto sm:flex-1"
                   />
                   <button
                     type="button"
@@ -407,8 +407,7 @@ export default function WorkspaceShareLinksPanel({
                       disabled={checkingRevoke || Boolean(pendingRevoke)}
                       className="btn-secondary shrink-0 px-3 py-1.5 text-xs text-sunboo-danger hover:border-sunboo-danger"
                     >
-                      <Ban className="h-3.5 w-3.5" />
-                      失効させる
+                      このリンクの共有を停止する
                     </button>
                   )}
                 </div>

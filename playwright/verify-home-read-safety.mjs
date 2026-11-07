@@ -429,7 +429,7 @@ try {
   assert.ok(
     (await page
       .getByRole('combobox', {
-        name: '合成ホーム手続きのステータス',
+        name: '合成ホーム手続きの対応状況',
         exact: true,
       })
       .count()) > 0,

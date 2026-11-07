@@ -520,7 +520,7 @@ async function main() {
         'button',
         {
           name:
-            '失効させる',
+            'このリンクの共有を停止する',
           exact: true,
         },
       )
@@ -529,7 +529,7 @@ async function main() {
     await linkControls
       .locator('xpath=..')
       .getByText(
-        '失効済み',
+        '共有停止済み',
         {
           exact: true,
         },
