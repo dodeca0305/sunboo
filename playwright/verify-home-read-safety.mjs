@@ -142,6 +142,8 @@ const pageErrors=[];
 const syntheticDocumentWrites=[];
 const syntheticTaxWrites=[];
 let syntheticTaxSaveMode=null;
+let responsibilityMode=null,responsibilityReadFails=false,responsibilityStatusWrites=0;
+const responsibilityWrites=[];
 
 async function update(v = {}) {
   state = { ...state, ...v };
@@ -208,6 +210,36 @@ try {
   await context.route('**/rest/v1/**', async (route) => {
     const request=route.request();
     if(request.method()==='OPTIONS') return route.fulfill({status:204,headers:{'access-control-allow-origin':origin,'access-control-allow-methods':'GET,HEAD,POST,OPTIONS','access-control-allow-headers':request.headers()['access-control-request-headers']??'*'}});
+    if(responsibilityMode && request.method()==='GET' && new URL(request.url()).pathname==='/rest/v1/workspace_companies') return route.fulfill({json:[{id:companyId}],headers:{'access-control-allow-origin':origin}});
+    if(responsibilityMode && new URL(request.url()).pathname==='/rest/v1/workspace_procedure_statuses'){
+      const headers={'access-control-allow-origin':origin};
+      const u=new URL(request.url());
+      if(request.method()==='GET')return responsibilityReadFails?route.fulfill({status:400,json:{message:'Synthetic role read failure'},headers}):route.fulfill({json:state.data.workspace_procedure_statuses,headers});
+      if(['POST','PATCH'].includes(request.method())){
+        const value=request.postDataJSON();
+        if(Object.hasOwn(value,'responsible_role')){
+          responsibilityWrites.push({method:request.method(),value});
+          if(responsibilityMode==='error')return route.fulfill({status:400,json:{message:'Synthetic role rejection'},headers});
+          let existing=state.data.workspace_procedure_statuses.find(r=>r.company_id===companyId&&r.procedure_id===90001&&r.occurrence_key===(value.occurrence_key??u.searchParams.get('occurrence_key')?.slice(3)));
+          if(request.method()==='POST'){
+            assert.equal(value.company_id,companyId);assert.equal(value.procedure_id,90001);assert.equal(Object.hasOwn(value,'status'),false);
+            if(existing)return route.fulfill({status:409,json:{code:'23505'},headers});
+            existing={...value,status:'not_started'};state.data.workspace_procedure_statuses.push(existing);
+          }else{
+            assert.deepEqual(Object.keys(value),['responsible_role']);assert.equal(u.searchParams.get('company_id'),'eq.'+companyId);assert.equal(u.searchParams.get('procedure_id'),'eq.90001');
+            if(!existing||u.searchParams.get('updated_at')!=='eq.'+existing.updated_at)return route.fulfill({json:null,headers});
+            existing.responsible_role=value.responsible_role;
+          }
+          existing.updated_at=new Date(Date.now()+responsibilityWrites.length+responsibilityStatusWrites).toISOString();await update();
+          if(responsibilityMode==='lost')return route.abort('failed');
+          return route.fulfill({json:existing,headers});
+        }
+        responsibilityStatusWrites++;
+        const existing=state.data.workspace_procedure_statuses.find(r=>r.company_id===value.company_id&&r.procedure_id===value.procedure_id&&r.occurrence_key===value.occurrence_key);
+        assert.ok(existing);assert.equal(Object.hasOwn(value,'responsible_role'),false);Object.assign(existing,value,{updated_at:new Date(Date.now()+responsibilityWrites.length+responsibilityStatusWrites).toISOString()});await update();
+        return route.fulfill({json:existing,headers});
+      }
+    }
     if (syntheticTaxSaveMode && request.method()==='POST' && new URL(request.url()).pathname==='/rest/v1/workspace_tax_payment_plans') {
       const row=request.postDataJSON();
       assert.equal(row.company_id,companyId);assert.equal(row.procedure_id,90001);
@@ -604,6 +636,59 @@ try {
   state.data.procedures=[{...proc,e_filing_system_name:null,e_filing_system_url:null}];await update();await page.reload({waitUntil:'networkidle'});
   assert.ok(await page.getByText('電子手続きの入口は未登録です。提出先の公式案内で確認してください。',{exact:true}).count()>0);
   await writeFile('test-results/electronic-filing-summary.json',JSON.stringify({syntheticOnly:true,nationalInstructionsSeparateFromCorporateLogin:true,missingDifferentFromInvalid:true,unregisteredDestinationNotInvented:true,productionCalls:0},null,2));
+  // Approved responsibility selection: synthetic rows and writes only.
+  state=structuredClone(initial);await update();responsibilityMode='success';
+  await page.goto(home+'/roadmap',{waitUntil:'networkidle'});
+  const ownerSelect=page.getByRole('combobox',{name:/合成ホーム手続き.*の担当$/}).first();
+  await ownerSelect.waitFor();assert.ok(await ownerSelect.isEnabled());assert.equal(await ownerSelect.inputValue(),'');
+  for(const label of ['自社の事務担当','顧問税理士','委託事業者','その他の担当','まだ決めていない'])assert.equal(await ownerSelect.getByRole('option',{name:label,exact:true}).count(),1);
+  await ownerSelect.selectOption('tax_accountant');await page.getByText('担当を保存しました',{exact:true}).waitFor();
+  assert.equal(await ownerSelect.inputValue(),'tax_accountant');assert.equal(responsibilityWrites.length,1);
+  const assignedDate=state.data.workspace_procedure_statuses[0].occurrence_key;
+  assert.equal(state.data.workspace_procedure_statuses[0].status,'not_started');
+  const statusSelect=page.getByRole('combobox',{name:'合成ホーム手続きの対応状況',exact:true}).first();
+  await statusSelect.selectOption('in_progress');await page.waitForLoadState('networkidle');
+  await page.waitForFunction(()=>[...document.querySelectorAll('select')].some(s=>s.getAttribute('aria-label')==='合成ホーム手続きの対応状況'&&s.value==='in_progress'));
+  assert.equal(state.data.workspace_procedure_statuses[0].responsible_role,'tax_accountant');
+  await page.reload({waitUntil:'networkidle'});assert.equal(await ownerSelect.inputValue(),'tax_accountant');
+  await ownerSelect.selectOption('undecided');await page.getByText('担当を保存しました',{exact:true}).waitFor();
+  assert.equal(state.data.workspace_procedure_statuses[0].status,'in_progress');
+  assert.equal(await page.getByRole('combobox',{name:/合成ホーム手続き.*の担当$/}).nth(1).inputValue(),'');
+  // A stale tab must read the current version and refuse to overwrite it.
+  const ownerTab=await context.newPage();await ownerTab.goto(home+'/roadmap',{waitUntil:'networkidle'});
+  const staleOwner=ownerTab.getByRole('combobox',{name:/合成ホーム手続き.*の担当$/}).first();await staleOwner.waitFor();
+  await ownerSelect.selectOption('outsourced_provider');await page.getByText('担当を保存しました',{exact:true}).waitFor();
+  const beforeStale=responsibilityWrites.length;await staleOwner.selectOption('in_house_admin');
+  await ownerTab.getByRole('alert').filter({hasText:'別の画面で登録内容が変わりました'}).waitFor();
+  assert.equal(responsibilityWrites.length,beforeStale);assert.equal(await staleOwner.inputValue(),'outsourced_provider');await ownerTab.close();
+  // Lost response survives reload; confirm is read-only, never a resend.
+  responsibilityMode='lost';await ownerSelect.selectOption('other');
+  await page.getByRole('button',{name:'担当の保存結果を確認',exact:true}).waitFor();
+  assert.equal(await page.getByText('担当を保存しました',{exact:true}).count(),0);
+  const beforeReconcile=responsibilityWrites.length;await page.reload({waitUntil:'networkidle'});
+  assert.ok(await ownerSelect.isDisabled());assert.equal(responsibilityWrites.length,beforeReconcile);
+  await page.getByRole('button',{name:'担当の保存結果を確認',exact:true}).click();
+  await page.getByText('現在の担当を確認しました。変更する場合は選び直してください。',{exact:true}).waitFor();
+  assert.equal(await ownerSelect.inputValue(),'other');assert.ok(await ownerSelect.isEnabled());assert.equal(responsibilityWrites.length,beforeReconcile);
+  responsibilityMode='error';await ownerSelect.selectOption('tax_accountant');
+  await page.getByRole('button',{name:'担当の保存結果を確認',exact:true}).waitFor();responsibilityReadFails=true;
+  await page.getByRole('button',{name:'担当の保存結果を確認',exact:true}).click();
+  await page.getByRole('alert').filter({hasText:'担当を取得できません。再送せず'}).waitFor();assert.ok(await ownerSelect.isDisabled());
+  responsibilityReadFails=false;await page.getByRole('button',{name:'担当の保存結果を確認',exact:true}).click();
+  await page.getByText('現在の担当を確認しました。変更する場合は選び直してください。',{exact:true}).waitFor();assert.equal(await ownerSelect.inputValue(),'other');
+  const beforeFailures=responsibilityWrites.length;
+  for(const failure of ['error','throw','null']){
+    await update({failTable:'workspace_procedure_statuses',failure});await page.reload({waitUntil:'networkidle'});
+    assert.ok(await ownerSelect.isDisabled());assert.equal(await page.getByText('担当を保存しました',{exact:true}).count(),0);
+    await update({failTable:null,failure:null});await page.reload({waitUntil:'networkidle'});assert.equal(await ownerSelect.inputValue(),'other');
+  }
+  assert.equal(responsibilityWrites.length,beforeFailures);assert.equal(state.data.workspace_procedure_statuses[0].occurrence_key,assignedDate);
+  await page.setViewportSize({width:375,height:812});await ownerSelect.scrollIntoViewIfNeeded();await selectArrows();
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await page.screenshot({path:'test-results/responsibility-mobile.png',fullPage:false});await page.setViewportSize({width:1280,height:900});
+  await writeFile('test-results/responsibility-summary.json',JSON.stringify({syntheticOnly:true,normalEmpty:true,explicitUndecided:true,statusAndRolePreserved:true,occurrenceSeparated:true,staleTabRejected:true,lostResponseAfterReloadConfirmedWithoutRetry:true,rejectedSaveRecovered:true,failedReadsStopEditing:true,mobileNoOverflow:true,roleAttempts:responsibilityWrites.length,statusAttempts:responsibilityStatusWrites,productionCalls:0},null,2));
+  responsibilityMode=null;
+
   // Payment amount clarity: unknown/known zero, saves, failures and response loss stay synthetic.
   state=structuredClone(initial);state.data.workspace_tax_payment_plans=[];await update();
   await page.goto(home+'/roadmap',{waitUntil:'networkidle'});
