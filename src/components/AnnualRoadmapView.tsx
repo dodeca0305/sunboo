@@ -21,6 +21,7 @@ import { buildRoadmapDocumentItems, hasAnyRoadmapDocumentItems, type RoadmapDocu
 import { AlertTriangle, Building2, ExternalLink, Info, Square } from 'lucide-react';
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import ElectronicFilingEntry from '@/components/ElectronicFilingEntry';
+import { ProcedureResponsibilityField } from '@/components/ProcedureResponsibility';
 import StatusBadge from '@/components/StatusBadge';
 import { trackEvent } from '@/lib/analytics';
 import {
@@ -508,12 +509,12 @@ export default function AnnualRoadmapView({
                               <p className="text-sm font-semibold">{guide.kind}</p>
                               <dl className="grid gap-3 text-sm leading-relaxed sm:grid-cols-2">
                                 <div className="sm:col-span-2"><dt className="mb-1 font-semibold text-sunboo-ink-muted">理由</dt><dd>{guide.reason}</dd></div>
-                                <div className="rounded-lg bg-slate-50 p-3"><dt className="mb-1 font-semibold text-sunboo-ink-muted">担当</dt><dd>未設定。役割の目安：{guide.owner}</dd></div>
+                                <div className="rounded-lg bg-slate-50 p-3"><dt className="mb-1 font-semibold text-sunboo-ink-muted">担当</dt><dd>{companyId !== undefined ? <ProcedureResponsibilityField procedureId={item.procedure.id} dueDate={item.dueDate} name={item.procedure.name} /> : <>役割の目安：{guide.owner}</>}</dd></div>
                                 <div className="rounded-lg bg-slate-50 p-3"><dt className="mb-1 font-semibold text-sunboo-ink-muted">期限</dt><dd>{item.dueDate}（個別事情・公式案内で最終確認）</dd></div>
                                 <div className="sm:col-span-2"><dt className="mb-1 font-semibold text-sunboo-ink-muted">完了条件</dt><dd>{guide.completion}</dd></div>
                                 <div className="sm:col-span-2"><dt className="mb-1 font-semibold text-sunboo-ink-muted">実行先</dt><dd>下の提出先・公式ページから手続き内容を確認してください。未登録の提出先は推測しません。</dd></div>
                               </dl>
-                              <p className="text-xs text-sunboo-ink-muted">担当者名の割当や提出・納付の代行は行いません。「完了」は対応状況の記録であり、行政機関の受付確認の代わりにはなりません。</p>
+                              <p className="text-xs text-sunboo-ink-muted">担当の選択は記録です。依頼は担当者に別途ご確認ください。「完了」は対応状況の記録であり、行政機関の受付確認の代わりにはなりません。</p>
                             </section>
 
                             {/* 3〜5. 提出先／提出方法／公式ページ */}

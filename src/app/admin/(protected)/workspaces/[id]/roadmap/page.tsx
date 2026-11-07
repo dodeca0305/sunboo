@@ -1,3 +1,5 @@
+import { loadResponsibilities } from '@/lib/procedureResponsibility';
+import { ProcedureResponsibilityProvider } from '@/components/ProcedureResponsibility';
 import { loadWorkspaceCompanyForRead } from '@/lib/workspaceHomeData';
 import {
   loadPlanningSources,
@@ -97,8 +99,9 @@ export default async function WorkspaceRoadmapPage({
     );
   const company = companyRead.company;
 
-  const [sources, taxPlans] = await Promise.all([
+  const [sources, responsibilityRows, taxPlans] = await Promise.all([
     loadPlanningSources(supabase, company),
+    loadResponsibilities(supabase, companyId),
     planningRead(supabase, companyId, (c) =>
       loadWorkspaceTaxPaymentPlansForEditing(c, companyId),
     ),
@@ -227,6 +230,7 @@ export default async function WorkspaceRoadmapPage({
             properties={{ workspace_id: companyId, company_id: companyId }}
           />
 
+          <ProcedureResponsibilityProvider key={companyId} companyId={companyId} rows={responsibilityRows} statusAvailable={statusMap !== null}>
           <AnnualRoadmapView
             key={`${companyId}:${JSON.stringify(taxPaymentPlanMap)}`}
             roadmapYears={roadmapYears}
@@ -236,6 +240,7 @@ export default async function WorkspaceRoadmapPage({
             focusDueDate={focusDueDate}
             taxPaymentPlanMap={taxPaymentPlanMap ?? undefined}
           />
+          </ProcedureResponsibilityProvider>
         </>
       )}
     </div>
