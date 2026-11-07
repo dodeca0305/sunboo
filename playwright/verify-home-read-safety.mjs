@@ -78,6 +78,8 @@ const proc = {
   requires_officer_term: false,
   priority: 1,
   official_links: [],
+  e_filing_system_name: 'e-Tax',
+  e_filing_system_url: 'https://www.e-tax.nta.go.jp/',
   procedure_documents: [],
 };
 const initial = {
@@ -588,6 +590,20 @@ try {
   assert.equal(await page.getByTestId('officer-change-date-help').count(),1);
   await page.getByRole('button',{name:'合同会社',exact:true}).click();
   assert.equal(await page.getByTestId('officer-change-date-help').count(),0);
+  // Electronic filing routes use registered metadata; no external page is opened by synthetic UI tests.
+  state=structuredClone(initial);await update();await page.goto(home+'/roadmap',{waitUntil:'networkidle'});
+  assert.equal(await page.getByRole('link',{name:'e-Taxへログイン（法人）',exact:true}).first().getAttribute('href'),'https://login.e-tax.nta.go.jp/login/reception/loginCorporate');
+  assert.equal(await page.getByRole('link',{name:'初めての方・使い方を確認',exact:true}).first().getAttribute('href'),'https://www.e-tax.nta.go.jp/hojin.html');
+  await page.getByTestId('electronic-filing-entry').first().scrollIntoViewIfNeeded();
+  await page.screenshot({path:'test-results/electronic-filing-national-desktop.png',fullPage:false});
+  for(const invalid of [null,'https://e-tax.nta.go.jp.evil.invalid/']){
+    state.data.procedures=[{...proc,e_filing_system_url:invalid}];await update();await page.reload({waitUntil:'networkidle'});
+    assert.equal(await page.getByRole('link',{name:'e-Taxへログイン（法人）',exact:true}).count(),0);
+    assert.ok(await page.getByTestId('electronic-filing-unavailable').count()>0);
+  }
+  state.data.procedures=[{...proc,e_filing_system_name:null,e_filing_system_url:null}];await update();await page.reload({waitUntil:'networkidle'});
+  assert.ok(await page.getByText('電子手続きの入口は未登録です。提出先の公式案内で確認してください。',{exact:true}).count()>0);
+  await writeFile('test-results/electronic-filing-summary.json',JSON.stringify({syntheticOnly:true,nationalInstructionsSeparateFromCorporateLogin:true,missingDifferentFromInvalid:true,unregisteredDestinationNotInvented:true,productionCalls:0},null,2));
   // Payment amount clarity: unknown/known zero, saves, failures and response loss stay synthetic.
   state=structuredClone(initial);state.data.workspace_tax_payment_plans=[];await update();
   await page.goto(home+'/roadmap',{waitUntil:'networkidle'});
@@ -670,10 +686,12 @@ try {
   state=structuredClone(initial);
   const brokenOfficeUrl='https://www.city.shibuya.tokyo.jp/kurashi/zeikin/hojin/';
   state.data.jurisdictions=[{organization_types:{code:'municipal_tax'},organization_offices:{id:90003,name:'合成の誤った区役所窓口',address:null,phone:null,website_url:brokenOfficeUrl,official_url:brokenOfficeUrl,official_url_status:'ok',fallback_url:brokenOfficeUrl,map_url:'https://maps.example.invalid/old'}}];
-  state.data.procedures=[{...proc,id:66,code:'DEPRECIABLE_ASSET_TAX_RETURN',name:'合成償却資産申告',office_type:'municipal_tax'}, {...proc,id:65,code:'MUNICIPAL_RESIDENT_TAX_RETURN',name:'合成法人市民税申告',office_type:'municipal_tax'}];
+  state.data.procedures=[{...proc,id:66,code:'DEPRECIABLE_ASSET_TAX_RETURN',name:'合成償却資産申告',office_type:'municipal_tax',e_filing_system_name:'eLTAX',e_filing_system_url:'https://www.eltax.lta.go.jp/'}, {...proc,id:65,code:'MUNICIPAL_RESIDENT_TAX_RETURN',name:'合成法人市民税申告',office_type:'municipal_tax',e_filing_system_name:'eLTAX',e_filing_system_url:'https://www.eltax.lta.go.jp/'}];
   state.data.workspace_tax_payment_plans=[];
   await update();await page.goto(home+'/roadmap',{waitUntil:'networkidle'});
   async function assertSubmissionGuidance(){
+    assert.equal(await page.getByRole('link',{name:'eLTAXの利用案内・手続きの入口',exact:true}).first().getAttribute('href'),'https://www.lta.go.jp/eltax/shinkoku/pcdesk/');
+    assert.equal(await page.getByRole('link',{name:'e-Taxへログイン（法人）',exact:true}).count(),0);
     await page.getByRole('link',{name:'東京都の償却資産の説明（23区内の資産）',exact:true}).first().waitFor();
     assert.equal(await page.getByRole('link',{name:'東京都の償却資産の説明（23区内の資産）',exact:true}).first().getAttribute('href'),'https://www.tax.metro.tokyo.lg.jp/kazei/work/shokyak_sis');
     assert.equal(await page.getByRole('link',{name:'東京都の法人事業税・法人都民税の説明',exact:true}).first().getAttribute('href'),'https://www.tax.metro.tokyo.lg.jp/shitsumon/work/a1');

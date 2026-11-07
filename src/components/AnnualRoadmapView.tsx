@@ -20,6 +20,7 @@ import { buildRoadmapSubmissionInfo } from '@/lib/roadmapSubmissionInfo';
 import { buildRoadmapDocumentItems, hasAnyRoadmapDocumentItems, type RoadmapDocumentItem } from '@/lib/roadmapDocuments';
 import { AlertTriangle, Building2, ExternalLink, Info, Square } from 'lucide-react';
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
+import ElectronicFilingEntry from '@/components/ElectronicFilingEntry';
 import StatusBadge from '@/components/StatusBadge';
 import { trackEvent } from '@/lib/analytics';
 import {
@@ -449,6 +450,8 @@ export default function AnnualRoadmapView({
                               </h4>
                               <span className="tag">{CATEGORY_LABEL[item.procedure.category] ?? 'その他'}</span>
                             </div>
+
+                            <ElectronicFilingEntry procedure={item.procedure} />
 
                             {taxEditable && canPlanTaxPayment(item.procedure.code) && (
                               <div data-testid={`tax-payment-editor-${taxPaymentKey}`} className="rounded-xl border border-blue-200 bg-blue-50/60 p-3">
