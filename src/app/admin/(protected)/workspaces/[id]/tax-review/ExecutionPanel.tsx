@@ -87,9 +87,7 @@ export default function ExecutionPanel({
       <details className="rounded-lg border border-blue-200 bg-white p-3" data-testid="tax-execution-details">
       <summary className="cursor-pointer text-sm font-medium">対象・必要な入力を確認して進む</summary>
         <div className="mt-4 space-y-4">
-          {inputGuide.status === 'unavailable' ? (
-            <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">入力状況を取得できません。未登録かどうかは分かりません。再読み込みしてください。</p>
-          ) : (
+          {inputGuide.status === 'loaded' && (
             <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-4" data-testid="tax-input-next-step">
               <h3 className="font-semibold text-blue-950">{inputGuide.step.title}</h3>
               <p className="text-sm text-sunboo-ink-muted">{inputGuide.step.reason}</p>
@@ -176,6 +174,7 @@ export default function ExecutionPanel({
           </details>
         </div>
       </details>
+      {inputGuide.status === 'unavailable' && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">入力状況を取得できません。未登録かどうかは分かりません。再読み込みしてください。</p>}
       {loadError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">チェック一覧を取得できません。実行を停止しています。</p>}
       {storageError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">実行要求の記録を確認できません。安全に保存できないため実行を停止しています。</p>}
       {intent && (

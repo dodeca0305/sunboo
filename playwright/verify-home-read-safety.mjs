@@ -405,8 +405,9 @@ try {
   await executionDetails.locator(':scope > summary').click();
   for(const failTable of ['workspace_company_profiles','workspace_tax_return_profiles','municipalities']){
     await update({failTable,failure:'error'});await page.reload({waitUntil:'networkidle'});
-    await executionDetails.locator(':scope > summary').click();
+    assert.equal(await executionDetails.getAttribute('open'),null);
     await page.getByRole('alert').filter({hasText:'入力状況を取得できません'}).waitFor();
+    await executionDetails.locator(':scope > summary').click();
     assert.equal(await page.getByTestId('tax-input-next-step').count(),0);
     await page.getByTestId('tax-check-options').locator(':scope > summary').click();
     assert.equal(await page.getByRole('button',{name:'評価して保存',exact:true}).isDisabled(),true);
