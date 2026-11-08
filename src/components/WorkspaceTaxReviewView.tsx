@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import InformationCard from '@/components/InformationCard';
+import styles from '@/styles/taxReview.module.css';
 import TaxReviewConsultationCopy from '@/components/TaxReviewConsultationCopy';
 import { groupReviewItems, reviewNextAction } from '@/lib/taxIntelligence/reviewPresentation';
 import type {
@@ -148,8 +149,8 @@ export default function WorkspaceTaxReviewView({
 
   if (items.length === 0) {
     return (
-      <div className="card border border-gray-200 bg-gray-50 py-8 text-center">
-        <p className="mt-3 text-sm font-semibold text-sunboo-ink">
+      <div className={styles.emptyState}>
+        <p className="text-sm font-medium text-neutral-800">
           確認する項目はまだ登録されていません
         </p>
         <p className="mt-1 text-xs text-sunboo-ink-muted">
@@ -174,17 +175,17 @@ export default function WorkspaceTaxReviewView({
       </p>
       {groupReviewItems(items).map((section) => (
         <section key={section.id} aria-labelledby={`review-section-${section.id}`} className="space-y-3" data-testid={`review-section-${section.id}`}>
-          <h2 id={`review-section-${section.id}`} className={`rounded-lg border px-4 py-3 text-sm font-semibold ${section.tone}`}>
+          <h2 id={`review-section-${section.id}`} className={`${styles.sectionHeading} ${section.tone}`}>
             {section.title} <span className="ml-2 tabular-nums">{section.items.length}件</span>
           </h2>
           {section.items.map((item) => {
             const isOpen = item.caseStatus === 'open';
             const isSaving = savingCaseId === item.caseId;
             return (
-              <article key={item.caseId} className="card space-y-3" data-testid={`review-case-${item.caseId}`}>
+              <article key={item.caseId} className={`${styles.item} space-y-3`} data-testid={`review-case-${item.caseId}`}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-sm font-semibold text-sunboo-ink">{item.title}</h3>
-                  <span className="tag">{CASE_STATUS_LABEL[item.caseStatus]}</span>
+                  <span className={styles.status}>{CASE_STATUS_LABEL[item.caseStatus]}</span>
                 </div>
                 {isOpen && (
                   <div className="space-y-1 text-sm">
@@ -192,7 +193,7 @@ export default function WorkspaceTaxReviewView({
                     <p className="whitespace-pre-wrap text-sunboo-ink-muted">{item.issueSummary}</p>
                   </div>
                 )}
-                <details className="rounded-lg border border-gray-200 p-3">
+                <details className={styles.details}>
                   <summary className="cursor-pointer text-sm font-medium text-sunboo-ink">
                     {isOpen ? '具体的な対応を見る' : '記録した内容を見る'}
                   </summary>
@@ -207,12 +208,12 @@ export default function WorkspaceTaxReviewView({
                           `判定の基準日：${item.asOfDate}`,
                           '自社への該当有無、対応期限、お願いする範囲を確認したいです。',
                         ].join('\n')} />
-                        <details className="rounded-lg border border-gray-200 p-3">
+                        <details className={styles.details}>
                           <summary className="cursor-pointer text-sm font-medium">詳しい理由</summary>
                           <div className="mt-3"><ReviewReason item={item} /></div>
                         </details>
                         {canManage && (
-                          <details className="rounded-lg border border-gray-200 p-3">
+                          <details className={styles.details}>
                             <summary className="cursor-pointer text-sm font-medium">対応した内容を記録する</summary>
                       <div className="space-y-3 border-t border-gray-100 pt-4">
                         <label className="block">

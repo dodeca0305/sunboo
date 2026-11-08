@@ -1,6 +1,7 @@
 'use client';
 import { TAX_TRIAL_SCOPE } from '@/lib/trialActionGuide';
 import Link from 'next/link';
+import styles from '@/styles/taxReview.module.css';
 import type { TaxInputGuide } from '@/lib/taxIntelligence/inputGuide';
 import { useEffect, useRef, useState } from 'react';
 import { runTaxControlAction, type EvaluationActionState } from './actions';
@@ -80,23 +81,30 @@ export default function ExecutionPanel({
   }
   const blocked =
     !ready || storageError || busy || loadError || inputGuide.status === 'unavailable' || intent !== null;
+  const stepTitles = {
+    profile: '決算月を入力',
+    'new-return': '決算日を登録',
+    'filed-date': '申告した日を入力',
+    complete: '申告日まで登録済み',
+    'outside-scope': 'この決算期はチェック対象外です',
+  };
   return (
-    <section className="card space-y-3 border border-blue-200 bg-blue-50 p-5">
-      <h2 className="font-semibold text-blue-950">新しく税金のチェックをする</h2>
-      <p className="text-sm text-sunboo-ink-muted">対象：法人税申告の基本的な提出時期。税額の計算や申告は行いません。</p>
-      <details className="rounded-lg border border-blue-200 bg-white p-3" data-testid="tax-execution-details">
-      <summary className="cursor-pointer text-sm font-medium">対象・必要な入力を確認して進む</summary>
-        <div className="mt-4 space-y-4">
+    <section className={`${styles.execution} space-y-4`}>
+      <h2 className="text-xs font-medium text-neutral-500">次にすること</h2>
+      <div className="space-y-4" data-testid="tax-execution-details">
           {inputGuide.status === 'loaded' && (
-            <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-4" data-testid="tax-input-next-step">
-              <h3 className="font-semibold text-blue-950">{inputGuide.step.title}</h3>
-              <p className="text-sm text-sunboo-ink-muted">{inputGuide.step.reason}</p>
-              <Link href={inputGuide.step.href} className={['profile', 'new-return', 'filed-date'].includes(inputGuide.step.kind) ? 'btn-primary' : 'btn-secondary'}>{inputGuide.step.label}</Link>
+            <div className={styles.step} data-testid="tax-input-next-step">
+              <div className="space-y-2">
+                <h3 className="text-base font-medium text-neutral-800">{stepTitles[inputGuide.step.kind]}</h3>
+                <p className="text-sm text-sunboo-ink-muted">{inputGuide.step.reason}</p>
+              </div>
+              <Link href={inputGuide.step.href} aria-label={inputGuide.step.label} className={['profile', 'new-return', 'filed-date'].includes(inputGuide.step.kind) ? 'btn-primary' : 'btn-secondary'}>{['profile', 'new-return', 'filed-date'].includes(inputGuide.step.kind) ? '入力する' : '登録情報を見る'}</Link>
             </div>
           )}
-          <details className="rounded-lg border border-gray-200 p-3" data-testid="tax-check-options">
+          <details className={styles.details} data-testid="tax-check-options">
             <summary className="cursor-pointer text-sm font-medium">登録情報でチェックする（結果を保存）</summary>
             <div className="mt-4 space-y-3">
+              <p className="text-xs text-sunboo-ink-muted">対象：法人税申告の基本的な提出時期。税額の計算や申告は行いません。</p>
               <p className="text-xs text-sunboo-ink-muted">基本の提出時期だけを確認します。延長などの個別判断は対象外です。</p>
               <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">実績なし・情報不足は「問題なし」ではありません。</p>
               {loadError ? <p>一覧の再取得が必要です。</p> : controls.length === 0 ? <p>実行できる承認済みの税務チェックはありません。</p> : (
@@ -159,7 +167,7 @@ export default function ExecutionPanel({
               )}
             </div>
           </details>
-          <details className="rounded-lg border border-gray-200 p-3">
+          <details className={styles.details}>
             <summary className="cursor-pointer text-sm font-medium">チェックの対象・詳しい説明</summary>
             <div className="mt-3 space-y-2 text-sm" aria-label="税務チェックの対象と必要入力">
               <h3 className="font-semibold">{TAX_TRIAL_SCOPE.title}</h3>
@@ -172,8 +180,7 @@ export default function ExecutionPanel({
               <p>結果の確認・最終判断は担当者と専門家が行ってください。</p>
             </div>
           </details>
-        </div>
-      </details>
+      </div>
       {inputGuide.status === 'unavailable' && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">入力状況を取得できません。未登録かどうかは分かりません。再読み込みしてください。</p>}
       {loadError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">チェック一覧を取得できません。実行を停止しています。</p>}
       {storageError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">実行要求の記録を確認できません。安全に保存できないため実行を停止しています。</p>}

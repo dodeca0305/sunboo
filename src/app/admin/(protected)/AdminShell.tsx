@@ -22,6 +22,7 @@ import {
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import BrandMark from '@/components/BrandMark';
 import WorkspaceSubNav from '@/components/WorkspaceSubNav';
+import taxReviewStyles from '@/styles/taxReview.module.css';
 
 const NAV_ITEMS = [
   { href: '/admin', label: 'ダッシュボード', icon: LayoutDashboard, exact: true },
@@ -44,6 +45,7 @@ export default function AdminShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const monochrome = /^\/admin\/workspaces\/[1-9]\d*\/tax-review\/?$/.test(pathname);
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
@@ -123,11 +125,11 @@ export default function AdminShell({
   );
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className={`flex min-h-screen ${monochrome ? taxReviewStyles.shell : 'bg-gray-50'}`} data-workspace-style={monochrome ? 'monochrome' : undefined}>
       {/* ── デスクトップ用サイドバー ── */}
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 border-r border-gray-100 bg-white lg:flex lg:flex-col">
+      <aside className={`sticky top-0 hidden h-dvh shrink-0 border-r border-gray-100 bg-white ${monochrome ? 'w-52 md:flex md:flex-col' : 'w-60 lg:flex lg:flex-col'}`}>
         <div className="flex h-16 items-center gap-2.5 border-b border-gray-100 px-5">
-          <BrandMark size={32} />
+          <BrandMark size={32} variant={monochrome ? 'mono' : 'color'} />
           <span className="text-sm font-bold text-gray-900">SUNBOO 管理画面</span>
         </div>
         {navigation}
@@ -145,7 +147,7 @@ export default function AdminShell({
 
       {/* ── モバイル用ドロワー ── */}
       {menuOpen && (
-        <div role="dialog" aria-modal="true" aria-label="ナビゲーションメニュー" onKeyDown={handleDrawerKey} className="fixed inset-0 z-40 lg:hidden">
+        <div role="dialog" aria-modal="true" aria-label="ナビゲーションメニュー" onKeyDown={handleDrawerKey} className={`fixed inset-0 z-40 ${monochrome ? 'md:hidden' : 'lg:hidden'}`}>
           <div className="absolute inset-0 bg-gray-900/40" onClick={() => setMenuOpen(false)} />
           <aside className="absolute inset-y-0 left-0 flex w-64 flex-col border-r border-gray-100 bg-white">
             <div className="flex h-16 items-center justify-between border-b border-gray-100 px-4">
@@ -177,12 +179,12 @@ export default function AdminShell({
             aria-expanded={menuOpen}
             aria-haspopup="dialog"
             onClick={() => setMenuOpen(true)}
-            className="rounded-lg p-2 text-gray-500 hover:bg-gray-50 lg:hidden"
+            className={`rounded-lg p-2 text-gray-500 hover:bg-gray-50 ${monochrome ? 'md:hidden' : 'lg:hidden'}`}
             aria-label="メニューを開く"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <span className="text-sm font-bold text-gray-900 lg:hidden">SUNBOO 管理画面</span>
+          <span className={`text-sm font-bold text-gray-900 ${monochrome ? 'md:hidden' : 'lg:hidden'}`}>SUNBOO 管理画面</span>
           <Link
             href="/"
             target="_blank"
