@@ -85,13 +85,10 @@ export default async function WorkspaceTaxReviewPage({
       />
 
 
-      <InformationCard kind="disclaimer">
+      <p className="text-sm text-sunboo-ink-muted">
         登録情報をもとに、税金について確認したい項目を表示します。
-        「要確認（REVIEW）」は内容を確かめる必要があり、「判定不能（UNKNOWN）」は情報などが足りず判断できない状態です。
-        どちらも問題があると断定するものではありません。表示内容を確認し、必要に応じて税理士などの専門家へ相談してください。
-      </InformationCard>
-
-      {canManage && <ExecutionPanel key={`${user?.id}:${companyId}`} actor={user?.id ?? ""} companyId={companyId} controls={controls} loadError={controlLoadError} />}
+        一般的な参考情報です。最終判断は税理士などの専門家へ。
+      </p>
 
       {loadError ? (
         <InformationCard kind="error">
@@ -106,6 +103,8 @@ export default async function WorkspaceTaxReviewPage({
           canManage={canManage}
         />
       )}
+
+      {canManage && <ExecutionPanel key={`${user?.id}:${companyId}`} actor={user?.id ?? ""} companyId={companyId} controls={controls} loadError={controlLoadError} />}
     </div>
   );
 }

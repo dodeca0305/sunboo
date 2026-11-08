@@ -2,15 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  AlertTriangle,
-  CheckCircle2,
-  CircleHelp,
-  RotateCcw,
-  XCircle,
-} from 'lucide-react';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import InformationCard from '@/components/InformationCard';
+import { groupReviewItems, reviewNextAction } from '@/lib/taxIntelligence/reviewPresentation';
 import type {
   WorkspaceTaxReviewCaseStatus,
   WorkspaceTaxReviewItem,
@@ -20,13 +14,6 @@ const CASE_STATUS_LABEL: Record<WorkspaceTaxReviewCaseStatus, string> = {
   open: '未対応',
   resolved: '解決済み',
   dismissed: '対象外',
-};
-
-const SEVERITY_LABEL: Record<WorkspaceTaxReviewItem['severity'], string> = {
-  info: '情報',
-  warning: '注意',
-  error: 'エラー',
-  critical: '重大',
 };
 
 function formatDateTime(value: string | null): string {
@@ -146,13 +133,12 @@ export default function WorkspaceTaxReviewView({
 
   if (items.length === 0) {
     return (
-      <div className="card py-10 text-center">
-        <CheckCircle2 className="mx-auto h-6 w-6 text-sunboo-moss" />
+      <div className="card border border-gray-200 bg-gray-50 py-8 text-center">
         <p className="mt-3 text-sm font-semibold text-sunboo-ink">
           確認する項目はまだ登録されていません
         </p>
         <p className="mt-1 text-xs text-sunboo-ink-muted">
-          税金のチェックで確認したい項目が見つかると、ここに表示されます。チェック前などでも0件になるため、税務上の問題がないという意味ではありません。
+          チェック前でも0件になります。「税務上の問題なし」という意味ではありません。
         </p>
       </div>
     );
@@ -168,143 +154,70 @@ export default function WorkspaceTaxReviewView({
         </InformationCard>
       )}
 
-      {items.map((item) => {
-        const isOpen = item.caseStatus === 'open';
-        const isSaving = savingCaseId === item.caseId;
-        const StatusIcon =
-          item.resultStatus === 'unknown' ? CircleHelp : AlertTriangle;
-
-        return (
-          <article key={item.caseId} className="card space-y-4">
-            <div className="flex flex-wrap items-start gap-3">
-              <StatusIcon
-                className={`mt-0.5 h-5 w-5 shrink-0 ${
-                  item.resultStatus === 'unknown'
-                    ? 'text-gray-500'
-                    : 'text-sunboo-morning-sun-dark'
-                }`}
-              />
-
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-sm font-semibold text-sunboo-ink">
-                    {item.title}
-                  </h2>
-                  <span className="tag">{item.controlCode}</span>
-                  <span className="tag">
-                    {SEVERITY_LABEL[item.severity]}
-                  </span>
-                  <span
-                    className={
-                      item.caseStatus === 'open'
-                        ? 'tag tag--caution'
-                        : 'tag'
-                    }
-                  >
-                    {CASE_STATUS_LABEL[item.caseStatus]}
-                  </span>
-                  <span className="tag">
-                    {item.resultStatus === 'unknown' ? 'UNKNOWN' : 'REVIEW'}
-                  </span>
+      <p className="text-xs text-sunboo-ink-muted">
+        確認の重要度順です。申告・納付の期限順ではありません。
+      </p>
+      {groupReviewItems(items).map((section) => (
+        <section key={section.id} aria-labelledby={`review-section-${section.id}`} className="space-y-3" data-testid={`review-section-${section.id}`}>
+          <h2 id={`review-section-${section.id}`} className={`rounded-lg border px-4 py-3 text-sm font-semibold ${section.tone}`}>
+            {section.title} <span className="ml-2 tabular-nums">{section.items.length}件</span>
+          </h2>
+          {section.items.map((item) => {
+            const isOpen = item.caseStatus === 'open';
+            const isSaving = savingCaseId === item.caseId;
+            return (
+              <article key={item.caseId} className="card space-y-3" data-testid={`review-case-${item.caseId}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-sunboo-ink">{item.title}</h3>
+                  <span className="tag">{CASE_STATUS_LABEL[item.caseStatus]}</span>
                 </div>
-
-                <p className="mt-2 text-sm leading-relaxed text-sunboo-ink">
-                  {item.issueSummary}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid gap-2 rounded-lg bg-gray-50 p-3 text-xs text-sunboo-ink-muted sm:grid-cols-2">
-              <p>
-                <span className="font-medium text-sunboo-ink">Control:</span>{' '}
-                {item.controlTitle} v{item.controlVersionNo}
-              </p>
-              <p>
-                <span className="font-medium text-sunboo-ink">基準日:</span>{' '}
-                {item.asOfDate}
-              </p>
-              <p>
-                <span className="font-medium text-sunboo-ink">理由:</span>{' '}
-                {item.reasonSummary}
-              </p>
-              <p>
-                <span className="font-medium text-sunboo-ink">評価日時:</span>{' '}
-                {formatDateTime(item.evaluatedAt)}
-              </p>
-            </div>
-
-            {isOpen ? (
-              canManage && (
-                <div className="space-y-3 border-t border-gray-100 pt-4">
-                  <label className="block">
-                    <span className="form-label">判断・対応内容</span>
-                    <textarea
-                      value={drafts[item.caseId] ?? ''}
-                      onChange={(event) =>
-                        setDrafts((prev) => ({
-                          ...prev,
-                          [item.caseId]: event.target.value,
-                        }))
-                      }
-                      rows={3}
-                      className="form-input"
-                      placeholder="確認した内容や判断理由を記録してください"
-                    />
-                  </label>
-
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      disabled={isSaving}
-                      onClick={() => updateCase(item, 'resolved')}
-                      className="btn-primary disabled:opacity-50"
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                      解決済みにする
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={isSaving}
-                      onClick={() => updateCase(item, 'dismissed')}
-                      className="btn-secondary disabled:opacity-50"
-                    >
-                      <XCircle className="h-4 w-4" />
-                      対象外にする
-                    </button>
+                {isOpen && (
+                  <div className="space-y-1 text-sm">
+                    <p className="font-medium text-sunboo-ink">{reviewNextAction(item)}</p>
+                    <p className="whitespace-pre-wrap text-sunboo-ink-muted">{item.issueSummary}</p>
                   </div>
-                </div>
-              )
-            ) : (
-              <div className="space-y-3 border-t border-gray-100 pt-4">
-                <div className="rounded-lg bg-gray-50 p-3 text-sm">
-                  <p className="font-medium text-sunboo-ink">
-                    {item.caseStatus === 'resolved' ? '解決内容' : '対象外とした理由'}
-                  </p>
-                  <p className="mt-1 whitespace-pre-wrap text-sunboo-ink-muted">
-                    {item.resolutionSummary}
-                  </p>
-                  <p className="mt-2 text-xs text-sunboo-ink-muted">
-                    {item.resolvedBy ?? '-'} / {formatDateTime(item.resolvedAt)}
-                  </p>
-                </div>
-
-                {canManage && (
-                  <button
-                    type="button"
-                    disabled={isSaving}
-                    onClick={() => updateCase(item, 'open')}
-                    className="btn-secondary disabled:opacity-50"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                    再オープン
-                  </button>
                 )}
-              </div>
-            )}
-          </article>
-        );
-      })}
+                <details className="rounded-lg border border-gray-200 p-3">
+                  <summary className="cursor-pointer text-sm font-medium text-sunboo-ink">
+                    {isOpen ? '詳しい理由・対応を記録する' : '記録した内容を見る'}
+                  </summary>
+                  <div className="mt-4 space-y-4">
+                    <dl className="grid gap-3 text-xs sm:grid-cols-2">
+                      <div className="sm:col-span-2"><dt className="font-medium">確認する理由</dt><dd className="mt-1 whitespace-pre-wrap text-sunboo-ink-muted">{item.reasonSummary}</dd></div>
+                      <div><dt className="font-medium">チェックの種類</dt><dd className="mt-1 text-sunboo-ink-muted">{item.controlTitle}（{item.controlCode} / 版{item.controlVersionNo}）</dd></div>
+                      <div><dt className="font-medium">判定の状態</dt><dd className="mt-1 text-sunboo-ink-muted">{item.resultStatus === 'unknown' ? '情報などが足りず、判断できません' : '内容の確認が必要です'}</dd></div>
+                      <div><dt className="font-medium">判定の基準日</dt><dd className="mt-1 text-sunboo-ink-muted">{item.asOfDate}</dd></div>
+                      <div><dt className="font-medium">チェックした日時</dt><dd className="mt-1 text-sunboo-ink-muted">{formatDateTime(item.evaluatedAt)}</dd></div>
+                    </dl>
+                    {isOpen ? canManage && (
+                      <div className="space-y-3 border-t border-gray-100 pt-4">
+                        <label className="block">
+                          <span className="form-label">判断・対応内容</span>
+                          <textarea value={drafts[item.caseId] ?? ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [item.caseId]: event.target.value }))}
+                            rows={3} className="form-input" placeholder="確認した内容や判断理由を記録してください" />
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" disabled={isSaving} onClick={() => updateCase(item, 'resolved')} className="btn-primary disabled:opacity-50">解決済みにする</button>
+                          <button type="button" disabled={isSaving} onClick={() => updateCase(item, 'dismissed')} className="btn-secondary disabled:opacity-50">対象外にする</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 border-t border-gray-100 pt-4">
+                        <div className="rounded-lg bg-gray-50 p-3 text-sm">
+                          <p className="font-medium text-sunboo-ink">{item.caseStatus === 'resolved' ? '解決内容' : '対象外とした理由'}</p>
+                          <p className="mt-1 whitespace-pre-wrap text-sunboo-ink-muted">{item.resolutionSummary}</p>
+                          <p className="mt-2 text-xs text-sunboo-ink-muted">{item.resolvedBy ?? '-'} / {formatDateTime(item.resolvedAt)}</p>
+                        </div>
+                        {canManage && <button type="button" disabled={isSaving} onClick={() => updateCase(item, 'open')} className="btn-secondary disabled:opacity-50">再オープン</button>}
+                      </div>
+                    )}
+                  </div>
+                </details>
+              </article>
+            );
+          })}
+        </section>
+      ))}
     </div>
   );
 }

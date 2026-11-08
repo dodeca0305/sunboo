@@ -319,6 +319,50 @@ try {
   await page.getByText('登録情報をもとに、税金について確認したい項目を表示します。',{exact:false}).waitFor();
   await page.getByText('確認する項目はまだ登録されていません',{exact:true}).waitFor();
   assert.doesNotMatch(await page.locator('main').textContent(),/Tax Intelligence|ReviewCase/);
+  // Reading order and progressive disclosure use only synthetic results; no tax execution.
+  const reviewCases = [
+    {id:1,status:'open',result:'review',severity:'warning'},
+    {id:2,status:'open',result:'unknown',severity:'info'},
+    {id:3,status:'open',result:'review',severity:'critical'},
+    {id:4,status:'resolved',result:'review',severity:'error'},
+    {id:5,status:'dismissed',result:'review',severity:'warning'},
+  ];
+  state.data.workspace_tax_review_cases=reviewCases.map(r=>({id:r.id,company_id:companyId,control_result_id:r.id,status:r.status,title:`合成確認${r.id}`,issue_summary:'合成の確認内容',resolution_summary:r.status==='open'?null:'合成の対応記録',resolved_by:null,resolved_at:null,created_at:'2026-11-01T00:00:00Z',updated_at:'2026-11-01T00:00:00Z'}));
+  state.data.workspace_tax_control_results=reviewCases.map(r=>({id:r.id,company_id:companyId,tax_control_id:r.id,status:r.result,reason_code:'synthetic',reason_summary:'合成の詳しい理由',as_of_date:'2026-11-01',evaluated_at:'2026-11-01T00:00:00Z',evaluator_version:'synthetic'}));
+  state.data.tax_controls=reviewCases.map(r=>({id:r.id,control_code:`SYNTHETIC_${r.id}`,version_no:1,title:'合成チェック',default_severity:r.severity}));
+  await update();await page.reload({waitUntil:'networkidle'});
+  assert.deepEqual(await page.locator('[data-testid^="review-section-"]').evaluateAll(nodes=>nodes.map(n=>n.dataset.testid)),['review-section-priority','review-section-unknown','review-section-next','review-section-resolved','review-section-dismissed']);
+  for(const [id,section] of [[3,'priority'],[2,'unknown'],[1,'next'],[4,'resolved'],[5,'dismissed']]) {
+    assert.equal(await page.getByTestId(`review-section-${section}`).getByTestId(`review-case-${id}`).count(),1);
+  }
+  const priorityCase=page.getByTestId('review-case-3');
+  assert.equal(await priorityCase.getByRole('textbox').isVisible(),false);
+  assert.equal(await priorityCase.getByText('合成の詳しい理由',{exact:true}).isVisible(),false);
+  await priorityCase.locator('summary').click();
+  await priorityCase.getByRole('textbox').waitFor({state:'visible'});
+  await priorityCase.getByText('合成の詳しい理由',{exact:true}).waitFor({state:'visible'});
+  await priorityCase.locator('summary').click();
+  assert.equal(await page.getByTestId('tax-execution-details').getAttribute('open'),null);
+  await page.getByTestId('tax-execution-details').locator('summary').focus();await page.keyboard.press('Enter');
+  await page.getByRole('button',{name:'評価して保存',exact:true}).waitFor({state:'visible'});
+  await page.getByTestId('tax-execution-details').locator('summary').click();
+  const sections=page.locator('[data-testid^="review-section-"] > h2');
+  const colors=await sections.evaluateAll(nodes=>nodes.map(n=>getComputedStyle(n).backgroundColor));
+  assert.equal(new Set(colors).size,5);
+  await page.screenshot({path:'test-results/tax-review-action-order-desktop.png',fullPage:true});
+  await page.setViewportSize({width:375,height:812});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await page.screenshot({path:'test-results/tax-review-action-order-mobile.png',fullPage:true});
+  await page.setViewportSize({width:1280,height:900});
+  // An unresolved execution stays visible even with the execution form collapsed, including after reload.
+  await page.evaluate(({companyId})=>sessionStorage.setItem(`sunboo:tax-execution:v1:00000000-0000-4000-8000-000000000001:${companyId}`,JSON.stringify({executionId:'10000000-0000-4000-8000-000000000001',intent:{companyId,taxControlId:1,asOfDate:'2026-11-01',liquidationResidualAssetsCase:'unknown'}})),{companyId});
+  await page.reload({waitUntil:'networkidle'});
+  await page.getByRole('button',{name:'保存結果を確認',exact:true}).waitFor({state:'visible'});
+  assert.equal(await page.getByTestId('tax-execution-details').getAttribute('open'),null);
+  await page.getByTestId('tax-execution-details').locator('summary').click();
+  assert.equal(await page.getByRole('button',{name:'評価して保存',exact:true}).isDisabled(),true);
+  await page.evaluate(()=>sessionStorage.clear());
+  state.data.workspace_tax_review_cases=[];state.data.workspace_tax_control_results=[];state.data.tax_controls=[];await update();
   // A different company URL must never keep links to the previously selected company.
   await page.goto(origin+'/admin/workspaces/900024/tax-returns',{waitUntil:'networkidle'});
   for(const [,suffix] of links) assert.ok(await companyNav().locator(`a[href="/admin/workspaces/900024${suffix}"]`).count());
