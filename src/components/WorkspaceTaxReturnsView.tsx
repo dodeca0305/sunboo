@@ -1,6 +1,7 @@
 'use client';
 
-import { useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { resolveTaxReturnFocus, type TaxReturnFocus } from '@/lib/taxReturnFocus';
 import Link from 'next/link';
 import {
   loadTaxReturnEditor,
@@ -77,15 +78,23 @@ export default function WorkspaceTaxReturnsView({
   companyId,
   initialEntries,
   companyProfile,
+  initialFocus = null,
 }: {
   companyId: number;
   initialEntries: TaxReturnEntry[];
   companyProfile: CompanyProfile;
+  initialFocus?: TaxReturnFocus | null;
 }) {
+  const target = resolveTaxReturnFocus(initialEntries, initialFocus);
   const [entries, setEntries] = useState<TaxReturnEntry[]>(initialEntries);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<EntryDraft>(EMPTY_ENTRY_DRAFT);
+  const [showForm, setShowForm] = useState(target !== null);
+  const [editingId, setEditingId] = useState<string | null>(target?.entry?.id ?? null);
+  const [draft, setDraft] = useState<EntryDraft>(() => {
+    if (!target?.entry) return EMPTY_ENTRY_DRAFT;
+    const { id, createdAt, updatedAt, ...values } = target.entry;
+    void id; void createdAt; void updatedAt;
+    return values;
+  });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [consistencyIssues, setConsistencyIssues] = useState<
@@ -127,6 +136,16 @@ export default function WorkspaceTaxReturnsView({
     }
   }
   const blocked = rawPending === null || !!rawPending || saving || checking;
+  const focusedTarget = useRef(false);
+  useEffect(() => {
+    if (blocked || !showForm || !target || focusedTarget.current) return;
+    const input = document.getElementById(`tax-return-${target.focus.field}`);
+    if (input) {
+      focusedTarget.current = true;
+      input.focus();
+      input.scrollIntoView({ block: 'center' });
+    }
+  }, [blocked, showForm, target]);
   const changed = () =>
     window.dispatchEvent(new Event('sunboo:tax-return-save'));
   const displayedError =
@@ -409,8 +428,9 @@ export default function WorkspaceTaxReturnsView({
               </div>
 
               <div>
-                <label className="form-label">決算日（必須）</label>
+                <label htmlFor="tax-return-fiscalYearEndDate" className="form-label">決算日（必須）</label>
                 <ManualDateInput
+                  id="tax-return-fiscalYearEndDate"
                   value={draft.fiscalYearEndDate || null}
                   onChange={(value) => { setDraft((previous) => ({ ...previous, fiscalYearEndDate: value ?? '', fiscalYear: labelAfterEndDateChange(previous.fiscalYear, value ?? '') })); setError(null); }}
                   label="決算日"
@@ -427,8 +447,9 @@ export default function WorkspaceTaxReturnsView({
               </div>
 
               <div>
-                <label className="form-label">申告日（任意）</label>
+                <label htmlFor="tax-return-filedDate" className="form-label">申告日（任意）</label>
                 <ManualDateInput
+                  id="tax-return-filedDate"
                   value={draft.filedDate}
                   onChange={(value) => set('filedDate', value)}
                   label="申告日"

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import InformationCard from '@/components/InformationCard';
-import TaxReviewActionPicker from '@/components/TaxReviewActionPicker';
+import TaxReviewConsultationCopy from '@/components/TaxReviewConsultationCopy';
 import { groupReviewItems, reviewNextAction } from '@/lib/taxIntelligence/reviewPresentation';
 import type {
   WorkspaceTaxReviewCaseStatus,
@@ -46,10 +46,12 @@ function ReviewReason({ item }: { item: WorkspaceTaxReviewItem }) {
 
 export default function WorkspaceTaxReviewView({
   companyId,
+  companyName,
   initialItems,
   canManage,
 }: {
   companyId: number;
+  companyName: string;
   initialItems: WorkspaceTaxReviewItem[];
   canManage: boolean;
 }) {
@@ -192,14 +194,23 @@ export default function WorkspaceTaxReviewView({
                 )}
                 <details className="rounded-lg border border-gray-200 p-3">
                   <summary className="cursor-pointer text-sm font-medium text-sunboo-ink">
-                    {isOpen ? '次にすることを選ぶ' : '記録した内容を見る'}
+                    {isOpen ? '具体的な対応を見る' : '記録した内容を見る'}
                   </summary>
                   <div className="mt-4 space-y-4">
                     {isOpen ? (
                       <>
-                        <TaxReviewActionPicker companyId={companyId} canEdit={canManage} consultationSubject={item.title}>
-                          <ReviewReason item={item} />
-                        </TaxReviewActionPicker>
+                        <TaxReviewConsultationCopy text={[
+                          `会社：${companyName}`,
+                          `確認したいこと：${item.title}`,
+                          `表示内容：${item.issueSummary}`,
+                          `確認理由：${item.reasonSummary}`,
+                          `判定の基準日：${item.asOfDate}`,
+                          '自社への該当有無、対応期限、お願いする範囲を確認したいです。',
+                        ].join('\n')} />
+                        <details className="rounded-lg border border-gray-200 p-3">
+                          <summary className="cursor-pointer text-sm font-medium">詳しい理由</summary>
+                          <div className="mt-3"><ReviewReason item={item} /></div>
+                        </details>
                         {canManage && (
                           <details className="rounded-lg border border-gray-200 p-3">
                             <summary className="cursor-pointer text-sm font-medium">対応した内容を記録する</summary>

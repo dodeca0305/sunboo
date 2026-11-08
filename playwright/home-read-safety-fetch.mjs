@@ -54,7 +54,7 @@ globalThis.fetch = async (input, init) => {
         );
       }
       let rows = c.data[table];
-      if (table === 'tax_controls' && u.searchParams.has('offset')) {
+      if (['tax_controls', 'workspace_tax_return_profiles'].includes(table) && u.searchParams.has('offset')) {
         const offset = Number(u.searchParams.get('offset'));
         rows = rows.slice(offset, offset + Number(u.searchParams.get('limit') ?? 100));
       }

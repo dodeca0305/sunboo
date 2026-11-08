@@ -1,6 +1,7 @@
 'use client';
 import { TAX_TRIAL_SCOPE } from '@/lib/trialActionGuide';
-import TaxReviewActionPicker from '@/components/TaxReviewActionPicker';
+import Link from 'next/link';
+import type { TaxInputGuide } from '@/lib/taxIntelligence/inputGuide';
 import { useEffect, useRef, useState } from 'react';
 import { runTaxControlAction, type EvaluationActionState } from './actions';
 import {
@@ -12,11 +13,13 @@ export default function ExecutionPanel({
   actor,
   controls,
   loadError,
+  inputGuide,
 }: {
   companyId: number;
   actor: string;
   controls: Array<{ id: number; title: string }>;
   loadError: boolean;
+  inputGuide: TaxInputGuide;
 }) {
   const key = `sunboo:tax-execution:v1:${actor}:${companyId}`;
   const [intent, setIntent] = useState<PendingExecution | null>(null);
@@ -76,24 +79,27 @@ export default function ExecutionPanel({
     }
   }
   const blocked =
-    !ready || storageError || busy || loadError || intent !== null;
+    !ready || storageError || busy || loadError || inputGuide.status === 'unavailable' || intent !== null;
   return (
     <section className="card space-y-3 border border-blue-200 bg-blue-50 p-5">
       <h2 className="font-semibold text-blue-950">新しく税金のチェックをする</h2>
       <p className="text-sm text-sunboo-ink-muted">対象：法人税申告の基本的な提出時期。税額の計算や申告は行いません。</p>
       <details className="rounded-lg border border-blue-200 bg-white p-3" data-testid="tax-execution-details">
       <summary className="cursor-pointer text-sm font-medium">対象・必要な入力を確認して進む</summary>
-        <div className="mt-4">
-          <TaxReviewActionPicker
-            companyId={companyId}
-            canEdit
-            consultationSubject="法人税申告の提出時期を確認したい"
-            execution={
-              <div className="space-y-3">
-                <p className="text-sm">使う情報：直近1件の事業年度末日・申告日</p>
-                <p className="text-xs text-sunboo-ink-muted">基本の提出時期だけを確認します。延長などの個別判断は対象外です。</p>
-                <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">実績なし・情報不足は「問題なし」ではありません。</p>
-                {loadError ? <p>一覧の再取得が必要です。</p> : controls.length === 0 ? <p>実行できる承認済みの税務チェックはありません。</p> : (
+        <div className="mt-4 space-y-4">
+          {inputGuide.status === 'loaded' && (
+            <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-4" data-testid="tax-input-next-step">
+              <h3 className="font-semibold text-blue-950">{inputGuide.step.title}</h3>
+              <p className="text-sm text-sunboo-ink-muted">{inputGuide.step.reason}</p>
+              <Link href={inputGuide.step.href} className={['profile', 'new-return', 'filed-date'].includes(inputGuide.step.kind) ? 'btn-primary' : 'btn-secondary'}>{inputGuide.step.label}</Link>
+            </div>
+          )}
+          <details className="rounded-lg border border-gray-200 p-3" data-testid="tax-check-options">
+            <summary className="cursor-pointer text-sm font-medium">登録情報でチェックする（結果を保存）</summary>
+            <div className="mt-4 space-y-3">
+              <p className="text-xs text-sunboo-ink-muted">基本の提出時期だけを確認します。延長などの個別判断は対象外です。</p>
+              <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">実績なし・情報不足は「問題なし」ではありません。</p>
+              {loadError ? <p>一覧の再取得が必要です。</p> : controls.length === 0 ? <p>実行できる承認済みの税務チェックはありません。</p> : (
         <form
           className="space-y-3"
           onSubmit={(event) => {
@@ -150,11 +156,12 @@ export default function ExecutionPanel({
             {busy ? '確認中…' : '評価して保存'}
           </button>
         </form>
-                )}
-              </div>
-            }
-          >
-            <div className="space-y-2 text-sm" aria-label="税務チェックの対象と必要入力">
+              )}
+            </div>
+          </details>
+          <details className="rounded-lg border border-gray-200 p-3">
+            <summary className="cursor-pointer text-sm font-medium">チェックの対象・詳しい説明</summary>
+            <div className="mt-3 space-y-2 text-sm" aria-label="税務チェックの対象と必要入力">
               <h3 className="font-semibold">{TAX_TRIAL_SCOPE.title}</h3>
               <p>{TAX_TRIAL_SCOPE.scope}</p>
               <p className="font-medium">必要な入力・確認</p>
@@ -164,9 +171,10 @@ export default function ExecutionPanel({
               <p>{TAX_TRIAL_SCOPE.outcomes}</p>
               <p>結果の確認・最終判断は担当者と専門家が行ってください。</p>
             </div>
-          </TaxReviewActionPicker>
+          </details>
         </div>
       </details>
+      {inputGuide.status === 'unavailable' && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">入力状況を取得できません。未登録かどうかは分かりません。再読み込みしてください。</p>}
       {loadError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">チェック一覧を取得できません。実行を停止しています。</p>}
       {storageError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">実行要求の記録を確認できません。安全に保存できないため実行を停止しています。</p>}
       {intent && (
@@ -197,7 +205,7 @@ export default function ExecutionPanel({
       {(loadError ||
         state?.status === 'error' ||
         state?.status === 'unknown' ||
-        storageError) && (
+        storageError || inputGuide.status === 'unavailable') && (
         <button
           type="button"
           className="btn-secondary"

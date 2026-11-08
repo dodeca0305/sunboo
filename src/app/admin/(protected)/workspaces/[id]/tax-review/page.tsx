@@ -3,7 +3,7 @@ import { PRODUCTION_CONTROL_EVALUATOR_KEYS } from '@/lib/taxIntelligence/product
 import { notFound } from 'next/navigation';
 import { ShieldCheck } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { loadWorkspaceCompany } from '@/lib/workspaceLoader';
+import { loadWorkspaceCompanyForRead } from '@/lib/workspaceHomeData';
 import {
   loadWorkspaceTaxReviewItems,
   type WorkspaceTaxReviewItem,
@@ -12,6 +12,7 @@ import WorkspaceTaxReviewView from '@/components/WorkspaceTaxReviewView';
 import PageHeader from '@/components/PageHeader';
 import InformationCard from '@/components/InformationCard';
 import WorkspaceReadReloadButton from '@/components/WorkspaceReadReloadButton';
+import { loadTaxInputGuide } from '@/lib/taxIntelligence/inputGuide';
 
 export default async function WorkspaceTaxReviewPage({
   params,
@@ -20,13 +21,18 @@ export default async function WorkspaceTaxReviewPage({
 }) {
   const { id } = await params;
   const companyId = Number(id);
-  if (!Number.isInteger(companyId)) notFound();
+  if (!Number.isSafeInteger(companyId) || companyId <= 0) notFound();
 
   const supabase = await createServerSupabase();
-  if (!supabase) notFound();
-
-  const company = await loadWorkspaceCompany(supabase, companyId);
-  if (!company) notFound();
+  const companyRead = await loadWorkspaceCompanyForRead(supabase, companyId);
+  if (companyRead.status === 'missing') notFound();
+  if (!supabase || companyRead.status !== 'loaded') return (
+    <div role="alert" className="card space-y-3">
+      <p>会社情報を取得できません。確認結果・入力案内・新規チェックを表示できません。</p>
+      <WorkspaceReadReloadButton />
+    </div>
+  );
+  const company = companyRead.company;
 
   const {
     data: { user },
@@ -46,6 +52,7 @@ export default async function WorkspaceTaxReviewPage({
     canManage = role === 'owner' || role === 'member';
   }
 
+  const inputGuidePromise = canManage ? loadTaxInputGuide(supabase, company) : Promise.resolve(null);
   let items: WorkspaceTaxReviewItem[] = [];
   let loadError: string | null = null;
 
@@ -72,6 +79,7 @@ export default async function WorkspaceTaxReviewPage({
     }
   }
 
+  const inputGuide = await inputGuidePromise;
   const openCount = items.filter((item) => item.caseStatus === 'open').length;
 
   return (
@@ -99,12 +107,13 @@ export default async function WorkspaceTaxReviewPage({
         <WorkspaceTaxReviewView
           key={items.map((item) => item.caseId).join(',')}
           companyId={companyId}
+          companyName={company.name}
           initialItems={items}
           canManage={canManage}
         />
       )}
 
-      {canManage && <ExecutionPanel key={`${user?.id}:${companyId}`} actor={user?.id ?? ""} companyId={companyId} controls={controls} loadError={controlLoadError} />}
+      {canManage && inputGuide && <ExecutionPanel key={`${user?.id}:${companyId}`} actor={user?.id ?? ""} companyId={companyId} controls={controls} loadError={controlLoadError} inputGuide={inputGuide} />}
     </div>
   );
 }
