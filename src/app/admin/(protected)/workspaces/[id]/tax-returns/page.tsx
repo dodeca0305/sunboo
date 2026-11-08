@@ -6,6 +6,7 @@ import { loadTaxReturnEditor } from '@/lib/workspaceTaxReturnData';
 import { workspaceRowsToTaxReturnProfile } from '@/lib/workspaceTaxReturnProfile';
 import WorkspaceTaxReturnsView from '@/components/WorkspaceTaxReturnsView';
 import WorkspaceTaxReturnReloadButton from '@/components/WorkspaceTaxReturnReloadButton';
+import { parseTaxReturnFocus } from '@/lib/taxReturnFocus';
 
 // ── Company Workspace — 決算実績（Sprint 35 Tax Return Profile）─────────────
 // workspace_tax_return_profiles（Sprint35 migration）の一覧・登録・編集・削除。
@@ -13,8 +14,10 @@ import WorkspaceTaxReturnReloadButton from '@/components/WorkspaceTaxReturnReloa
 
 export default async function WorkspaceTaxReturnsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
   const companyId = Number(id);
@@ -35,6 +38,7 @@ export default async function WorkspaceTaxReturnsPage({
     );
   const { company, companyProfile, rows } = data;
   const taxReturnProfile = workspaceRowsToTaxReturnProfile(rows);
+  const initialFocus = parseTaxReturnFocus(await searchParams);
 
   return (
     <div className="space-y-6">
@@ -63,10 +67,11 @@ export default async function WorkspaceTaxReturnsPage({
       </div>
 
       <WorkspaceTaxReturnsView
-        key={JSON.stringify([rows, companyProfile])}
+        key={JSON.stringify([rows, companyProfile, initialFocus])}
         companyId={companyId}
         initialEntries={taxReturnProfile.entries}
         companyProfile={companyProfile}
+        initialFocus={initialFocus}
       />
     </div>
   );

@@ -12,6 +12,7 @@ import WorkspaceTaxReviewView from '@/components/WorkspaceTaxReviewView';
 import PageHeader from '@/components/PageHeader';
 import InformationCard from '@/components/InformationCard';
 import WorkspaceReadReloadButton from '@/components/WorkspaceReadReloadButton';
+import { loadTaxInputGuide } from '@/lib/taxIntelligence/inputGuide';
 
 export default async function WorkspaceTaxReviewPage({
   params,
@@ -46,6 +47,7 @@ export default async function WorkspaceTaxReviewPage({
     canManage = role === 'owner' || role === 'member';
   }
 
+  const inputGuidePromise = canManage ? loadTaxInputGuide(supabase, company) : Promise.resolve(null);
   let items: WorkspaceTaxReviewItem[] = [];
   let loadError: string | null = null;
 
@@ -72,6 +74,7 @@ export default async function WorkspaceTaxReviewPage({
     }
   }
 
+  const inputGuide = await inputGuidePromise;
   const openCount = items.filter((item) => item.caseStatus === 'open').length;
 
   return (
@@ -99,12 +102,13 @@ export default async function WorkspaceTaxReviewPage({
         <WorkspaceTaxReviewView
           key={items.map((item) => item.caseId).join(',')}
           companyId={companyId}
+          companyName={company.name}
           initialItems={items}
           canManage={canManage}
         />
       )}
 
-      {canManage && <ExecutionPanel key={`${user?.id}:${companyId}`} actor={user?.id ?? ""} companyId={companyId} controls={controls} loadError={controlLoadError} />}
+      {canManage && inputGuide && <ExecutionPanel key={`${user?.id}:${companyId}`} actor={user?.id ?? ""} companyId={companyId} controls={controls} loadError={controlLoadError} inputGuide={inputGuide} />}
     </div>
   );
 }
