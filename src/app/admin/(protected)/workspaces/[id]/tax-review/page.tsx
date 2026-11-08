@@ -1,7 +1,6 @@
 import ExecutionPanel from './ExecutionPanel';
 import { PRODUCTION_CONTROL_EVALUATOR_KEYS } from '@/lib/taxIntelligence/productionEvaluators';
 import { notFound } from 'next/navigation';
-import { ShieldCheck } from 'lucide-react';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { loadWorkspaceCompanyForRead } from '@/lib/workspaceHomeData';
 import {
@@ -13,6 +12,7 @@ import PageHeader from '@/components/PageHeader';
 import InformationCard from '@/components/InformationCard';
 import WorkspaceReadReloadButton from '@/components/WorkspaceReadReloadButton';
 import { loadTaxInputGuide } from '@/lib/taxIntelligence/inputGuide';
+import styles from '@/styles/taxReview.module.css';
 
 export default async function WorkspaceTaxReviewPage({
   params,
@@ -27,8 +27,8 @@ export default async function WorkspaceTaxReviewPage({
   const companyRead = await loadWorkspaceCompanyForRead(supabase, companyId);
   if (companyRead.status === 'missing') notFound();
   if (!supabase || companyRead.status !== 'loaded') return (
-    <div role="alert" className="card space-y-3">
-      <p>会社情報を取得できません。確認結果・入力案内・新規チェックを表示できません。</p>
+    <div role="alert" className={`${styles.page} space-y-3`}>
+      <p className="text-sm text-red-800">会社情報を取得できません。確認結果・入力案内・新規チェックを表示できません。</p>
       <WorkspaceReadReloadButton />
     </div>
   );
@@ -83,20 +83,15 @@ export default async function WorkspaceTaxReviewPage({
   const openCount = items.filter((item) => item.caseStatus === 'open').length;
 
   return (
-    <div className="space-y-6">
+    <div className={`${styles.page} space-y-8`} data-testid="tax-review-page">
+      <div className={styles.header}>
       <PageHeader
         backHref={`/admin/workspaces/${companyId}`}
         backLabel={`${company.name} に戻る`}
-        icon={ShieldCheck}
         title="税金の確認結果"
-        subtitle={loadError ? `${company.name}の確認結果を取得できません` : `${company.name}のまだ確認が終わっていない項目：${openCount}件`}
+        subtitle={loadError ? '確認結果を取得できません' : `まだ確認が終わっていない項目：${openCount}件`}
       />
-
-
-      <p className="text-sm text-sunboo-ink-muted">
-        登録情報をもとに、税金について確認したい項目を表示します。
-        一般的な参考情報です。最終判断は税理士などの専門家へ。
-      </p>
+      </div>
 
       {loadError ? (
         <InformationCard kind="error">
@@ -114,6 +109,7 @@ export default async function WorkspaceTaxReviewPage({
       )}
 
       {canManage && inputGuide && <ExecutionPanel key={`${user?.id}:${companyId}`} actor={user?.id ?? ""} companyId={companyId} controls={controls} loadError={controlLoadError} inputGuide={inputGuide} />}
+      <p className={styles.footer}>登録情報をもとに、税金について確認したい項目を表示します。一般的な参考情報です。最終判断は税理士などの専門家へ。</p>
     </div>
   );
 }

@@ -1,0 +1,156 @@
+.shell {
+  background: #fff;
+}
+
+.shell > aside {
+  background: #f7f7f5;
+  border-color: #e7e7e3;
+}
+
+.shell nav a[aria-current='page'] {
+  background: #efefeb;
+  color: #262626;
+}
+
+.shell nav svg {
+  display: none;
+}
+
+.shell nav a:focus-visible {
+  outline: 2px solid #262626;
+  outline-offset: 2px;
+}
+
+.page {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 8px 0 32px;
+  color: #262626;
+}
+
+.header h1 {
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.025em;
+  color: #262626;
+}
+
+.page :global(.btn-primary) {
+  background: #262626;
+  color: #fff;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.page :global(.btn-primary):hover {
+  background: #404040;
+  filter: none;
+}
+
+.page :global(.btn-secondary) {
+  background: #fff;
+  border-color: #e0e0dc;
+  border-radius: 6px;
+  color: #404040;
+}
+
+.page :global(.btn-secondary):hover {
+  background: #f5f5f3;
+}
+
+.page :global(button:disabled) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.emptyState {
+  padding: 4px 0 24px;
+}
+
+.sectionHeading {
+  padding: 8px 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.item {
+  border-bottom: 1px solid #e7e7e3;
+  padding: 20px 0;
+}
+
+.status {
+  color: #70706b;
+  font-size: 12px;
+}
+
+.details {
+  border: 0;
+  padding: 8px 0;
+}
+
+.details > summary {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 4px 0;
+  cursor: pointer;
+  color: #525252;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.execution {
+  border-top: 1px solid #e7e7e3;
+  padding-top: 28px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-top: 1px solid #e7e7e3;
+  border-bottom: 1px solid #e7e7e3;
+  padding: 24px 0;
+}
+
+.step > div {
+  min-width: 0;
+}
+
+.step > a {
+  flex-shrink: 0;
+}
+
+.footer {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid #e7e7e3;
+  font-size: 12px;
+  line-height: 1.8;
+  color: #70706b;
+}
+
+@media (max-width: 639px) {
+  .page :global(.btn-primary),
+  .page :global(.btn-secondary) {
+    min-height: 44px;
+  }
+
+  .header h1 {
+    font-size: 24px;
+  }
+
+  .step {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .details > summary {
+    min-height: 44px;
+    padding: 10px 0;
+  }
+}
