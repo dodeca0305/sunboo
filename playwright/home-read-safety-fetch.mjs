@@ -54,6 +54,10 @@ globalThis.fetch = async (input, init) => {
         );
       }
       let rows = c.data[table];
+      if (table === 'tax_controls' && u.searchParams.has('offset')) {
+        const offset = Number(u.searchParams.get('offset'));
+        rows = rows.slice(offset, offset + Number(u.searchParams.get('limit') ?? 100));
+      }
       if (table === 'procedures' && u.searchParams.get('id')?.startsWith('eq.')) {
         const id = u.searchParams.get('id').slice(3);
         rows = rows.filter((row) => String(row.id) === id);

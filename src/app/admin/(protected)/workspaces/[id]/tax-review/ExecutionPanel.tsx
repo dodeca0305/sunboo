@@ -77,11 +77,12 @@ export default function ExecutionPanel({
   const blocked =
     !ready || storageError || busy || loadError || intent !== null;
   return (
-    <section className="card space-y-3 p-5">
-      <h2 className="font-semibold">税務チェックを実行</h2>
-      <p className="text-sm text-gray-600">
-        必要な会社情報・実績・根拠を取得してから評価結果を保存します。確認が必要な場合はレビューを追加します。
-      </p>
+    <section className="card space-y-3 border border-blue-200 bg-blue-50 p-5">
+      <h2 className="font-semibold text-blue-950">新しく税金のチェックをする</h2>
+      <p className="text-sm text-sunboo-ink-muted">対象：法人税申告の基本的な提出時期。税額の計算や申告は行いません。</p>
+      <details className="rounded-lg border border-blue-200 bg-white p-3" data-testid="tax-execution-details">
+      <summary className="cursor-pointer text-sm font-medium">対象・必要な入力を確認して進む</summary>
+      <div className="mt-4 space-y-4">
       <div
         className="space-y-2 text-sm"
         aria-label="税務チェックの対象と必要入力"
@@ -99,13 +100,8 @@ export default function ExecutionPanel({
           実行できるのは、この会社の操作権限を持つ管理者です。結果の確認・最終判断は担当者と専門家が行ってください。
         </p>
       </div>
-      {storageError && (
-        <p role="alert">
-          実行要求の記録を確認できません。安全に保存できないため実行を停止しています。
-        </p>
-      )}
       {loadError ? (
-        <p role="alert">チェック一覧を取得できません。</p>
+        <p>一覧の再取得が必要です。</p>
       ) : controls.length === 0 ? (
         <p>実行できる承認済みの税務チェックはありません。</p>
       ) : (
@@ -135,7 +131,7 @@ export default function ExecutionPanel({
             税務チェック
             <select
               name="taxControlId"
-              className="mt-1 block w-full rounded border p-2"
+              className="form-select mt-1 block w-full"
               disabled={blocked}
             >
               {controls.map((c) => (
@@ -150,7 +146,7 @@ export default function ExecutionPanel({
             <select
               name="liquidationResidualAssetsCase"
               defaultValue="unknown"
-              className="mt-1 block w-full rounded border p-2"
+              className="form-select mt-1 block w-full"
               disabled={blocked}
             >
               <option value="unknown">未確認・わからない</option>
@@ -166,8 +162,12 @@ export default function ExecutionPanel({
           </button>
         </form>
       )}
+      </div>
+      </details>
+      {loadError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">チェック一覧を取得できません。実行を停止しています。</p>}
+      {storageError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">実行要求の記録を確認できません。安全に保存できないため実行を停止しています。</p>}
       {intent && (
-        <div className="space-x-3">
+        <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-950">
           <p className="text-sm">
             保存結果の確認が終わるまで、新しい評価はできません。
           </p>
