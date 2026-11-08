@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import InformationCard from '@/components/InformationCard';
+import TaxReviewActionPicker from '@/components/TaxReviewActionPicker';
 import { groupReviewItems, reviewNextAction } from '@/lib/taxIntelligence/reviewPresentation';
 import type {
   WorkspaceTaxReviewCaseStatus,
@@ -29,6 +30,18 @@ function formatDateTime(value: string | null): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date);
+}
+
+function ReviewReason({ item }: { item: WorkspaceTaxReviewItem }) {
+  return (
+                    <dl className="grid gap-3 text-xs sm:grid-cols-2">
+                      <div className="sm:col-span-2"><dt className="font-medium">確認する理由</dt><dd className="mt-1 whitespace-pre-wrap text-sunboo-ink-muted">{item.reasonSummary}</dd></div>
+                      <div><dt className="font-medium">チェックの種類</dt><dd className="mt-1 text-sunboo-ink-muted">{item.controlTitle}（{item.controlCode} / 版{item.controlVersionNo}）</dd></div>
+                      <div><dt className="font-medium">判定の状態</dt><dd className="mt-1 text-sunboo-ink-muted">{item.resultStatus === 'unknown' ? '情報などが足りず、判断できません' : '内容の確認が必要です'}</dd></div>
+                      <div><dt className="font-medium">判定の基準日</dt><dd className="mt-1 text-sunboo-ink-muted">{item.asOfDate}</dd></div>
+                      <div><dt className="font-medium">チェックした日時</dt><dd className="mt-1 text-sunboo-ink-muted">{formatDateTime(item.evaluatedAt)}</dd></div>
+                    </dl>
+  );
 }
 
 export default function WorkspaceTaxReviewView({
@@ -179,17 +192,17 @@ export default function WorkspaceTaxReviewView({
                 )}
                 <details className="rounded-lg border border-gray-200 p-3">
                   <summary className="cursor-pointer text-sm font-medium text-sunboo-ink">
-                    {isOpen ? '詳しい理由・対応を記録する' : '記録した内容を見る'}
+                    {isOpen ? '次にすることを選ぶ' : '記録した内容を見る'}
                   </summary>
                   <div className="mt-4 space-y-4">
-                    <dl className="grid gap-3 text-xs sm:grid-cols-2">
-                      <div className="sm:col-span-2"><dt className="font-medium">確認する理由</dt><dd className="mt-1 whitespace-pre-wrap text-sunboo-ink-muted">{item.reasonSummary}</dd></div>
-                      <div><dt className="font-medium">チェックの種類</dt><dd className="mt-1 text-sunboo-ink-muted">{item.controlTitle}（{item.controlCode} / 版{item.controlVersionNo}）</dd></div>
-                      <div><dt className="font-medium">判定の状態</dt><dd className="mt-1 text-sunboo-ink-muted">{item.resultStatus === 'unknown' ? '情報などが足りず、判断できません' : '内容の確認が必要です'}</dd></div>
-                      <div><dt className="font-medium">判定の基準日</dt><dd className="mt-1 text-sunboo-ink-muted">{item.asOfDate}</dd></div>
-                      <div><dt className="font-medium">チェックした日時</dt><dd className="mt-1 text-sunboo-ink-muted">{formatDateTime(item.evaluatedAt)}</dd></div>
-                    </dl>
-                    {isOpen ? canManage && (
+                    {isOpen ? (
+                      <>
+                        <TaxReviewActionPicker companyId={companyId} canEdit={canManage} consultationSubject={item.title}>
+                          <ReviewReason item={item} />
+                        </TaxReviewActionPicker>
+                        {canManage && (
+                          <details className="rounded-lg border border-gray-200 p-3">
+                            <summary className="cursor-pointer text-sm font-medium">対応した内容を記録する</summary>
                       <div className="space-y-3 border-t border-gray-100 pt-4">
                         <label className="block">
                           <span className="form-label">判断・対応内容</span>
@@ -201,7 +214,13 @@ export default function WorkspaceTaxReviewView({
                           <button type="button" disabled={isSaving} onClick={() => updateCase(item, 'dismissed')} className="btn-secondary disabled:opacity-50">対象外にする</button>
                         </div>
                       </div>
+
+                          </details>
+                        )}
+                      </>
                     ) : (
+                      <>
+                          <ReviewReason item={item} />
                       <div className="space-y-3 border-t border-gray-100 pt-4">
                         <div className="rounded-lg bg-gray-50 p-3 text-sm">
                           <p className="font-medium text-sunboo-ink">{item.caseStatus === 'resolved' ? '解決内容' : '対象外とした理由'}</p>
@@ -210,6 +229,8 @@ export default function WorkspaceTaxReviewView({
                         </div>
                         {canManage && <button type="button" disabled={isSaving} onClick={() => updateCase(item, 'open')} className="btn-secondary disabled:opacity-50">再オープン</button>}
                       </div>
+
+                      </>
                     )}
                   </div>
                 </details>

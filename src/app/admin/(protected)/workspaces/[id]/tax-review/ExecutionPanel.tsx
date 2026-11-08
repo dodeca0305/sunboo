@@ -1,5 +1,6 @@
 'use client';
 import { TAX_TRIAL_SCOPE } from '@/lib/trialActionGuide';
+import TaxReviewActionPicker from '@/components/TaxReviewActionPicker';
 import { useEffect, useRef, useState } from 'react';
 import { runTaxControlAction, type EvaluationActionState } from './actions';
 import {
@@ -82,29 +83,17 @@ export default function ExecutionPanel({
       <p className="text-sm text-sunboo-ink-muted">対象：法人税申告の基本的な提出時期。税額の計算や申告は行いません。</p>
       <details className="rounded-lg border border-blue-200 bg-white p-3" data-testid="tax-execution-details">
       <summary className="cursor-pointer text-sm font-medium">対象・必要な入力を確認して進む</summary>
-      <div className="mt-4 space-y-4">
-      <div
-        className="space-y-2 text-sm"
-        aria-label="税務チェックの対象と必要入力"
-      >
-        <h3 className="font-semibold">{TAX_TRIAL_SCOPE.title}</h3>
-        <p>{TAX_TRIAL_SCOPE.scope}</p>
-        <p className="font-medium">必要な入力・確認</p>
-        <ul className="list-disc pl-5">
-          {TAX_TRIAL_SCOPE.inputs.map((input) => (
-            <li key={input}>{input}</li>
-          ))}
-        </ul>
-        <p>{TAX_TRIAL_SCOPE.outcomes}</p>
-        <p>
-          実行できるのは、この会社の操作権限を持つ管理者です。結果の確認・最終判断は担当者と専門家が行ってください。
-        </p>
-      </div>
-      {loadError ? (
-        <p>一覧の再取得が必要です。</p>
-      ) : controls.length === 0 ? (
-        <p>実行できる承認済みの税務チェックはありません。</p>
-      ) : (
+        <div className="mt-4">
+          <TaxReviewActionPicker
+            companyId={companyId}
+            canEdit
+            consultationSubject="法人税申告の提出時期を確認したい"
+            execution={
+              <div className="space-y-3">
+                <p className="text-sm">使う情報：直近1件の事業年度末日・申告日</p>
+                <p className="text-xs text-sunboo-ink-muted">基本の提出時期だけを確認します。延長などの個別判断は対象外です。</p>
+                <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">実績なし・情報不足は「問題なし」ではありません。</p>
+                {loadError ? <p>一覧の再取得が必要です。</p> : controls.length === 0 ? <p>実行できる承認済みの税務チェックはありません。</p> : (
         <form
           className="space-y-3"
           onSubmit={(event) => {
@@ -161,8 +150,22 @@ export default function ExecutionPanel({
             {busy ? '確認中…' : '評価して保存'}
           </button>
         </form>
-      )}
-      </div>
+                )}
+              </div>
+            }
+          >
+            <div className="space-y-2 text-sm" aria-label="税務チェックの対象と必要入力">
+              <h3 className="font-semibold">{TAX_TRIAL_SCOPE.title}</h3>
+              <p>{TAX_TRIAL_SCOPE.scope}</p>
+              <p className="font-medium">必要な入力・確認</p>
+              <ul className="list-disc pl-5">
+                {TAX_TRIAL_SCOPE.inputs.map((input) => <li key={input}>{input}</li>)}
+              </ul>
+              <p>{TAX_TRIAL_SCOPE.outcomes}</p>
+              <p>結果の確認・最終判断は担当者と専門家が行ってください。</p>
+            </div>
+          </TaxReviewActionPicker>
+        </div>
       </details>
       {loadError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">チェック一覧を取得できません。実行を停止しています。</p>}
       {storageError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">実行要求の記録を確認できません。安全に保存できないため実行を停止しています。</p>}
