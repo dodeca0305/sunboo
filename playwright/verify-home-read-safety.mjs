@@ -413,6 +413,11 @@ try {
     assert.equal(await page.getByRole('button',{name:'評価して保存',exact:true}).isDisabled(),true);
   }
   await update({failTable:null,failure:null});
+  await update({failTable:'workspace_companies',failure:'error'});await page.reload({waitUntil:'networkidle'});
+  await page.getByRole('alert').filter({hasText:'会社情報を取得できません。確認結果・入力案内・新規チェックを表示できません。'}).waitFor();
+  assert.equal(await page.getByTestId('tax-execution-details').count(),0);
+  assert.equal(await page.getByTestId('tax-input-next-step').count(),0);
+  await update({failTable:null,failure:null});await page.getByRole('button',{name:'再読み込み',exact:true}).click();
   state.data.workspace_companies[0].fiscal_month=null;await update();await page.reload({waitUntil:'networkidle'});
   await executionDetails.locator(':scope > summary').click();
   await page.getByRole('link',{name:'決算月の入力欄へ',exact:true}).click();
