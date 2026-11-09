@@ -377,7 +377,8 @@ try {
   await page.waitForFunction(()=>document.activeElement?.id==='tax-return-fiscalYearEndDate');
   assert.equal(await page.getByRole('textbox',{name:'決算日',exact:true}).inputValue(),'');
   assert.equal(await page.getByRole('textbox',{name:'決算日',exact:true}).getAttribute('placeholder'),'例: 2026/03/31');
-  assert.equal(await page.getByRole('textbox',{name:'事業年度開始日',exact:true}).getAttribute('placeholder'),'例: 2026/08/01');
+  assert.equal(await page.getByRole('textbox',{name:'決算の対象期間：開始日',exact:true}).getAttribute('placeholder'),'例: 2025/04/01');
+  assert.equal(await page.getByRole('textbox',{name:'決算の対象期間：開始日',exact:true}).inputValue(),'');
   assert.equal(await page.getByRole('heading',{name:'新しい申告実績',exact:true}).count(),1);
   await page.screenshot({path:'test-results/tax-review-direct-new-date.png',fullPage:false});
   const taxRow={...executionInputs.workspace_tax_return_profiles[0],company_id:companyId,id:7};
