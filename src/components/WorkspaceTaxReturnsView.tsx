@@ -456,6 +456,7 @@ export default function WorkspaceTaxReturnsView({
                   value={draft.filedDate}
                   onChange={(value) => set('filedDate', value)}
                   label="申告日"
+                  placeholder="例: 2026/05/31"
                 />
               </div>
 
