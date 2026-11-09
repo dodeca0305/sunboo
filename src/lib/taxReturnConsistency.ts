@@ -32,7 +32,7 @@ export function validateTaxReturnDateOrder(
     input.fiscalYearStartDate &&
     input.fiscalYearStartDate > input.fiscalYearEndDate
   ) {
-    return '事業年度開始日は、決算日以前の日付を入力してください。';
+    return '対象期間の開始日は、決算日以前の日付を入力してください。';
   }
 
   if (input.filedDate && input.filedDate < input.fiscalYearEndDate) {

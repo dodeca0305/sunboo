@@ -379,13 +379,15 @@ export default function TaxReturnsPage() {
             </div>
 
             <div>
-              <label className="form-label">事業年度開始日（任意）</label>
+              <label htmlFor="tax-return-fiscalYearStartDate" className="form-label">決算の対象期間：開始日（任意）</label>
               <ManualDateInput
+                id="tax-return-fiscalYearStartDate"
                 value={draft.fiscalYearStartDate}
                 onChange={(value) =>
                   set('fiscalYearStartDate', value)
                 }
-                label="事業年度開始日"
+                label="決算の対象期間：開始日"
+                placeholder="例: 2025/04/01"
               />
             </div>
 
