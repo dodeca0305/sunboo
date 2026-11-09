@@ -20,6 +20,7 @@ type ManualDateInputProps = {
   value: string | null;
   onChange: (value: string | null) => void;
   label: string;
+  placeholder?: string;
   max?: string;
   required?: boolean;
 };
@@ -29,6 +30,7 @@ export default function ManualDateInput({
   value,
   onChange,
   label,
+  placeholder = '例: 2026/08/01',
   max,
   required = false,
 }: ManualDateInputProps) {
@@ -148,7 +150,7 @@ export default function ManualDateInput({
           inputMode="numeric"
           autoComplete="off"
           maxLength={10}
-          placeholder="例: 2026/08/01"
+          placeholder={placeholder}
           value={text}
           onChange={(event) =>
             handleTextChange(event.target.value)

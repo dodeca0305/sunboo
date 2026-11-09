@@ -434,6 +434,7 @@ export default function WorkspaceTaxReturnsView({
                   value={draft.fiscalYearEndDate || null}
                   onChange={(value) => { setDraft((previous) => ({ ...previous, fiscalYearEndDate: value ?? '', fiscalYear: labelAfterEndDateChange(previous.fiscalYear, value ?? '') })); setError(null); }}
                   label="決算日"
+                  placeholder="例: 2026/03/31"
                 />
               </div>
 
