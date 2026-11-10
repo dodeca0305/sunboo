@@ -1,6 +1,7 @@
 'use client';
 import CorporateTaxAmountGuide from '@/components/CorporateTaxAmountGuide';
 import ConsumptionTaxAmountGuide from '@/components/ConsumptionTaxAmountGuide';
+import CorporateTaxInterimGuide from '@/components/CorporateTaxInterimGuide';
 
 import { useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
@@ -469,7 +470,7 @@ export default function TaxReturnsPage() {
             />
 
             <div className="space-y-2">
-              <label className="form-label">今期、法人税の中間申告はありましたか</label>
+              <CorporateTaxInterimGuide />
               <ToggleButtons
                 options={(['none', 'has'] as const).map((v) => ({ value: v, label: INTERIM_FILING_LABEL[v] }))}
                 value={draft.corporateTaxInterimFilingActual}
