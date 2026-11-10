@@ -1,5 +1,6 @@
 'use client';
 import CorporateTaxAmountGuide from '@/components/CorporateTaxAmountGuide';
+import ConsumptionTaxAmountGuide from '@/components/ConsumptionTaxAmountGuide';
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { resolveTaxReturnFocus, type TaxReturnFocus } from '@/lib/taxReturnFocus';
@@ -527,6 +528,7 @@ export default function WorkspaceTaxReturnsView({
               />
               <AmountField
                 label="確定消費税額"
+                help={<ConsumptionTaxAmountGuide taxationMethod={draft.taxationMethod} />}
                 value={draft.consumptionTaxAmount}
                 onChange={(v) => set('consumptionTaxAmount', v)}
                 buckets={CONSUMPTION_TAX_BUCKETS}

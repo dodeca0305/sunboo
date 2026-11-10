@@ -1,5 +1,6 @@
 'use client';
 import CorporateTaxAmountGuide from '@/components/CorporateTaxAmountGuide';
+import ConsumptionTaxAmountGuide from '@/components/ConsumptionTaxAmountGuide';
 
 import { useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
@@ -461,6 +462,7 @@ export default function TaxReturnsPage() {
             />
             <AmountField
               label="確定消費税額"
+              help={<ConsumptionTaxAmountGuide taxationMethod={draft.taxationMethod} />}
               value={draft.consumptionTaxAmount}
               onChange={(v) => set('consumptionTaxAmount', v)}
               buckets={CONSUMPTION_TAX_BUCKETS}
