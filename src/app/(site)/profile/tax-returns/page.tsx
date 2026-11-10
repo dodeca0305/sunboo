@@ -2,6 +2,7 @@
 import CorporateTaxAmountGuide from '@/components/CorporateTaxAmountGuide';
 import ConsumptionTaxAmountGuide from '@/components/ConsumptionTaxAmountGuide';
 import CorporateTaxInterimGuide from '@/components/CorporateTaxInterimGuide';
+import ConsumptionTaxInterimGuide from '@/components/ConsumptionTaxInterimGuide';
 
 import { useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
@@ -479,8 +480,9 @@ export default function TaxReturnsPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="form-label">今期、消費税の中間申告は何回でしたか</label>
+              <ConsumptionTaxInterimGuide />
               <select
+                aria-label="今期、消費税の中間申告は何回でしたか"
                 className="form-select"
                 value={draft.consumptionTaxInterimFrequencyActual}
                 onChange={(e) => set('consumptionTaxInterimFrequencyActual', e.target.value as ConsumptionTaxInterimFrequency)}

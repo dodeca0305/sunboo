@@ -2,6 +2,7 @@
 import CorporateTaxAmountGuide from '@/components/CorporateTaxAmountGuide';
 import ConsumptionTaxAmountGuide from '@/components/ConsumptionTaxAmountGuide';
 import CorporateTaxInterimGuide from '@/components/CorporateTaxInterimGuide';
+import ConsumptionTaxInterimGuide from '@/components/ConsumptionTaxInterimGuide';
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { resolveTaxReturnFocus, type TaxReturnFocus } from '@/lib/taxReturnFocus';
@@ -548,10 +549,9 @@ export default function WorkspaceTaxReturnsView({
               </div>
 
               <div className="space-y-2">
-                <label className="form-label">
-                  今期、消費税の中間申告は何回でしたか
-                </label>
+                <ConsumptionTaxInterimGuide />
                 <select
+                  aria-label="今期、消費税の中間申告は何回でしたか"
                   className="form-select"
                   value={draft.consumptionTaxInterimFrequencyActual}
                   onChange={(e) =>
