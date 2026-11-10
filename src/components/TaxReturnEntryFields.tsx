@@ -1,4 +1,5 @@
-import { Pencil, Trash2 } from 'lucide-react';
+import { ChevronDown, Pencil, Trash2 } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { fiscalPeriodHeading, fiscalPeriodRange } from '@/lib/taxReturnPeriod';
 import {
   confidenceOfAmount, CORPORATE_TAX_BUCKETS, CONSUMPTION_TAX_BUCKETS, TAXABLE_SALES_BUCKETS,
@@ -77,16 +78,29 @@ export function AmountField({
   value,
   onChange,
   buckets,
+  help,
 }: {
   label: string;
   value: AmountValue | null;
   onChange: (v: AmountValue | null) => void;
   buckets: readonly { id: string; label: string }[];
+  help?: ReactNode;
 }) {
   const precision: AmountPrecision = value?.precision ?? 'exact';
   return (
     <div className="space-y-2">
-      <label className="form-label">{label}</label>
+      {help ? (
+        <details className="group" data-testid="amount-field-guide">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 [&::-webkit-details-marker]:hidden">
+            <span className="form-label">{label}</span>
+            <span className="inline-flex shrink-0 items-center gap-1 text-xs text-neutral-600">
+              <span className="underline underline-offset-4">どこを見る？</span>
+              <ChevronDown aria-hidden="true" className="h-4 w-4 group-open:rotate-180" />
+            </span>
+          </summary>
+          <div className="pb-3 pt-2">{help}</div>
+        </details>
+      ) : <label className="form-label">{label}</label>}
       <SegmentedControl
         options={[
           { value: 'exact' as const, label: '正確な金額' },

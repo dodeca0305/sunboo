@@ -1,4 +1,5 @@
 'use client';
+import CorporateTaxAmountGuide from '@/components/CorporateTaxAmountGuide';
 
 import { useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
@@ -453,6 +454,7 @@ export default function TaxReturnsPage() {
           <div className="card space-y-4">
             <AmountField
               label="確定法人税額"
+              help={<CorporateTaxAmountGuide />}
               value={draft.corporateTaxAmount}
               onChange={(v) => set('corporateTaxAmount', v)}
               buckets={CORPORATE_TAX_BUCKETS}
