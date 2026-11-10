@@ -1,4 +1,5 @@
 'use client';
+import CorporateTaxAmountGuide from '@/components/CorporateTaxAmountGuide';
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { resolveTaxReturnFocus, type TaxReturnFocus } from '@/lib/taxReturnFocus';
@@ -519,6 +520,7 @@ export default function WorkspaceTaxReturnsView({
             <div className="card space-y-4">
               <AmountField
                 label="確定法人税額"
+                help={<CorporateTaxAmountGuide />}
                 value={draft.corporateTaxAmount}
                 onChange={(v) => set('corporateTaxAmount', v)}
                 buckets={CORPORATE_TAX_BUCKETS}

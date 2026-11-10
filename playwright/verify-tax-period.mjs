@@ -15,6 +15,21 @@ const sync=()=>writeFile(file,JSON.stringify(f));
 async function visit(){await page.goto(origin+'/admin/workspaces/23/tax-returns',{waitUntil:'networkidle'});}
 const year=()=>page.getByRole('combobox',{name:'対象年度（決算日の年・必須）',exact:true});
 const date=(name)=>page.getByRole('textbox',{name,exact:true});
+async function verifyCorporateTaxGuide(screenshot) {
+ const guide=page.getByTestId('amount-field-guide'), summary=guide.locator('summary');
+ const amount=page.getByRole('textbox',{name:'確定法人税額の正確な金額',exact:true});
+ const before=await amount.inputValue(), count=writes;
+ assert.equal(await guide.getAttribute('open'),null);
+ await summary.focus();await page.keyboard.press('Enter');
+ await page.getByText('左側の「差引所得に対する法人税額」の金額を確認してください。',{exact:true}).waitFor();
+ const image=page.getByRole('img',{name:/法人税申告書・別表一の見本/});
+ await image.scrollIntoViewIfNeeded();await image.evaluate(el=>el.decode());
+ assert.equal(await page.getByRole('link',{name:'見本を大きく見る（国税庁・PDF・別タブ）',exact:true}).getAttribute('href'),'https://www.nta.go.jp/taxes/tetsuzuki/shinsei/annai/hojin/shinkoku/itiran2025/pdf/01-01-a.pdf');
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ await guide.screenshot({path:screenshot});
+ await summary.focus();await page.keyboard.press('Enter');assert.equal(await guide.getAttribute('open'),null);
+ assert.equal(await amount.inputValue(),before);assert.equal(writes,count);
+}
 try {
  await mkdir('test-results',{recursive:true});await sync();
  server=spawn(process.execPath,['--import',path.resolve('playwright/tax-period-fetch.mjs'),'node_modules/next/dist/bin/next','dev','--webpack','--hostname','127.0.0.1','--port','3124'],{env:{...process.env,NEXT_PUBLIC_SUPABASE_URL:api,NEXT_PUBLIC_SUPABASE_ANON_KEY:'synthetic-only',NEXT_PUBLIC_GA_MEASUREMENT_ID:'',TAX_PERIOD_FIXTURE:file},detached:true,stdio:['ignore','pipe','pipe']});
@@ -44,6 +59,7 @@ try {
  // New year selected without changing dates. Wrong-year submission never reaches storage/API.
  await page.getByRole('button',{name:'新しい申告実績を追加',exact:true}).click();await year().selectOption('2026');await date('決算日').fill('20250331');await page.getByRole('button',{name:'追加する',exact:true}).click();await page.getByRole('alert').filter({hasText:'対象年度と決算日の年が異なります'}).waitFor();assert.equal(writes,1);
  assert.equal(await date('申告日').getAttribute('placeholder'),'例: 2026/05/31');assert.equal(await date('申告日').inputValue(),'');
+ await verifyCorporateTaxGuide('test-results/corporate-tax-guide-desktop.png');
  await date('決算日').fill('20260331');await date('決算の対象期間：開始日').fill('20250401');await page.getByText('対象期間：2025/04/01 〜 2026/03/31',{exact:true}).waitFor();await year().scrollIntoViewIfNeeded();await page.screenshot({path:'test-results/tax-period-desktop.png',fullPage:false});
  // Lost response commits once; reload does not resend and result check restores editing.
  mode='lost';await page.getByRole('button',{name:'追加する',exact:true}).click();await page.getByRole('button',{name:'保存結果を確認',exact:true}).waitFor();assert.equal(writes,2);assert.equal(lastPayload.fiscal_year,'2026年3月期');assert.equal(lastPayload.fiscal_year_start_date,'2025-04-01');assert.equal(lastPayload.fiscal_year_end_date,'2026-03-31');assert.equal(lastPayload.consumption_tax_amount,null);
@@ -56,6 +72,7 @@ try {
  // The localStorage caller uses the same select and date preview without DB requests.
  await page.goto(origin+'/profile/tax-returns',{waitUntil:'networkidle'});await page.getByRole('button',{name:'新しい申告実績を追加',exact:true}).click();await year().selectOption('2026');await date('決算日').fill('20260915');await date('決算の対象期間：開始日').fill('20260701');await page.getByText('対象期間：2026/07/01 〜 2026/09/15',{exact:true}).waitFor();assert.equal(writes,3);
  assert.equal(await date('申告日').getAttribute('placeholder'),'例: 2026/05/31');assert.equal(await date('申告日').inputValue(),'');
+ await verifyCorporateTaxGuide('test-results/corporate-tax-guide-mobile.png');
  assert.equal(unexpected,0);assert.deepEqual(errors,[]);
  await writeFile('test-results/tax-period.json',JSON.stringify({syntheticOnly:true,legacyLabelPreserved:true,zeroAndNullUnchanged:true,yearMismatchNoWrite:true,crossYearPeriodVisible:true,shortPeriodNotInferred:true,lostResponseNoResendAfterReload:true,resultRecovered:true,saveRejectionNoFalseSuccess:true,readFailureBlocked:true,emptyUsable:true,localStorageCaller:true,mobileNoOverflow:true,syntheticWrites:writes,productionCalls:0,pageErrors:errors.length},null,2));console.log('Tax period selection/display, legacy compatibility, read/save protection passed');
 }catch(e){await writeFile('test-results/tax-period-server.log',logs);if(page){await writeFile('test-results/tax-period-failure.txt',await page.locator('body').innerText());await page.screenshot({path:'test-results/tax-period-failure.png',fullPage:true})}throw e}finally{await browser?.close();if(server)try{process.kill(-server.pid,'SIGTERM')}catch{}}
