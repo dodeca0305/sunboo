@@ -15,6 +15,19 @@ const sync=()=>writeFile(file,JSON.stringify(f));
 async function visit(){await page.goto(origin+'/admin/workspaces/23/tax-returns',{waitUntil:'networkidle'});}
 const year=()=>page.getByRole('combobox',{name:'対象年度（決算日の年・必須）',exact:true});
 const date=(name)=>page.getByRole('textbox',{name,exact:true});
+async function verifyCorporateInterimGuide(screenshot) {
+ const guide=page.getByTestId('corporate-interim-field-guide'), summary=guide.locator(':scope > summary');
+ const buttons=guide.locator('..').getByRole('button');
+ const before=await buttons.evaluateAll(nodes=>nodes.map(el=>el.getAttribute('aria-pressed'))),count=writes;
+ assert.equal(await guide.getAttribute('open'),null);await summary.focus();await page.keyboard.press('Enter');
+ await guide.getByText('左側の「中間申告分の法人税額」を確認してください。',{exact:true}).waitFor();
+ assert.match(await guide.innerText(),/空欄・0・書類なしで判断できない場合は、「なし」と決めず/);
+ const image=guide.getByRole('img',{name:/中間申告分の法人税額の行を枠/});await image.scrollIntoViewIfNeeded();await image.evaluate(el=>el.decode());
+ assert.equal(await guide.getByRole('link',{name:'見本を大きく見る（国税庁・PDF・別タブ）',exact:true}).getAttribute('href'),'https://www.nta.go.jp/taxes/tetsuzuki/shinsei/annai/hojin/shinkoku/itiran2025/pdf/01-01-a.pdf');
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await guide.screenshot({path:screenshot});
+ await summary.focus();await page.keyboard.press('Enter');assert.equal(await guide.getAttribute('open'),null);
+ assert.deepEqual(await buttons.evaluateAll(nodes=>nodes.map(el=>el.getAttribute('aria-pressed'))),before);assert.equal(writes,count);
+}
 async function verifyCorporateTaxGuide(screenshot) {
  const guide=page.getByTestId('amount-field-guide').filter({has:page.locator('summary',{hasText:'確定法人税額'})}), summary=guide.locator(':scope > summary');
  const amount=page.getByRole('textbox',{name:'確定法人税額の正確な金額',exact:true});
@@ -78,6 +91,11 @@ try {
  await page.getByRole('button',{name:'新しい申告実績を追加',exact:true}).click();await year().selectOption('2026');await date('決算日').fill('20250331');await page.getByRole('button',{name:'追加する',exact:true}).click();await page.getByRole('alert').filter({hasText:'対象年度と決算日の年が異なります'}).waitFor();assert.equal(writes,1);
  assert.equal(await date('申告日').getAttribute('placeholder'),'例: 2026/05/31');assert.equal(await date('申告日').inputValue(),'');
  await verifyCorporateTaxGuide('test-results/corporate-tax-guide-desktop.png');
+ await verifyCorporateInterimGuide('test-results/corporate-interim-guide-none.png');
+ const interim=page.getByTestId('corporate-interim-field-guide').locator('..');
+ await interim.getByRole('button',{name:'あり',exact:true}).click();
+ await verifyCorporateInterimGuide('test-results/corporate-interim-guide-has.png');
+ await interim.getByRole('button',{name:'なし',exact:true}).click();
  await verifyConsumptionTaxGuide('general','test-results/consumption-tax-guide-general.png',true);
  await verifyConsumptionTaxGuide('simplified','test-results/consumption-tax-guide-unknown-simplified.png',true);
  await page.getByRole('button',{name:'課税事業者',exact:true}).click();await page.getByRole('button',{name:'簡易課税',exact:true}).click();
@@ -98,6 +116,7 @@ try {
  await page.goto(origin+'/profile/tax-returns',{waitUntil:'networkidle'});await page.getByRole('button',{name:'新しい申告実績を追加',exact:true}).click();await year().selectOption('2026');await date('決算日').fill('20260915');await date('決算の対象期間：開始日').fill('20260701');await page.getByText('対象期間：2026/07/01 〜 2026/09/15',{exact:true}).waitFor();assert.equal(writes,3);
  assert.equal(await date('申告日').getAttribute('placeholder'),'例: 2026/05/31');assert.equal(await date('申告日').inputValue(),'');
  await verifyCorporateTaxGuide('test-results/corporate-tax-guide-mobile.png');
+ await verifyCorporateInterimGuide('test-results/corporate-interim-guide-mobile.png');
  await verifyConsumptionTaxGuide('general','test-results/consumption-tax-guide-mobile.png',true);
  assert.equal(unexpected,0);assert.deepEqual(errors,[]);
  await writeFile('test-results/tax-period.json',JSON.stringify({syntheticOnly:true,legacyLabelPreserved:true,zeroAndNullUnchanged:true,yearMismatchNoWrite:true,crossYearPeriodVisible:true,shortPeriodNotInferred:true,lostResponseNoResendAfterReload:true,resultRecovered:true,saveRejectionNoFalseSuccess:true,readFailureBlocked:true,emptyUsable:true,localStorageCaller:true,mobileNoOverflow:true,syntheticWrites:writes,productionCalls:0,pageErrors:errors.length},null,2));console.log('Tax period selection/display, legacy compatibility, read/save protection passed');

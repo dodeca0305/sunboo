@@ -1,6 +1,7 @@
 'use client';
 import CorporateTaxAmountGuide from '@/components/CorporateTaxAmountGuide';
 import ConsumptionTaxAmountGuide from '@/components/ConsumptionTaxAmountGuide';
+import CorporateTaxInterimGuide from '@/components/CorporateTaxInterimGuide';
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { resolveTaxReturnFocus, type TaxReturnFocus } from '@/lib/taxReturnFocus';
@@ -535,9 +536,7 @@ export default function WorkspaceTaxReturnsView({
               />
 
               <div className="space-y-2">
-                <label className="form-label">
-                  今期、法人税の中間申告はありましたか
-                </label>
+                <CorporateTaxInterimGuide />
                 <ToggleButtons
                   options={(['none', 'has'] as const).map((v) => ({
                     value: v,
