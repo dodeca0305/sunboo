@@ -3,6 +3,7 @@ import CorporateTaxAmountGuide from '@/components/CorporateTaxAmountGuide';
 import ConsumptionTaxAmountGuide from '@/components/ConsumptionTaxAmountGuide';
 import CorporateTaxInterimGuide from '@/components/CorporateTaxInterimGuide';
 import ConsumptionTaxInterimGuide from '@/components/ConsumptionTaxInterimGuide';
+import FinancialPublicationField, { PUBLICATION_CONFIRMATION_MESSAGE, type PublicationAnswer } from '@/components/FinancialPublicationField';
 
 import { useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
@@ -212,6 +213,7 @@ export default function TaxReturnsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<EntryDraft>(EMPTY_ENTRY_DRAFT);
+  const [publicationAnswer, setPublicationAnswer] = useState<PublicationAnswer>('unknown');
   const [error, setError] = useState<string | null>(null);
   const [mismatches, setMismatches] = useState<Mismatch[]>([]);
   // Change Interview開始時点のプロフィールを保持し、全件解決後に決算更新サマリーの before/after 比較に使う
@@ -224,6 +226,7 @@ export default function TaxReturnsPage() {
 
   function openNewForm() {
     setDraft(EMPTY_ENTRY_DRAFT);
+    setPublicationAnswer('unknown');
     setEditingId(null);
     setError(null);
     setShowForm(true);
@@ -234,6 +237,7 @@ export default function TaxReturnsPage() {
     void createdAt;
     void updatedAt;
     setDraft(rest);
+    setPublicationAnswer(entry.financialStatementPublished ? 'true' : 'false');
     setEditingId(id);
     setError(null);
     setShowForm(true);
@@ -261,6 +265,10 @@ export default function TaxReturnsPage() {
     const dateOrderError = validateTaxReturnDateOrder(draft);
     if (dateOrderError) {
       setError(dateOrderError);
+      return;
+    }
+    if (profile?.corporateType === 'kabushiki' && publicationAnswer === 'unknown') {
+      setError(PUBLICATION_CONFIRMATION_MESSAGE);
       return;
     }
     setError(null);
@@ -496,14 +504,14 @@ export default function TaxReturnsPage() {
 
           <div className="card space-y-4">
             {profile?.corporateType === 'kabushiki' && (
-              <div className="space-y-2">
-                <label className="form-label">決算公告は実施しましたか</label>
-                <ToggleButtons
-                  options={[{ value: 'false', label: '未実施' }, { value: 'true', label: '実施済み' }]}
-                  value={String(draft.financialStatementPublished)}
-                  onChange={(v) => set('financialStatementPublished', v === 'true')}
-                />
-              </div>
+              <FinancialPublicationField
+                value={publicationAnswer}
+                onChange={(value) => {
+                  setPublicationAnswer(value);
+                  if (value !== 'unknown') set('financialStatementPublished', value === 'true');
+                  setError(null);
+                }}
+              />
             )}
 
             {profile && profile.employeeCount > 0 && (

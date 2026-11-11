@@ -15,6 +15,18 @@ const sync=()=>writeFile(file,JSON.stringify(f));
 async function visit(){await page.goto(origin+'/admin/workspaces/23/tax-returns',{waitUntil:'networkidle'});}
 const year=()=>page.getByRole('combobox',{name:'対象年度（決算日の年・必須）',exact:true});
 const date=(name)=>page.getByRole('textbox',{name,exact:true});
+const publication=()=>page.getByRole('combobox',{name:'この決算の内容を公開しましたか？',exact:true});
+async function verifyPublicationGuide(screenshot) {
+ const field=page.getByTestId('financial-publication-field'), guide=field.locator('details'), summary=guide.locator('summary');
+ const before=await publication().inputValue(), count=writes;
+ assert.equal(await guide.getAttribute('open'),null);await summary.focus();await page.keyboard.press('Enter');
+ await field.getByText('「決算公告」のことです。税務署への申告とは別の手続きです。',{exact:true}).waitFor();
+ assert.equal(await field.getByRole('link').getAttribute('href'),'https://j-net21.smrj.go.jp/solution/qa/accounting/Q0536.html');
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ await field.screenshot({path:screenshot});
+ await summary.focus();await page.keyboard.press('Enter');assert.equal(await guide.getAttribute('open'),null);
+ assert.equal(await publication().inputValue(),before);assert.equal(writes,count);
+}
 async function verifyConsumptionInterimGuide(route,screenshot) {
  const guide=page.getByTestId('consumption-interim-field-guide'), summary=guide.locator(':scope > summary');
  const select=guide.locator('..').getByRole('combobox',{name:'今期、消費税の中間申告は何回でしたか',exact:true});
@@ -105,7 +117,12 @@ try {
  });
  page=await c.newPage();page.on('pageerror',e=>errors.push(e.message));await visit();
  await page.getByText('対象期間：2024/04/01 〜 2025/03/31',{exact:true}).waitFor();
- await page.getByRole('button',{name:'編集',exact:true}).click();assert.equal(await year().inputValue(),'existing');
+ await page.getByRole('button',{name:'編集',exact:true}).click();assert.equal(await year().inputValue(),'existing');assert.equal(await publication().inputValue(),String(legacy.financial_statement_published));
+ const existingBefore=JSON.stringify(f.data.workspace_tax_return_profiles);
+ await publication().selectOption('unknown');await page.getByRole('button',{name:'更新する',exact:true}).click();
+ await page.getByRole('alert').filter({hasText:'公開したか分からない場合は'}).waitFor();
+ assert.equal(writes,0);assert.equal(JSON.stringify(f.data.workspace_tax_return_profiles),existingBefore);
+ await publication().selectOption(String(legacy.financial_statement_published));
  await page.getByRole('button',{name:'更新する',exact:true}).click();await page.getByRole('button',{name:'新しい申告実績を追加',exact:true}).waitFor();assert.equal(lastPayload.fiscal_year,legacy.fiscal_year);assert.equal(lastPayload.consumption_tax_amount,null);assert.equal(lastPayload.corporate_tax_amount.exactValue,0);
  // New year selected without changing dates. Wrong-year submission never reaches storage/API.
  await page.getByRole('button',{name:'新しい申告実績を追加',exact:true}).click();await year().selectOption('2026');await date('決算日').fill('20250331');await page.getByRole('button',{name:'追加する',exact:true}).click();await page.getByRole('alert').filter({hasText:'対象年度と決算日の年が異なります'}).waitFor();assert.equal(writes,1);
@@ -131,21 +148,50 @@ try {
  await verifyConsumptionTaxGuide('general','test-results/consumption-tax-guide-known-general.png');
  await page.getByRole('button',{name:'免税事業者',exact:true}).click();
  await date('決算日').fill('20260331');await date('決算の対象期間：開始日').fill('20250401');await page.getByText('対象期間：2025/04/01 〜 2026/03/31',{exact:true}).waitFor();await year().scrollIntoViewIfNeeded();await page.screenshot({path:'test-results/tax-period-desktop.png',fullPage:false});
+ await verifyPublicationGuide('test-results/publication-guide-desktop.png');
+ assert.equal(await publication().inputValue(),'unknown');
+ const beforeUnknown=JSON.stringify(f.data.workspace_tax_return_profiles);
+ await page.getByRole('button',{name:'追加する',exact:true}).click();
+ await page.getByRole('alert').filter({hasText:'公開したか分からない場合は'}).waitFor();
+ assert.equal(writes,1);assert.equal(JSON.stringify(f.data.workspace_tax_return_profiles),beforeUnknown);
+ assert.equal(await page.evaluate(()=>sessionStorage.getItem('sunboo:workspace:23:pending-tax-return')),null);
+ await publication().selectOption('true');await publication().selectOption('unknown');
+ await page.getByRole('button',{name:'追加する',exact:true}).click();assert.equal(writes,1);
+ await publication().selectOption('false');
  // Lost response commits once; reload does not resend and result check restores editing.
- mode='lost';await page.getByRole('button',{name:'追加する',exact:true}).click();await page.getByRole('button',{name:'保存結果を確認',exact:true}).waitFor();assert.equal(writes,2);assert.equal(lastPayload.fiscal_year,'2026年3月期');assert.equal(lastPayload.fiscal_year_start_date,'2025-04-01');assert.equal(lastPayload.fiscal_year_end_date,'2026-03-31');assert.equal(lastPayload.consumption_tax_amount,null);
+ mode='lost';await page.getByRole('button',{name:'追加する',exact:true}).click();await page.getByRole('button',{name:'保存結果を確認',exact:true}).waitFor();assert.equal(writes,2);assert.equal(lastPayload.fiscal_year,'2026年3月期');assert.equal(lastPayload.fiscal_year_start_date,'2025-04-01');assert.equal(lastPayload.fiscal_year_end_date,'2026-03-31');assert.equal(lastPayload.consumption_tax_amount,null);assert.equal(lastPayload.financial_statement_published,false);
  await page.reload({waitUntil:'networkidle'});assert.equal(writes,2);assert.equal(await page.getByRole('button',{name:'新しい申告実績を追加',exact:true}).isEnabled(),false);await page.getByRole('button',{name:'保存結果を確認',exact:true}).click();await page.getByText('保存結果を再取得して確認しました。',{exact:true}).waitFor();assert.equal(writes,2);
  await page.getByRole('button',{name:'編集',exact:true}).click();assert.equal(await year().inputValue(),'2026');await page.setViewportSize({width:375,height:812});await year().scrollIntoViewIfNeeded();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:'test-results/tax-period-mobile.png',fullPage:false});
  // Failed profile/actual read prevents editing; normal empty records allow selection.
  for(const table of ['workspace_company_profiles','workspace_tax_return_profiles']){f.failTable=table;await sync();await visit();await page.getByRole('alert').filter({hasText:'取得できませんでした'}).waitFor();assert.equal(await year().count(),0);assert.equal(await page.getByRole('button',{name:'新しい申告実績を追加',exact:true}).count(),0);assert.equal(writes,2)}
  delete f.failTable;f.data.workspace_tax_return_profiles=[];await sync();await page.getByRole('button',{name:'再読み込み',exact:true}).click();await page.getByRole('button',{name:'新しい申告実績を追加',exact:true}).click();assert.equal(await year().inputValue(),'');await year().selectOption('2024');await date('決算日').fill('20240229');await page.getByText('対象期間：開始日未入力 〜 2024/02/29',{exact:true}).waitFor();
+ await publication().selectOption('true');
  mode='reject';await page.getByRole('button',{name:'追加する',exact:true}).click();await page.getByRole('button',{name:'保存結果を確認',exact:true}).waitFor();assert.equal(writes,3);assert.equal(await page.getByText('保存しました。',{exact:true}).count(),0);await page.reload({waitUntil:'networkidle'});assert.equal(writes,3);await page.getByRole('button',{name:'保存結果を確認',exact:true}).click();await page.getByRole('alert').filter({hasText:'送信内容と異なる登録内容'}).waitFor();assert.equal(f.data.workspace_tax_return_profiles.length,0);
  // The localStorage caller uses the same select and date preview without DB requests.
+ await page.evaluate(()=>localStorage.setItem('sunboo:company-profile',JSON.stringify({prefectureCode:'13',municipalityCode:'131130',corporateType:'kabushiki',employeeCount:0})));
  await page.goto(origin+'/profile/tax-returns',{waitUntil:'networkidle'});await page.getByRole('button',{name:'新しい申告実績を追加',exact:true}).click();await year().selectOption('2026');await date('決算日').fill('20260915');await date('決算の対象期間：開始日').fill('20260701');await page.getByText('対象期間：2026/07/01 〜 2026/09/15',{exact:true}).waitFor();assert.equal(writes,3);
  assert.equal(await date('申告日').getAttribute('placeholder'),'例: 2026/05/31');assert.equal(await date('申告日').inputValue(),'');
  await verifyCorporateTaxGuide('test-results/corporate-tax-guide-mobile.png');
  await verifyCorporateInterimGuide('test-results/corporate-interim-guide-mobile.png');
  await verifyConsumptionInterimGuide('paper','test-results/consumption-interim-guide-mobile.png');
  await verifyConsumptionTaxGuide('general','test-results/consumption-tax-guide-mobile.png',true);
+ await verifyPublicationGuide('test-results/publication-guide-mobile.png');
+ const localBefore=await page.evaluate(()=>localStorage.getItem('sunboo:tax-return-profile'));
+ await page.getByRole('button',{name:'追加する',exact:true}).click();
+ await page.getByText('公開したか分からない場合は、税理士・会社の担当者に確認してから保存してください。',{exact:true}).last().waitFor();
+ assert.equal(await page.evaluate(()=>localStorage.getItem('sunboo:tax-return-profile')),localBefore);
+ await publication().selectOption('true');await page.getByRole('button',{name:'追加する',exact:true}).click();
+ await page.getByRole('button',{name:'新しい申告実績を追加',exact:true}).waitFor();
+ await page.getByRole('button',{name:'編集',exact:true}).click();assert.equal(await publication().inputValue(),'true');
+ const savedLocal=await page.evaluate(()=>localStorage.getItem('sunboo:tax-return-profile'));
+ assert.equal(JSON.parse(savedLocal).entries[0].financialStatementPublished,true);
+ await publication().selectOption('unknown');await page.getByRole('button',{name:'更新する',exact:true}).click();
+ assert.equal(await page.evaluate(()=>localStorage.getItem('sunboo:tax-return-profile')),savedLocal);
+ await publication().selectOption('false');await page.getByRole('button',{name:'更新する',exact:true}).click();
+ await page.getByRole('button',{name:'新しい申告実績を追加',exact:true}).waitFor();
+ await page.getByRole('button',{name:'編集',exact:true}).click();assert.equal(await publication().inputValue(),'false');
+ assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('sunboo:tax-return-profile')).entries[0].financialStatementPublished),false);
+ assert.equal(writes,3);
  assert.equal(unexpected,0);assert.deepEqual(errors,[]);
- await writeFile('test-results/tax-period.json',JSON.stringify({syntheticOnly:true,legacyLabelPreserved:true,zeroAndNullUnchanged:true,yearMismatchNoWrite:true,crossYearPeriodVisible:true,shortPeriodNotInferred:true,lostResponseNoResendAfterReload:true,resultRecovered:true,saveRejectionNoFalseSuccess:true,readFailureBlocked:true,emptyUsable:true,localStorageCaller:true,mobileNoOverflow:true,syntheticWrites:writes,productionCalls:0,pageErrors:errors.length},null,2));console.log('Tax period selection/display, legacy compatibility, read/save protection passed');
+ await writeFile('test-results/tax-period.json',JSON.stringify({syntheticOnly:true,publicationUnknownNoWrite:true,publicationKnownRoundTrip:true,publicationGuideNoMutation:true,legacyLabelPreserved:true,zeroAndNullUnchanged:true,yearMismatchNoWrite:true,crossYearPeriodVisible:true,shortPeriodNotInferred:true,lostResponseNoResendAfterReload:true,resultRecovered:true,saveRejectionNoFalseSuccess:true,readFailureBlocked:true,emptyUsable:true,localStorageCaller:true,mobileNoOverflow:true,syntheticWrites:writes,productionCalls:0,pageErrors:errors.length},null,2));console.log('Tax period selection/display, legacy compatibility, read/save protection passed');
 }catch(e){await writeFile('test-results/tax-period-server.log',logs);if(page){await writeFile('test-results/tax-period-failure.txt',await page.locator('body').innerText());await page.screenshot({path:'test-results/tax-period-failure.png',fullPage:true})}throw e}finally{await browser?.close();if(server)try{process.kill(-server.pid,'SIGTERM')}catch{}}
