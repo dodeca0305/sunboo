@@ -86,8 +86,10 @@ def main(argv=None):
         if any(line[3:] not in (TASK, 'node_modules') for line in dirty.splitlines()):
             raise ValueError('依頼ファイル以外の未コミット変更があります。保護してから開始してください。')
         if args.dry_run:
-            print('READY: ' + task['id'] + '; files=' + str(len(task['files'])) + '; model requests: 0')
+            print('SCOPE_OK: ' + task['id'] + '; files=' + str(len(task['files'])) + '; model requests: 0')
             return 0
+        if task.get('extraUsageDisabledConfirmed') is not True:
+            raise ValueError('同じClaudeアカウントの追加利用課金がOFFと確認できるまで起動しません。')
         if any(os.environ.get(k) for k in API_ENV):
             raise ValueError('API/provider指定を検出しました。値を表示せず停止します。')
         cli = shutil.which('claude')

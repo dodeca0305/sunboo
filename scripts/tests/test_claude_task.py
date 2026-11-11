@@ -18,7 +18,7 @@ class LauncherGuards(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name).resolve()
         (self.root / 'docs/ai').mkdir(parents=True)
-        self.task = dict(status='ready', id='synthetic', baseSha='a' * 40,
+        self.task = dict(status='ready', extraUsageDisabledConfirmed=True, id='synthetic', baseSha='a' * 40,
                          goal='Synthetic only', files=['src/new.ts'],
                          acceptance=['Synthetic acceptance'], checks=['Synthetic check'])
         self.auth = dict(loggedIn=True, authMethod='claude.ai', apiProvider='firstParty')
@@ -74,6 +74,13 @@ class LauncherGuards(unittest.TestCase):
         code, output, auth, execute = self.run_launcher(env={'ANTHROPIC_API_KEY': 'secret-synthetic-value'})
         self.assertEqual(code, 1)
         self.assertNotIn('secret-synthetic-value', output)
+        auth.assert_not_called()
+        execute.assert_not_called()
+
+    def test_unverified_extra_usage_setting_stops_without_model(self):
+        self.task['extraUsageDisabledConfirmed'] = False
+        code, _, auth, execute = self.run_launcher()
+        self.assertEqual(code, 1)
         auth.assert_not_called()
         execute.assert_not_called()
 
