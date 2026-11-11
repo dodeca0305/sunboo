@@ -103,7 +103,7 @@ def main(argv=None):
         os.chdir(ROOT)
         os.execv(cli, [cli, '--model', 'sonnet', '--effort', 'medium',
                       '--permission-mode', 'manual', '--strict-mcp-config',
-                      '--mcp-config', '{"mcpServers":{}}', prompt])
+                      '--mcp-config', '{"mcpServers":{}}', '--', prompt])
         return 0
     except (ValueError, OSError, subprocess.SubprocessError) as error:
         # Never print captured auth output, environment values, or a traceback.
