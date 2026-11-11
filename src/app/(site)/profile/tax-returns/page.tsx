@@ -3,6 +3,7 @@ import CorporateTaxAmountGuide from '@/components/CorporateTaxAmountGuide';
 import ConsumptionTaxAmountGuide from '@/components/ConsumptionTaxAmountGuide';
 import CorporateTaxInterimGuide from '@/components/CorporateTaxInterimGuide';
 import ConsumptionTaxInterimGuide from '@/components/ConsumptionTaxInterimGuide';
+import FiscalEmployeeCountField from '@/components/FiscalEmployeeCountField';
 import FinancialPublicationField, { PUBLICATION_CONFIRMATION_MESSAGE, type PublicationAnswer } from '@/components/FinancialPublicationField';
 
 import { useState, useSyncExternalStore } from 'react';
@@ -528,15 +529,10 @@ export default function TaxReturnsPage() {
               </div>
             )}
 
-            <div>
-              <label className="form-label">期末時点の従業員数（任意）</label>
-              <FormattedIntegerInput
-                value={draft.employeeCountAtFiscalYearEnd}
-                onChange={(value) => set('employeeCountAtFiscalYearEnd', value)}
-                placeholder="例: 5"
-                ariaLabel="期末時点の従業員数"
-              />
-            </div>
+            <FiscalEmployeeCountField
+              value={draft.employeeCountAtFiscalYearEnd}
+              onChange={(value) => set('employeeCountAtFiscalYearEnd', value)}
+            />
           </div>
 
           {error && (
