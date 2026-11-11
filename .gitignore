@@ -24,6 +24,10 @@ Thumbs.db
 *.tsbuildinfo
 next-env.d.ts
 
+# Local task-launcher bytecode
+__pycache__/
+*.py[cod]
+
 # Playwright 認証済みセッション（storageState、認証情報を含むため絶対にコミットしない）
 playwright/.auth/
 test-results/
