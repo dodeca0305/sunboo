@@ -44,6 +44,9 @@ jobs:
       - name: Run lint
         run: npm run lint
 
+      - name: Check AI task launcher guards (no model requests)
+        run: python3 -m unittest discover -s scripts/tests -p 'test_claude_task.py'
+
       - name: Run tests
         run: npm test
 
