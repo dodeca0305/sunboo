@@ -12,7 +12,9 @@ process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID = '';
 const user = {id:'00000000-0000-4000-8000-000000000001',email:'synthetic@example.invalid',aud:'authenticated',role:'authenticated',app_metadata:{},user_metadata:{},created_at:'2026-01-01T00:00:00Z'};
 const tokenPayload = Buffer.from(JSON.stringify({sub:user.id,email:user.email,role:'authenticated',aud:'authenticated',exp:4102444800,iat:1793822400})).toString('base64url');
 const session = {access_token:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.'+tokenPayload+'.synthetic',refresh_token:'synthetic',expires_in:86400,expires_at:4102444800,token_type:'bearer',user};
-const origin = 'http://127.0.0.1:3117',
+const testPort = Number(process.env.TAX_RETURN_TEST_PORT ?? '3117');
+assert.ok(Number.isInteger(testPort) && testPort > 1024 && testPort <= 65535);
+const origin = 'http://127.0.0.1:' + testPort,
   companyId = 900023,
   file = path.resolve('test-results/tax-return-control.json'),
   key = `sunboo:workspace:${companyId}:pending-tax-return`;
@@ -103,6 +105,9 @@ async function reset(rows = [row]) {
 }
 try {
   await mkdir('test-results', { recursive: true });
+  let occupied = false;
+  try { await fetch(origin + '/admin/login', { signal: AbortSignal.timeout(1000) }); occupied = true; } catch {}
+  assert.equal(occupied, false, 'Test port is already in use; refusing to test another server');
   await update();
   assert.equal(existsSync(file + '.mutations'), false);
   server = spawn(
@@ -116,7 +121,7 @@ try {
       '--hostname',
       '127.0.0.1',
       '--port',
-      '3117',
+      String(testPort),
     ],
     {
       env: { ...process.env, TAX_PERIOD_FIXTURE: file },
@@ -244,7 +249,7 @@ try {
     0,
   );
   await edit.click();
-  await page.getByText('決算公告は実施しましたか', { exact: true }).waitFor();
+  await page.getByRole('combobox', { name: 'この決算の内容を公開しましたか？', exact: true }).waitFor();
   await page.getByText('源泉所得税の納付実績', { exact: true }).waitFor();
   assert.equal(
     await page
@@ -302,7 +307,7 @@ try {
   await page.reload({ waitUntil: 'networkidle' });
   await edit.click();
   assert.equal(
-    await page.getByText('決算公告は実施しましたか', { exact: true }).count(),
+    await page.getByRole('combobox', { name: 'この決算の内容を公開しましたか？', exact: true }).count(),
     0,
   );
   assert.equal(
@@ -324,6 +329,7 @@ try {
   await page
     .getByRole('textbox', { name: '確定法人税額の正確な金額', exact: true })
     .fill('0');
+  await page.getByRole('combobox', { name: 'この決算の内容を公開しましたか？', exact: true }).selectOption('false');
   mode = 'hold';
   await page.getByRole('button', { name: '追加する', exact: true }).click();
   for (let i = 0; !release && i < 200; i++)
@@ -389,6 +395,7 @@ try {
   await page
     .getByRole('textbox', { name: '決算日', exact: true })
     .fill('20260331');
+  await page.getByRole('combobox', { name: 'この決算の内容を公開しましたか？', exact: true }).selectOption('true');
   const before = writes;
   await page.getByRole('button', { name: '追加する', exact: true }).click();
   await check.waitFor();
