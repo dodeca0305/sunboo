@@ -1,35 +1,31 @@
-# LAST_RESULT: home-first-step（2026-11-12、Claude Code）
+# LAST_RESULT: procedure-completion-guide（2026-11-12、Claude Code）
 
-基点 3e88fd5。commit/push/PRはしていない（Codex担当）。
+基点 df2368b。commit/push/PR/公開はしていない（Codex担当）。
 
 ## 変更
-- 新規 `src/lib/workspaceFirstStep.ts`：第一歩の選択だけを行う純粋関数。
-  順は 取得失敗 → 既存todayActions先頭がhigh → 必須未入力（先頭の入力欄へ深いリンク）→ 既存先頭1件 → 0件はロードマップ案内。
-  `actionHrefFor` はDashboardから移して共用（挙動は変更なし）。
-- 新規 `src/components/WorkspaceFirstStep.tsx`：会社見出しの直後に配置。リンク1つ。取得失敗時は再読み込みボタンのみ。
-  ボタンの黒は `bg-sunboo-ink text-white` をこのボタンだけに指定。共通の `btn-primary` CSSは変更なし。
-- `page.tsx`：第一歩を追加。PageHeaderのsubtitleを削除（第一歩と競合するため）。
-  failedのalertは本文を維持し、再読み込みボタンは最上部へ集約。
-- `WorkspaceDashboard.tsx`：必須未入力が第一歩のときだけ、home-missing-profile内の重複リンクを出さない。
-  それ以外（highの急ぐ対応が先頭のとき等）は未入力カードとリンクを維持。
-- `playwright/verify-home-read-safety.mjs`、`docs/HOME_FIRST_STEP.md` を更新・追加。
+- 新規 `src/lib/procedureCompletionGuide.ts`：コードだけで分類する純粋関数。
+  申告のみ（DEPRECIABLE_ASSET_TAX_RETURN）2行／申告＋納付（法人税・消費税・地方税3申告）3行／それ以外は
+  「まず、担当者にこの2つを確認」＋2つの質問（SYNTHETIC_TAX・源泉・未知コード・情報不足を含む）。
+- 新規 `src/components/ProcedureCompletionGuide.tsx`：非操作の静的リスト。状態/保存/通信なし。
+- `AnnualRoadmapView.tsx`：旧 `guide.completion` の1行を新コンポーネントに差し替え＋import。
+  管理/一般/共有は共通のため同じ表示。既存の分類・trialActionGuide・注記・保存は変更なし。
+- `playwright/verify-home-read-safety.mjs`、`docs/PROCEDURE_COMPLETION_GUIDE.md` を追加/更新。
 
-## 試験（ログ: test-results/home-first-step-*.log）
-- 対象unit（workspaceFirstStep.test.ts）：8件成功
-  （取得不可／必須未入力／既存high／high以外の先頭／正常先頭／0件／actionHref／別会社リンク）
-- npm run lint：エラー0、既存Growth警告1のみ
-- HOME_NAV_UI_ONLY=1 node playwright/verify-home-read-safety.mjs：PASS（ローカル合成データ、本番書込なし）
-  - 第一歩が今日やることより上、リンク1つ、CTAが初期画面内（デスクトップ/375px）
-  - CTAの背景rgb(31,41,55)・文字白（computedStyle）、キーボード移動
-  - 取得失敗で「取得できません」＋再読み込みのみ、復旧後に通常表示へ戻る
-  - P02/P03（条件ブロック外）：未入力時にkind=profile、「入力を始める」から該当の入力欄へ移動
-- npm run build -- --webpack：成功（実行前に.next/devを退避。起動中の3130はtrial-environment/appで別コピー、未操作）
+## 試験（ログ: test-results/completion-guide-*.log）
+- 対象unit 4件成功（申告のみ／申告＋納付と既存canPlanTaxPayment一致／未知・SYNTHETIC_TAX・詐称／情報不足）。
+- `HOME_NAV_UI_ONLY=1 node playwright/verify-home-read-safety.mjs`：PASS（ローカル合成、本番呼出0）。
+  3種を375pxで表示、リスト件数、ガイド内input/button/aが0、旧長文なし、既存「完了」注記あり、横溢れなし、
+  書込回数不変。合成共有URL（b×64）でも申告のみの2行リストとinput/button/a 0を確認。
+  スクリーンショット：test-results/completion-guide-{unconfirmed,filing_only,filing_and_payment}.png。P02/P03も通過。
+- `npm run lint`：エラー0、既存Growth警告1のみ。
+- `npm run build -- --webpack`：成功（実行前に.next/devを.next/dev.bak-*へ退避）。3118は残存なし、3130は未操作。
 
 ## 後始末
-- next devが追記したAGENTS.mdの生成ブロックを、元内容とのprefix一致を確認して削除。CLAUDE.mdに差分なし。
-- .next/dev退避分は.next配下で未コミット。
+- next buildがAGENTS.mdへ追記した10行を、元内容（test-results/AGENTS.orig.md）との接頭辞一致を確認して削除。
+  AGENTS.md/CLAUDE.mdの差分なし。
 
-## 未確認
-- 3130（別コピー）や実環境での表示は未確認。
-- スクリーンショット（test-results/home-first-step-*.png、profile-next-step-home.png）の目視はCodex。
-- 全障害ループ・公開前照合・CI・本番確認は対象外／Codex。
+## 未確認・限界
+- 一般（利用者）画面は共通コンポーネントの構造確認のみで、実画面は未試験。
+- キーボード操作は、ガイドが非操作（フォーカス対象なし）であることの確認にとどまる。
+- 全障害ループ・実本番の目視は未実施。全手続きの完了条件は確定していない（資料に明記）。
+- 目視（スクリーンショットの見た目確認）はCodexへ。

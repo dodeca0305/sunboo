@@ -702,6 +702,47 @@ try {
     (await page.getByText('合成ホーム手続き', { exact: true }).count()) > 0,
   );
   }
+  // 完了の目安：静的表示のみ。表示で書込は増えない。
+  {
+    const writesBefore = writes, taxWritesBefore = syntheticTaxWrites.length;
+    for (const [code, kind, count] of [['WITHHOLDING_TAX','unconfirmed',2],['DEPRECIABLE_ASSET_TAX_RETURN','filing_only',2],['CORP_TAX_RETURN','filing_and_payment',3]]) {
+      state = structuredClone(initial);
+      state.data.procedures = [{...proc, code}];
+      await update();
+      await page.setViewportSize({width:375,height:800});
+      await page.goto(home + '/roadmap', {waitUntil:'networkidle'});
+      const guideBox = page.getByTestId('procedure-completion-guide').first();
+      await guideBox.waitFor();
+      assert.equal(await guideBox.getAttribute('data-kind'), kind);
+      assert.equal(await guideBox.getByRole('listitem').count(), count);
+      assert.equal(await guideBox.locator('input,button,a').count(), 0);
+      assert.equal(await page.getByText('該当要否を確認し、必要な提出・納付等を行い').count(), 0);
+      assert.ok(await page.getByText(/「完了」は対応状況の記録であり/).count() > 0);
+      if (kind === 'unconfirmed') {
+        assert.match(await guideBox.textContent(), /まず、担当者にこの2つを確認/);
+        assert.match(await guideBox.textContent(), /この手続きは必要ですか？/);
+        assert.match(await guideBox.textContent(), /何をすれば完了ですか？/);
+      }
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth), true);
+      await guideBox.scrollIntoViewIfNeeded();
+      await page.screenshot({path:`test-results/completion-guide-${kind}.png`,fullPage:false});
+    }
+    // 共有（公開側）の既存合成URLでも同じ静的リスト。編集部品は0。
+    state = structuredClone(initial);
+    state.data.procedures = [{...proc, code:'DEPRECIABLE_ASSET_TAX_RETURN'}];
+    await update();
+    await page.goto(origin + '/share/' + 'b'.repeat(64), {waitUntil:'networkidle'});
+    const sharedGuide = page.getByTestId('procedure-completion-guide').first();
+    await sharedGuide.waitFor();
+    assert.equal(await sharedGuide.getAttribute('data-kind'), 'filing_only');
+    assert.equal(await sharedGuide.getByRole('listitem').count(), 2);
+    assert.equal(await sharedGuide.locator('input,button,a').count(), 0);
+    assert.equal(writes, writesBefore);
+    assert.equal(syntheticTaxWrites.length, taxWritesBefore);
+    await page.setViewportSize({width:1280,height:900});
+    state = structuredClone(initial);
+    await update();
+  }
   // P02/P03: actual missing values, zero, deep links and unsaved edits.
   state = structuredClone(initial);
   state.data.workspace_companies[0].fiscal_month = null;

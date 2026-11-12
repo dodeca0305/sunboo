@@ -23,6 +23,7 @@ import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import ElectronicFilingEntry from '@/components/ElectronicFilingEntry';
 import { ProcedureResponsibilityField } from '@/components/ProcedureResponsibility';
 import StatusBadge from '@/components/StatusBadge';
+import ProcedureCompletionGuide from '@/components/ProcedureCompletionGuide';
 import { trackEvent } from '@/lib/analytics';
 import {
   serializeWorkspaceCompletionFeedback,
@@ -511,7 +512,7 @@ export default function AnnualRoadmapView({
                                 <div className="sm:col-span-2"><dt className="mb-1 font-semibold text-sunboo-ink-muted">理由</dt><dd>{guide.reason}</dd></div>
                                 <div className="rounded-lg bg-slate-50 p-3"><dt className="mb-1 font-semibold text-sunboo-ink-muted">担当</dt><dd>{companyId !== undefined ? <ProcedureResponsibilityField procedureId={item.procedure.id} dueDate={item.dueDate} name={item.procedure.name} /> : <>役割の目安：{guide.owner}</>}</dd></div>
                                 <div className="rounded-lg bg-slate-50 p-3"><dt className="mb-1 font-semibold text-sunboo-ink-muted">期限</dt><dd>{item.dueDate}（個別事情・公式案内で最終確認）</dd></div>
-                                <div className="sm:col-span-2"><dt className="mb-1 font-semibold text-sunboo-ink-muted">完了条件</dt><dd>{guide.completion}</dd></div>
+                                <ProcedureCompletionGuide code={item.procedure.code} />
                                 <div className="sm:col-span-2"><dt className="mb-1 font-semibold text-sunboo-ink-muted">実行先</dt><dd>下の提出先・公式ページから手続き内容を確認してください。未登録の提出先は推測しません。</dd></div>
                               </dl>
                               <p className="text-xs text-sunboo-ink-muted">担当の選択は記録です。依頼は担当者に別途ご確認ください。「完了」は対応状況の記録であり、行政機関の受付確認の代わりにはなりません。</p>
