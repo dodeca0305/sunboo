@@ -408,8 +408,14 @@ try {
   await page.getByTestId('tax-check-options').locator(':scope > summary').click();
   await page.getByRole('button',{name:'評価して保存',exact:true}).waitFor({state:'visible'});
   await page.getByLabel(/清算中の残余財産確定に関する特則/).selectOption('not_applicable');
-  await page.getByText('チェックの対象・詳しい説明',{exact:true}).click();
+  const help=page.getByTestId('tax-check-input-help');
+  await help.getByText('決算日と申告した日を入力してください。',{exact:true}).waitFor({state:'visible'});
+  await help.getByText('申告済みの決算がある場合だけ入力してください。',{exact:true}).waitFor({state:'visible'});
+  assert.equal(await page.getByText('法人税確定申告の基本提出時期チェック（TI_TAX_001）',{exact:true}).isVisible(),false);
+  await page.getByText('専門家向けの詳しい説明（チェックの対象）',{exact:true}).focus();await page.keyboard.press('Enter');
   await page.getByText('法人税確定申告の基本提出時期チェック（TI_TAX_001）',{exact:true}).waitFor({state:'visible'});
+  await page.getByText('2023年4月1日以降',{exact:false}).first().waitFor({state:'visible'});
+  await page.getByText('清算中の残余財産確定に関する特則への該当有無',{exact:false}).waitFor({state:'visible'});
   assert.equal(await page.getByLabel(/清算中の残余財産確定に関する特則/).inputValue(),'not_applicable');
 
   for(const failTable of ['workspace_company_profiles','workspace_tax_return_profiles','municipalities']){

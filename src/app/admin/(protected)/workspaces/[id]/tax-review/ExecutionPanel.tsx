@@ -1,6 +1,7 @@
 'use client';
 import { TAX_TRIAL_SCOPE } from '@/lib/trialActionGuide';
 import Link from 'next/link';
+import TaxCheckInputHelp from '@/components/TaxCheckInputHelp';
 import styles from '@/styles/taxReview.module.css';
 import type { TaxInputGuide } from '@/lib/taxIntelligence/inputGuide';
 import { useEffect, useRef, useState } from 'react';
@@ -92,6 +93,7 @@ export default function ExecutionPanel({
     <section className={`${styles.execution} space-y-4`}>
       <h2 className="text-xs font-medium text-neutral-500">次にすること</h2>
       <div className="space-y-4" data-testid="tax-execution-details">
+          <TaxCheckInputHelp />
           {inputGuide.status === 'loaded' && (
             <div className={styles.step} data-testid="tax-input-next-step">
               <div className="space-y-2">
@@ -168,7 +170,7 @@ export default function ExecutionPanel({
             </div>
           </details>
           <details className={styles.details}>
-            <summary className="cursor-pointer text-sm font-medium">チェックの対象・詳しい説明</summary>
+            <summary className="cursor-pointer text-sm font-medium">専門家向けの詳しい説明（チェックの対象）</summary>
             <div className="mt-3 space-y-2 text-sm" aria-label="税務チェックの対象と必要入力">
               <h3 className="font-semibold">{TAX_TRIAL_SCOPE.title}</h3>
               <p>{TAX_TRIAL_SCOPE.scope}</p>

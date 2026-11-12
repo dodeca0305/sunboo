@@ -99,6 +99,9 @@ class LauncherGuards(unittest.TestCase):
         self.assertEqual(argv[argv.index('--permission-mode') + 1], 'manual')
         self.assertEqual(argv[argv.index('--mcp-config') + 1], '{"mcpServers":{}}')
         self.assertIn('--strict-mcp-config', argv)
+        # --mcp-config is variadic: the task must not be parsed as another path.
+        self.assertEqual(argv[-2], '--')
+        self.assertIn('SUNBOO', argv[-1])
         self.assertNotIn('--dangerously-skip-permissions', argv)
 
     def test_real_auth_gate_rejects_api_and_invalid_metadata(self):
