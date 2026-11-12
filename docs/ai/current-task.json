@@ -1,10 +1,8 @@
 {
   "status": "idle",
   "extraUsageDisabledConfirmed": true,
-  "id": "",
-  "baseSha": "",
-  "goal": "",
-  "files": [],
-  "acceptance": [],
-  "checks": []
+  "lastCompletedTask": "procedure-completion-guide",
+  "notes": [
+    "Claude Code implemented and verified; Codex reviewed static diff and three mobile images. Release follows. No next task assigned."
+  ]
 }
