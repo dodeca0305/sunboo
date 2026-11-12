@@ -1,10 +1,15 @@
 // 完了の目安を短く示す静的な表示用ヘルパー。完了の判定・保存・期限計算はしない。
 // 分類は手続きコード（既存の識別子）だけで行い、名称やカテゴリからの推測はしない。
 
+// 表示用の1行動。title=大きい行動名、condition=常に添える条件、note=折り畳みの補足。
+export type CompletionStep = { title: string; condition?: string; note: string };
+
 export type ProcedureCompletionGuide =
-  | { kind: 'filing_only'; heading: string; lines: string[] }
-  | { kind: 'filing_and_payment'; heading: string; lines: string[] }
+  | { kind: 'filing_only'; heading: string; lines: string[]; steps: CompletionStep[] }
+  | { kind: 'filing_and_payment'; heading: string; lines: string[]; steps: CompletionStep[] }
   | { kind: 'unconfirmed'; heading: string; intro: string; questions: string[] };
+
+const FLOW_HEADING = '提出から完了まで';
 
 // 申告だけで、納付を含まない手続き。
 const FILING_ONLY_CODES = new Set(['DEPRECIABLE_ASSET_TAX_RETURN']);
@@ -23,21 +28,30 @@ export function procedureCompletionGuide(code: unknown): ProcedureCompletionGuid
     if (FILING_ONLY_CODES.has(code)) {
       return {
         kind: 'filing_only',
-        heading: '完了の目安',
+        heading: FLOW_HEADING,
         lines: [
           '申告書を提出した',
           '受付完了を確認し、控えを残した',
+        ],
+        steps: [
+          { title: '提出する', note: '公式案内に沿って申告書を提出します。' },
+          { title: '受付を確認する', note: '受付が完了したことを確認し、控えを保管します。' },
         ],
       };
     }
     if (FILING_AND_PAYMENT_CODES.has(code)) {
       return {
         kind: 'filing_and_payment',
-        heading: '完了の目安',
+        heading: FLOW_HEADING,
         lines: [
           '申告書を提出し、受付完了を確認した',
           '納める税金がある場合は、支払いを済ませた',
           '提出と支払いの控えを残した',
+        ],
+        steps: [
+          { title: '提出する', note: '公式案内に沿って申告書を提出し、受付が完了したことを確認します。' },
+          { title: '支払いを済ませる', condition: '納める税金がある場合', note: '納付先と方法は公式案内で確認します。' },
+          { title: '控えを残す', note: '提出の控えと、支払いの控えの両方を保管します。' },
         ],
       };
     }

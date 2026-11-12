@@ -1,31 +1,27 @@
-# LAST_RESULT: procedure-completion-guide（2026-11-12、Claude Code）
+# LAST_RESULT: completion-flow-design（2026-11-12、Claude Code）
 
-基点 df2368b。commit/push/PR/公開はしていない（Codex担当）。
+基点 58fac93（統合済みPR #194）。実装担当はcommit/push/PR/公開をしていない。Codexが別のPRで今回の表示変更を公開する。
 
 ## 変更
-- 新規 `src/lib/procedureCompletionGuide.ts`：コードだけで分類する純粋関数。
-  申告のみ（DEPRECIABLE_ASSET_TAX_RETURN）2行／申告＋納付（法人税・消費税・地方税3申告）3行／それ以外は
-  「まず、担当者にこの2つを確認」＋2つの質問（SYNTHETIC_TAX・源泉・未知コード・情報不足を含む）。
-- 新規 `src/components/ProcedureCompletionGuide.tsx`：非操作の静的リスト。状態/保存/通信なし。
-- `AnnualRoadmapView.tsx`：旧 `guide.completion` の1行を新コンポーネントに差し替え＋import。
-  管理/一般/共有は共通のため同じ表示。既存の分類・trialActionGuide・注記・保存は変更なし。
-- `playwright/verify-home-read-safety.mjs`、`docs/PROCEDURE_COMPLETION_GUIDE.md` を追加/更新。
+- `src/lib/procedureCompletionGuide.ts`：`CompletionStep`（title/condition/note）と`steps`を追加。
+  見出しを「提出から完了まで」に。`lines`・コード分類・未確認の質問は不変。
+- `src/components/ProcedureCompletionGuide.tsx`：箇条書きをやめ、大きい行動を余白で並べ（狭幅は縦）、
+  native details/summary（初期閉）で「確認すること」から補足を開閉。未確認は従来の2質問表示。
+- `src/lib/procedureCompletionGuide.test.ts`、`playwright/verify-home-read-safety.mjs`、
+  `docs/PROCEDURE_COMPLETION_GUIDE.md`を更新。全体CSS・AnnualRoadmapView・DB/権限/通信の変更なし。
 
-## 試験（ログ: test-results/completion-guide-*.log）
-- 対象unit 4件成功（申告のみ／申告＋納付と既存canPlanTaxPayment一致／未知・SYNTHETIC_TAX・詐称／情報不足）。
-- `HOME_NAV_UI_ONLY=1 node playwright/verify-home-read-safety.mjs`：PASS（ローカル合成、本番呼出0）。
-  3種を375pxで表示、リスト件数、ガイド内input/button/aが0、旧長文なし、既存「完了」注記あり、横溢れなし、
-  書込回数不変。合成共有URL（b×64）でも申告のみの2行リストとinput/button/a 0を確認。
-  スクリーンショット：test-results/completion-guide-{unconfirmed,filing_only,filing_and_payment}.png。P02/P03も通過。
-- `npm run lint`：エラー0、既存Growth警告1のみ。
-- `npm run build -- --webpack`：成功（実行前に.next/devを.next/dev.bak-*へ退避）。3118は残存なし、3130は未操作。
+## 試験（ログ: test-results/completion-flow-*.log）
+- 対象unit 4件成功。
+- `HOME_NAV_UI_ONLY=1 node playwright/verify-home-read-safety.mjs`：PASS（P02/P03含む、ローカル合成）。
+  375px/desktop/共有で初期閉、クリック/Enter開閉、Tab移動、フォーカス、文字切れ・横溢れなし、
+  確定した手続きのガイド内input/button/a/リスト/アイコン0、375px縦並び・desktop横並び、操作後の書込回数不変。未確認コードは従来の質問リストを保持。
+- `npm run lint`：エラー0、既存警告1（set-state-in-effect）。`npm run build -- --webpack`：成功。
+- 画像：test-results/completion-guide-{unconfirmed,filing_only,filing_and_payment,desktop}.png。
 
 ## 後始末
-- next buildがAGENTS.mdへ追記した10行を、元内容（test-results/AGENTS.orig.md）との接頭辞一致を確認して削除。
-  AGENTS.md/CLAUDE.mdの差分なし。
+- Nextが追記したAGENTS.mdの10行をnative Editで削除。元（test-results/completion-flow-AGENTS.orig.md）と完全一致を確認。バックアップは未変更。
+- 3118は停止確認。3130は未操作。
 
 ## 未確認・限界
-- 一般（利用者）画面は共通コンポーネントの構造確認のみで、実画面は未試験。
-- キーボード操作は、ガイドが非操作（フォーカス対象なし）であることの確認にとどまる。
-- 全障害ループ・実本番の目視は未実施。全手続きの完了条件は確定していない（資料に明記）。
-- 目視（スクリーンショットの見た目確認）はCodexへ。
+- 一般（利用者）画面の実画面は未試験（共通コンポーネントの構造確認のみ）。
+- 全手続きの完了条件は未確定。未確認コードは質問表示のみ。全障害ループ・本番目視は未実施。

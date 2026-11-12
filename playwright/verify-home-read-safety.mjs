@@ -705,7 +705,38 @@ try {
   // 完了の目安：静的表示のみ。表示で書込は増えない。
   {
     const writesBefore = writes, taxWritesBefore = syntheticTaxWrites.length;
-    for (const [code, kind, count] of [['WITHHOLDING_TAX','unconfirmed',2],['DEPRECIABLE_ASSET_TAX_RETURN','filing_only',2],['CORP_TAX_RETURN','filing_and_payment',3]]) {
+    // 折り畳み部品の共通検証：初期閉・クリック/Enter開閉・Tab移動・フォーカス・文字切れなし。
+    const checkFlow = async (guideBox, titles, label) => {
+      const steps = guideBox.getByTestId('completion-step');
+      assert.equal(await steps.count(), titles.length, label);
+      assert.equal(await guideBox.locator('input,button,a,ul,ol,li,svg,img').count(), 0, label);
+      assert.doesNotMatch(await guideBox.textContent(), /[•●■\p{Extended_Pictographic}]|\d\s*[.．)）]/u, label);
+      const openStates = () => guideBox.locator('details').evaluateAll((els) => els.map((el) => el.open));
+      assert.deepEqual(await openStates(), titles.map(() => false), `${label}:初期閉`);
+      for (let i = 0; i < titles.length; i++) {
+        const summary = steps.nth(i).locator('summary');
+        assert.match(await summary.textContent(), new RegExp(titles[i]), label);
+        assert.match(await summary.textContent(), /確認すること/, label);
+        assert.equal(await summary.evaluate((el) => el.scrollWidth <= el.clientWidth + 1), true, `${label}:文字切れ`);
+        await summary.click();
+        assert.equal((await openStates())[i], true, `${label}:クリックで開く`);
+        await summary.click();
+        assert.equal((await openStates())[i], false, `${label}:クリックで閉じる`);
+        await summary.focus();
+        assert.equal(await summary.evaluate((el) => el === document.activeElement), true, `${label}:フォーカス`);
+        await page.keyboard.press('Enter');
+        assert.equal((await openStates())[i], true, `${label}:Enterで開く`);
+        await page.keyboard.press('Enter');
+        assert.equal((await openStates())[i], false, `${label}:Enterで閉じる`);
+      }
+      if (titles.length > 1) {
+        await steps.nth(0).locator('summary').focus();
+        await page.keyboard.press('Tab');
+        assert.equal(await steps.nth(1).locator('summary').evaluate((el) => el === document.activeElement), true, `${label}:Tab`);
+      }
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, `${label}:横溢れ`);
+    };
+    for (const [code, kind, titles] of [['WITHHOLDING_TAX','unconfirmed',[]],['DEPRECIABLE_ASSET_TAX_RETURN','filing_only',['提出する','受付を確認する']],['CORP_TAX_RETURN','filing_and_payment',['提出する','支払いを済ませる','控えを残す']]]) {
       state = structuredClone(initial);
       state.data.procedures = [{...proc, code}];
       await update();
@@ -714,20 +745,52 @@ try {
       const guideBox = page.getByTestId('procedure-completion-guide').first();
       await guideBox.waitFor();
       assert.equal(await guideBox.getAttribute('data-kind'), kind);
-      assert.equal(await guideBox.getByRole('listitem').count(), count);
       assert.equal(await guideBox.locator('input,button,a').count(), 0);
       assert.equal(await page.getByText('該当要否を確認し、必要な提出・納付等を行い').count(), 0);
       assert.ok(await page.getByText(/「完了」は対応状況の記録であり/).count() > 0);
       if (kind === 'unconfirmed') {
+        assert.equal(await guideBox.getByRole('listitem').count(), 2);
+        assert.equal(await guideBox.locator('details').count(), 0);
         assert.match(await guideBox.textContent(), /まず、担当者にこの2つを確認/);
         assert.match(await guideBox.textContent(), /この手続きは必要ですか？/);
         assert.match(await guideBox.textContent(), /何をすれば完了ですか？/);
+      } else {
+        assert.match(await guideBox.textContent(), /提出から完了まで/);
+        await checkFlow(guideBox, titles, `375:${kind}`);
+        const tops = await guideBox.getByTestId('completion-step').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+        assert.equal(new Set(tops).size, tops.length, '375pxは縦並び');
+        if (kind === 'filing_and_payment') {
+          assert.equal(await guideBox.getByTestId('completion-condition').textContent(), '納める税金がある場合');
+          await guideBox.locator('summary').nth(1).click();
+          assert.match(await guideBox.textContent(), /納付先と方法は公式案内/);
+          await guideBox.locator('summary').nth(1).click();
+        }
+        await guideBox.locator('summary').first().click();
+        assert.match(await guideBox.locator('details').first().textContent(), /公式案内に沿って申告書を提出/);
+        await guideBox.locator('summary').first().click();
+        if (kind === 'filing_only') {
+          await guideBox.locator('summary').nth(1).click();
+          assert.match(await guideBox.locator('details').nth(1).textContent(), /受付が完了したことを確認し、控えを保管/);
+          await guideBox.locator('summary').nth(1).click();
+        }
       }
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth), true);
       await guideBox.scrollIntoViewIfNeeded();
       await page.screenshot({path:`test-results/completion-guide-${kind}.png`,fullPage:false});
+      if (kind === 'filing_and_payment') {
+        // desktop：横並び（同じ高さ）と補足の開閉。
+        await page.setViewportSize({width:1280,height:900});
+        await page.goto(home + '/roadmap', {waitUntil:'networkidle'});
+        const desk = page.getByTestId('procedure-completion-guide').first();
+        await desk.waitFor();
+        await checkFlow(desk, titles, 'desktop');
+        const deskTops = await desk.getByTestId('completion-step').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+        assert.equal(new Set(deskTops).size, 1, 'desktopは横並び');
+        await desk.scrollIntoViewIfNeeded();
+        await page.screenshot({path:'test-results/completion-guide-desktop.png',fullPage:false});
+      }
     }
-    // 共有（公開側）の既存合成URLでも同じ静的リスト。編集部品は0。
+    // 共有（公開側）の既存合成URLでも同じ表示。編集部品は0。
     state = structuredClone(initial);
     state.data.procedures = [{...proc, code:'DEPRECIABLE_ASSET_TAX_RETURN'}];
     await update();
@@ -735,8 +798,8 @@ try {
     const sharedGuide = page.getByTestId('procedure-completion-guide').first();
     await sharedGuide.waitFor();
     assert.equal(await sharedGuide.getAttribute('data-kind'), 'filing_only');
-    assert.equal(await sharedGuide.getByRole('listitem').count(), 2);
     assert.equal(await sharedGuide.locator('input,button,a').count(), 0);
+    await checkFlow(sharedGuide, ['提出する', '受付を確認する'], 'shared');
     assert.equal(writes, writesBefore);
     assert.equal(syntheticTaxWrites.length, taxWritesBefore);
     await page.setViewportSize({width:1280,height:900});
