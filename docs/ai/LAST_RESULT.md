@@ -1,27 +1,35 @@
-# LAST_RESULT: trial-tax-check-input-guidance（2026-11-11、Claude Code）
+# LAST_RESULT: home-first-step（2026-11-12、Claude Code）
 
-基点 743ea8b。commit/push/PRはしていない（Codex担当）。
+基点 3e88fd5。commit/push/PRはしていない（Codex担当）。
 
 ## 変更
-- 新規 `src/components/TaxCheckInputHelp.tsx`：「法人税の申告時期を確認する画面です。」＋
-  「決算日と申告した日を入力してください。」「申告済みの決算がある場合だけ入力してください。」
-- `ExecutionPanel.tsx`：上記を先頭に追加。既存の詳細summaryを
-  「専門家向けの詳しい説明（チェックの対象）」へ改称。TAX_TRIAL_SCOPE本文は無変更。
-  inputGuide/フォーム/onSubmit/実行ID/保存/再送停止は無変更。
-- `playwright/verify-home-read-safety.mjs`：短い案内、詳細が閉じていること、キーボードで開いて
-  TI_TAX_001/2023年4月1日/清算特則が読めること、選択値が保持されることを確認。
-- `docs/TAX_CHECK_INPUT_GUIDANCE.md` 追加。
+- 新規 `src/lib/workspaceFirstStep.ts`：第一歩の選択だけを行う純粋関数。
+  順は 取得失敗 → 既存todayActions先頭がhigh → 必須未入力（先頭の入力欄へ深いリンク）→ 既存先頭1件 → 0件はロードマップ案内。
+  `actionHrefFor` はDashboardから移して共用（挙動は変更なし）。
+- 新規 `src/components/WorkspaceFirstStep.tsx`：会社見出しの直後に配置。リンク1つ。取得失敗時は再読み込みボタンのみ。
+  ボタンの黒は `bg-sunboo-ink text-white` をこのボタンだけに指定。共通の `btn-primary` CSSは変更なし。
+- `page.tsx`：第一歩を追加。PageHeaderのsubtitleを削除（第一歩と競合するため）。
+  failedのalertは本文を維持し、再読み込みボタンは最上部へ集約。
+- `WorkspaceDashboard.tsx`：必須未入力が第一歩のときだけ、home-missing-profile内の重複リンクを出さない。
+  それ以外（highの急ぐ対応が先頭のとき等）は未入力カードとリンクを維持。
+- `playwright/verify-home-read-safety.mjs`、`docs/HOME_FIRST_STEP.md` を更新・追加。
 
-## 試験（ログ: test-results/tci-*.log）
+## 試験（ログ: test-results/home-first-step-*.log）
+- 対象unit（workspaceFirstStep.test.ts）：8件成功
+  （取得不可／必須未入力／既存high／high以外の先頭／正常先頭／0件／actionHref／別会社リンク）
 - npm run lint：エラー0、既存Growth警告1のみ
-- npx tsc --noEmit：成功
 - HOME_NAV_UI_ONLY=1 node playwright/verify-home-read-safety.mjs：PASS（ローカル合成データ、本番書込なし）
-- npm run build -- --webpack：成功（実行前に.next/devをtimestamp別名へ退避、dev server不在を確認）
+  - 第一歩が今日やることより上、リンク1つ、CTAが初期画面内（デスクトップ/375px）
+  - CTAの背景rgb(31,41,55)・文字白（computedStyle）、キーボード移動
+  - 取得失敗で「取得できません」＋再読み込みのみ、復旧後に通常表示へ戻る
+  - P02/P03（条件ブロック外）：未入力時にkind=profile、「入力を始める」から該当の入力欄へ移動
+- npm run build -- --webpack：成功（実行前に.next/devを退避。起動中の3130はtrial-environment/appで別コピー、未操作）
 
 ## 後始末
-- next devが追記したAGENTS.mdの10行を、HEAD内容とのprefix一致を確認して`git checkout`で戻した。CLAUDE.mdに差分なし。
-- 退避した.next/dev.protected-*は未コミット（.next配下）。
+- next devが追記したAGENTS.mdの生成ブロックを、元内容とのprefix一致を確認して削除。CLAUDE.mdに差分なし。
+- .next/dev退避分は.next配下で未コミット。
 
 ## 未確認
-- 375px実機相当の目視スクリーンショットの新規確認はしていない（既存のscrollWidth検査は通過）。
-- 公開前照合・CI・本番確認はCodex。
+- 3130（別コピー）や実環境での表示は未確認。
+- スクリーンショット（test-results/home-first-step-*.png、profile-next-step-home.png）の目視はCodex。
+- 全障害ループ・公開前照合・CI・本番確認は対象外／Codex。

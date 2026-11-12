@@ -2,18 +2,19 @@
 
 - 正本はこのsunboo-interim-guide。元のsunboo/.gitに不正なmain 2 refがある。
   旧sunboo-initial-trialの未追跡144件を含め、旧フォルダとrefを整理/削除しない。
-- 確認済みmain：82003ac12e965f8a14a18995a6fe67cdbdad4414（PR #191、main CI成功）。
+- 確認済みmain：3e88fd52a85588772d21ce83a241d02fd4416f05（PR #192、PR/main CI成功）。
   これは準備時の記録。着手時にはGitHubの最新mainを確認する。
-- 試用指摘「説明が長く、何を入力するか分からない」への短い入力案内をClaude Codeで実装・合成試験済み。
-  詳細はLAST_RESULT.mdとdocs/TAX_CHECK_INPUT_GUIDANCE.md。CodexでPR/CI/公開確認を進める。
+- #192の短い税務入力案内は公開/架空会社23の読取確認済み、利用者「わかる」を確認。
+- 次の試用指摘「一人だと最初に何を押せばよいか分からない」に対し、ホームの第一歩を実装/合成試験済み。
+  詳細はLAST_RESULT.mdとdocs/HOME_FIRST_STEP.md。CodexでPR/CI/公開確認を進める。
   次の課題は未割当。新機能を追加せず、試用結果から1件ずつ依頼する。
 - #188：消費税中間申告回数の案内、#189：決算公告の平易な表現/未確認保存停止、
   #190：決算日の人数確認表。統合/配信/架空会社23の読み取り確認済み。重複実装しない。
 - #190は全1,005テスト、lint（既存Growth警告1）、ビルド、合成画面試験、PR/main CI成功。
   空欄/0/正数と読取/保存保護を維持。詳細は該当するdocs/*GUIDE.mdだけを参照する。
-- production：dpl_DPqrBE9oM3HLHHr2ysS5KE2FzLy7、www.sunboo-keiei.comでREADY。
-  Git自動配信が始まらず、検証済みmainを固定して既存プロジェクトへ配信。原因は未確定。
-- 本番は架空会社23の読み取りだけ。書込試用環境3130は古いまま/書込停止中。
+- production：dpl_5QM7DpT4XkLo6dqGosDkWidZFh75、www.sunboo-keiei.comでREADY。
+  #192はGit自動配信を確認。以前開始しなかった原因の恒久解消までは未確定。
+- 本番は架空会社23の読み取りだけ。合成試用3130は#192へ同期、状態/書類/共有の利用者操作・復元確認済み、現在書込停止。
 - 既知の全画面ブラウザー試験の不安定さは残る。依頼外の全課題を再調査しない。
 - 横断分析/横断整合性チェック・書類整理連携は次期計画。初期版の試用を優先。
 

@@ -274,6 +274,7 @@ try {
   async function normal() {
     assert.equal(await unavailable.count(), 0);
     await page.getByText('今日のポイント', { exact: true }).waitFor();
+    assert.notEqual(await page.getByTestId('home-first-step').getAttribute('data-kind'), 'unavailable');
     assert.match(await page.getByTestId('home-documents').textContent(), /1件/);
     assert.match(
       await page.getByTestId('home-tax-plans').textContent(),
@@ -296,7 +297,22 @@ try {
   const growthLink=todayCard.getByRole('link',{name:'今月の売上・お金を確認する',exact:true});
   assert.equal(await growthLink.getAttribute('href'),`/admin/workspaces/${companyId}/growth?date=${month}-01`);
   assert.ok((await todayCard.textContent()).includes('担当：未設定'));
-  const todayBox=await todayCard.boundingBox();assert.ok(todayBox.y<450);
+  const todayBox=await todayCard.boundingBox();
+  // First step: above 今日やること, exactly one large link whose CTA is inside the initial screen.
+  const firstStep=page.getByTestId('home-first-step');
+  const firstCta=firstStep.getByRole('link');
+  const ctaBox=await firstCta.boundingBox();
+  assert.ok((await firstStep.boundingBox()).y<todayBox.y);
+  assert.equal(await firstCta.count(),1);
+  assert.equal(await firstStep.getByRole('button').count(),0);
+  assert.ok(ctaBox.height>=44);
+  assert.ok(ctaBox.y+ctaBox.height<=900,'first-step CTA is inside the initial desktop screen');
+  assert.ok(ctaBox.y+ctaBox.height<=todayBox.y,'CTA is above 今日やること');
+  const ctaStyle=await firstCta.evaluate(el=>{const s=getComputedStyle(el);return {bg:s.backgroundColor,color:s.color};});
+  assert.deepEqual(ctaStyle,{bg:'rgb(31, 41, 55)',color:'rgb(255, 255, 255)'});
+  assert.equal(await page.locator('main').getByText('まず「今日やること」を確認してください',{exact:false}).count(),0);
+  await firstCta.focus();assert.equal(await firstCta.evaluate(el=>el===document.activeElement),true);
+  await page.screenshot({path:'test-results/home-first-step-desktop.png',fullPage:false});
   assert.ok(await page.getByTestId('home-notification-details').getAttribute('open')!==null,'high-priority notices stay expanded');
   const administration=page.locator('aside:visible').getByText('管理メニュー',{exact:true});
   await administration.click();assert.equal(await page.getByRole('navigation',{name:'管理メニュー',exact:true}).getByRole('link',{name:'管轄機関',exact:true}).getAttribute('href'),'/admin/offices');await administration.click();
@@ -507,11 +523,30 @@ try {
   await page.keyboard.press('Escape');assert.equal(await drawer.count(),0);assert.equal(await menu.evaluate(el=>el===document.activeElement),true);
   await menu.click();await companyNav().getByRole('link',{name:'書類',exact:true}).click();await page.waitForURL(home+'/documents');assert.equal(await drawer.count(),0);
   await menu.click();await companyNav().getByRole('link',{name:'ホーム',exact:true}).click();await page.waitForURL(home);await normal();
+  {
+    // 375px: first step and its black CTA are in the initial screen, above 今日やること, keyboard-reachable.
+    const step=page.getByTestId('home-first-step'),cta=step.getByRole('link'),cb=await cta.boundingBox(),tb=await page.getByTestId('home-today').boundingBox();
+    assert.equal(await cta.count(),1);
+    assert.ok(cb.y+cb.height<=812,'375px CTA inside initial screen');
+    assert.ok(cb.y+cb.height<=tb.y);
+    assert.deepEqual(await cta.evaluate(el=>{const s=getComputedStyle(el);return {bg:s.backgroundColor,color:s.color};}),{bg:'rgb(31, 41, 55)',color:'rgb(255, 255, 255)'});
+    await cta.focus();assert.equal(await cta.evaluate(el=>el===document.activeElement),true);
+    await page.keyboard.press('Tab');assert.equal(await cta.evaluate(el=>el===document.activeElement),false);
+    await page.keyboard.press('Shift+Tab');assert.equal(await cta.evaluate(el=>el===document.activeElement),true);
+    await page.screenshot({path:'test-results/home-first-step-mobile.png',fullPage:false});
+  }
   await page.screenshot({path:'test-results/home-sidebar-mobile.png',fullPage:false});
   // An error on mobile remains visible without needing the menu or a disclosure.
   await update({failTable:'workspace_company_profiles',failure:'error'});await page.reload({waitUntil:'networkidle'});await unavailable.waitFor();
   assert.equal(await page.getByTestId('home-source-details').getAttribute('open'),'');
   await page.getByRole('alert').filter({hasText:'一部の情報を取得できません'}).waitFor();
+  const failedStep=page.getByTestId('home-first-step');
+  assert.equal(await failedStep.getAttribute('data-kind'),'unavailable');
+  assert.equal(await failedStep.getByRole('link').count(),0);
+  assert.equal(await failedStep.getByRole('button',{name:'再読み込み',exact:true}).count(),1);
+  assert.equal(await page.getByRole('button',{name:'再読み込み',exact:true}).count(),1);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+  await page.screenshot({path:'test-results/home-first-step-unavailable-mobile.png',fullPage:false});
   await update({failTable:null});await page.getByRole('button',{name:'再読み込み',exact:true}).click();await normal();
   await page.setViewportSize({width:1280,height:900});
   if(process.env.HOME_NAV_UI_ONLY!=='1') {
@@ -682,7 +717,14 @@ try {
   assert.match(await missingNotice.textContent(),/決算月・設立日・資本金/);
   assert.doesNotMatch(await page.getByTestId('home-today').textContent(),/優先して表示する対応候補はありません/);
   await page.screenshot({path:'test-results/profile-next-step-home.png',fullPage:false});
-  await missingNotice.getByRole('link',{name:'決算月から入力する',exact:true}).click();
+  const profileStep=page.getByTestId('home-first-step');
+  assert.equal(await profileStep.getAttribute('data-kind'),'profile');
+  await profileStep.getByRole('heading',{name:'まず、会社情報を入力してください',exact:true}).waitFor();
+  assert.equal(await missingNotice.getByRole('link').count(),0);
+  assert.equal(await profileStep.getByRole('link').count(),1);
+  await page.keyboard.press('Tab');
+  await profileStep.getByRole('link',{name:'入力を始める',exact:true}).focus();
+  await page.keyboard.press('Enter');
   await page.waitForURL(home+'/profile#company-profile-fiscalMonth');
   await page.waitForFunction(()=>document.activeElement?.id==='company-profile-fiscalMonth');
   const guidance = page.getByRole('region',{name:'入力する項目の案内',exact:true});
