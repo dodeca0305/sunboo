@@ -7,6 +7,9 @@ test('申告のみ：2行', () => {
   const g = procedureCompletionGuide('DEPRECIABLE_ASSET_TAX_RETURN');
   assert.deepEqual(g.kind === 'filing_only' ? g.lines : null, ['申告書を提出した', '受付完了を確認し、控えを残した']);
   assert.equal(canPlanTaxPayment('DEPRECIABLE_ASSET_TAX_RETURN'), false);
+  assert.equal(g.heading, '提出から完了まで');
+  assert.deepEqual(g.kind === 'filing_only' ? g.steps.map((s) => s.title) : null, ['提出する', '受付を確認する']);
+  assert.ok(g.kind === 'filing_only' && g.steps.every((s) => s.condition === undefined && s.note.length > 0));
 });
 
 test('申告＋納付：3行。既存の納付区分と一致', () => {
@@ -19,6 +22,12 @@ test('申告＋納付：3行。既存の納付区分と一致', () => {
       '提出と支払いの控えを残した',
     ], code);
     assert.equal(canPlanTaxPayment(code), true, code);
+    assert.equal(g.heading, '提出から完了まで', code);
+    const steps = g.kind === 'filing_and_payment' ? g.steps : [];
+    assert.deepEqual(steps.map((s) => s.title), ['提出する', '支払いを済ませる', '控えを残す'], code);
+    assert.equal(steps[1].condition, '納める税金がある場合', code);
+    assert.match(steps[0].note, /受付が完了/, code);
+    assert.match(steps[2].note, /提出の控えと、支払いの控えの両方/, code);
   }
 });
 
