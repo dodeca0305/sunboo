@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { createServerSupabase } from '@/lib/supabase/server';
 import PageHeader from '@/components/PageHeader';
 import WorkspaceDashboard from '@/components/WorkspaceDashboard';
+import WorkspaceFirstStep from '@/components/WorkspaceFirstStep';
+import { selectWorkspaceFirstStep } from '@/lib/workspaceFirstStep';
 import WorkspaceCompletionFeedback from '@/components/WorkspaceCompletionFeedback';
 import WorkspaceTodaySalesCard from '@/components/WorkspaceTodaySalesCard';
 import WorkspaceTaxReviewSummaryCard from '@/components/WorkspaceTaxReviewSummaryCard';
@@ -175,6 +177,13 @@ export default async function WorkspaceCompanyPage({
     sources.companyProfile.status === 'loaded'
       ? sources.companyProfile.value
       : null;
+  const missingInputs = profile ? missingProfileInputs(profile.profile) : [];
+  const firstStep = selectWorkspaceFirstStep({
+    companyId,
+    readFailed: failed,
+    missingInputs,
+    todayActions: derived.status === 'loaded' ? derived.value.todayActions : [],
+  });
   return (
     <div className="space-y-6">
       <PageHeader
@@ -193,8 +202,8 @@ export default async function WorkspaceCompanyPage({
             )}
           </span>
         }
-        subtitle="まず「今日やること」を確認してください。必要な情報や手続きはメニューから開けます。"
       />
+      <WorkspaceFirstStep step={firstStep} />
       <WorkspaceCompletionFeedback companyId={companyId} />
       {failed && (
         <section role="alert" className="card space-y-3">
@@ -202,13 +211,13 @@ export default async function WorkspaceCompanyPage({
             一部の情報を取得できません。取得できた情報だけを表示しています。
             {sources.taxPlans.status !== 'loaded' && '納税予定は、取得の失敗や納付日を確認できない過去の登録がある場合にも集計を保留します。'}
           </p>
-          <WorkspaceReadReloadButton />
         </section>
       )}
       {derived.status === 'loaded' ? (
         <WorkspaceDashboard
           companyId={companyId}
-          missingInputs={profile ? missingProfileInputs(profile.profile) : []}
+          missingInputs={missingInputs}
+          profileIsFirstStep={firstStep.kind === 'profile'}
           company={{
             corporateType: company.corporate_type,
             fiscalMonth: company.fiscal_month,
@@ -233,7 +242,7 @@ export default async function WorkspaceCompanyPage({
         >
           <h2 className="font-semibold">今日やること</h2>
           <p>
-            必要なデータを取得できないため、対応が必要かどうかはまだ判断していません。上の「再読み込み」を押してください。
+            必要なデータを取得できないため、対応が必要かどうかはまだ判断していません。最上部の「再読み込み」を押してください。
           </p>
         </section>
       )}

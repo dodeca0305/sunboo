@@ -15,6 +15,7 @@ import type {
 } from '@/lib/workspaceNotifications';
 import type { CompanyState } from '@/lib/state';
 import type { CompanyStage, ConsumptionTaxStatus } from '@/lib/companyProfile';
+import { actionHrefFor } from '@/lib/workspaceFirstStep';
 import StatusBadge from '@/components/StatusBadge';
 import { PRIORITY_TAG_CLASS, type StatusBadgeKind } from '@/lib/statusBadge';
 
@@ -93,17 +94,7 @@ function isActionOverdue(action: WorkspaceDecisionAction): boolean {
   return action.reason.includes('期限を過ぎています');
 }
 
-// 遷移先の決定優先順位: ①growth起因actionが直接持つactionHref（該当月の売上目標画面）
-// ②手続き起因actionのprocedureId+dueDateから組み立てるRoadmapの出現単位の深いリンク
-//   （PR#131と同じ既存の仕組み、roadmap?procedureId=...&dueDate=...）
-// ③上記のいずれも無ければ汎用のRoadmapへのリンク
-function actionHrefFor(companyId: number, action: WorkspaceDecisionAction): string {
-  if (action.actionHref) return action.actionHref;
-  if (action.procedureId != null && action.dueDate !== null) {
-    return `/admin/workspaces/${companyId}/roadmap?procedureId=${action.procedureId}&dueDate=${encodeURIComponent(action.dueDate)}`;
-  }
-  return `/admin/workspaces/${companyId}/roadmap`;
-}
+// 遷移先の決定（actionHref→手続きの深いリンク→汎用Roadmap）は workspaceFirstStep.ts の actionHrefFor を共用する。
 
 function TodayActionRow({ action, companyId }: { action: WorkspaceDecisionAction; companyId: number }) {
   const toneClass = isActionOverdue(action) ? 'text-sunboo-danger' : 'text-sunboo-ink-muted';
@@ -201,8 +192,10 @@ export default function WorkspaceDashboard({
   notifications,
   documentsNeedingUpdateCount,
   missingInputs = [],
+  profileIsFirstStep = false,
 }: {
   missingInputs?: MissingProfileInput[];
+  profileIsFirstStep?: boolean;
   companyId: number;
   company: {
     corporateType: string;
@@ -249,7 +242,7 @@ export default function WorkspaceDashboard({
           ) : (
             <p className="text-sm text-sunboo-ink-muted">
               {missingInputs.length > 0
-                ? 'まず、下の未入力項目を確認して、会社の案内を整えましょう。'
+                ? 'まず、会社情報の未入力項目を確認して、案内を整えましょう。'
                 : '今の登録情報から、優先して表示する対応候補はありません。今後の予定は「年間ロードマップ」で確認できます。'}
               {missingInputs.length === 0 && <Link href={`/admin/workspaces/${companyId}/roadmap`} className="btn-secondary mt-2 flex w-fit">今後の手続きを確認する</Link>}
             </p>
@@ -261,9 +254,11 @@ export default function WorkspaceDashboard({
             <h3 className="font-semibold">会社情報を入力して、手続きの案内を整えましょう</h3>
             <p>未入力：{missingInputs.map(field => field.label).join('・')}</p>
             <p>手続きの時期や必要性を案内するために使います。分からない項目は空欄のまま途中保存できます。</p>
-            <Link href={`/admin/workspaces/${companyId}/profile#${profileInputId(missingInputs[0].key)}`} className="btn-primary inline-flex">
-              {missingInputs[0].label}から入力する
-            </Link>
+            {!profileIsFirstStep && (
+              <Link href={`/admin/workspaces/${companyId}/profile#${profileInputId(missingInputs[0].key)}`} className="btn-primary inline-flex">
+                {missingInputs[0].label}から入力する
+              </Link>
+            )}
           </section>
         )}
 
