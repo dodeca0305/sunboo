@@ -736,14 +736,30 @@ try {
       }
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, `${label}:横溢れ`);
     };
+    // 全区間を持つ合成手続き。DOM順：提出先→必要書類→対応状況→対象→提出から完了まで（案内は最後）。
+    const fullProc = (code) => ({...proc, code, target_note:'合成の対象説明', caution_note:'合成の注意説明', procedure_documents:[{name:'合成必要書類',form_number:null,is_required:true,notes:null,item_type:'document',sort_order:1}]});
+    const checkOrder = async (label) => {
+      const li = page.locator('li').filter({has: page.getByTestId('procedure-completion-guide')}).first();
+      const marks = [li.getByText('提出先',{exact:true}), li.getByText('必要書類',{exact:true}), li.getByText('対応状況',{exact:true}), li.getByText('対象：',{exact:true}), li.getByTestId('procedure-completion-guide')];
+      for (const m of marks) assert.equal(await m.count(), 1, `${label}:順序要素`);
+      const handles = [];
+      for (const m of marks) handles.push(await m.elementHandle());
+      for (let i = 0; i < handles.length - 1; i++) {
+        const before = await page.evaluate(([a, b]) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING), [handles[i], handles[i + 1]]);
+        assert.equal(before, true, `${label}:DOM順${i}`);
+      }
+      assert.equal(await li.getByTestId('procedure-completion-guide').evaluate((el) => el.parentElement.tagName === 'DL'), true, `${label}:dl`);
+      assert.equal(await li.locator('[aria-label="対応の案内"] [data-testid="procedure-completion-guide"]').count(), 0, `${label}:上部に無い`);
+    };
     for (const [code, kind, titles] of [['WITHHOLDING_TAX','unconfirmed',[]],['DEPRECIABLE_ASSET_TAX_RETURN','filing_only',['提出する','受付を確認する']],['CORP_TAX_RETURN','filing_and_payment',['提出する','支払いを済ませる','控えを残す']]]) {
       state = structuredClone(initial);
-      state.data.procedures = [{...proc, code}];
+      state.data.procedures = [fullProc(code)];
       await update();
       await page.setViewportSize({width:375,height:800});
       await page.goto(home + '/roadmap', {waitUntil:'networkidle'});
       const guideBox = page.getByTestId('procedure-completion-guide').first();
       await guideBox.waitFor();
+      await checkOrder(`375:${kind}`);
       assert.equal(await guideBox.getAttribute('data-kind'), kind);
       assert.equal(await guideBox.locator('input,button,a').count(), 0);
       assert.equal(await page.getByText('該当要否を確認し、必要な提出・納付等を行い').count(), 0);
@@ -792,11 +808,12 @@ try {
     }
     // 共有（公開側）の既存合成URLでも同じ表示。編集部品は0。
     state = structuredClone(initial);
-    state.data.procedures = [{...proc, code:'DEPRECIABLE_ASSET_TAX_RETURN'}];
+    state.data.procedures = [fullProc('DEPRECIABLE_ASSET_TAX_RETURN')];
     await update();
     await page.goto(origin + '/share/' + 'b'.repeat(64), {waitUntil:'networkidle'});
     const sharedGuide = page.getByTestId('procedure-completion-guide').first();
     await sharedGuide.waitFor();
+    await checkOrder('shared');
     assert.equal(await sharedGuide.getAttribute('data-kind'), 'filing_only');
     assert.equal(await sharedGuide.locator('input,button,a').count(), 0);
     await checkFlow(sharedGuide, ['提出する', '受付を確認する'], 'shared');
