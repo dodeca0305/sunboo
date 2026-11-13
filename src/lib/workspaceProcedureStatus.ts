@@ -20,6 +20,15 @@ export const WORKSPACE_PROCEDURE_STATUS_LABEL: Record<WorkspaceProcedureStatus, 
   on_hold: '保留',
 };
 
+// 年間ロードマップの選択肢だけで使う表示用の補足（どの状態を選ぶかの目安）。
+// バッジ等は上のコンパクトなラベルのまま。保存値・順序は変えない。
+export const WORKSPACE_PROCEDURE_STATUS_HINT: Record<WorkspaceProcedureStatus, string> = {
+  not_started: 'まだ始めていない',
+  in_progress: '担当者に依頼済み・準備中',
+  done: '必要な対応と確認を終えた',
+  on_hold: '事情があって一旦止めている',
+};
+
 export const WORKSPACE_PROCEDURE_STATUSES: WorkspaceProcedureStatus[] = [
   'not_started', 'in_progress', 'done', 'on_hold',
 ];

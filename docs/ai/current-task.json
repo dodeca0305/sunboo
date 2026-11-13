@@ -1,25 +1,24 @@
 {
   "status": "idle",
-  "id": "completion-confirmation-wording",
-  "baseSha": "d8f99ef2693bfb833402cd561dd68867ee65c423",
+  "id": "procedure-status-hints",
+  "baseSha": "a287ad95feef0f179fa631964d23cb4073c75d15",
   "extraUsageDisabledConfirmed": true,
-  "goal": "User approved completed-state wording so they can understand when done. Change known completion guide heading and visible titles; no new controls or save logic.",
+  "goal": "User approved short descriptions in roadmap status options to explain which state to choose. Display-only, no new status or save logic.",
   "files": [
-    "src/lib/procedureCompletionGuide.ts",
-    "src/lib/procedureCompletionGuide.test.ts",
+    "src/lib/workspaceProcedureStatus.ts",
+    "src/components/AnnualRoadmapView.tsx",
     "playwright/verify-home-read-safety.mjs",
     "docs/ai/LAST_RESULT.md"
   ],
   "acceptance": [
-    "Known filing guides: heading 完了にする前の確認. Filing+payment visible steps: 申告の受付を確認した / 支払いを済ませた (persistent condition 納める税金がある場合) / 提出・支払いの控えを保管した. Important: explicitly keep payment receipt conditional when no payment (e.g. permanent third condition 支払いの控えは、納める税金がある場合 and note conditional). Keep first receipt-confirmation fact and receipt storage. No tax criteria/deadline/status/save/DB/permissions change.",
-    "Filing-only asset must remain 2 completed-state titles (申告書を提出した / 受付を確認し、控えを保管した or concise equivalent), NO tax payment requirement added. Same existing 6-code allowlists only; unknown/withholding branch unchanged and cannot assert known completion. Keep kinds/lines contracts if possible; do not widen classification.",
-    "Keep existing component, large semibold labels/details initially closed/quiet layout and bottom placement after target. No new checkbox, automatic completion, API or persistence. No new UI scope. Japanese long labels must wrap without horizontal overflow at375px. Preserve three-choice and bold accountant guidance.",
-    "Update existing helper tests and browser expectations to new wording; test nonpayment conditional remains visible, filing-only no payment, unknown unchanged, details and requested section order still work. Native Edit/Write for source/tests only, no shell/Python source edits or subagents. No commit/push/prod/DB.",
-    "Before own3118 dev cp -n AGENTS unique test-results/completion-confirmation-wording-AGENTS.orig.md. Never stop3130. After own dev/build verify prefix and remove only generated suffix via native Edit. Record actual results in LAST_RESULT then stop."
+    "In AnnualRoadmapView status select options show: 未着手：まだ始めていない / 進行中：担当者に依頼済み・準備中 / 完了：必要な対応と確認を終えた / 保留：事情があって一旦止めている. Keep existing status codes/order, values, aria labels, handler, disabled/error/save/uncertain protections unchanged. Do not select or save anything in production.",
+    "Add typed four-status hint map in existing workspaceProcedureStatus.ts (or equivalent minimal display constant); keep existing compact WORKSPACE_PROCEDURE_STATUS_LABEL unchanged for badges and all other callers. No global renaming. Roadmap-only option descriptions, no persistent field, no changed assignments, DB, permissions, tax or deadline logic.",
+    "Keep native dropdown/visible chevron/current quiet styling. Ensure full labels readable at375px with no overflow. Minimal max-width/class adjustment if needed, no redesign. Readonly shared badges remain compact and noneditable. Preserve completion guide and corporate choices.",
+    "Extend existing synthetic browser checks: exact 4 option descriptions+same 4 values/order, no change/save just from rendering/opening/closing. Check375px and desktop screenshot; shared compact badge unchanged. Existing synthetic save checks continue to pass. No new mirror unit test for constants. Native Edit/Write source/tests only, no shell/Python source writes, no subagents.",
+    "Before own3118dev cp-n AGENTS unique test-results/procedure-status-hints-AGENTS.orig.md. Never stop3130. After dev ends preserve .next/dev outside repo if generated duplicate types threaten build (no deletions) and verify/remove only Next AGENTS suffix via native Edit. No commit/push/prod/DB; record short actual LAST_RESULT then stop."
   ],
   "checks": [
-    "node --test src/lib/procedureCompletionGuide.test.ts once after settled edits.",
-    "HOME_NAV_UI_ONLY=1 node playwright/verify-home-read-safety.mjs own3118 synthetic; relevant375px/desktop/shared screenshots and existing regressions. No production calls/writes. No needless successful repeats.",
-    "npm run lint; npm run build -- --webpack after own dev stopped. Logs test-results/completion-confirmation-wording-*.log. ExistingGrowth warning1 only."
+    "HOME_NAV_UI_ONLY=1 node playwright/verify-home-read-safety.mjs once after settled edits own3118 synthetic. Preserve existing guards; no production requests/writes; focus only status hints on review.",
+    "npm run lint; npm run build -- --webpack after dev stops. Logs test-results/procedure-status-hints-*.log. ExistingGrowth warning1 only. Preserve failed log if cache issue; no unnecessary successful reruns."
   ]
 }

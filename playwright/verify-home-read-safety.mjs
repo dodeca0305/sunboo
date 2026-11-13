@@ -984,6 +984,25 @@ try {
   const assignedDate=state.data.workspace_procedure_statuses[0].occurrence_key;
   assert.equal(state.data.workspace_procedure_statuses[0].status,'not_started');
   const statusSelect=page.getByRole('combobox',{name:'合成ホーム手続きの対応状況',exact:true}).first();
+  { // Status option hints: display-only; rendering and focus/dismiss (Escape) must not save or change the value. Native menu open/close is verified by Codex locally.
+    const hintLabels=['未着手：まだ始めていない','進行中：担当者に依頼済み・準備中','完了：必要な対応と確認を終えた','保留：事情があって一旦止めている'];
+    const hintValues=['not_started','in_progress','done','on_hold'];
+    const readOptions=()=>statusSelect.locator('option').evaluateAll(os=>os.map(o=>({v:o.value,t:o.textContent.trim()})));
+    const beforeStatus=responsibilityStatusWrites,beforeRole=responsibilityWrites.length,beforeValue=await statusSelect.inputValue();
+    const opts=await readOptions();
+    assert.deepEqual(opts.map(o=>o.t),hintLabels);assert.deepEqual(opts.map(o=>o.v),hintValues);
+    await statusSelect.focus();await page.keyboard.press('Escape');await page.waitForTimeout(200);
+    assert.equal(await statusSelect.inputValue(),beforeValue);
+    assert.equal(responsibilityStatusWrites,beforeStatus);assert.equal(responsibilityWrites.length,beforeRole);
+    await page.setViewportSize({width:375,height:812});await statusSelect.scrollIntoViewIfNeeded();
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'status hints 375 no overflow');
+    const sb=await statusSelect.boundingBox();assert.ok(sb.x>=0&&sb.x+sb.width<=375,'status select inside 375px');
+    await page.screenshot({path:'test-results/procedure-status-hints-mobile.png',fullPage:false});
+    await page.setViewportSize({width:1280,height:900});await statusSelect.scrollIntoViewIfNeeded();
+    await page.screenshot({path:'test-results/procedure-status-hints-desktop.png',fullPage:false});
+    assert.deepEqual((await readOptions()).map(o=>o.t),hintLabels);
+    assert.equal(responsibilityStatusWrites,beforeStatus);assert.equal(responsibilityWrites.length,beforeRole);
+  }
   await statusSelect.selectOption('in_progress');await page.waitForLoadState('networkidle');
   await page.waitForFunction(()=>[...document.querySelectorAll('select')].some(s=>s.getAttribute('aria-label')==='合成ホーム手続きの対応状況'&&s.value==='in_progress'));
   assert.equal(state.data.workspace_procedure_statuses[0].responsible_role,'tax_accountant');
