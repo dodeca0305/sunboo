@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { ScheduleProcedure } from './scheduleProcedure';
-import { protectSubmissionDestination, isKnownUnavailableSubmissionUrl, isTokyoSpecialWard } from './submissionLinkSafety.ts';
+import { protectSubmissionDestination, isKnownUnavailableSubmissionUrl, isTokyoSpecialWard, correctKnownSubmissionUrl } from './submissionLinkSafety.ts';
+import { selectProcedureReference } from './diagnosisSubmissionInfo.ts';
 import { buildRoadmapSubmissionInfo } from './roadmapSubmissionInfo.ts';
 import { buildRoadmapExportRows } from './roadmapExport.ts';
 import { trialExecutionLinks } from './trialActionGuide.ts';
@@ -55,4 +56,34 @@ test('Excel/PDF common rows carry the held destination, official explanation and
  assert.equal(rows[0].officeName,'提出先は要確認');assert.equal(rows[0].url,'https://www.tax.metro.tokyo.lg.jp/kazei/work/shokyak_sis');assert.match(rows[0].cautionNote,/本店所在地だけでは/);assert.match(rows[0].cautionNote,/既存の注意/);
  for(const key of ['dueDate','year','month','status','confidence','procedureName','submissionMethod'] as const)assert.equal(rows[0][key],before[0][key]);
  assert.equal(JSON.stringify(rows).includes(bad),false);
+});
+const ntaWrong='https://www.nta.go.jp/about/organization/tokyo/shokatsu/shibuya/index.htm';
+const ntaRight='https://www.nta.go.jp/about/organization/tokyo/location/tokyo/shibuya/index.htm';
+test('only the confirmed NTA Shibuya URL is corrected; query/hash/slash tolerated, lookalikes and others untouched',()=>{
+ for(const url of [ntaWrong,ntaWrong+'?a=1#b',ntaWrong+'/','http://nta.go.jp/about/organization/tokyo/shokatsu/shibuya/index.htm'])assert.equal(correctKnownSubmissionUrl(url),ntaRight);
+ for(const url of [
+  'https://www.nta.go.jp.evil.invalid/about/organization/tokyo/shokatsu/shibuya/index.htm',
+  'https://evil.invalid/about/organization/tokyo/shokatsu/shibuya/index.htm',
+  'https://user:pw@www.nta.go.jp/about/organization/tokyo/shokatsu/shibuya/index.htm',
+  'https://www.nta.go.jp:8443/about/organization/tokyo/shokatsu/shibuya/index.htm',
+  'ftp://www.nta.go.jp/about/organization/tokyo/shokatsu/shibuya/index.htm',
+  'https://www.nta.go.jp/about/organization/tokyo/shokatsu/shinjuku/index.htm',
+  'https://www.nta.go.jp/about/organization/tokyo/shokatsu/shibuya/other.htm',
+  ntaRight,
+  'https://www.nta.go.jp/'])assert.equal(correctKnownSubmissionUrl(url),url);
+ assert.equal(correctKnownSubmissionUrl(null),null);assert.equal(correctKnownSubmissionUrl(undefined),undefined);assert.equal(correctKnownSubmissionUrl('bad'),'bad');
+ assert.equal(isKnownUnavailableSubmissionUrl(ntaWrong),false);
+});
+test('NTA correction reaches roadmap info, export, trial and diagnosis links without mutating sources; broken identical fallback stays excluded',()=>{
+ const o={...office,official_url:ntaWrong,website_url:null,fallback_url:null,official_url_status:'ok' as const};
+ const p={...procedure,code:'CORPORATE_TAX_RETURN',office:o};
+ assert.equal(buildRoadmapSubmissionInfo(p).url,ntaRight);assert.equal(o.official_url,ntaWrong);
+ assert.equal(buildRoadmapSubmissionInfo({...p,office:{...o,official_url:null,fallback_url:ntaWrong}}).url,ntaRight);
+ assert.equal(buildRoadmapExportRows(item(p),{})[0].url,ntaRight);
+ const links=[{label:'nta',url:ntaWrong,status:'ok' as const}];
+ assert.deepEqual(trialExecutionLinks({official_links:links}).map(l=>l.url),[ntaRight]);assert.equal(links[0].url,ntaWrong);
+ assert.deepEqual(trialExecutionLinks({official_links:[{label:'b',url:ntaWrong,status:'broken',fallback_url:ntaWrong}]}),[]);
+ assert.equal(buildRoadmapSubmissionInfo({...p,office:{...o,official_url_status:'broken',website_url:ntaWrong,fallback_url:ntaWrong}}).url,null);
+ assert.deepEqual(selectProcedureReference({label:'n',url:ntaWrong,status:'ok'} as never),{href:ntaRight,fallback:false});
+ assert.equal(selectProcedureReference({label:'n',url:ntaWrong,status:'broken',fallback_url:ntaWrong} as never),null);
 });

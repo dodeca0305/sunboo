@@ -1,4 +1,4 @@
-import { isKnownUnavailableSubmissionUrl } from './submissionLinkSafety.ts';
+import { isKnownUnavailableSubmissionUrl, correctKnownSubmissionUrl } from './submissionLinkSafety.ts';
 import type { LinkStatus } from '@/lib/types';
 import type { ScheduleProcedure } from '@/lib/scheduleProcedure';
 
@@ -53,15 +53,15 @@ function selectLink(office: NonNullable<ScheduleProcedure['office']>): {
 } {
   const officialStatus = normalizeStatus(office.official_url_status);
   if (office.official_url && officialStatus !== 'broken' && !isKnownUnavailableSubmissionUrl(office.official_url)) {
-    return { url: office.official_url, linkKind: 'official', urlStatus: officialStatus };
+    return { url: correctKnownSubmissionUrl(office.official_url), linkKind: 'official', urlStatus: officialStatus };
   }
   if (office.website_url && !isKnownUnavailableSubmissionUrl(office.website_url)
     && !(officialStatus === 'broken' && office.website_url === office.official_url)) {
-    return { url: office.website_url, linkKind: 'website', urlStatus: null };
+    return { url: correctKnownSubmissionUrl(office.website_url), linkKind: 'website', urlStatus: null };
   }
   if (office.fallback_url && !isKnownUnavailableSubmissionUrl(office.fallback_url)
     && !(officialStatus === 'broken' && office.fallback_url === office.official_url)) {
-    return { url: office.fallback_url, linkKind: 'fallback', urlStatus: null };
+    return { url: correctKnownSubmissionUrl(office.fallback_url), linkKind: 'fallback', urlStatus: null };
   }
   return { url: null, linkKind: 'none', urlStatus: null };
 }

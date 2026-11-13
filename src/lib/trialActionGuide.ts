@@ -1,4 +1,4 @@
-import { isKnownUnavailableSubmissionUrl } from './submissionLinkSafety.ts';
+import { isKnownUnavailableSubmissionUrl, correctKnownSubmissionUrl } from './submissionLinkSafety.ts';
 import type { ScheduleProcedure } from './scheduleProcedure';
 import type { StateConfidence } from './state';
 export function procedureTrialGuide(
@@ -46,8 +46,10 @@ export const TAX_TRIAL_SCOPE = {
 export function trialExecutionLinks(procedure: Pick<ScheduleProcedure, 'official_links'>) {
   const links: {label: string; url: string; unchecked: boolean}[] = [];
   for (const link of procedure.official_links) {
-    const url = link.status === 'broken' ? link.fallback_url : link.url;
-    if (!url || isKnownUnavailableSubmissionUrl(url) || link.status === 'broken' && url === link.url) continue;
+    const rawUrl = link.status === 'broken' ? link.fallback_url : link.url;
+    // Compare the raw value before correction so a broken original cannot return via an identical fallback.
+    if (!rawUrl || isKnownUnavailableSubmissionUrl(rawUrl) || link.status === 'broken' && rawUrl === link.url) continue;
+    const url = correctKnownSubmissionUrl(rawUrl);
     try {
       if (!['http:', 'https:'].includes(new URL(url).protocol) || links.some(v=>v.url===url)) continue;
       links.push({label: link.label || '手続きの案内', url,

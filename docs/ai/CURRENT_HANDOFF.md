@@ -1,5 +1,8 @@
 # 短い現在地（2026-11-13）
 
+- 最新作業：main 862c9adda8310946d1d4dff75f74afbbd0cf6de5から、実際に404になった渋谷税務署の案内URL1件だけを共用表示で補正。正URLは国税庁東京都一覧から辿り、Chrome表示も確認。DBは変更しない。
+- Claude対象21テスト、合成admin/shared画面、lint、webpackビルド成功。Codexレビュー済み、PR/CI/本番反映・架空会社23読取確認を継続。詳細はLAST_RESULT.md。下記は直前作業の記録。
+
 - 今回は『入口はわかりやすいけどダサい』への見た目調整。RoadmapNextActionのclassName 1行のみを変更し、角丸4px/太さ500/14px、高さ44px以上と黒背景白文字を維持。配置/文言/リンク/保存は不変。
 - 基点main 8e6e6b9985664fa8cc083020bb84f310618734bb（PR #196）。#196の黒い入口と#195の完了フローは統合/CI/本番読取確認済み。
 - Claudeが既存合成画面/lint/webpackビルドを実行し成功。Codexが375px/desktopの通常表示を目視。PR/CI/本番確認はCodexが継続。次の依頼は未割当。

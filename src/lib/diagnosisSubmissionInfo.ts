@@ -1,7 +1,7 @@
 import type { JurisdictionOffice } from './types';
 import type { ScheduleProcedure } from './scheduleProcedure';
 import { buildRoadmapSubmissionInfo } from './roadmapSubmissionInfo.ts';
-import { isKnownUnavailableSubmissionUrl } from './submissionLinkSafety.ts';
+import { isKnownUnavailableSubmissionUrl, correctKnownSubmissionUrl } from './submissionLinkSafety.ts';
 
 /** Only offices attached to the final, protected procedures belong in the summary. */
 export function buildDiagnosisOfficeSummaries(legacy: JurisdictionOffice[], procedures: ScheduleProcedure[]) {
@@ -37,9 +37,9 @@ export function selectProcedureReference(link: ScheduleProcedure['official_links
     if (!url || isKnownUnavailableSubmissionUrl(url)) return false;
     try { return ['https:', 'http:'].includes(new URL(url).protocol); } catch { return false; }
   };
-  if (link.status !== 'broken' && usable(link.url)) return { href: link.url, fallback: false };
+  if (link.status !== 'broken' && usable(link.url)) return { href: correctKnownSubmissionUrl(link.url), fallback: false };
   if (usable(link.fallback_url) && link.fallback_url !== link.url) {
-    return { href: link.fallback_url, fallback: true };
+    return { href: correctKnownSubmissionUrl(link.fallback_url), fallback: true };
   }
   return null;
 }

@@ -1188,12 +1188,16 @@ try {
   const cityCard=cardOf('合成法人市民税申告');
   const cityEntry=cityCard.getByTestId('roadmap-next-action');
   const baseOffice=state.data.jurisdictions[0].organization_offices;
+  const ntaWrongUrl='https://www.nta.go.jp/about/organization/tokyo/shokatsu/shibuya/index.htm';
+  const ntaCorrectedUrl='https://www.nta.go.jp/about/organization/tokyo/location/tokyo/shibuya/index.htm';
   const variants=[
     ['official',{official_url:'https://city.example.invalid/assets',official_url_status:'ok'},'まず、公式案内を確認する','https://city.example.invalid/assets',null],
     ['unchecked',{official_url:'https://city.example.invalid/assets',official_url_status:'unchecked'},'まず、公式案内を確認する','https://city.example.invalid/assets','このリンクは未確認です。'],
     ['related',{official_url:null,website_url:'https://city.example.invalid/site'},'まず、関連ページを確認する','https://city.example.invalid/site','公式ページとは確認できていない関連ページです。'],
     ['none',{official_url:null,website_url:null,fallback_url:null},null,null,'リンクは未登録です。'],
     ['unavailable',{official_url:brokenOfficeUrl,website_url:null,fallback_url:null,official_url_status:'ok'},null,null,'リンクを確認中です。'],
+    // Synthetic corporate office carrying the one confirmed wrong NTA URL; links are only read, never opened.
+    ['nta-corrected',{official_url:ntaWrongUrl,website_url:null,fallback_url:null,official_url_status:'ok'},'まず、公式案内を確認する',ntaCorrectedUrl,null],
   ];
   for(const [name,patch,label,href,note] of variants){
     state.data.jurisdictions[0].organization_offices={...baseOffice,...patch};
@@ -1212,6 +1216,16 @@ try {
     if(name==='unavailable'){
       assert.equal(await page.locator('a').evaluateAll((links,bad)=>links.filter(a=>a.href.startsWith(bad)).length,brokenOfficeUrl),0);
       await cityCard.scrollIntoViewIfNeeded();await cityEntry.screenshot({path:'test-results/next-action-unavailable.png'});
+    }
+    if(name==='nta-corrected'){
+      assert.equal(await page.locator('a').evaluateAll((links,bad)=>links.filter(a=>a.href===bad).length,ntaWrongUrl),0);
+      assert.ok(await page.locator('a').evaluateAll((links,good)=>links.some(a=>a.href===good),ntaCorrectedUrl));
+      await writeFile('test-results/nta-office-link-href.json',JSON.stringify({syntheticOnly:true,view:'admin',href:await cityEntry.getByRole('link').getAttribute('href'),wrongHrefCount:0,externalRequests:0},null,2));
+      // Shared view reads the same synthetic state.
+      await page.goto(origin+'/share/'+'b'.repeat(64),{waitUntil:'networkidle'});
+      const sharedEntry=cityCard.getByTestId('roadmap-next-action');
+      assert.equal(await sharedEntry.getByRole('link',{name:label,exact:true}).getAttribute('href'),ntaCorrectedUrl,'shared');
+      assert.equal(await page.locator('a').evaluateAll((links,bad)=>links.filter(a=>a.href===bad).length,ntaWrongUrl),0,'shared');
     }
   }
   await writeFile('test-results/submission-guidance-summary.json',JSON.stringify({syntheticOnly:true,adminAndShared:true,generalDiagnosis:true,unconfirmedAssetLocation:true,noBadOfficeOrUrl:true,otherCityUnchanged:true,downloaded:['xlsx','pdf'],mobileNoOverflow:true,productionCalls:0},null,2));
