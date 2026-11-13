@@ -12,7 +12,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import type { RoadmapItem, RoadmapYear } from '@/lib/roadmap';
 import type { ProcedureCategory } from '@/lib/types';
 import {
-  WORKSPACE_PROCEDURE_STATUS_LABEL, WORKSPACE_PROCEDURE_STATUSES, workspaceProcedureOccurrenceKey,
+  WORKSPACE_PROCEDURE_STATUS_LABEL, WORKSPACE_PROCEDURE_STATUS_HINT, WORKSPACE_PROCEDURE_STATUSES, workspaceProcedureOccurrenceKey,
   type WorkspaceProcedureStatus, type WorkspaceProcedureStatusMap,
 } from '@/lib/workspaceProcedureStatus';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
@@ -624,10 +624,12 @@ export default function AnnualRoadmapView({
                                             e.target.value as WorkspaceProcedureStatus,
                                           )
                                         }
-                                      className="form-select min-h-11 w-auto py-1 text-xs sm:min-h-0"
+                                      className="form-select min-h-11 w-auto max-w-full py-1 text-xs sm:min-h-0"
                                     >
                                       {WORKSPACE_PROCEDURE_STATUSES.map((s) => (
-                                        <option key={s} value={s}>{WORKSPACE_PROCEDURE_STATUS_LABEL[s]}</option>
+                                        <option key={s} value={s}>
+                                          {`${WORKSPACE_PROCEDURE_STATUS_LABEL[s]}：${WORKSPACE_PROCEDURE_STATUS_HINT[s]}`}
+                                        </option>
                                       ))}
                                     </select>
                                   ) : (
