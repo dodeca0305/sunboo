@@ -7,3 +7,4 @@
 - 長い提出先の説明（submission.notice）だけを「提出先の確認ポイント」（初期閉）に移した。窓口名・提出方法・既存リンクは維持。
 - 読み取り表示のみ。保存/DB/期限/税務判定/URL選択の変更なし。抽象的な「実行先」段落は新入口と重複するため削除。
 - 実装：`buildRoadmapNextAction`（roadmapSubmissionInfo.ts）、`RoadmapNextAction.tsx`。試験：roadmapNextAction.test.ts、playwright/verify-home-read-safety.mjs。
+- 見た目：主要リンクのCSSだけを静かな黒い長方形に調整（角丸4px・font-medium・text-sm・縦py-2/desktop横24px）。高さ44px以上、黒背景/白文字、既存focus/hoverは維持。配置/文言/リンク選択は変更なし。

@@ -13,7 +13,7 @@ export default function RoadmapNextAction({ procedure }: { procedure: SchedulePr
             href={action.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-primary flex min-h-11 w-full justify-center bg-sunboo-ink py-3 text-base text-white sm:w-fit sm:px-8"
+            className="btn-primary flex min-h-11 w-full justify-center rounded-[4px] bg-sunboo-ink py-2 text-sm font-medium text-white sm:w-fit sm:px-6"
           >
             {action.buttonLabel}
           </a>

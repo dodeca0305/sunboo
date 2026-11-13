@@ -1122,8 +1122,11 @@ try {
     const y=async(l)=>(await l.boundingBox()).y;
     assert.ok(await y(title)<await y(link)&&await y(link)<await y(eltax));
     assert.equal(await card.evaluate(c=>{const [h,l,e]=[c.querySelector('h4'),c.querySelector('[data-testid="roadmap-next-action"] a'),c.querySelector('[data-testid="roadmap-next-action"] ~ *')];return !!(h.compareDocumentPosition(l)&Node.DOCUMENT_POSITION_FOLLOWING)&&!!(l.compareDocumentPosition(e)&Node.DOCUMENT_POSITION_FOLLOWING);}),true);
-    const style=await link.evaluate(a=>{const s=getComputedStyle(a);return {bg:s.backgroundColor.match(/\d+/g).slice(0,3).map(Number),color:s.color};});
+    const style=await link.evaluate(a=>{const s=getComputedStyle(a);return {bg:s.backgroundColor.match(/\d+/g).slice(0,3).map(Number),color:s.color,radius:s.borderTopLeftRadius,weight:s.fontWeight,height:a.getBoundingClientRect().height};});
     assert.equal(style.color,'rgb(255, 255, 255)');
+    assert.equal(style.radius,'4px');
+    assert.equal(style.weight,'500');
+    assert.ok(style.height>=44,'primary link height: '+style.height);
     assert.ok(style.bg.every(v=>v<90),'primary link background is dark: '+style.bg);
     // Keyboard: Tab from the title reaches the primary link first and shows a focus outline.
     await title.evaluate(h=>{h.setAttribute('tabindex','-1');h.focus();});
