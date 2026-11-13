@@ -1228,6 +1228,118 @@ try {
       assert.equal(await page.locator('a').evaluateAll((links,bad)=>links.filter(a=>a.href===bad).length,ntaWrongUrl),0,'shared');
     }
   }
+  // Corporate tax chooser: actual CORP_TAX_RETURN on a synthetic national tax office (not the municipal fixture above).
+  const externalRequests=[];
+  page.context().on('request',r=>{const o=new URL(r.url()).origin;if(![origin,syntheticApi].includes(o))externalRequests.push(o);});
+  const corpUrl='https://office.example.invalid/corp';
+  const corpOffice={id:90010,name:'合成の法人税窓口',address:null,phone:null,website_url:null,official_url:corpUrl,official_url_status:'ok',fallback_url:null,map_url:null};
+  async function loadCorpFixture(office,patch={}){
+    state=structuredClone(initial);
+    state.data.jurisdictions=[{organization_types:{code:'tax_office'},organization_offices:office}];
+    state.data.procedures=[
+      {...proc,id:90010,code:'CORP_TAX_RETURN',name:'合成法人税申告',...patch},
+      {...proc,id:90011,code:'CORPORATE_TAX_RETURN',name:'合成コード違い申告'},
+      {...proc,id:90012,code:'WITHHOLDING_TAX',name:'合成源泉税申告'},
+    ];
+    await update();
+  }
+  const keyboardCommit={};
+  const choiceLabels=['税理士にお願いする','自分で電子申告する','どうすればいいか相談する'];
+  const eTaxLogin='https://login.e-tax.nta.go.jp/login/reception/loginCorporate';
+  const eTaxGuide='https://www.e-tax.nta.go.jp/hojin.html';
+  async function assertCorpChooser(view,shots){
+    const writesBefore=writes,card=cardOf('合成法人税申告'),box=card.getByTestId('corporate-filing-choice').first();
+    const select=box.getByRole('combobox',{name:'どう進めますか？',exact:true});
+    assert.equal(await select.count(),1,view);
+    assert.deepEqual(await select.locator('option').allTextContents(),['進め方を選ぶ',...choiceLabels],view);
+    assert.equal(await select.inputValue(),'',view);
+    // Initial: no generic office CTA / electronic panel inside the corporate card; other procedures unchanged.
+    assert.equal(await card.getByTestId('roadmap-next-action').count(),0,view);
+    assert.equal(await card.getByTestId('electronic-filing-entry').count(),0,view);
+    assert.equal(await card.getByRole('link',{name:'まず、公式案内を確認する',exact:true}).count(),0,view);
+    for(const name of ['合成コード違い申告','合成源泉税申告']){
+      const other=cardOf(name);
+      assert.equal(await other.getByTestId('corporate-filing-choice').count(),0,view+name);
+      assert.equal(await other.getByTestId('roadmap-next-action').count(),1,view+name);
+      // The alias code is not curated: unavailable, never a ready e-Tax entry. Only a registered national code (WITHHOLDING_TAX; CONSUMPTION_TAX_RETURN is hidden by synthetic profile rules) is ready.
+      const ready=name==='合成源泉税申告';
+      assert.equal(await other.getByTestId('electronic-filing-entry').count(),ready?1:0,view+name);
+      assert.equal(await other.getByTestId('electronic-filing-unavailable').count(),ready?0:1,view+name);
+    }
+    for(const [w,h,f] of shots){await page.setViewportSize({width:w,height:h});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,view+w);await card.scrollIntoViewIfNeeded();await box.screenshot({path:`test-results/corporate-filing-choice-${view}-initial-${f}.png`});}
+    await page.setViewportSize({width:1280,height:900});
+    const style=await select.evaluate(s=>{const c=getComputedStyle(s);return {h:s.getBoundingClientRect().height,bg:c.backgroundImage,appearance:c.appearance};});
+    assert.ok(style.h>=44,'select height '+style.h);assert.match(style.bg,/svg/,'visible chevron');
+    // Keyboard: focus shows an outline; ArrowDown changes the native select.
+    await select.focus();
+    const outline=await select.evaluate(s=>{const c=getComputedStyle(s);return {style:c.outlineStyle,width:c.outlineWidth,shadow:c.boxShadow};});
+    assert.ok(outline.style!=='none'&&outline.width!=='0px'||outline.shadow!=='none','focus indicator '+JSON.stringify(outline));
+    // macOS native popup: ArrowDown opens/moves, Enter commits. If headless cannot commit, mark UNVERIFIED (no product change).
+    await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');
+    keyboardCommit[view]=(await select.inputValue())==='accountant';
+    if(!keyboardCommit[view]){await page.keyboard.press('Escape');await select.selectOption({label:'税理士にお願いする'});}
+    assert.equal(await select.inputValue(),'accountant',view);
+    await box.getByText('顧問税理士に、申告の依頼をしてください。',{exact:true}).waitFor();
+    assert.ok(await box.getByText('必要な書類と提出予定日を確認しましょう。',{exact:true}).isVisible());
+    assert.equal(await box.getByRole('link').count()+await box.getByRole('button').count(),0,view+' accountant adds no link/button');
+    assert.equal(await box.getByText(/保存|担当に設定|完了/).count(),0,view);
+    await select.selectOption({label:'自分で電子申告する'});
+    assert.equal(await box.getByRole('link',{name:'初めての方・使い方を確認',exact:true}).getAttribute('href'),eTaxGuide,view);
+    assert.equal(await box.getByRole('link',{name:'e-Taxへログイン（法人）',exact:true}).getAttribute('href'),eTaxLogin,view);
+    assert.equal(await box.getByRole('link').count(),2,view);
+    assert.ok(await box.getByText(/税務ソフトが必要な場合/).isVisible(),view);
+    assert.ok(await box.getByText(/送信・支払いを行いません/).isVisible(),view);
+    assert.equal(await card.getByTestId('roadmap-next-action').count(),0,view);
+    for(const [w,h,f] of shots){await page.setViewportSize({width:w,height:h});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,view+w);await card.scrollIntoViewIfNeeded();await box.screenshot({path:`test-results/corporate-filing-choice-${view}-self-${f}.png`});}
+    await page.setViewportSize({width:1280,height:900});
+    await select.selectOption({label:'どうすればいいか相談する'});
+    const consult=box.getByRole('link',{name:'相談先の案内を開く',exact:true});
+    assert.equal(await consult.getAttribute('href'),corpUrl,view);assert.equal(await consult.getAttribute('target'),'_blank',view);
+    assert.ok(await box.getByText(/リンク元：合成の法人税窓口／別のタブで開きます/).isVisible(),view);
+    assert.equal(await box.getByRole('link').count(),1,view);
+    assert.equal(await box.getByRole('button').count(),0,view);
+    for(const [w,h,f] of shots){await page.setViewportSize({width:w,height:h});await card.scrollIntoViewIfNeeded();await box.screenshot({path:`test-results/corporate-filing-choice-${view}-consult-${f}.png`});}
+    await page.setViewportSize({width:1280,height:900});
+    assert.equal(writes,writesBefore,view+' no writes');
+    return select;
+  }
+  await loadCorpFixture(corpOffice);
+  await page.goto(home+'/roadmap',{waitUntil:'networkidle'});
+  await assertCorpChooser('admin',[[375,812,'mobile'],[1280,900,'desktop']]);
+  // Independent annual occurrences: choosing on one leaves the others at the placeholder.
+  const selects=page.getByTestId('corporate-filing-select'),count=await selects.count();
+  if(count>1){
+    const picked=await page.getByTestId('corporate-filing-select').evaluateAll(list=>list.map(s=>s.value));
+    assert.equal(picked.filter(v=>v!=='').length,1,'only one occurrence chosen: '+picked);
+  }
+  // Leaving the screen and returning resets the display-only choice (nothing is stored).
+  await page.goto(home+'/roadmap',{waitUntil:'networkidle'});
+  assert.equal(await page.getByTestId('corporate-filing-select').first().inputValue(),'');
+  await page.getByTestId('corporate-filing-select').first().selectOption({label:'税理士にお願いする'});
+  await page.goto(origin+'/share/'+'b'.repeat(64),{waitUntil:'networkidle'});
+  assert.equal(await page.getByTestId('corporate-filing-select').first().inputValue(),'','shared starts reset');
+  await assertCorpChooser('shared',[[375,812,'mobile'],[1280,900,'desktop']]);
+  // Unavailable states stay explicit with no guessed link.
+  await loadCorpFixture({...corpOffice,official_url:null},{e_filing_system_name:null,e_filing_system_url:null});
+  await page.goto(home+'/roadmap',{waitUntil:'networkidle'});
+  let corpBox=cardOf('合成法人税申告').getByTestId('corporate-filing-choice').first();
+  await corpBox.getByRole('combobox').selectOption({label:'自分で電子申告する'});
+  assert.ok(await corpBox.getByText('電子手続きの入口は未登録です。',{exact:false}).isVisible());
+  assert.equal(await corpBox.getByRole('link').count(),0);
+  await corpBox.getByRole('combobox').selectOption({label:'どうすればいいか相談する'});
+  assert.ok(await corpBox.getByText('リンクは未登録です。',{exact:true}).isVisible());
+  assert.equal(await corpBox.getByRole('link').count(),0);
+  await loadCorpFixture({...corpOffice,official_url:'https://www.nta.go.jp/about/organization/tokyo/shokatsu/shibuya/index.htm'},{e_filing_system_url:'https://e-tax.nta.go.jp.evil.invalid/'});
+  await page.goto(home+'/roadmap',{waitUntil:'networkidle'});
+  corpBox=cardOf('合成法人税申告').getByTestId('corporate-filing-choice').first();
+  await corpBox.getByRole('combobox').selectOption({label:'自分で電子申告する'});
+  assert.ok(await corpBox.getByText('電子手続きの入口を確認できません。',{exact:false}).isVisible());
+  assert.equal(await corpBox.getByRole('link').count(),0);
+  await corpBox.getByRole('combobox').selectOption({label:'どうすればいいか相談する'});
+  assert.equal(await corpBox.getByRole('link',{name:'相談先の案内を開く',exact:true}).getAttribute('href'),'https://www.nta.go.jp/about/organization/tokyo/location/tokyo/shibuya/index.htm');
+  assert.equal(await page.locator('a').evaluateAll(l=>l.filter(a=>a.href.includes('/shokatsu/shibuya/')).length),0);
+  assert.equal(externalRequests.length,0,'external requests: '+externalRequests);
+  await writeFile('test-results/corporate-filing-choice-summary.json',JSON.stringify({syntheticOnly:true,actualCode:'CORP_TAX_RETURN',adminAndShared:true,threeChoices:true,initialNoGenericCta:true,otherProceduresUnchanged:true,focusIndicator:true,keyboardCommit:Object.fromEntries(Object.entries(keyboardCommit).map(([k,v])=>[k,v?'verified':'UNVERIFIED (selectOption used; branch rendering only)'])),screenshots:['375','desktop'],occurrences:count,resetOnReload:true,unavailableAndUnsafeExplicit:true,writes,externalRequests:externalRequests.length,productionCalls:0},null,2));
   await writeFile('test-results/submission-guidance-summary.json',JSON.stringify({syntheticOnly:true,adminAndShared:true,generalDiagnosis:true,unconfirmedAssetLocation:true,noBadOfficeOrUrl:true,otherCityUnchanged:true,downloaded:['xlsx','pdf'],mobileNoOverflow:true,productionCalls:0},null,2));
   state = structuredClone(initial);
   await update();

@@ -8,7 +8,7 @@ import {
   subscribeProcedureStatusSave, notifyProcedureStatusSave,
   saveWorkspaceProcedureStatus, reconcileWorkspaceProcedureStatus, type ProcedureStatusSaveIntent,
 } from '@/lib/workspaceProcedureStatusData';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import type { RoadmapItem, RoadmapYear } from '@/lib/roadmap';
 import type { ProcedureCategory } from '@/lib/types';
 import {
@@ -22,6 +22,8 @@ import { AlertTriangle, Building2, ExternalLink, Info, Square } from 'lucide-rea
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import ElectronicFilingEntry from '@/components/ElectronicFilingEntry';
 import RoadmapNextAction from '@/components/RoadmapNextAction';
+import CorporateTaxNextAction from '@/components/CorporateTaxNextAction';
+import { usesCorporateFilingChoice } from '@/lib/corporateFilingChoice';
 import { ProcedureResponsibilityField } from '@/components/ProcedureResponsibility';
 import StatusBadge from '@/components/StatusBadge';
 import ProcedureCompletionGuide from '@/components/ProcedureCompletionGuide';
@@ -194,6 +196,8 @@ export default function AnnualRoadmapView({
   taxPaymentPlanMap?: WorkspaceTaxPaymentPlanMap;
 }) {
   const router = useRouter();
+  // 法人税の進め方の選択を、画面（会社/共有/一般）が変わるたびに初期化するためのkey用。表示や記録には使わない。
+  const pathname = usePathname();
   const [localStatusMap, setLocalStatusMap] = useState<WorkspaceProcedureStatusMap>(statusMap ?? {});
   // サーバー再取得で状態だけを同期し、未保存の予定税額ドラフトを再マウントで失わない。
   const [statusSource, setStatusSource] = useState(statusMap);
@@ -454,9 +458,18 @@ export default function AnnualRoadmapView({
                               <span className="tag">{CATEGORY_LABEL[item.procedure.category] ?? 'その他'}</span>
                             </div>
 
-                            <RoadmapNextAction procedure={item.procedure} />
+                            {usesCorporateFilingChoice(item.procedure) ? (
+                              <CorporateTaxNextAction
+                                key={`${pathname}-${companyId ?? 'none'}-${item.procedure.id}-${item.dueDate}`}
+                                procedure={item.procedure}
+                              />
+                            ) : (
+                              <>
+                                <RoadmapNextAction procedure={item.procedure} />
 
-                            <ElectronicFilingEntry procedure={item.procedure} />
+                                <ElectronicFilingEntry procedure={item.procedure} />
+                              </>
+                            )}
 
                             {taxEditable && canPlanTaxPayment(item.procedure.code) && (
                               <div data-testid={`tax-payment-editor-${taxPaymentKey}`} className="rounded-xl border border-blue-200 bg-blue-50/60 p-3">
