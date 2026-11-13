@@ -5,10 +5,11 @@ import { canPlanTaxPayment } from './workspaceTaxPaymentPlan.ts';
 
 test('申告のみ：2行', () => {
   const g = procedureCompletionGuide('DEPRECIABLE_ASSET_TAX_RETURN');
-  assert.deepEqual(g.kind === 'filing_only' ? g.lines : null, ['申告書を提出した', '受付完了を確認し、控えを残した']);
+  assert.deepEqual(g.kind === 'filing_only' ? g.lines : null, ['申告書を提出した', '受付を確認し、控えを保管した']);
   assert.equal(canPlanTaxPayment('DEPRECIABLE_ASSET_TAX_RETURN'), false);
-  assert.equal(g.heading, '提出から完了まで');
-  assert.deepEqual(g.kind === 'filing_only' ? g.steps.map((s) => s.title) : null, ['提出する', '受付を確認する']);
+  assert.equal(g.heading, '完了にする前の確認');
+  assert.deepEqual(g.kind === 'filing_only' ? g.steps.map((s) => s.title) : null, ['申告書を提出した', '受付を確認し、控えを保管した']);
+  assert.ok(g.kind === 'filing_only' && !JSON.stringify(g).includes('支払い'), '納付要件を足さない');
   assert.ok(g.kind === 'filing_only' && g.steps.every((s) => s.condition === undefined && s.note.length > 0));
 });
 
@@ -17,17 +18,19 @@ test('申告＋納付：3行。既存の納付区分と一致', () => {
     'PREFECTURAL_BUSINESS_TAX_RETURN', 'MUNICIPAL_RESIDENT_TAX_RETURN']) {
     const g = procedureCompletionGuide(code);
     assert.deepEqual(g.kind === 'filing_and_payment' ? g.lines : null, [
-      '申告書を提出し、受付完了を確認した',
+      '申告の受付を確認した',
       '納める税金がある場合は、支払いを済ませた',
-      '提出と支払いの控えを残した',
+      '提出・支払いの控えを保管した',
     ], code);
     assert.equal(canPlanTaxPayment(code), true, code);
-    assert.equal(g.heading, '提出から完了まで', code);
+    assert.equal(g.heading, '完了にする前の確認', code);
     const steps = g.kind === 'filing_and_payment' ? g.steps : [];
-    assert.deepEqual(steps.map((s) => s.title), ['提出する', '支払いを済ませる', '控えを残す'], code);
+    assert.deepEqual(steps.map((s) => s.title), ['申告の受付を確認した', '支払いを済ませた', '提出・支払いの控えを保管した'], code);
+    assert.equal(steps[0].condition, undefined, code);
     assert.equal(steps[1].condition, '納める税金がある場合', code);
+    assert.equal(steps[2].condition, '支払いの控えは、納める税金がある場合', code);
     assert.match(steps[0].note, /受付が完了/, code);
-    assert.match(steps[2].note, /提出の控えと、支払いの控えの両方/, code);
+    assert.match(steps[2].note, /提出の控えを保管.*納める税金がある場合は、支払いの控えも/, code);
   }
 });
 
