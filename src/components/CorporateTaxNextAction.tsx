@@ -31,7 +31,13 @@ export default function CorporateTaxNextAction({ procedure }: { procedure: Sched
       <div aria-live="polite" className="space-y-2">
         {view?.kind === 'accountant' && (
           <div className="space-y-1 text-sm text-sunboo-ink" data-testid="corporate-filing-accountant">
-            {view.lines.map((line) => <p key={line}>{line}</p>)}
+            {view.lines.map((line) => (
+              <p key={line}>
+                {line.split(/(申告の依頼|必要な書類|提出予定日)/).map((part, index) => (
+                  index % 2 ? <strong key={index} className="font-semibold">{part}</strong> : part
+                ))}
+              </p>
+            ))}
           </div>
         )}
         {view?.kind === 'self' && (view.entry?.state === 'ready' ? (

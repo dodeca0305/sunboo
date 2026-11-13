@@ -1,22 +1,19 @@
 {
   "status": "idle",
-  "id": "completion-flow-last",
-  "baseSha": "eb4b9c24c38f42acb2bf3cd03d12ad090ba5a02c",
+  "id": "accountant-guidance-emphasis",
+  "baseSha": "f7af5e451f29cbe6eb5331abcb23635c2364610d",
   "extraUsageDisabledConfirmed": true,
-  "goal": "Move existing completion guide to bottom: 提出先 -> 必要書類 -> 対応状況 -> 対象 -> 提出から完了まで. Minimal display-only change.",
+  "goal": "Emphasize only three existing action phrases in accountant guidance: 申告の依頼, 必要な書類, 提出予定日.",
   "files": [
-    "src/components/AnnualRoadmapView.tsx",
-    "playwright/verify-home-read-safety.mjs",
+    "src/components/CorporateTaxNextAction.tsx",
     "docs/ai/LAST_RESULT.md"
   ],
   "acceptance": [
-    "Move ProcedureCompletionGuide from reason/owner/deadline dl to bottom AFTER target/caution block. Wrap in valid dl with existing quiet border/spacing (guide has dt/dd). Keep content/classification/details and unknown-code branch unchanged. Preserve relative order submission/documents/status/target; no other logic changes. No renaming, new prose, DB/tax/deadline/save/permission changes.",
-    "PR199 corporate chooser stays at top untouched. Same AnnualRoadmapView placement in admin/shared/general; preserve missing-data/error/save safety.",
-    "Extend existing synthetic guide checks with DOM order submission/documents/status/target before guide on fixture with all sections, admin/shared and375px. Existing guide/details checks preserved. Native Edit only for source/tests, no shell/Python edits. No subagents. No mirror unit test for JSX move.",
-    "Before3118dev cp -n AGENTS unique test-results/completion-flow-last-AGENTS.orig.md. Only own3118 never3130. Verify original prefix, remove generated Next suffix only via native Edit. No commit/push/prod/DB. Record short LAST_RESULT then stop."
+    "Minimal display-only edit: render those 3 phrases with semantic strong/font-semibold in accountant view. Preserve all existing text/2-line grouping. Keep helper view.lines as source; no duplicated parallel copy of full text. Simple exact phrase split/mark is fine; no new abstraction/helper/file.",
+    "No changes to choices, other branches, links, content/tax rules/deadline/DB/state/save/security. Quiet existing styling. Native Claude Edit only for product source, no shell source writes; no subagents/extra credits/API. No commits/push/production.",
+    "Do not add tests for reversible typography-only change or rerun broad browser/pure tests unchanged. Codex copies changed component to existing local static preview /trial/corporate-filing-choice and visually verifies bold after local-only selection. No own dev needed so AGENTS should remain unchanged. Record only actual checks."
   ],
   "checks": [
-    "HOME_NAV_UI_ONLY=1 node playwright/verify-home-read-safety.mjs after edits own3118 synthetic. Save order evidence and375/desktop screenshots. Diagnose failures narrowly; no needless successful reruns.",
-    "npm run lint; npm run build -- --webpack after dev stops. Known existingGrowth warning1 only; no new warnings. Placement-only no pure unit tests needed; CI normal full tests."
+    "npm run lint (existingGrowth warning1 only); npm run build -- --webpack once. No new dev server or tests needed. Logs test-results/accountant-guidance-emphasis-*.log. Record LAST_RESULT then stop."
   ]
 }
