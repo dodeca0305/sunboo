@@ -21,6 +21,7 @@ import { buildRoadmapDocumentItems, hasAnyRoadmapDocumentItems, type RoadmapDocu
 import { AlertTriangle, Building2, ExternalLink, Info, Square } from 'lucide-react';
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import ElectronicFilingEntry from '@/components/ElectronicFilingEntry';
+import RoadmapNextAction from '@/components/RoadmapNextAction';
 import { ProcedureResponsibilityField } from '@/components/ProcedureResponsibility';
 import StatusBadge from '@/components/StatusBadge';
 import ProcedureCompletionGuide from '@/components/ProcedureCompletionGuide';
@@ -453,6 +454,8 @@ export default function AnnualRoadmapView({
                               <span className="tag">{CATEGORY_LABEL[item.procedure.category] ?? 'その他'}</span>
                             </div>
 
+                            <RoadmapNextAction procedure={item.procedure} />
+
                             <ElectronicFilingEntry procedure={item.procedure} />
 
                             {taxEditable && canPlanTaxPayment(item.procedure.code) && (
@@ -513,7 +516,6 @@ export default function AnnualRoadmapView({
                                 <div className="rounded-lg bg-slate-50 p-3"><dt className="mb-1 font-semibold text-sunboo-ink-muted">担当</dt><dd>{companyId !== undefined ? <ProcedureResponsibilityField procedureId={item.procedure.id} dueDate={item.dueDate} name={item.procedure.name} /> : <>役割の目安：{guide.owner}</>}</dd></div>
                                 <div className="rounded-lg bg-slate-50 p-3"><dt className="mb-1 font-semibold text-sunboo-ink-muted">期限</dt><dd>{item.dueDate}（個別事情・公式案内で最終確認）</dd></div>
                                 <ProcedureCompletionGuide code={item.procedure.code} />
-                                <div className="sm:col-span-2"><dt className="mb-1 font-semibold text-sunboo-ink-muted">実行先</dt><dd>下の提出先・公式ページから手続き内容を確認してください。未登録の提出先は推測しません。</dd></div>
                               </dl>
                               <p className="text-xs text-sunboo-ink-muted">担当の選択は記録です。依頼は担当者に別途ご確認ください。「完了」は対応状況の記録であり、行政機関の受付確認の代わりにはなりません。</p>
                             </section>
@@ -524,7 +526,12 @@ export default function AnnualRoadmapView({
                               {submission.officeName === null ? (
                                 <div className="mt-1 space-y-3" data-testid="submission-destination-unconfirmed">
                                   <p className="text-sm font-medium text-sunboo-ink">{submission.notice ? '提出先の確認が必要です' : '提出先情報は未登録です'}</p>
-                                  {submission.notice && <p className="text-sm leading-relaxed text-sunboo-ink-muted">{submission.notice}</p>}
+                                  {submission.notice && (
+                                    <details className="text-sm text-sunboo-ink-muted">
+                                      <summary className="cursor-pointer font-medium text-sunboo-ink">提出先の確認ポイント</summary>
+                                      <p className="mt-1 leading-relaxed">{submission.notice}</p>
+                                    </details>
+                                  )}
                                   {submission.url && <a className="btn-secondary inline-flex min-h-11 text-xs" href={submission.url} target="_blank" rel="noopener noreferrer">{submission.label}</a>}
                                 </div>
                               ) : (
@@ -540,7 +547,12 @@ export default function AnnualRoadmapView({
                                       ))}
                                     </div>
                                   )}
-                                  {submission.notice && <p className="text-sm text-sunboo-ink-muted">{submission.notice}</p>}
+                                  {submission.notice && (
+                                    <details className="text-sm text-sunboo-ink-muted">
+                                      <summary className="cursor-pointer font-medium text-sunboo-ink">提出先の確認ポイント</summary>
+                                      <p className="mt-1">{submission.notice}</p>
+                                    </details>
+                                  )}
                                   {submission.url && (
                                     <div className="flex flex-wrap items-center gap-1.5">
                                       <a

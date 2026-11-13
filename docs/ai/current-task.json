@@ -1,8 +1,8 @@
 {
   "status": "idle",
   "extraUsageDisabledConfirmed": true,
-  "lastCompletedTask": "completion-flow-design",
+  "lastCompletedTask": "roadmap-next-action",
   "notes": [
-    "Claude implementation and targeted checks passed; Codex reviewed all four screenshots and static diff. Release follows; no next task assigned."
+    "Claude implemented and tested; Codex reviewed static diff and CTA images. Release follows. No next task assigned."
   ]
 }

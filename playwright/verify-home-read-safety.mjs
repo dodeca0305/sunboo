@@ -1102,7 +1102,57 @@ try {
     assert.equal(await page.getByText('合成の誤った区役所窓口',{exact:true}).count(),0);
     assert.equal(await page.locator('a').evaluateAll((links,bad)=>links.filter(a=>a.href.startsWith(bad)).length,brokenOfficeUrl),0);
   }
+  // Next-action entry: unconditional checks on the synthetic Tokyo-23 asset card (admin and shared views).
+  const cardOf=(name)=>page.getByRole('heading',{name,exact:true}).first().locator('xpath=ancestor::li');
+  async function assertNextAction(screens){
+    const card=cardOf('合成償却資産申告');
+    const entry=card.getByTestId('roadmap-next-action');
+    assert.equal(await entry.count(),1);
+    const link=entry.getByRole('link',{name:'まず、提出先を確認する',exact:true});
+    assert.equal(await link.count(),1);
+    assert.equal(await entry.getByRole('link').count(),1);
+    assert.equal(await link.getAttribute('href'),'https://www.tax.metro.tokyo.lg.jp/kazei/work/shokyak_sis');
+    assert.equal(await link.getAttribute('target'),'_blank');
+    assert.match(await link.getAttribute('rel'),/noopener/);
+    assert.equal(await entry.getByRole('button').count(),0);
+    assert.ok(await entry.getByText('提出先はまだ確定していません。').isVisible());
+    assert.ok(await entry.getByText(/別のタブで開きます/).isVisible());
+    const eltax=card.getByRole('link',{name:'eLTAXの利用案内・手続きの入口',exact:true}).first();
+    const title=card.getByRole('heading',{name:'合成償却資産申告',exact:true});
+    const y=async(l)=>(await l.boundingBox()).y;
+    assert.ok(await y(title)<await y(link)&&await y(link)<await y(eltax));
+    assert.equal(await card.evaluate(c=>{const [h,l,e]=[c.querySelector('h4'),c.querySelector('[data-testid="roadmap-next-action"] a'),c.querySelector('[data-testid="roadmap-next-action"] ~ *')];return !!(h.compareDocumentPosition(l)&Node.DOCUMENT_POSITION_FOLLOWING)&&!!(l.compareDocumentPosition(e)&Node.DOCUMENT_POSITION_FOLLOWING);}),true);
+    const style=await link.evaluate(a=>{const s=getComputedStyle(a);return {bg:s.backgroundColor.match(/\d+/g).slice(0,3).map(Number),color:s.color};});
+    assert.equal(style.color,'rgb(255, 255, 255)');
+    assert.ok(style.bg.every(v=>v<90),'primary link background is dark: '+style.bg);
+    // Keyboard: Tab from the title reaches the primary link first and shows a focus outline.
+    await title.evaluate(h=>{h.setAttribute('tabindex','-1');h.focus();});
+    await page.keyboard.press('Tab');
+    assert.equal(await link.evaluate(a=>a===document.activeElement),true);
+    const outline=await link.evaluate(a=>{const s=getComputedStyle(a);return {style:s.outlineStyle,width:s.outlineWidth,shadow:s.boxShadow};});
+    assert.ok(outline.style!=='none'&&outline.width!=='0px'||outline.shadow!=='none','focus indicator: '+JSON.stringify(outline));
+    // Long notice starts closed; Enter opens and closes it. Warning stays visible outside it.
+    const notice=card.locator('details:has(> summary:text-is("提出先の確認ポイント"))');
+    assert.equal(await notice.count(),1);
+    assert.equal(await notice.evaluate(d=>d.open),false);
+    const before=writes;
+    await notice.locator('summary').focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await notice.evaluate(d=>d.open),true);
+    await page.keyboard.press('Enter');
+    assert.equal(await notice.evaluate(d=>d.open),false);
+    assert.equal(writes,before);
+    for(const [width,height,file] of screens){
+      await page.setViewportSize({width,height});
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'no horizontal overflow at '+width);
+      assert.equal(await link.evaluate(a=>a.scrollWidth<=a.clientWidth+1),true,'no clipped text at '+width);
+      await card.scrollIntoViewIfNeeded();
+      await entry.screenshot({path:'test-results/'+file});
+    }
+    await page.setViewportSize({width:1280,height:900});
+  }
   await assertSubmissionGuidance();
+  await assertNextAction([[375,812,'next-action-mobile.png'],[1280,900,'next-action-desktop.png']]);
   await page.goto(origin+'/result?pref=13&muni=131130&fm=3&corp=kabushiki&est=2020-01-01',{waitUntil:'networkidle'});
   await assertSubmissionGuidance();
   assert.equal(await page.getByRole('heading',{name:/手続きに関連する窓口/}).count(),0);
@@ -1122,6 +1172,7 @@ try {
   await page.screenshot({path:'test-results/submission-guidance-mobile.png',fullPage:false});
   await page.setViewportSize({width:1280,height:900});
   await page.goto(origin+'/share/'+'b'.repeat(64),{waitUntil:'networkidle'});await assertSubmissionGuidance();
+  await assertNextAction([]);
   assert.equal(await page.getByRole('button',{name:'PDFで出力',exact:true}).count(),0);
   // Other cities retain their existing resolution path; no Tokyo-only guidance leaks to them.
   state.data.workspace_companies[0].prefecture_code='13';state.data.workspace_companies[0].municipality_code='132012';
@@ -1130,6 +1181,36 @@ try {
   await update();await page.goto(home+'/roadmap',{waitUntil:'networkidle'});
   assert.equal(await page.getByRole('link',{name:'東京都の償却資産の説明（23区内の資産）',exact:true}).count(),0);
   assert.ok(await page.getByText('合成の別市窓口',{exact:true}).count()>0);
+  // Link-state variants on the non-guidance card (synthetic office, other city): one primary link or an honest short note.
+  const cityCard=cardOf('合成法人市民税申告');
+  const cityEntry=cityCard.getByTestId('roadmap-next-action');
+  const baseOffice=state.data.jurisdictions[0].organization_offices;
+  const variants=[
+    ['official',{official_url:'https://city.example.invalid/assets',official_url_status:'ok'},'まず、公式案内を確認する','https://city.example.invalid/assets',null],
+    ['unchecked',{official_url:'https://city.example.invalid/assets',official_url_status:'unchecked'},'まず、公式案内を確認する','https://city.example.invalid/assets','このリンクは未確認です。'],
+    ['related',{official_url:null,website_url:'https://city.example.invalid/site'},'まず、関連ページを確認する','https://city.example.invalid/site','公式ページとは確認できていない関連ページです。'],
+    ['none',{official_url:null,website_url:null,fallback_url:null},null,null,'リンクは未登録です。'],
+    ['unavailable',{official_url:brokenOfficeUrl,website_url:null,fallback_url:null,official_url_status:'ok'},null,null,'リンクを確認中です。'],
+  ];
+  for(const [name,patch,label,href,note] of variants){
+    state.data.jurisdictions[0].organization_offices={...baseOffice,...patch};
+    await update();await page.goto(home+'/roadmap',{waitUntil:'networkidle'});
+    assert.equal(await cityEntry.count(),1,name);
+    assert.equal(await cityEntry.getByRole('link').count(),label?1:0,name);
+    if(label){
+      const l=cityEntry.getByRole('link',{name:label,exact:true});
+      assert.equal(await l.getAttribute('href'),href,name);
+      assert.equal(await l.getAttribute('target'),'_blank',name);
+      assert.ok(await cityEntry.getByText('別のタブで開きます').isVisible(),name);
+    }
+    assert.equal(await cityEntry.getByRole('button').count(),0,name);
+    if(note) assert.ok(await cityEntry.getByText(note,{exact:true}).isVisible(),name+': '+note);
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,name);
+    if(name==='unavailable'){
+      assert.equal(await page.locator('a').evaluateAll((links,bad)=>links.filter(a=>a.href.startsWith(bad)).length,brokenOfficeUrl),0);
+      await cityCard.scrollIntoViewIfNeeded();await cityEntry.screenshot({path:'test-results/next-action-unavailable.png'});
+    }
+  }
   await writeFile('test-results/submission-guidance-summary.json',JSON.stringify({syntheticOnly:true,adminAndShared:true,generalDiagnosis:true,unconfirmedAssetLocation:true,noBadOfficeOrUrl:true,otherCityUnchanged:true,downloaded:['xlsx','pdf'],mobileNoOverflow:true,productionCalls:0},null,2));
   state = structuredClone(initial);
   await update();
