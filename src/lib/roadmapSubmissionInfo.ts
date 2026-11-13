@@ -114,3 +114,47 @@ export function buildRoadmapSubmissionInfo(proc: ScheduleProcedure): RoadmapSubm
     ...(!url && [office.official_url, office.website_url, office.fallback_url].some(isKnownUnavailableSubmissionUrl) ? {notice: '公式リンクを確認中です。登録済みのリンク切れページへの案内を停止しています。'} : {}),
   };
 }
+
+// ── 「次にすること」表示用ヘルパー（読み取り専用・純粋関数）────────────────
+// buildRoadmapSubmissionInfoが選んだURLだけを使い、URL選択・管轄判定は変更しない。
+// 未確認を確認済みに見せない／関連ページを公式と偽らない／安全でないURLを主要リンクにしない。
+export type RoadmapNextAction = {
+  href: string | null;
+  buttonLabel: string | null;
+  sourceName: string;
+  notes: string[];
+};
+
+function isSafeExternalHref(value: string | null): value is string {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return false;
+    if (url.username || url.password) return false;
+    return !isKnownUnavailableSubmissionUrl(value);
+  } catch { return false; }
+}
+
+export function buildRoadmapNextAction(proc: ScheduleProcedure): RoadmapNextAction {
+  const info = buildRoadmapSubmissionInfo(proc);
+  const unconfirmed = Boolean(proc.submissionGuidance);
+  const notes: string[] = [];
+  if (unconfirmed) notes.push('提出先はまだ確定していません。');
+
+  if (info.urlStatus === 'broken' || !isSafeExternalHref(info.url)) {
+    // 実際に未登録の場合と、登録はあるが使えない（リンク切れ/不正/認証情報付き）場合を区別する。
+    const office = proc.office;
+    const configured = Boolean(info.url) || Boolean(office?.official_url || office?.website_url || office?.fallback_url);
+    if (info.notice && !unconfirmed) notes.push('リンクを確認中です。');
+    else notes.push(configured ? '利用できる案内リンクがありません。' : 'リンクは未登録です。');
+    return { href: null, buttonLabel: null, sourceName: unconfirmed ? '' : (info.officeName ?? ''), notes };
+  }
+
+  let buttonLabel = 'まず、関連ページを確認する';
+  if (unconfirmed) buttonLabel = 'まず、提出先を確認する';
+  else if (info.linkKind === 'official') buttonLabel = 'まず、公式案内を確認する';
+
+  if (!unconfirmed && info.linkKind !== 'official') notes.push('公式ページとは確認できていない関連ページです。');
+  if (info.urlStatus === 'unchecked') notes.push('このリンクは未確認です。');
+  return { href: info.url, buttonLabel, sourceName: unconfirmed ? info.label : (info.officeName ?? ''), notes };
+}
