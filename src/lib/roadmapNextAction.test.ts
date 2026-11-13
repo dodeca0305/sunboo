@@ -21,6 +21,16 @@ test('Tokyo 23 asset guidance: destination-unconfirmed primary link', () => {
   assert.ok(a.notes.includes('提出先はまだ確定していません。'));
 });
 
+test('confirmed wrong NTA Shibuya URL: CTA uses the corrected page; broken identical copies stay hidden', () => {
+  const wrong = 'https://www.nta.go.jp/about/organization/tokyo/shokatsu/shibuya/index.htm';
+  const right = 'https://www.nta.go.jp/about/organization/tokyo/location/tokyo/shibuya/index.htm';
+  const ok = buildRoadmapNextAction(office({ official_url: wrong, official_url_status: 'ok' }));
+  assert.equal(ok.href, right);
+  assert.equal(ok.buttonLabel, 'まず、公式案内を確認する');
+  const broken = buildRoadmapNextAction(office({ official_url: wrong, website_url: wrong, fallback_url: wrong, official_url_status: 'broken' }));
+  assert.equal(broken.href, null);
+});
+
 test('official / website / fallback wording never calls related pages official', () => {
   const o = buildRoadmapNextAction(office({ official_url: 'https://a.example/', official_url_status: 'ok' }));
   assert.equal(o.buttonLabel, 'まず、公式案内を確認する');

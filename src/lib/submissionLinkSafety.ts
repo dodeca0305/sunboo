@@ -11,6 +11,21 @@ export function isKnownUnavailableSubmissionUrl(value: string | null | undefined
   } catch { return false; }
 }
 
+// Exactly one confirmed correction (native Chrome, 2026-11-13): the Shibuya tax office page under
+// /shokatsu/ leads to NTA 404; the NTA Tokyo directory links to the /location/ page below.
+// Not a generalized NTA rewrite and not a network availability check. Input is never mutated.
+const NTA_SHIBUYA_WRONG_PATH = '/about/organization/tokyo/shokatsu/shibuya/index.htm';
+const NTA_SHIBUYA_CORRECT_URL = 'https://www.nta.go.jp/about/organization/tokyo/location/tokyo/shibuya/index.htm';
+export function correctKnownSubmissionUrl<T extends string | null | undefined>(value: T): T | string {
+  if (!value) return value;
+  try {
+    const url = new URL(value);
+    if ((url.protocol !== 'https:' && url.protocol !== 'http:') || url.username || url.password || url.port) return value;
+    if (url.hostname !== 'www.nta.go.jp' && url.hostname !== 'nta.go.jp') return value;
+    return url.pathname.replace(/\/+$/, '') === NTA_SHIBUYA_WRONG_PATH ? NTA_SHIBUYA_CORRECT_URL : value;
+  } catch { return value; }
+}
+
 export type SubmissionGuidance = {
   message: string;
   reference: { label: string; url: string };

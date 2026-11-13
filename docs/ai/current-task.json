@@ -1,8 +1,28 @@
 {
   "status": "idle",
+  "id": "nta-office-link",
+  "baseSha": "862c9adda8310946d1d4dff75f74afbbd0cf6de5",
   "extraUsageDisabledConfirmed": true,
-  "lastCompletedTask": "quiet-next-action-button",
-  "notes": [
-    "Claude CSS adjustment and targeted checks passed; Codex reviewed mobile/desktop. Release follows. No next task assigned."
+  "goal": "Fix confirmed Shibuya NTA office dead link through narrow app-layer correction, no DB edits.",
+  "files": [
+    "src/lib/submissionLinkSafety.ts",
+    "src/lib/roadmapSubmissionInfo.ts",
+    "src/lib/diagnosisSubmissionInfo.ts",
+    "src/lib/trialActionGuide.ts",
+    "src/lib/submissionLinkSafety.test.ts",
+    "src/lib/roadmapNextAction.test.ts",
+    "playwright/verify-home-read-safety.mjs",
+    "docs/ai/LAST_RESULT.md"
+  ],
+  "acceptance": [
+    "Native Chrome confirmed incorrect https://www.nta.go.jp/about/organization/tokyo/shokatsu/shibuya/index.htm leads NTA404. Verified correct by following NTA official Tokyo directory https://www.nta.go.jp/about/organization/tokyo/location/tokyo.htm link Shibuya: https://www.nta.go.jp/about/organization/tokyo/location/tokyo/shibuya/index.htm . Only exactly confirmed URL correction, not generalized NTA rewrite.",
+    "Common pure helper for exact path + trusted host/protocol/no credentials. Test query/hash/trailing-slash, deceptive hosts, unrelated URLs, source immutability. Preserve existing city dead-link guard and explicit broken-status policy. No tax/deadline/save/DB/style changes.",
+    "Use helper for roadmap CTA/lower/export, diagnosis shared reference and trial links consumers. Add synthetic corporate bad URL browser assertion admin/shared where feasible, no external requests/faults in prod.",
+    "Native Claude Edit/Write for product edits only, no shell/python source edits. No subagents. Backup AGENTS before own Next dev with cp -n unique test-results/nta-office-link-AGENTS.orig.md. Own port3118 only; never3130. If Next appends AGENTS verify prefix and remove only own suffix via native Edit. No commits/push/prod. Stop after LAST_RESULT."
+  ],
+  "checks": [
+    "Relevant node tests once after settled code, submissionLinkSafety/roadmapNextAction plus related link helper tests.",
+    "HOME_NAV_UI_ONLY=1 node playwright/verify-home-read-safety.mjs own dev3118 synthetic isolation. Capture focused corrected href evidence. Stop own dev before build, preserve .next/dev timestamp if needed.",
+    "npm run lint; npm run build -- --webpack. Record results and note previous synthetic href tests did not verify real external URL availability."
   ]
 }
