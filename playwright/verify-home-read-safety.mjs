@@ -855,8 +855,34 @@ try {
     const arrows = await page.locator('select.form-select:not([multiple]):not([size]),select.form-input:not([multiple]):not([size])').evaluateAll(elements=>elements.filter(el=>el.getBoundingClientRect().width>0).map(el=>({image:getComputedStyle(el).backgroundImage,padding:Number.parseFloat(getComputedStyle(el).paddingRight)})));
     assert.ok(arrows.length>0);
     assert.ok(arrows.every(value=>value.image!=='none' && value.padding>=32));
+    const resting = await page.locator('select.form-select:not([multiple]):not([size]):not(:disabled),select.form-input:not([multiple]):not([size]):not(:disabled)').evaluateAll(elements=>elements.filter(el=>el.getBoundingClientRect().width>0&&el!==document.activeElement).map(el=>{const s=getComputedStyle(el);return {border:s.borderTopColor,width:s.borderTopWidth,cursor:s.cursor,image:decodeURIComponent(s.backgroundImage),overflow:document.documentElement.scrollWidth>document.documentElement.clientWidth};}));
+    assert.ok(resting.length>0);
+    assert.ok(resting.every(v=>v.border==='rgb(107, 114, 128)' && v.width==='1px' && v.cursor==='pointer' && v.image.includes('#334155') && !v.overflow));
+    const synthetic = await page.evaluate(()=>{
+      const mk=(tag,cls,attrs={})=>{const el=document.createElement(tag);el.className=cls;Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));document.body.appendChild(el);return el;};
+      const dis=mk('select','form-select',{disabled:''});
+      const multi=mk('select','form-select',{multiple:''});
+      const text=mk('input','form-input',{type:'text'});
+      const r={disCursor:getComputedStyle(dis).cursor,disOpacity:getComputedStyle(dis).opacity,multiCursor:getComputedStyle(multi).cursor,multiImage:getComputedStyle(multi).backgroundImage,textBorder:getComputedStyle(text).borderTopColor,textCursor:getComputedStyle(text).cursor};
+      dis.remove();multi.remove();text.remove();return r;
+    });
+    assert.equal(synthetic.disCursor,'not-allowed');
+    assert.equal(synthetic.disOpacity,'0.65');
+    assert.notEqual(synthetic.multiCursor,'pointer');
+    assert.equal(synthetic.multiImage,'none');
+    assert.notEqual(synthetic.textBorder,'rgb(107, 114, 128)');
+    assert.notEqual(synthetic.textCursor,'pointer');
   }
   await selectArrows();
+  await page.locator('#company-profile-fiscalMonth').focus();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Shift+Tab');
+  assert.notEqual(await page.locator('#company-profile-fiscalMonth').evaluate(el=>getComputedStyle(el).boxShadow),'none');
+  await page.setViewportSize({width:375,height:812});
+  await selectArrows();
+  await page.screenshot({path:'test-results/select-discoverability-mobile.png'});
+  await page.setViewportSize({width:1280,height:900});
+  await page.screenshot({path:'test-results/select-discoverability-desktop.png'});
   await page.locator('#company-profile-fiscalMonth').focus();
   await page.keyboard.press('Tab');
   assert.equal(await page.locator('#company-profile-address').evaluate(el=>el===document.activeElement),true);

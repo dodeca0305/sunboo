@@ -170,7 +170,7 @@ export default function LinksTable({ rows: initialRows }: { rows: LinkRow[] }) {
                       value={r.status}
                       disabled={updatingKey === key}
                       onChange={(e) => updateStatus(r, e.target.value)}
-                      className={`rounded-full border-0 px-2.5 py-1 text-xs font-semibold outline-none disabled:opacity-50 ${
+                      className={`form-select !w-auto max-w-full min-h-[44px] !py-1 text-xs font-semibold ${
                         STATUS_BADGE[r.status]
                       }`}
                     >
