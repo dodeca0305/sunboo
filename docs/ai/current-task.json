@@ -1,8 +1,8 @@
 {
   "status": "idle",
   "extraUsageDisabledConfirmed": true,
-  "lastCompletedTask": "roadmap-next-action",
+  "lastCompletedTask": "quiet-next-action-button",
   "notes": [
-    "Claude implemented and tested; Codex reviewed static diff and CTA images. Release follows. No next task assigned."
+    "Claude CSS adjustment and targeted checks passed; Codex reviewed mobile/desktop. Release follows. No next task assigned."
   ]
 }
