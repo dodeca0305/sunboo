@@ -1,31 +1,22 @@
 {
   "status": "idle",
-  "id": "corporate-filing-choice",
-  "baseSha": "c691ff681227ec6359e1fef7bc813433328e2494",
+  "id": "completion-flow-last",
+  "baseSha": "eb4b9c24c38f42acb2bf3cd03d12ad090ba5a02c",
   "extraUsageDisabledConfirmed": true,
-  "goal": "User cannot understand next action after office page. Replace corporate tax first-action office link with short three-choice guidance using existing curated links. Claude implements, Codex releases.",
+  "goal": "Move existing completion guide to bottom: 提出先 -> 必要書類 -> 対応状況 -> 対象 -> 提出から完了まで. Minimal display-only change.",
   "files": [
-    "src/components/CorporateTaxNextAction.tsx",
-    "src/components/RoadmapNextAction.tsx",
     "src/components/AnnualRoadmapView.tsx",
-    "src/lib/corporateFilingChoice.ts",
-    "src/lib/corporateFilingChoice.test.ts",
     "playwright/verify-home-read-safety.mjs",
-    "docs/ai/LAST_RESULT.md",
-    "playwright/fixtures/CorporateFilingChoicePreview.tsx"
+    "docs/ai/LAST_RESULT.md"
   ],
   "acceptance": [
-    "Scope only real code CORP_TAX_RETURN (not CORPORATE_TAX_RETURN). Other procedures keep existing next-action/electronic entry unchanged. Client-only display selection, no DB/storage/analytics/save/assignment/status mutation. Key/reset choice appropriately on workspace/procedure/date context changes without effect-setState; independent annual occurrences. Reuse existing components/pure helpers where useful; minimal source reading.",
-    "Corporate first action label どう進めますか？ native select with visible down-chevron (existing styling) and placeholder 進め方を選ぶ. Choices exactly 税理士にお願いする / 自分で電子申告する / どうすればいいか相談する. Initial view no generic official-office black CTA or electronic filing panel competing. Quiet black/white, no decorative icons/cards/prose dump, accessible label/focus/min44px/mobile375.",
-    "After choosing tax accountant, short instruction 顧問税理士に、申告の依頼をしてください。 and 必要な書類と提出予定日を確認しましょう。 (or equivalent <=2short lines). Do not invent contact, send messages, imply it is assigned/saved/complete; no new fake action button.",
-    "Self choice: show existing electronicFilingEntry curated e-Tax public guidance/login links, concise display, no direct filing claims/automatic filing. Use existing helper validation; missing/unavailable entry explicit, no unsafe guessed URL. No new external URLs. Consultation choice: use buildRoadmapNextAction/buildRoadmapSubmissionInfo safe existing office link including PR198 correction, label 相談先の案内を開く (not filing method) and office source/notes; if unavailable show existing clear error/no link. Mandatory destination-unconfirmed/unchecked/broken notes must remain visible appropriately, not hidden as false success. Keep no-data failure and all monetary/save protections.",
-    "Avoid duplicate ElectronicFilingEntry for CORP_TAX_RETURN in AnnualRoadmapView; retain lower reference/destination and rest of workflow. Existing assignee field unchanged; chooser is only guidance not persistent assignee. Shared screens get same guidance without writes. Header/key should include companyId/context if necessary to avoid stale UI on company switches.",
-    "Tests: exact code allowlist, no change other procedure, options->short actionable branches; curated ready/missing/unsafe; office unsafe/broken/known404 correction. Add synthetic browser actual CORP_TAX_RETURN fixture admin/shared tests all3choices, no writes/no external request, reset on company/occurrence changes; screenshots375/desktop and keyboard select/focus. Do not mislabel municipal fixture corporate like prior test. Preserve existing tests including previous NTA link regressions.",
-    "Native Edit/Write for ALL source/test edits, no shell heredoc/sed/python writes to source or tests. No subagents/API/extra credits. Only current scope. Before own3118 dev cp-n AGENTS to unique test-results/corporate-filing-choice-AGENTS.orig.md. Never stop3130. After dev/build compare original prefix, remove only Next-appended suffix by native Edit. No commit/push/production/DB. Record LAST_RESULT and stop."
+    "Move ProcedureCompletionGuide from reason/owner/deadline dl to bottom AFTER target/caution block. Wrap in valid dl with existing quiet border/spacing (guide has dt/dd). Keep content/classification/details and unknown-code branch unchanged. Preserve relative order submission/documents/status/target; no other logic changes. No renaming, new prose, DB/tax/deadline/save/permission changes.",
+    "PR199 corporate chooser stays at top untouched. Same AnnualRoadmapView placement in admin/shared/general; preserve missing-data/error/save safety.",
+    "Extend existing synthetic guide checks with DOM order submission/documents/status/target before guide on fixture with all sections, admin/shared and375px. Existing guide/details checks preserved. Native Edit only for source/tests, no shell/Python edits. No subagents. No mirror unit test for JSX move.",
+    "Before3118dev cp -n AGENTS unique test-results/completion-flow-last-AGENTS.orig.md. Only own3118 never3130. Verify original prefix, remove generated Next suffix only via native Edit. No commit/push/prod/DB. Record short LAST_RESULT then stop."
   ],
   "checks": [
-    "Targeted pure node tests for new helper and existing roadmapNextAction/submissionLinkSafety/electronicFilingEntry tests (find actual names; do not use unmatched glob).",
-    "HOME_NAV_UI_ONLY=1 node playwright/verify-home-read-safety.mjs own3118 synthetic; save focused screenshots and JSON assertions. Script runs existing regression, no redundant full reruns if passed.",
-    "npm run lint; npm run build -- --webpack after own dev stops. Logs in unique test-results/corporate-filing-choice-*.log. Describe exact limitations and source changes then stop."
+    "HOME_NAV_UI_ONLY=1 node playwright/verify-home-read-safety.mjs after edits own3118 synthetic. Save order evidence and375/desktop screenshots. Diagnose failures narrowly; no needless successful reruns.",
+    "npm run lint; npm run build -- --webpack after dev stops. Known existingGrowth warning1 only; no new warnings. Placement-only no pure unit tests needed; CI normal full tests."
   ]
 }
