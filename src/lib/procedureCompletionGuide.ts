@@ -9,7 +9,7 @@ export type ProcedureCompletionGuide =
   | { kind: 'filing_and_payment'; heading: string; lines: string[]; steps: CompletionStep[] }
   | { kind: 'unconfirmed'; heading: string; intro: string; questions: string[] };
 
-const FLOW_HEADING = '提出から完了まで';
+const FLOW_HEADING = '完了にする前の確認';
 
 // 申告だけで、納付を含まない手続き。
 const FILING_ONLY_CODES = new Set(['DEPRECIABLE_ASSET_TAX_RETURN']);
@@ -31,11 +31,11 @@ export function procedureCompletionGuide(code: unknown): ProcedureCompletionGuid
         heading: FLOW_HEADING,
         lines: [
           '申告書を提出した',
-          '受付完了を確認し、控えを残した',
+          '受付を確認し、控えを保管した',
         ],
         steps: [
-          { title: '提出する', note: '公式案内に沿って申告書を提出します。' },
-          { title: '受付を確認する', note: '受付が完了したことを確認し、控えを保管します。' },
+          { title: '申告書を提出した', note: '公式案内に沿って申告書を提出します。' },
+          { title: '受付を確認し、控えを保管した', note: '受付が完了したことを確認し、控えを保管します。' },
         ],
       };
     }
@@ -44,14 +44,14 @@ export function procedureCompletionGuide(code: unknown): ProcedureCompletionGuid
         kind: 'filing_and_payment',
         heading: FLOW_HEADING,
         lines: [
-          '申告書を提出し、受付完了を確認した',
+          '申告の受付を確認した',
           '納める税金がある場合は、支払いを済ませた',
-          '提出と支払いの控えを残した',
+          '提出・支払いの控えを保管した',
         ],
         steps: [
-          { title: '提出する', note: '公式案内に沿って申告書を提出し、受付が完了したことを確認します。' },
-          { title: '支払いを済ませる', condition: '納める税金がある場合', note: '納付先と方法は公式案内で確認します。' },
-          { title: '控えを残す', note: '提出の控えと、支払いの控えの両方を保管します。' },
+          { title: '申告の受付を確認した', note: '公式案内に沿って申告書を提出し、受付が完了したことを確認します。' },
+          { title: '支払いを済ませた', condition: '納める税金がある場合', note: '納付先と方法は公式案内で確認します。' },
+          { title: '提出・支払いの控えを保管した', condition: '支払いの控えは、納める税金がある場合', note: '提出の控えを保管します。納める税金がある場合は、支払いの控えも保管します。' },
         ],
       };
     }

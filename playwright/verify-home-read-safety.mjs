@@ -751,7 +751,7 @@ try {
       assert.equal(await li.getByTestId('procedure-completion-guide').evaluate((el) => el.parentElement.tagName === 'DL'), true, `${label}:dl`);
       assert.equal(await li.locator('[aria-label="対応の案内"] [data-testid="procedure-completion-guide"]').count(), 0, `${label}:上部に無い`);
     };
-    for (const [code, kind, titles] of [['WITHHOLDING_TAX','unconfirmed',[]],['DEPRECIABLE_ASSET_TAX_RETURN','filing_only',['提出する','受付を確認する']],['CORP_TAX_RETURN','filing_and_payment',['提出する','支払いを済ませる','控えを残す']]]) {
+    for (const [code, kind, titles] of [['WITHHOLDING_TAX','unconfirmed',[]],['DEPRECIABLE_ASSET_TAX_RETURN','filing_only',['申告書を提出した','受付を確認し、控えを保管した']],['CORP_TAX_RETURN','filing_and_payment',['申告の受付を確認した','支払いを済ませた','提出・支払いの控えを保管した']]]) {
       state = structuredClone(initial);
       state.data.procedures = [fullProc(code)];
       await update();
@@ -771,12 +771,14 @@ try {
         assert.match(await guideBox.textContent(), /この手続きは必要ですか？/);
         assert.match(await guideBox.textContent(), /何をすれば完了ですか？/);
       } else {
-        assert.match(await guideBox.textContent(), /提出から完了まで/);
+        assert.match(await guideBox.textContent(), /完了にする前の確認/);
+        assert.doesNotMatch(await guideBox.textContent(), /提出から完了まで/);
+        if (kind === 'filing_only') assert.equal(await guideBox.getByTestId('completion-condition').count(), 0);
         await checkFlow(guideBox, titles, `375:${kind}`);
         const tops = await guideBox.getByTestId('completion-step').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
         assert.equal(new Set(tops).size, tops.length, '375pxは縦並び');
         if (kind === 'filing_and_payment') {
-          assert.equal(await guideBox.getByTestId('completion-condition').textContent(), '納める税金がある場合');
+          assert.deepEqual(await guideBox.getByTestId('completion-condition').allTextContents(), ['納める税金がある場合', '支払いの控えは、納める税金がある場合']);
           await guideBox.locator('summary').nth(1).click();
           assert.match(await guideBox.textContent(), /納付先と方法は公式案内/);
           await guideBox.locator('summary').nth(1).click();
@@ -816,7 +818,7 @@ try {
     await checkOrder('shared');
     assert.equal(await sharedGuide.getAttribute('data-kind'), 'filing_only');
     assert.equal(await sharedGuide.locator('input,button,a').count(), 0);
-    await checkFlow(sharedGuide, ['提出する', '受付を確認する'], 'shared');
+    await checkFlow(sharedGuide, ['申告書を提出した', '受付を確認し、控えを保管した'], 'shared');
     assert.equal(writes, writesBefore);
     assert.equal(syntheticTaxWrites.length, taxWritesBefore);
     await page.setViewportSize({width:1280,height:900});

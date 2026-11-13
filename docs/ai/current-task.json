@@ -1,19 +1,25 @@
 {
   "status": "idle",
-  "id": "accountant-guidance-emphasis",
-  "baseSha": "f7af5e451f29cbe6eb5331abcb23635c2364610d",
+  "id": "completion-confirmation-wording",
+  "baseSha": "d8f99ef2693bfb833402cd561dd68867ee65c423",
   "extraUsageDisabledConfirmed": true,
-  "goal": "Emphasize only three existing action phrases in accountant guidance: 申告の依頼, 必要な書類, 提出予定日.",
+  "goal": "User approved completed-state wording so they can understand when done. Change known completion guide heading and visible titles; no new controls or save logic.",
   "files": [
-    "src/components/CorporateTaxNextAction.tsx",
+    "src/lib/procedureCompletionGuide.ts",
+    "src/lib/procedureCompletionGuide.test.ts",
+    "playwright/verify-home-read-safety.mjs",
     "docs/ai/LAST_RESULT.md"
   ],
   "acceptance": [
-    "Minimal display-only edit: render those 3 phrases with semantic strong/font-semibold in accountant view. Preserve all existing text/2-line grouping. Keep helper view.lines as source; no duplicated parallel copy of full text. Simple exact phrase split/mark is fine; no new abstraction/helper/file.",
-    "No changes to choices, other branches, links, content/tax rules/deadline/DB/state/save/security. Quiet existing styling. Native Claude Edit only for product source, no shell source writes; no subagents/extra credits/API. No commits/push/production.",
-    "Do not add tests for reversible typography-only change or rerun broad browser/pure tests unchanged. Codex copies changed component to existing local static preview /trial/corporate-filing-choice and visually verifies bold after local-only selection. No own dev needed so AGENTS should remain unchanged. Record only actual checks."
+    "Known filing guides: heading 完了にする前の確認. Filing+payment visible steps: 申告の受付を確認した / 支払いを済ませた (persistent condition 納める税金がある場合) / 提出・支払いの控えを保管した. Important: explicitly keep payment receipt conditional when no payment (e.g. permanent third condition 支払いの控えは、納める税金がある場合 and note conditional). Keep first receipt-confirmation fact and receipt storage. No tax criteria/deadline/status/save/DB/permissions change.",
+    "Filing-only asset must remain 2 completed-state titles (申告書を提出した / 受付を確認し、控えを保管した or concise equivalent), NO tax payment requirement added. Same existing 6-code allowlists only; unknown/withholding branch unchanged and cannot assert known completion. Keep kinds/lines contracts if possible; do not widen classification.",
+    "Keep existing component, large semibold labels/details initially closed/quiet layout and bottom placement after target. No new checkbox, automatic completion, API or persistence. No new UI scope. Japanese long labels must wrap without horizontal overflow at375px. Preserve three-choice and bold accountant guidance.",
+    "Update existing helper tests and browser expectations to new wording; test nonpayment conditional remains visible, filing-only no payment, unknown unchanged, details and requested section order still work. Native Edit/Write for source/tests only, no shell/Python source edits or subagents. No commit/push/prod/DB.",
+    "Before own3118 dev cp -n AGENTS unique test-results/completion-confirmation-wording-AGENTS.orig.md. Never stop3130. After own dev/build verify prefix and remove only generated suffix via native Edit. Record actual results in LAST_RESULT then stop."
   ],
   "checks": [
-    "npm run lint (existingGrowth warning1 only); npm run build -- --webpack once. No new dev server or tests needed. Logs test-results/accountant-guidance-emphasis-*.log. Record LAST_RESULT then stop."
+    "node --test src/lib/procedureCompletionGuide.test.ts once after settled edits.",
+    "HOME_NAV_UI_ONLY=1 node playwright/verify-home-read-safety.mjs own3118 synthetic; relevant375px/desktop/shared screenshots and existing regressions. No production calls/writes. No needless successful repeats.",
+    "npm run lint; npm run build -- --webpack after own dev stopped. Logs test-results/completion-confirmation-wording-*.log. ExistingGrowth warning1 only."
   ]
 }
