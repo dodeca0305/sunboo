@@ -1,24 +1,24 @@
 {
   "status": "idle",
-  "id": "procedure-status-hints",
-  "baseSha": "a287ad95feef0f179fa631964d23cb4073c75d15",
+  "id": "select-discoverability",
+  "baseSha": "6f153b3fc71efeea211fc6a9b492e2856c3df7a6",
   "extraUsageDisabledConfirmed": true,
-  "goal": "User approved short descriptions in roadmap status options to explain which state to choose. Display-only, no new status or save logic.",
+  "goal": "User approved always-recognizable dropdowns, quiet monochrome. Existing common arrows already implemented; strengthen resting borders/arrow affordance only and make lone custom LinksTable select use existing common styling. Do not redo completed #203 hints.",
   "files": [
-    "src/lib/workspaceProcedureStatus.ts",
-    "src/components/AnnualRoadmapView.tsx",
+    "src/app/globals.css",
+    "src/app/admin/(protected)/links/LinksTable.tsx",
     "playwright/verify-home-read-safety.mjs",
     "docs/ai/LAST_RESULT.md"
   ],
   "acceptance": [
-    "In AnnualRoadmapView status select options show: 未着手：まだ始めていない / 進行中：担当者に依頼済み・準備中 / 完了：必要な対応と確認を終えた / 保留：事情があって一旦止めている. Keep existing status codes/order, values, aria labels, handler, disabled/error/save/uncertain protections unchanged. Do not select or save anything in production.",
-    "Add typed four-status hint map in existing workspaceProcedureStatus.ts (or equivalent minimal display constant); keep existing compact WORKSPACE_PROCEDURE_STATUS_LABEL unchanged for badges and all other callers. No global renaming. Roadmap-only option descriptions, no persistent field, no changed assignments, DB, permissions, tax or deadline logic.",
-    "Keep native dropdown/visible chevron/current quiet styling. Ensure full labels readable at375px with no overflow. Minimal max-width/class adjustment if needed, no redesign. Readonly shared badges remain compact and noneditable. Preserve completion guide and corporate choices.",
-    "Extend existing synthetic browser checks: exact 4 option descriptions+same 4 values/order, no change/save just from rendering/opening/closing. Check375px and desktop screenshot; shared compact badge unchanged. Existing synthetic save checks continue to pass. No new mirror unit test for constants. Native Edit/Write source/tests only, no shell/Python source writes, no subagents.",
-    "Before own3118dev cp-n AGENTS unique test-results/procedure-status-hints-AGENTS.orig.md. Never stop3130. After dev ends preserve .next/dev outside repo if generated duplicate types threaten build (no deletions) and verify/remove only Next AGENTS suffix via native Edit. No commit/push/prod/DB; record short actual LAST_RESULT then stop."
+    "Read AGENTS/CLAUDE. Native Edit/Write for source/tests only. No source shell edits, no subagents. Keep single select common .form-select/.form-input native semantics. Existing svg chevron/padding-right, disabled opacity/not-allowed, forced-colors auto, focus ring intact. Add quiet visible permanent select border approx gray500 (#6b7280), pointer cursor for enabled select, arrow may darken to #334155. No global text-input changes, no colored emphasis or new icons. Keep multiple/size behavior unchanged.",
+    "LinksTable only custom select className: use form-select with compact text, w-auto/max-w-full, min-height44px and existing STATUS_BADGE colors; remove conflicting border-0/rounded-full/outline-none so common arrow/border/focus visible. Preserve value/options/order/onChange/disabled and all API/save logic exactly. No handlers or new aria unrelated scope.",
+    "No placeholder/option/default/value changes: meaningful existing empty prompts already present; status selectors have valid defaults and must not acquire dummy values. All other TSX unchanged.",
+    "Extend existing synthetic dropdown style checks in verify-home-read-safety around855: enabled resting common select visible border/arrow/padding/cursor, disabled remains not-allowed, focused keyboard ring, forced colors auto, regular inputs unaffected,375px no overflow and screenshots. Native options and existing save tests remain. For LinksTable use source review and optional existing synthetic mock only if easily covered; no production table/status reads or writes needed. Avoid fake mirror tests.",
+    "Before own3118 dev cp-n AGENTS unique test-results/select-discoverability-AGENTS.orig.md. Never stop3130. After dev ends verify original AGENTS prefix then native Edit remove generated suffix. Preserve .next/dev outside repo to root backups/2026-11-13-select-discoverability/next-dev-before-build if duplicate cache/types occur; no rm. Do not modify configs/env/secrets/data or oldcopies. No commit/push/prod/DB."
   ],
   "checks": [
-    "HOME_NAV_UI_ONLY=1 node playwright/verify-home-read-safety.mjs once after settled edits own3118 synthetic. Preserve existing guards; no production requests/writes; focus only status hints on review.",
-    "npm run lint; npm run build -- --webpack after dev stops. Logs test-results/procedure-status-hints-*.log. ExistingGrowth warning1 only. Preserve failed log if cache issue; no unnecessary successful reruns."
+    "Run HOME_NAV_UI_ONLY=1 node playwright/verify-home-read-safety.mjs once after settled edits own3118 synthetic; logs test-results/select-discoverability-synthetic.log; desktop/mobile screenshots.",
+    "npm run lint; npm run build -- --webpack after dev stopped; logs test-results/select-discoverability-{lint,build}.log. ExistingGrowthwarning1 allowed only. No unnecessary successful reruns. Record actual limits in LAST_RESULT and stop."
   ]
 }
