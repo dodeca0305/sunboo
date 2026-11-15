@@ -16,6 +16,34 @@ export function EmployeeCountHelp({ employeeCount }: { employeeCount: number }) 
   );
 }
 
+function DetailsHelp({ testId, label, shortText, children }: { testId: string; label: string; shortText: string; children: React.ReactNode }) {
+  return (
+    <div className="mt-1.5 text-xs leading-relaxed text-gray-600" data-testid={testId}>
+      <p>{shortText}</p>
+      <details className="mt-1">
+        <summary className="min-h-[44px] cursor-pointer py-3 font-semibold" aria-label={label}>詳しく見る</summary>
+        <p className="pb-2">{children}</p>
+      </details>
+    </div>
+  );
+}
+
+export function EstablishedDateHelp() {
+  return (
+    <DetailsHelp testId="established-date-help" label="設立日の詳しい説明を見る" shortText="登記簿謄本の「会社成立の年月日」">
+      この情報は会社ステージ（1期目/2期目以降）の判定に利用します。
+    </DetailsHelp>
+  );
+}
+
+export function CapitalHelp() {
+  return (
+    <DetailsHelp testId="capital-help" label="資本金の詳しい説明を見る" shortText="登記簿謄本の「資本金の額」">
+      この情報は消費税の課税事業者判定に利用します（1,000万円以上は設立初年度から課税事業者）。
+    </DetailsHelp>
+  );
+}
+
 export function OfficerChangeDateHelp() {
   return (
     <div className="mt-2 space-y-2 text-sm leading-relaxed text-sunboo-ink-muted" data-testid="officer-change-date-help">

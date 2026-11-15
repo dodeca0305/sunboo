@@ -1,5 +1,5 @@
 'use client';
-import { EmployeeCountHelp, OfficerChangeDateHelp } from '@/components/CompanyProfileFieldHelp';
+import { CapitalHelp, EmployeeCountHelp, EstablishedDateHelp, OfficerChangeDateHelp } from '@/components/CompanyProfileFieldHelp';
 
 import { WITHHOLDING_CYCLE_LABEL, RESIDENT_TAX_CYCLE_LABEL, WITHHOLDING_FREQUENCY_TITLE, RESIDENT_TAX_FREQUENCY_TITLE, WITHHOLDING_FREQUENCY_HELP, RESIDENT_TAX_FREQUENCY_HELP } from '@/lib/paymentFrequencyLabels';
 import { useEffect, useRef, useState } from 'react';
@@ -249,7 +249,7 @@ export default function WorkspaceProfileForm({
             onChange={(value) => set('establishedDate', value)}
             label="設立日"
           />
-          <FieldHint>この情報は会社ステージ（1期目/2期目以降）の判定に利用します。</FieldHint>
+          <EstablishedDateHelp />
         </div>
         <div>
           <ProfileFieldLabel field="capital" kind="guidance" missing={profile.capital === null}>資本金（円）</ProfileFieldLabel>
@@ -260,9 +260,7 @@ export default function WorkspaceProfileForm({
             placeholder="例: 5,000,000"
             ariaLabel="資本金"
           />
-          <FieldHint>
-            この情報は消費税の課税事業者判定に利用します（1,000万円以上は設立初年度から課税事業者）。
-          </FieldHint>
+          <CapitalHelp />
         </div>
       </div>
 
