@@ -961,11 +961,13 @@ try {
   ];
   await update();
   await page.goto(home+'/documents',{waitUntil:'networkidle'});
-  await page.getByRole('heading',{name:'会社の書類',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'書類を用意する',exact:true}).waitFor();
   for(const [type,label] of [['articles_of_incorporation','作成・変更日'],['certificate_of_registered_matters','発行日'],['corporate_tax_return','対象期間'],['consumption_tax_return','対象期間'],['withholding_tax_payment_slip','対象期間']]) {
     assert.equal(await page.getByTestId('document-timing-'+type).textContent(),label+'：未記録');
   }
   assert.equal(await page.getByRole('heading',{name:'今年提出した書類',exact:true}).count(),0);
+  // 編集欄は外側の初期閉details「定款など、手元の書類の記録」内。先に開いてから内側を開く。
+  await page.getByText('定款など、手元の書類の記録',{exact:true}).click();
   await page.getByText('状態・対象期間を編集する',{exact:true}).first().click();
   await selectArrows();
   // Metadata writes and response-loss recovery are exercised by the isolated document timing harness.
