@@ -257,7 +257,7 @@ export default function WorkspaceProfileForm({
             id={profileInputId("capital")}
             value={profile.capital}
             onChange={(value) => set('capital', value)}
-            placeholder="例: 5,000,000"
+            placeholder="例: 3,000,000"
             ariaLabel="資本金"
           />
           <CapitalHelp />
