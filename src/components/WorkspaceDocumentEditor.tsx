@@ -4,6 +4,8 @@ import { createBrowserSupabase } from '@/lib/supabase/browser';
 import { WORKSPACE_DOCUMENT_STATUSES, WORKSPACE_DOCUMENT_STATUS_LABEL, WORKSPACE_DOCUMENT_TYPE_LABEL, type WorkspaceDocumentStatus, type WorkspaceDocumentType } from '@/lib/workspaceDocumentStatus';
 import { EMPTY_DOCUMENT, documentSaveKey, documentValues, readDocument, reconcileDocument, saveDocument, validDocumentIntent, validDocumentValues, type DocumentIntent, type DocumentSnapshot, type DocumentValues } from '@/lib/workspaceDocumentTiming';
 
+// 表示だけの言い換え。保存値（enum）と他画面の共通ラベルは変えない。
+const RECORD_STATUS_LABEL: Record<WorkspaceDocumentStatus, string> = {...WORKSPACE_DOCUMENT_STATUS_LABEL, not_registered: '記録なし', registered: '記録済み'};
 const timingLabel = (type: WorkspaceDocumentType) => type === 'articles_of_incorporation' ? '作成・変更日' : type === 'certificate_of_registered_matters' ? '発行日' : '対象期間';
 export default function WorkspaceDocumentEditor({companyId, documentType, initial, actorId, disabled, onSafetyBlock, onConfirmed}: {
   companyId: number; documentType: WorkspaceDocumentType; initial: DocumentSnapshot | null; actorId: string | null; disabled: boolean; onSafetyBlock: () => void; onConfirmed: (snapshot: DocumentSnapshot) => void;
@@ -110,21 +112,21 @@ export default function WorkspaceDocumentEditor({companyId, documentType, initia
   }
   const locked = disabled || mode !== 'ready';
   return <li className="card space-y-3 py-4" data-testid={`document-editor-${documentType}`}>
-    <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-bold">{label}</h3><span className={snapshot?.status === 'registered' ? 'tag tag--success' : 'tag'}>{WORKSPACE_DOCUMENT_STATUS_LABEL[snapshot?.status ?? 'not_registered']}</span></div>
+    <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-bold">{label}</h3><span className={snapshot?.status === 'registered' ? 'tag tag--success' : 'tag'}>{RECORD_STATUS_LABEL[snapshot?.status ?? 'not_registered']}</span></div>
     <p className="text-sm text-sunboo-ink-muted" data-testid={`document-timing-${documentType}`}>{timingLabel(documentType)}：{summary}</p>
-    <details className="rounded-lg border border-sunboo-mist p-3"><summary className="cursor-pointer text-sm font-semibold">状態・{timingLabel(documentType)}を編集する</summary>
+    <details className="rounded-lg border border-sunboo-mist p-3"><summary className="min-h-11 cursor-pointer py-2.5 text-sm font-semibold">状態・{timingLabel(documentType)}を編集する</summary>
       <form className="mt-3 space-y-3" onSubmit={event => {event.preventDefault(); void submit();}}>
-        <label className="block text-sm">登録状況<select className="form-select mt-1" aria-label={`${label}の登録状況`} value={draft.status} disabled={locked} onChange={event => setDraft({...draft, status:event.target.value as WorkspaceDocumentStatus})}>{WORKSPACE_DOCUMENT_STATUSES.map(s => <option key={s} value={s}>{WORKSPACE_DOCUMENT_STATUS_LABEL[s]}</option>)}</select></label>
+        <label className="block text-sm">登録状況<select className="form-select mt-1 min-h-11" aria-label={`${label}の登録状況`} value={draft.status} disabled={locked} onChange={event => setDraft({...draft, status:event.target.value as WorkspaceDocumentStatus})}>{WORKSPACE_DOCUMENT_STATUSES.map(s => <option key={s} value={s}>{RECORD_STATUS_LABEL[s]}</option>)}</select></label>
         <p className="text-xs leading-relaxed text-sunboo-ink-muted">{period ? '書類に書かれた対象期間を入力してください。提出日・登録日ではありません。開始日と終了日は両方入力するか、両方空欄にしてください。' : documentType === 'certificate_of_registered_matters' ? '登記簿謄本に書かれた発行日を入力してください。取得した日や登録日ではありません。' : '手元の定款に書かれた作成日、変更している場合は変更日を入力してください。'} 不明なら空欄のまま保存できます。</p>
-        {period ? <div className="grid gap-3 sm:grid-cols-2">{(['period_start','period_end'] as const).map((field,index) => <label className="block text-sm" key={field}>{index === 0 ? '対象期間の開始日' : '対象期間の終了日'}<input className="form-input mt-1" type="date" aria-label={`${label}の${index === 0 ? '対象期間の開始日' : '対象期間の終了日'}`} disabled={locked} value={draft[field] ?? ''} onChange={event => setDraft({...draft,[field]:event.target.value || null})}/></label>)}</div> : <label className="block text-sm">{timingLabel(documentType)}<input className="form-input mt-1" type="date" aria-label={`${label}の${timingLabel(documentType)}`} disabled={locked} value={draft.document_date ?? ''} onChange={event => setDraft({...draft,document_date:event.target.value || null})}/></label>}
-        <p className="text-xs text-sunboo-ink-muted">この種類の現在の書類を1件記録します。過年度・複数版の履歴や、提出済みの証明にはなりません。</p>
-        <button type="submit" className="btn-primary text-sm" disabled={locked}>{mode === 'saving' ? '保存中…' : `${label}を保存する`}</button>
+        {period ? <div className="grid gap-3 sm:grid-cols-2">{(['period_start','period_end'] as const).map((field,index) => <label className="block text-sm" key={field}>{index === 0 ? '対象期間の開始日' : '対象期間の終了日'}<input className="form-input mt-1 min-h-11" type="date" aria-label={`${label}の${index === 0 ? '対象期間の開始日' : '対象期間の終了日'}`} disabled={locked} value={draft[field] ?? ''} onChange={event => setDraft({...draft,[field]:event.target.value || null})}/></label>)}</div> : <label className="block text-sm">{timingLabel(documentType)}<input className="form-input mt-1 min-h-11" type="date" aria-label={`${label}の${timingLabel(documentType)}`} disabled={locked} value={draft.document_date ?? ''} onChange={event => setDraft({...draft,document_date:event.target.value || null})}/></label>}
+        <p className="text-xs text-sunboo-ink-muted">この種類の現在の書類を1件記録します。過年度・複数版の履歴や、提出済みの証明にはなりません。記録なしは、書類が手元にないという意味ではありません。</p>
+        <button type="submit" className="btn-primary min-h-11 text-sm" disabled={locked}>{mode === 'saving' ? '保存中…' : `${label}を保存する`}</button>
       </form>
     </details>
-    {disabled && mode === 'ready' && <a className="block text-sm underline" href={`/admin/workspaces/${companyId}/documents`}>再読み込みして編集を再開する</a>}
+    {disabled && mode === 'ready' && <a className="flex min-h-11 items-center text-sm underline" href={`/admin/workspaces/${companyId}/documents`}>再読み込みして編集を再開する</a>}
     {message && <p role={noticeIsError ? 'alert' : 'status'} className="text-sm leading-relaxed">{message}</p>}
-    {(mode === 'unknown' || mode === 'conflict') && <div className="flex flex-wrap gap-3 text-sm"><button className="underline" type="button" onClick={() => {if (pending.current) void confirm(pending.current); else window.location.reload();}}>保存結果を再取得する</button><a className="underline" href={`/admin/workspaces/${companyId}/documents`}>再読み込み</a></div>}
-    {mode === 'retry' && <button className="btn-secondary text-sm" type="button" onClick={() => void submit(true)}>確認した同じ内容で再試行する</button>}
-    {mode === 'conflict' && snapshot && <button className="underline text-sm" type="button" onClick={() => {try {if (key && pending.current && localStorage.getItem(key) === JSON.stringify(pending.current)) localStorage.removeItem(key); window.location.reload();} catch {setMessage('確認記録を更新できません。編集を停止しています。');}}}>送信予定を取り消し、最新の記録を開く</button>}
+    {(mode === 'unknown' || mode === 'conflict') && <div className="flex flex-wrap gap-3 text-sm"><button className="inline-flex min-h-11 items-center underline" type="button" onClick={() => {if (pending.current) void confirm(pending.current); else window.location.reload();}}>保存結果を再取得する</button><a className="inline-flex min-h-11 items-center underline" href={`/admin/workspaces/${companyId}/documents`}>再読み込み</a></div>}
+    {mode === 'retry' && <button className="btn-secondary min-h-11 text-sm" type="button" onClick={() => void submit(true)}>確認した同じ内容で再試行する</button>}
+    {mode === 'conflict' && snapshot && <button className="inline-flex min-h-11 items-center text-left underline text-sm" type="button" onClick={() => {try {if (key && pending.current && localStorage.getItem(key) === JSON.stringify(pending.current)) localStorage.removeItem(key); window.location.reload();} catch {setMessage('確認記録を更新できません。編集を停止しています。');}}}>送信予定を取り消し、最新の記録を開く</button>}
   </li>;
 }

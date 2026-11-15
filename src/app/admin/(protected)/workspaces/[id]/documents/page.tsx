@@ -88,31 +88,24 @@ export default async function WorkspaceDocumentsPage({
         backHref={`/admin/workspaces/${companyId}`}
         backLabel={`${company.name} に戻る`}
         icon={FileStack}
-        title="会社の書類"
+        title="書類を用意する"
         subtitle={
           documents === null
-            ? `${company.name}の書類の登録状況を取得できませんでした。`
-            : `${company.name}の代表的な書類の登録状況`
+            ? `${company.name}の書類の準備状況を取得できませんでした。`
+            : `${company.name}の手続きに必要な書類と、用意の進み具合を確認します。`
         }
       />
 
 
-      <InformationCard kind="info" title="いつの書類か、手元の書類で確認してください">
-        <p>書類の状態と、原本で確認した対象期間・発行日を記録できます。不明な時期は空欄のまま残せます。</p>
-        <p className="mt-2">「登録済み」でも、今年分・最新版・提出済みとは限りません。申告書は対象期間、登記簿謄本は発行日を、原本で確認してください。</p>
-        <p className="mt-2">ファイルの添付や行政機関への提出は行いません。</p>
-      </InformationCard>
-
-      <WorkspacePlanningSources sources={sources} />
 
       {documents === null ? (
         <>
           <div role="alert">
             <InformationCard
               kind="error"
-              title="書類の登録状況を取得できませんでした"
+              title="書類の準備状況を取得できませんでした"
             >
-              登録済み・準備済みの状態を確認できないため、書類の状態変更を停止しています。
+              記録済み・準備済みの状態を確認できないため、書類の状態変更を停止しています。
               <a
                 className="mt-2 block underline"
                 href={`/admin/workspaces/${companyId}/documents`}
@@ -152,6 +145,15 @@ export default async function WorkspaceDocumentsPage({
           requiredDocumentStatusMap={documents.requiredDocumentStatusMap}
         />
       )}
+
+      <details className="rounded-lg border border-sunboo-mist" data-testid="planning-sources-details">
+        <summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-sunboo-ink">
+          登録情報を確認する
+        </summary>
+        <div className="px-4 pb-4">
+          <WorkspacePlanningSources sources={sources} />
+        </div>
+      </details>
     </div>
   );
 }

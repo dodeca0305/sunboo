@@ -58,14 +58,16 @@ try{
  });
  const page=await context.newPage();page.on('pageerror',e=>pageErrors.push(e.message));const url=origin+'/admin/workspaces/23/documents';
  const row=(p,type='corporate_tax_return')=>p.getByTestId('document-editor-'+type);
- async function open(p,type='corporate_tax_return'){const r=row(p,type);await r.locator('summary').click();await r.getByRole('combobox').waitFor();await assertEventually(()=>r.getByRole('combobox').isEnabled());return r;}
+ // 編集欄は外側の初期閉details内。閉じていれば先に開く（再読み込み後の回復経路でも使う）。
+ async function expand(p){const outer=p.getByTestId('document-records');if(!(await outer.evaluate(e=>e.open)))await outer.locator(':scope > summary').click();}
+ async function open(p,type='corporate_tax_return'){await expand(p);const r=row(p,type);await r.locator('summary').click();await r.getByRole('combobox').waitFor();await assertEventually(()=>r.getByRole('combobox').isEnabled());return r;}
  async function assertEventually(f){for(let i=0;i<150;i++){if(await f())return;await new Promise(r=>setTimeout(r,100));}assert.fail('Expected enabled/recovered control');}
  const save=r=>r.getByRole('button',{name:/を保存する$/}).click();
  async function dates(r,start,end){await r.getByLabel('法人税申告書の対象期間の開始日',{exact:true}).fill(start);await r.getByLabel('法人税申告書の対象期間の終了日',{exact:true}).fill(end);}
  await page.goto(url,{waitUntil:'networkidle'});let r=await open(page);assert.equal(await r.getByRole('combobox').inputValue(),'not_registered');assert.match(await r.textContent(),/対象期間：未記録/);
  // Half periods never send; normal save persists status and both dates atomically.
  await dates(r,'2025-04-01','');await save(r);await r.getByRole('alert').waitFor();assert.equal(writes.length,0);
- await dates(r,'2025-04-01','2026-03-31');await r.getByRole('combobox').selectOption('registered');await save(r);await r.getByText('保存しました。',{exact:true}).waitFor();assert.match(await r.textContent(),/2025-04-01 ～ 2026-03-31/);assert.ok(await page.getByText('1/5件登録済み',{exact:true}).count());
+ await dates(r,'2025-04-01','2026-03-31');await r.getByRole('combobox').selectOption('registered');await save(r);await r.getByText('保存しました。',{exact:true}).waitFor();assert.match(await r.textContent(),/2025-04-01 ～ 2026-03-31/);assert.ok(await page.getByText('1/5件記録済み',{exact:true}).count());
  await page.reload({waitUntil:'networkidle'});r=await open(page);assert.equal(await r.getByLabel('法人税申告書の対象期間の開始日',{exact:true}).inputValue(),'2025-04-01');
  await r.getByRole('combobox').selectOption('needs_update');await save(r);await r.getByText('保存しました。',{exact:true}).waitFor();assert.equal(control.data.workspace_documents[0].period_start,'2025-04-01');
  const cert=await open(page,'certificate_of_registered_matters');await cert.getByLabel('登記簿謄本の発行日',{exact:true}).fill('2026-10-20');await cert.getByRole('combobox').selectOption('registered');await save(cert);await cert.getByText('保存しました。',{exact:true}).waitFor();
@@ -75,18 +77,18 @@ try{
  // A rejection/network exception with no commit remains blocked after reload until fresh read + explicit same-content retry.
  for(const fail of ['reject','network']){
   await page.reload({waitUntil:'networkidle'});r=await open(page);mode=fail;await r.getByRole('combobox').selectOption('needs_update');await save(r);await r.getByRole('alert').filter({hasText:'保存結果を確認できません'}).waitFor();assert.equal(await r.getByText('保存しました。',{exact:true}).count(),0);const before=writes.length;
-  readFailure=true;await page.reload({waitUntil:'networkidle'});await row(page).getByRole('alert').filter({hasText:'保存結果を取得できません'}).waitFor();assert.equal(writes.length,before);
+  readFailure=true;await page.reload({waitUntil:'networkidle'});await expand(page);await row(page).getByRole('alert').filter({hasText:'保存結果を取得できません'}).waitFor();assert.equal(writes.length,before);
   readFailure=false;await row(page).getByRole('button',{name:'保存結果を再取得する',exact:true}).click();await row(page).getByRole('button',{name:'確認した同じ内容で再試行する',exact:true}).waitFor();assert.equal(writes.length,before);
   mode='success';await row(page).getByRole('button',{name:'確認した同じ内容で再試行する',exact:true}).click();await row(page).getByText('保存しました。',{exact:true}).waitFor();assert.equal(writes.length,before+1);
   await page.reload({waitUntil:'networkidle'});r=await open(page);await r.getByRole('combobox').selectOption('registered');await save(r);await r.getByText('保存しました。',{exact:true}).waitFor();
  }
  // Commit followed by lost response: reload observes saved content and never resends.
  await page.reload({waitUntil:'networkidle'});r=await open(page);mode='lost';await dates(r,'2024-04-01','2025-03-31');await save(r);await r.getByRole('alert').filter({hasText:'保存結果を確認できません'}).waitFor();const before=writes.length;
- await page.reload({waitUntil:'networkidle'});await row(page).getByText('保存済みの内容を再取得して確認しました。',{exact:true}).waitFor();assert.equal(writes.length,before);assert.match(await row(page).textContent(),/2024-04-01 ～ 2025-03-31/);
+ await page.reload({waitUntil:'networkidle'});await expand(page);await row(page).getByText('保存済みの内容を再取得して確認しました。',{exact:true}).waitFor();assert.equal(writes.length,before);assert.match(await row(page).textContent(),/2024-04-01 ～ 2025-03-31/);
  mode='success';
  // Fail either edit source: no empty-state editing. Normal empty settings remain editable.
  for(const table of ['workspace_documents','workspace_required_document_statuses'])for(const failure of ['error','throw','null','malformed']){
-  await saveControl({failTable:table,failure});await page.reload({waitUntil:'networkidle'});await page.getByRole('alert').filter({hasText:'書類の登録状況を取得'}).waitFor();assert.equal(await page.getByTestId('document-editor-corporate_tax_return').count(),0);assert.equal(writes.length,before);
+  await saveControl({failTable:table,failure});await page.reload({waitUntil:'networkidle'});await page.getByRole('alert').filter({hasText:'書類の準備状況を取得'}).waitFor();assert.equal(await page.getByTestId('document-editor-corporate_tax_return').count(),0);assert.equal(writes.length,before);
  }
  await saveControl({failTable:null});await page.reload({waitUntil:'networkidle'});r=await open(page);
  // Browser storage failure stops before sending, rather than losing the recovery key.
