@@ -1,15 +1,28 @@
+import { EmployeeCountExample } from '@/components/EmployeeCountExample';
 import { RegistryFieldExample } from '@/components/RegistryFieldExample';
 
-export function EmployeeCountHelp({ employeeCount }: { employeeCount: number }) {
+export function EmployeeCountHelp({ employeeCount, visualExample = false }: { employeeCount: number; visualExample?: boolean }) {
+  const zeroWarning = employeeCount === 0 && <p className="text-amber-800">0人でも、役員報酬などによって税務・社会保険の手続きが必要になる場合があります。0人だから手続き不要とは判断しないでください。</p>;
+  const caveat = 'この合計だけで、社会保険への加入や納期の特例の対象を確定するものではありません。制度ごとに確認する人数や条件が異なります。';
   return (
     <div className="mt-2 space-y-2 text-sm leading-relaxed text-sunboo-ink-muted" data-testid="employee-count-help">
-      <p className="font-medium text-sunboo-ink">パート・アルバイトも含めた人数です。</p>
-      <p>会社が直接雇用している従業員を、1人ずつ数えてください。例：正社員3人＋パート・アルバイト2人なら「5人」です。勤務時間で0.5人などに換算しません。</p>
-      <p>この合計だけで、社会保険への加入や納期の特例の対象を確定するものではありません。制度ごとに確認する人数や条件が異なります。</p>
-      {employeeCount === 0 && <p className="text-amber-800">0人でも、役員報酬などによって税務・社会保険の手続きが必要になる場合があります。0人だから手続き不要とは判断しないでください。</p>}
-      <details className="rounded-lg border border-sunboo-mist p-3 text-xs">
-        <summary className="cursor-pointer font-semibold">役員だけ・派遣・出向などで迷う場合</summary>
+      {visualExample ? (
+        <>
+          <EmployeeCountExample />
+          {zeroWarning}
+        </>
+      ) : (
+        <>
+          <p className="font-medium text-sunboo-ink">パート・アルバイトも含めた人数です。</p>
+          <p>会社が直接雇用している従業員を、1人ずつ数えてください。例：正社員3人＋パート・アルバイト2人なら「5人」です。勤務時間で0.5人などに換算しません。</p>
+          <p>{caveat}</p>
+          {zeroWarning}
+        </>
+      )}
+      <details className={`rounded-lg border border-sunboo-mist p-3 ${visualExample ? 'text-sm' : 'text-xs'}`}>
+        <summary className={visualExample ? 'min-h-[44px] list-item cursor-pointer py-3 font-semibold' : 'cursor-pointer font-semibold'}>役員だけ・派遣・出向などで迷う場合</summary>
         <div className="mt-2 space-y-2">
+          {visualExample && <p>{caveat}</p>}
           <p>役員を兼ねる従業員、派遣・出向がある場合は、給与を支払った人の一覧（給与台帳）や雇用契約書を、税理士・社労士と確認してください。人数を推測して変更しないでください。</p>
           <a className="underline" href="https://www.nenkin.go.jp/service/kounen/tekiyo/jigyosho/20150518.html" target="_blank" rel="noopener noreferrer">日本年金機構の公式案内を見る</a>
         </div>

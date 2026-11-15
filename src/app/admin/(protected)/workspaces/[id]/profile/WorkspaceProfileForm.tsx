@@ -292,7 +292,7 @@ export default function WorkspaceProfileForm({
           placeholder="例: 5"
           ariaLabel="従業員数"
         />
-        <EmployeeCountHelp employeeCount={profile.employeeCount} />
+        <EmployeeCountHelp employeeCount={profile.employeeCount} visualExample />
       </div>
 
       <div>
