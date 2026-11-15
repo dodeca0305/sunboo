@@ -27,6 +27,11 @@ import { usesCorporateFilingChoice } from '@/lib/corporateFilingChoice';
 import { ProcedureResponsibilityField } from '@/components/ProcedureResponsibility';
 import StatusBadge from '@/components/StatusBadge';
 import ProcedureCompletionGuide from '@/components/ProcedureCompletionGuide';
+import ProcedureCompletionFlow from '@/components/ProcedureCompletionFlow';
+import {
+  completionConfirmSteps, completionDocCondition, completionFlowScope, isCompletionFlowTarget,
+  shouldShowCompletionFlow, statusChangeRoute,
+} from '@/lib/procedureCompletionFlow';
 import { trackEvent } from '@/lib/analytics';
 import {
   serializeWorkspaceCompletionFeedback,
@@ -213,6 +218,8 @@ export default function AnnualRoadmapView({
   const taxEditable = companyId !== undefined && taxPaymentPlanMap !== undefined && !taxSaveUncertain;
   const editable = statusMap !== undefined && companyId !== undefined;
 
+  // 対象カードで「完了」が選ばれたとき、確認導線へ視線を移すための要求回数（カードごと）。保存はしない。
+  const [flowFocus, setFlowFocus] = useState<Record<string, number>>({});
   const [procedureError, setProcedureError] = useState<string | null>(null);
   const [savingProcedure, setSavingProcedure] = useState(false);
   const [checkingProcedure, setCheckingProcedure] = useState(false);
@@ -427,7 +434,12 @@ export default function AnnualRoadmapView({
                     const guide = procedureTrialGuide(item.procedure, item.confidence);
                     const submission = buildRoadmapSubmissionInfo(item.procedure);
                     const docGroups = buildRoadmapDocumentItems(item.procedure);
-                    const hasDocGuide = hasAnyRoadmapDocumentItems(docGroups);
+                    // 初回対象（編集可能な会社別ロードマップの償却資産申告）だけ、必要書類を確認導線へ置き換える。
+                    const isFlowTarget = isCompletionFlowTarget(item.procedure.code, editable);
+                    const flowCondition = isFlowTarget ? completionDocCondition(docGroups) : null;
+                    const showFlow = flowCondition !== null && shouldShowCompletionFlow(status);
+                    const cardKey = `${item.procedure.id}-${item.dueDate}`;
+                    const hasDocGuide = hasAnyRoadmapDocumentItems(showFlow ? { ...docGroups, documents: [] } : docGroups);
                     const isConfidenceLow = item.confidence === 'estimated' || item.confidence === 'incomplete';
                       const isFocused =
                         focusProcedureId === item.procedure.id &&
@@ -600,10 +612,25 @@ export default function AnnualRoadmapView({
                             {/* 6〜8. 必要書類／事前準備／提出前チェック（同じデータソース、見出しを分けて表示） */}
                             {hasDocGuide && (
                               <div className="space-y-3 border-t border-sunboo-mist pt-3">
-                                <DocumentGroup label="必要書類" items={docGroups.documents} />
+                                {!showFlow && <DocumentGroup label="必要書類" items={docGroups.documents} />}
                                 <DocumentGroup label="事前準備" items={docGroups.preparations} />
                                 <DocumentGroup label="提出前チェック" items={docGroups.checklist} />
                               </div>
+                            )}
+
+                            {showFlow && flowCondition && (
+                              <ProcedureCompletionFlow
+                                key={completionFlowScope({
+                                  pathname, companyId, procedureId: item.procedure.id, dueDate: item.dueDate,
+                                  signature: flowCondition.signature, status,
+                                })}
+                                name={item.procedure.name}
+                                condition={flowCondition}
+                                confirmSteps={completionConfirmSteps(item.procedure.code)}
+                                disabled={procedureBlocked}
+                                focusToken={flowFocus[cardKey] ?? 0}
+                                onComplete={() => handleStatusChange(item.procedure.id, item.dueDate, item.procedure.name, 'done')}
+                              />
                             )}
 
                             {/* 9. Status（StatusBadgeのみ使用。期限・手続き名より視覚的に弱く保つ） */}
@@ -616,14 +643,15 @@ export default function AnnualRoadmapView({
                                       value={status}
                                       disabled={procedureBlocked}
                                       aria-label={`${item.procedure.name}の対応状況`}
-                                      onChange={(e) =>
-                                          handleStatusChange(
-                                            item.procedure.id,
-                                            item.dueDate,
-                                            item.procedure.name,
-                                            e.target.value as WorkspaceProcedureStatus,
-                                          )
+                                      onChange={(e) => {
+                                        const next = e.target.value as WorkspaceProcedureStatus;
+                                        if (statusChangeRoute(isFlowTarget, next) === 'open_flow') {
+                                          // 確認を迂回して即保存しない。選択は表示のまま現在の状態へ戻し、確認導線へ移す。
+                                          setFlowFocus((previous) => ({ ...previous, [cardKey]: (previous[cardKey] ?? 0) + 1 }));
+                                          return;
                                         }
+                                        handleStatusChange(item.procedure.id, item.dueDate, item.procedure.name, next);
+                                      }}
                                       className="form-select min-h-11 w-auto max-w-full py-1 text-xs sm:min-h-0"
                                     >
                                       {WORKSPACE_PROCEDURE_STATUSES.map((s) => (
@@ -672,9 +700,12 @@ export default function AnnualRoadmapView({
                               </div>
                             )}
 
-                            <dl className="border-t border-sunboo-mist pt-3 text-sm leading-relaxed">
-                              <ProcedureCompletionGuide code={item.procedure.code} />
-                            </dl>
+                            {/* 操作フロー表示中は同じ2条件の静的案内を重複表示しない（補足はフロー内に表示）。 */}
+                            {!(showFlow && flowCondition?.kind === 'ready') && (
+                              <dl className="border-t border-sunboo-mist pt-3 text-sm leading-relaxed">
+                                <ProcedureCompletionGuide code={item.procedure.code} />
+                              </dl>
+                            )}
                           </div>
                         </div>
                       </li>
