@@ -1,22 +1,19 @@
-# LAST_RESULT: registry-field-visual-integration (Claude Sonnet/medium)
+# LAST_RESULT: employee-count-visual-integration (Claude Sonnet/medium)
 
-## 変更（product 3ファイル）
-- `src/components/RegistryFieldExample.tsx`（新規）: 表示専用の静的コンポーネント。`field: 'establishedDate' | 'capital'`。caption付きsemantic table（商号/会社成立の年月日/資本金の額、架空値）、「見本・架空・説明用」タグ、該当行のみ赤枠＋「この日付」/「この金額」、静的「入力例」、位置差の注意文。hooks/state/fetch/イベント/依存/globalCSSなし。三角・矢印なし。標準バナー（入力・保存不可）は本番に持ち込んでいない。
-- `src/components/CompanyProfileFieldHelp.tsx`: `DetailsHelp`のshortTextを`RegistryFieldExample`に置換（常時表示）。元の詳しい説明は`<details>`内にそのまま維持。EmployeeCountHelp/OfficerChangeDateHelp/公開フォーム未変更。
-- `WorkspaceProfileForm.tsx`: 資本金placeholderのみ `例: 5,000,000` → `例: 3,000,000`。入力/label/id/onChange/検証/保存系は未変更。
-- 見本値は実フィールドの初期化・書込に使っていない。
+HEAD=baseSha c5180a7（codex/employee-count-visual-integration）で開始。変更は指定4ファイルのみ（未commit）。
+
+## 変更
+- `src/components/EmployeeCountExample.tsx`（新規）: 静的・表示専用（hooks/state/event/依存/globalCSSなし）。「架空の人数例」タグ、「会社が直接雇っている人を、1人ずつ数えます。」、正社員3人(人型3)＋パート・アルバイト2人(人型2)＝「入力例の合計」5人、「短時間の人も1人と数えます。」。人型は同寸のaria-hidden SVG（id無し）。常に縦積み（管理画面の列幅で横並びだと「パート・アルバイト」が折返すため）。
+- `CompanyProfileFieldHelp.tsx`: `EmployeeCountHelp`に`visualExample`（既定false）を追加。true時は3段落をEmployeeCountExampleに置換し、既存の「この合計だけで…確定しない」注意を既存detailsの先頭へ移動（detailsはtext-sm、summaryはmin-h44/list-item）。既存の給与台帳/雇用契約書/専門家文言と年金機構リンクは維持。**employeeCount===0警告は両分岐でdetails外に常時表示**。既定（公開）分岐の本文・順序・text-xsは従来どおり。他のhelp/RegistryFieldExample未変更。
+- `WorkspaceProfileForm.tsx`: `<EmployeeCountHelp ... visualExample />`のみ。入力/id/label/state/検証/保存は未変更。公開`profile/page.tsx`は未変更。見本の5を実値に使用しない。
 
 ## 確認
-- lint 1回: `npm run lint` exit=0（test-results/registry-field-integration-lint.log）
-- build 1回: `npx next build --webpack` exit=0（test-results/registry-field-integration-build.log）。標準turbo buildはCI側。
-- QA（リポジトリ外スクリプト、react-dom/server＋ビルド済みCSS＋独立Chrome、file URLのみ、サーバー/業務書込なし。実EstablishedDateHelp/CapitalHelpを合成readonly入力と並べて描画）。
-  - 1回目: 375/640/1280pxの表示検査は全PASS（横溢れ0、最小12px、赤枠は該当行のみ、バッジ枠内、見本/架空表記、見本内に操作要素0、HTTP/pageerror 0、summary初期閉・高44px）。ただし**failures=2**（「Space toggles」2件）。
-  - 原因: QAスクリプトの検証式の誤り（`o===false?false:true`）。Enterで開いた後にSpaceで閉じるのは正しい動作だが、式が誤ってFAIL扱いにした。製品不具合ではない。
-  - 修正: 式を `k==='Enter' ? o===true : o===false` に訂正、fail>0で`process.exitCode=1`を設定。1回目ログは証拠として `registry-field-integration-qa.first-run-harness-bug.log`（および元の `registry-field-integration-qa.log`）に保存。
-  - 再実行は375pxのキーボード開閉・readonly入力保持・元説明保持のみ（表示/lint/buildは再実行せず）: failures=0、exit=0。Enter/Spaceで開→閉→開→閉を2箇所とも確認、readonly入力値（1999-09-09 / 12345）は開閉後も不変、元の詳しい説明文保持。
-  - 証跡（test-results）: registry-field-integration-qa-375-keyboard-rerun.log, -375-open-rerun.png, -375-open.png, -375-closed.png, -640-closed.png, -1280-closed.png。
-  - 注: 全体として「全PASS」ではなく、1回目は検証式の誤りで2 FAIL、訂正後の再検証でPASSの経緯。
+- `npm run lint` exit=0、`npx next build --webpack` exit=0（最終ソースで各1回。途中で2回ソース変更したため計3回ずつ実行: 初回ソース→text-sm修正→縦積み化。各回成功）。ログ test-results/employee-count-integration-{lint,build}.log。標準turbo buildはCI。
+- QA（リポジトリ外スクリプト。実EmployeeCountHelp+EmployeeCountExampleをreact-dom/serverで静的描画＋ビルド済みCSS、独立Chrome、file URLのみ、サーバー無し）。visual/default×0/8を375/640/1280で検査: 116 PASS, failures=0, exit=0。
+  - 確認項目: 横溢れ0、visual分岐の文字14px以上、人型3+2・同寸・aria-hidden・合計5人・架空表記・図内にinput/button/link/idなし、0警告はcount0のvisual/defaultで常時表示・count8で非表示、defaultに図無し＋原文3段落/注意/リンク保持、visualで注意文はdetails内のみ、summary list-item/marker/高さ≥44px、detailsは初期閉、375pxでEnter,Enter,Space,Space=開,閉,開,閉（期待true,false,true,false）、隣接readonly値(0/8)は開閉後も不変、HTTP/pageerror 0。
+  - 途中の1回目QAで文字12px×6件FAIL: 原因は既存`text-xs`のdetails（図ではない）。visual分岐のみtext-smに修正し再検証でPASS（検査式の誤りではなく実際の表示指摘）。
+- 証跡: test-results/employee-count-integration-*.png/.log。
 
-## 限界
-- 実フォーム全体の業務保存、実アプリ画面は未試験（静的表示のため）。marker表示はChromeでlist-item確認のみ（他ブラウザ未確認）。
-- product source変更は上記3ファイルのみ。未commit。push/PR/リリースはCodex担当。current-task.jsonの既存変更とnode_modules symlinkは未操作。
+## 編集方法・限界
+- Codexが実行前に対象ファイル内の限定置換を許可し、依頼条件も更新済み。最初の本体編集はpython、以降はnative Edit/sedを使用。Codexが全差分を確認済み。
+- 実アプリ画面・実フォーム保存・公開フォームの実描画は未試験（静的描画のみ）。他ブラウザ未確認。push/PR/リリースはCodex担当。current-task.jsonの既存変更とnode_modules symlinkは未操作。
