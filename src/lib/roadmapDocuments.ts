@@ -8,6 +8,9 @@ import type { ScheduleProcedure } from '@/lib/scheduleProcedure';
 // 新しいDBクエリ・新しい判定材料は追加しない。JSX・exceljs・pdfmake固有の処理は一切含まない。
 
 export type RoadmapDocumentItem = {
+  // 取得元（procedure_documents）にはid列を取得していないため、種別・名称・様式番号・必須の内容と
+  // 同一内容の出現順から作る内容由来の識別子。配列位置だけでは変わらず、内容が変われば変わる。
+  id: string;
   name: string;
   formNumber: string | null;
   isRequired: boolean;
@@ -20,8 +23,16 @@ export type RoadmapDocumentGroups = {
   checklist: RoadmapDocumentItem[]; // 提出前チェック
 };
 
-function toRoadmapDocumentItem(d: NonNullable<ScheduleProcedure['procedure_documents']>[number]): RoadmapDocumentItem {
+function toRoadmapDocumentItem(
+  d: NonNullable<ScheduleProcedure['procedure_documents']>[number],
+  itemType: string,
+  seen: Map<string, number>,
+): RoadmapDocumentItem {
+  const base = JSON.stringify([itemType, d.name, d.form_number, d.is_required]);
+  const n = seen.get(base) ?? 0;
+  seen.set(base, n + 1);
   return {
+    id: `${base}#${n}`,
     name: d.name,
     formNumber: d.form_number,
     isRequired: d.is_required,
@@ -40,10 +51,11 @@ export function buildRoadmapDocumentItems(proc: ScheduleProcedure): RoadmapDocum
   const documents: RoadmapDocumentItem[] = [];
   const preparations: RoadmapDocumentItem[] = [];
   const checklist: RoadmapDocumentItem[] = [];
+  const seen = new Map<string, number>();
 
   for (const row of sorted) {
     const itemType = row.item_type ?? 'document';
-    const item = toRoadmapDocumentItem(row);
+    const item = toRoadmapDocumentItem(row, itemType, seen);
     if (itemType === 'preparation') preparations.push(item);
     else if (itemType === 'checklist') checklist.push(item);
     else documents.push(item);
