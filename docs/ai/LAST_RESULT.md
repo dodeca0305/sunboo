@@ -1,3 +1,27 @@
+# LAST_RESULT: asset-location-destination (Claude Sonnet/medium, manual)
+
+基点 8a0c994（codex/asset-location-destination）。変更は指定6ファイルのみ（未commit）。push/PR/リリースはCodex担当。
+
+## 変更
+- `assetSubmissionDestination.ts`: 6桁文字列JIS完全一致の純粋参照（401315東/401323博多/401331中央/401340南/401358城南/401366早良/401374西）。全区同一の提出先「福岡市 財政局 資産課税課（博多区役所 9階）」〒812-8512 博多駅前2丁目8番1号 092-292-2479、公式003.html、確認日2026-11-16。空/未知/不正/他地域/東京/北九州はnull（会社所在地への代替なし）。期限の引用・計算なし。
+- `AssetSubmissionDestination.tsx`: 資産所在地select（初期空、福岡市7区＋その他）、メモリのみ。選択で提出先/住所/電話/公式リンク、「その他」で旧結果を消し「この地域の案内はまだありません」。会社住所でなく資産の場所を選ぶこと・保存されないこと・Excelに含まれないことを明示。出典/確認日はdetails内。useId、44px/14px以上。disabled任意。
+- `DepreciationDocumentDraft.tsx`: 展開時の上部に共有部品（disabled=busy）。モデル/出力/フォームは不変。
+- `AnnualRoadmapView.tsx`: `editable && DEPRECIABLE_ASSET_TAX_RETURN`のときだけ、RoadmapNextAction（東京リンク）・旧「提出先」ブロック・「手続きの案内・様式」ブロックを非表示にして共有部品（pathname/companyId/procedure/dueDate key）を1つ表示。ElectronicFilingEntry（eLTAX）・他手続・公開/共有は不変。完了/状態に影響なし。
+
+## 確認（最終ソース）
+- `node --test src/lib/assetSubmissionDestination.test.ts` rc0, 4件pass/0 fail（7区、不正値、出典、統合ゲートの静的確認）。`npm run lint` rc0。`npx next build --webpack` rc0。ログ test-results/asset-location-destination-{unit,lint,build}.log。全体スイートはCI。
+- 合成UI QA（実コンポーネント、webpack+TSローダー、既存ビルドCSS、127.0.0.1一時ポートのみ）: 375/1280で50 PASS/0 FAIL（初期空、中央区、西区、その他で旧結果消去、ID一意、remountで初期化、disabled、44px/14px、横溢れなし、非GET0、storage0、pageerror0）。ログ/画像 test-results/asset-location-destination-{ui-qa.log,initial/chuo/other-375/1280.png}。
+
+## 限界
+- 公式リンク（003.html）の到達は未確認（直接取得が404になることがあると依頼に記載）。顧客画面には記載せず、ここのみ。
+- 実アプリ画面（認証/Supabase）でのロードマップ/書類ページ表示は未確認。AnnualRoadmapViewのゲートは静的テストと目視コード確認のみ。
+- 選択はExcelに含まれない（案内のみ）。福岡市以外は未対応。
+- node_modules・current-task.json既存変更・3130/14330/3138は未操作。
+
+## Codex公開確認（2026-11-16）
+
+本人の明示承認後PR #210を同じhead3af1ba2でマージ。main89ea9ae315e12490058777159b031e6d617edc0f。PR CI43822536522/main CI43836562355とも1072件成功・標準ビルド39ページ成功。Vercel dpl_CL4evJkwNnTL18KH3VPRa5X5XEex production/READY・SHA/独自ドメイン一致。公開rootは転送後wwwのHTTP200。前回の承認待ちは解消。認証付き本番画面・Excelアプリ表示は未確認。
+
 # LAST_RESULT: asset-document-drafts (Claude Sonnet/medium, manual)
 
 基点 9cee384（codex/asset-document-drafts）。変更は指定6ファイルのみ（未commit）。push/PR/リリースはCodex担当。

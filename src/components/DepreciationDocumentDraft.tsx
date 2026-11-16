@@ -19,6 +19,7 @@ import {
   updateRow,
   type AssetRowInput,
 } from '@/lib/depreciationDocumentDraft';
+import AssetSubmissionDestination from '@/components/AssetSubmissionDestination';
 
 // ── 償却資産申告の下書き（管理画面・書類ページ）───────────────────
 // 画面内の入力だけで「種類別明細書（下書き）」「償却資産申告書（下書き）」を即時プレビューし、
@@ -166,6 +167,8 @@ export default function DepreciationDocumentDraft({
             この画面の入力は保存されません。必要なら下書きをダウンロードしてください。
             下書きの作成だけを行い、課税の対象かどうかの判定や提出はしません。登記簿などの添付も不要です。
           </p>
+
+          <AssetSubmissionDestination disabled={busy} />
 
           <fieldset className="space-y-3" disabled={busy}>
             <legend className="text-sm font-bold text-sunboo-ink">会社の情報（この下書きだけで修正できます）</legend>

@@ -22,6 +22,7 @@ import { AlertTriangle, Building2, ExternalLink, Info, Square } from 'lucide-rea
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import ElectronicFilingEntry from '@/components/ElectronicFilingEntry';
 import RoadmapNextAction from '@/components/RoadmapNextAction';
+import AssetSubmissionDestination from '@/components/AssetSubmissionDestination';
 import CorporateTaxNextAction from '@/components/CorporateTaxNextAction';
 import { usesCorporateFilingChoice } from '@/lib/corporateFilingChoice';
 import { ProcedureResponsibilityField } from '@/components/ProcedureResponsibility';
@@ -435,6 +436,7 @@ export default function AnnualRoadmapView({
                     const submission = buildRoadmapSubmissionInfo(item.procedure);
                     const docGroups = buildRoadmapDocumentItems(item.procedure);
                     // 初回対象（編集可能な会社別ロードマップの償却資産申告）だけ、必要書類を確認導線へ置き換える。
+                    const showAssetDestination = editable && item.procedure.code === 'DEPRECIABLE_ASSET_TAX_RETURN';
                     const isFlowTarget = isCompletionFlowTarget(item.procedure.code, editable);
                     const flowCondition = isFlowTarget ? completionDocCondition(docGroups) : null;
                     const showFlow = flowCondition !== null && shouldShowCompletionFlow(status);
@@ -477,7 +479,12 @@ export default function AnnualRoadmapView({
                               />
                             ) : (
                               <>
-                                <RoadmapNextAction procedure={item.procedure} />
+                                {showAssetDestination && (
+                                  <AssetSubmissionDestination
+                                    key={`${pathname}-${companyId ?? 'none'}-${item.procedure.id}-${item.dueDate}`}
+                                  />
+                                )}
+                                {!showAssetDestination && <RoadmapNextAction procedure={item.procedure} />}
 
                                 <ElectronicFilingEntry procedure={item.procedure} />
                               </>
@@ -545,7 +552,7 @@ export default function AnnualRoadmapView({
                             </section>
 
                             {/* 3〜5. 提出先／提出方法／公式ページ */}
-                            <div>
+                            {!showAssetDestination && <div>
                               <SectionLabel>提出先</SectionLabel>
                               {submission.officeName === null ? (
                                 <div className="mt-1 space-y-3" data-testid="submission-destination-unconfirmed">
@@ -595,9 +602,9 @@ export default function AnnualRoadmapView({
                                   )}
                                 </div>
                               )}
-                            </div>
+                            </div>}
 
-                            {trialExecutionLinks(item.procedure).length > 0 && <div>
+                            {!showAssetDestination && trialExecutionLinks(item.procedure).length > 0 && <div>
                               <SectionLabel>手続きの案内・様式</SectionLabel>
                               <div className="mt-2 flex flex-wrap gap-2">
                                 {trialExecutionLinks(item.procedure).map(link=><div key={link.url}>
