@@ -18,6 +18,8 @@ import {
   type WorkspaceRequiredDocument,
 } from '@/lib/workspaceRequiredDocuments';
 import { loadWorkspaceDocumentsForEditing } from '@/lib/workspaceDocumentData';
+import DepreciationDocumentDraft from '@/components/DepreciationDocumentDraft';
+import { findDepreciationDocuments } from '@/lib/depreciationDocumentDraft';
 
 // ── Company Workspace — 書類（Sprint 26 Workspace Documents MVP・Sprint 34・Sprint 85）───────
 // workspace_documents（Sprint26新設）のステータス（メタデータのみ）を一覧表示・変更する。
@@ -82,6 +84,17 @@ export default async function WorkspaceDocumentsPage({
     );
   }
 
+  // 償却資産申告の下書き：書類・プロフィール・必要書類がすべて取得済みで、
+  // 既存の必要書類が償却資産申告書と種類別明細書（償却資産申告）を示すときだけ表示する。
+  const depreciation =
+    documents !== null &&
+    sources.profile.status === 'loaded' &&
+    !missingFiscalMonth
+      ? findDepreciationDocuments(requiredDocuments)
+      : null;
+  const depreciationProfile =
+    sources.profile.status === 'loaded' ? sources.profile.value : null;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -96,7 +109,16 @@ export default async function WorkspaceDocumentsPage({
         }
       />
 
-
+      {depreciation && depreciationProfile && (
+        <DepreciationDocumentDraft
+          key={companyId}
+          companyName={company.name}
+          prefectureName={depreciationProfile.prefectureName}
+          municipalityName={depreciationProfile.municipalityName}
+          street={depreciationProfile.address}
+          suggestedYear={depreciation.suggestedYear}
+        />
+      )}
 
       {documents === null ? (
         <>
