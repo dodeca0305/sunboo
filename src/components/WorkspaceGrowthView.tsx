@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Save, Target, TrendingUp } from 'lucide-react';
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import InformationCard from '@/components/InformationCard';
@@ -36,11 +36,19 @@ import {
   todayInJapan,
   shiftYearMonth,
   emptyMonthlySalesEntry,
-  shouldGuideCashFlowInput,
   type DailySalesActivity,
   type MonthlySalesEntry,
   type WeeklySalesActivity,
 } from '@/lib/monthlySalesProgress';
+import {
+  CASH_FLOW_FIELD_LABELS,
+  initCashFlowInputState,
+  isCashFlowInputReady,
+  missingCashFlowFields,
+  updateCashFlowInput,
+  type CashFlowField,
+  type CashFlowInputState,
+} from '@/lib/cashFlowInputState';
 
 const yen = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 });
 const shortDate = new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short', timeZone: 'UTC' });
@@ -91,6 +99,19 @@ export default function WorkspaceGrowthView({
   const [yearMonth, setYearMonth] = useState(currentYearMonth());
   const selected = entries[yearMonth] ?? emptyMonthlySalesEntry(yearMonth, linkedTaxPaymentsByMonth[yearMonth] ?? 0);
   const [draft, setDraft] = useState<MonthlySalesEntry>(selected);
+  // 資金繰り4項目の未入力/0円を区別する状態（月ごとに同期。保存済み0は未入力扱い）。
+  const [cashInput, setCashInput] = useState<CashFlowInputState>(() => initCashFlowInputState(selected));
+  // このセッションで明示入力して保存した月の状態（再訪時に明示0を保持するため）。
+  const sessionCashInputs = useRef<Record<string, CashFlowInputState>>({});
+  // 非同期保存の完了時に「いま表示中の月」を判定するための最新値。
+  const yearMonthRef = useRef(yearMonth);
+  useEffect(() => {
+    yearMonthRef.current = yearMonth;
+  }, [yearMonth]);
+  const draftRef = useRef(draft);
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -143,6 +164,7 @@ export default function WorkspaceGrowthView({
 
     setYearMonth(requestedMonth);
     setDraft(requestedEntry);
+    setCashInput(initCashFlowInputState(initialMap[requestedMonth]));
     setWeekStart(requestedWeek);
     setWeeklyDraft(requestedWeekly);
     setActivityDate(requestedDate);
@@ -156,13 +178,14 @@ export default function WorkspaceGrowthView({
   const grossProfitProgress = useMemo(() => calculateMonthlyGrossProfit(draft), [draft]);
   const operatingProfitProgress = useMemo(() => calculateMonthlyOperatingProfit(draft), [draft]);
   const cashFlowProgress = useMemo(() => calculateMonthlyCashFlow(draft), [draft]);
-  // 【レビュー対応】workspace_monthly_salesにこの月の行が無い（まだ保存していない）場合、
-  // cashBalance等は既定値0が入っているだけで「実際に0円」とは限らない。既知の納税予定
-  // （linkedTaxPayments、年間ロードマップ連携）があるのに未登録のまま資金不足額を断定表示
-  // しないよう、入力を促す案内に切り替える（会社ホーム側のworkspaceGrowthNotifications.tsと
-  // 同じshouldGuideCashFlowInputを共有し、判定基準を一致させる）。
-  const isMonthRegistered = Boolean(entries[yearMonth]);
-  const showCashFlowGuidance = shouldGuideCashFlowInput(isMonthRegistered, draft.linkedTaxPayments);
+  // 資金繰り4項目は未入力と0円を区別する（cashInput）。4項目が全て入力済みの時だけ指標を表示する。
+  const cashFlowReady = isCashFlowInputReady(cashInput);
+  const missingCashFields = missingCashFlowFields(cashInput);
+  function changeCashField(field: CashFlowField, value: number | null) {
+    setSaved(false);
+    setCashInput((previous) => updateCashFlowInput(previous, field, value));
+    setDraft((previous) => ({ ...previous, [field]: value === null ? 0 : Math.max(0, value) }));
+  }
   const cashFlowActions = useMemo(
     () => buildCashFlowActions(draft, cashFlowProgress),
     [draft, cashFlowProgress],
@@ -224,6 +247,7 @@ export default function WorkspaceGrowthView({
     if (!/^\d{4}-\d{2}$/.test(nextMonth)) return;
     setYearMonth(nextMonth);
     setDraft(entries[nextMonth] ?? emptyMonthlySalesEntry(nextMonth, linkedTaxPaymentsByMonth[nextMonth] ?? 0));
+    setCashInput(sessionCashInputs.current[nextMonth] ?? initCashFlowInputState(entries[nextMonth]));
     setError(null);
     setSaved(false);
   }
@@ -248,6 +272,9 @@ export default function WorkspaceGrowthView({
       return;
     }
 
+    const cashInputAtSave = cashInput;
+    const monthAtSave = yearMonth;
+    const draftAtSave = draft;
     setSaving(true);
     setError(null);
     setSaved(false);
@@ -274,16 +301,20 @@ export default function WorkspaceGrowthView({
       average_order_value: draft.averageOrderValue,
     }, { onConflict: 'company_id,year_month' });
     setSaving(false);
+    const stillOnSavedMonth = yearMonthRef.current === monthAtSave;
 
     if (saveError) {
-      setError(`保存に失敗しました: ${saveError.message}`);
+      if (stillOnSavedMonth) setError(`保存に失敗しました: ${saveError.message}`);
       return;
     }
 
+    // 保存時点のスナップショットだけを保存済みとして記録する。保存中に行われた編集や
+    // 月の切替を上書きしない（draftとcashInputは常に同じ編集内容を指す）。
     const savedEntry = { ...draft, actionGoal: draft.actionGoal.trim() };
-    setDraft(savedEntry);
-    setEntries((previous) => ({ ...previous, [yearMonth]: savedEntry }));
-    setSaved(true);
+    setEntries((previous) => ({ ...previous, [monthAtSave]: savedEntry }));
+    sessionCashInputs.current[monthAtSave] = cashInputAtSave;
+    // 保存中に編集された場合は、未保存の値を保存済みと表示しない。
+    if (stillOnSavedMonth && draftRef.current === draftAtSave) setSaved(true);
   }
 
   function changeWeek(nextWeek: string, suggestedActionNote?: string) {
@@ -819,28 +850,28 @@ export default function WorkspaceGrowthView({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <DriverInput
+          <CashFlowInput
             label="現在の預金残高（円）"
-            value={draft.cashBalance}
-            onChange={(value) => setDraft((previous) => ({ ...previous, cashBalance: value }))}
+            value={cashInput.cashBalance}
+            onChange={(value) => changeCashField('cashBalance', value)}
             placeholder="例：3,000,000"
           />
-          <DriverInput
+          <CashFlowInput
             label="今月の入金予定（円）"
-            value={draft.expectedCashInflows}
-            onChange={(value) => setDraft((previous) => ({ ...previous, expectedCashInflows: value }))}
+            value={cashInput.expectedCashInflows}
+            onChange={(value) => changeCashField('expectedCashInflows', value)}
             placeholder="例：2,000,000"
           />
-          <DriverInput
+          <CashFlowInput
             label="今月の支出予定・納税除く（円）"
-            value={draft.expectedCashOutflows}
-            onChange={(value) => setDraft((previous) => ({ ...previous, expectedCashOutflows: value }))}
+            value={cashInput.expectedCashOutflows}
+            onChange={(value) => changeCashField('expectedCashOutflows', value)}
             placeholder="例：2,500,000"
           />
-          <DriverInput
+          <CashFlowInput
             label="その他の納税予定（円）"
-            value={draft.plannedTaxPayments}
-            onChange={(value) => setDraft((previous) => ({ ...previous, plannedTaxPayments: value }))}
+            value={cashInput.plannedTaxPayments}
+            onChange={(value) => changeCashField('plannedTaxPayments', value)}
             placeholder="ロードマップ外の納税"
           />
         </div>
@@ -853,22 +884,17 @@ export default function WorkspaceGrowthView({
           </p>
         </div>
 
-        {showCashFlowGuidance ? (
-          // 【レビュー対応】未登録月＋既知の納税予定あり。cashBalance等を0円と断定した
-          // 資金不足額を表示せず、入力を促す案内のみ表示する（会社ホーム側と文言を一致させる）。
-          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <h3 className="font-bold">
-                  納税予定{yen.format(draft.linkedTaxPayments)}あり
-                </h3>
-                <p className="mt-1 text-sm">
-                  預金残高・入出金予定を入力して資金繰りを確認してください。未入力のまま0円として
-                  計算すると、実際の資金不足額を見誤る可能性があります。
-                </p>
-              </div>
-            </div>
+        {!cashFlowReady ? (
+          <div className="rounded-xl border border-sunboo-line bg-sunboo-paper p-4 text-sunboo-ink" data-testid="cash-flow-unknown">
+            <h3 className="font-bold">資金繰りは未入力です</h3>
+            <p className="mt-1 text-sm">入力が足りないため計算できません。</p>
+            <p className="mt-1 text-sm text-sunboo-ink-muted">
+              未入力：{missingCashFields.map((field) => CASH_FLOW_FIELD_LABELS[field]).join('・')}
+            </p>
+            <p className="mt-1 text-sm text-sunboo-ink-muted">0円の場合は0を入力してください。</p>
+            {draft.linkedTaxPayments > 0 && (
+              <p className="mt-2 text-sm font-semibold">納税予定{yen.format(draft.linkedTaxPayments)}あり</p>
+            )}
           </div>
         ) : (
           <>
@@ -1429,6 +1455,33 @@ function DriverInput({
         ariaLabel={label}
         placeholder={placeholder}
         zeroAsBlank
+      />
+    </div>
+  );
+}
+
+function CashFlowInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: number | null;
+  onChange: (value: number | null) => void;
+  placeholder: string;
+}) {
+  const id = useId();
+  return (
+    <div>
+      <label htmlFor={id} className="form-label text-sm">{label}</label>
+      <FormattedIntegerInput
+        id={id}
+        value={value}
+        onChange={onChange}
+        ariaLabel={label}
+        placeholder={placeholder}
+        className="min-h-11 text-base"
       />
     </div>
   );
