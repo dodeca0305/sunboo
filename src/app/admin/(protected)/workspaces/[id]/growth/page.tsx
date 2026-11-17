@@ -48,6 +48,7 @@ export default async function WorkspaceGrowthPage({ params }: { params: Promise<
         </InformationCard>
       ) : (
         <WorkspaceGrowthView
+          key={companyId}
           companyId={companyId}
           initialEntries={growthData.entries}
           initialWeeklyActivities={growthData.weeklyActivities}
