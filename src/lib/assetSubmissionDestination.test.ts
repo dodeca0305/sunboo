@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   ASSET_WARDS,
+  KITAKYUSHU_WARDS,
   ASSET_DESTINATION_OFFICIAL_URL,
   lookupAssetSubmissionDestination,
 } from './assetSubmissionDestination.ts';
@@ -64,4 +65,67 @@ test('統合：ゲートは編集可能かつ償却資産申告のみ／他手�
   assert.match(draft, /disabled=\{busy\}/);
   const comp = readFileSync(new URL('../components/AssetSubmissionDestination.tsx', import.meta.url), 'utf8');
   assert.doesNotMatch(comp, /localStorage|sessionStorage|fetch\(|XMLHttpRequest|sendBeacon/);
+});
+
+const KITA: Array<[string, string]> = [
+  ['401013', '門司区'],
+  ['401030', '若松区'],
+  ['401056', '戸畑区'],
+  ['401064', '小倉北区'],
+  ['401072', '小倉南区'],
+  ['401081', '八幡東区'],
+  ['401099', '八幡西区'],
+];
+
+test('北九州市7区は正確なコードで同じ窓口・出典・様式案内を返す', () => {
+  assert.equal(KITAKYUSHU_WARDS.length, 7);
+  for (const [code, label] of KITA) {
+    const d = lookupAssetSubmissionDestination(code);
+    assert.ok(d, code);
+    assert.equal(d.wardLabel, label);
+    assert.equal(d.cityLabel, '北九州市');
+    assert.equal(d.officeName, '北九州市 財政・変革局 税務部 固定資産税課 償却資産係（市役所6階）');
+    assert.equal(d.postalCode, '803-8501');
+    assert.equal(d.address, '福岡県北九州市小倉北区城内1番1号');
+    assert.equal(d.phone, '093-582-3210');
+    assert.equal(d.officialUrl, 'https://www.city.kitakyushu.lg.jp/contents/924_00364.html');
+    assert.equal(d.sourceCheckedOn, '2026-11-18');
+    assert.match(d.note, /区ごとの書類/);
+    assert.ok(d.formNotice);
+    assert.equal(d.formNotice.text, '令和9年度の様式は公開を確認できていません（2026/11/18確認）。');
+    assert.equal(d.formNotice.url, 'https://www.city.kitakyushu.lg.jp/contents/division260list.html');
+    assert.doesNotMatch(JSON.stringify(d), /福岡市|期限|締切|1月31日/);
+  }
+});
+
+test('様式案内は北九州市のみ・福岡市は従来の窓口と日付のまま・R8ページをR9として使わない', () => {
+  for (const w of ASSET_WARDS) {
+    const d = lookupAssetSubmissionDestination(w.code);
+    assert.ok(d);
+    assert.equal(d.formNotice, undefined);
+    assert.equal(d.cityLabel, '福岡市');
+    assert.equal(d.sourceCheckedOn, '2026-11-16');
+    assert.equal(d.officialUrl, ASSET_DESTINATION_OFFICIAL_URL);
+  }
+  const k = lookupAssetSubmissionDestination('401064');
+  assert.ok(k?.formNotice);
+  assert.doesNotMatch(k.formNotice.url, /26000004|\.pdf/i);
+});
+
+test('福岡の修正済みコードと北九州の不正コード・市集計', () => {
+  assert.equal(lookupAssetSubmissionDestination('401358')?.wardLabel, '西区');
+  assert.equal(lookupAssetSubmissionDestination('401366')?.wardLabel, '城南区');
+  assert.equal(lookupAssetSubmissionDestination('401374')?.wardLabel, '早良区');
+  for (const v of ['401005', '401000', '401013 ', ' 401013', '40101', '４０１０１３', 401013, '401099\n', '401102'])
+    assert.equal(lookupAssetSubmissionDestination(v), null, String(v));
+});
+
+test('コンポーネント：北九州optgroup・市別リンク名・様式案内は安全な別タブ・保存/通信なし', () => {
+  const comp = readFileSync(new URL('../components/AssetSubmissionDestination.tsx', import.meta.url), 'utf8');
+  assert.match(comp, /<optgroup label="北九州市">/);
+  assert.match(comp, /destination\.cityLabel\}の公式案内を開く/);
+  assert.match(comp, /destination\.formNotice &&/);
+  assert.equal((comp.match(/rel="noopener noreferrer"/g) ?? []).length, 2);
+  assert.doesNotMatch(comp, /福岡市の公式案内|localStorage|sessionStorage|fetch\(|props\.company/);
+  assert.match(comp, /disabled=\{disabled\}/);
 });
