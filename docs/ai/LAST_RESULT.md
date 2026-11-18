@@ -1,3 +1,25 @@
+# LAST_RESULT: financial-forecast-storage (Claude Sonnet/medium, manual, 追加エージェントなし)
+
+基点 0483f45（codex/financial-forecast-storage）。実装・合成試験のみ。未commit/未push。push/PR/リリース/本番入力はCodex担当。本番接続・.env・実セッション・顧客データ・インストール・他AI/課金の操作なし。
+
+## 変更（指定ファイルのみ）
+- migration（CLI生成の雛形に記入）：`workspace_financial_forecasts`1表（会社+期間+シナリオ名が主キー、架空フラグ、version、17金額列=NULLと0を区別、日付/金額範囲CHECK、期首繰越利益のみ負数可）、版/時刻とキー不変を守るinvokerトリガー、RLS（admin+メンバー、非匿名。読取は全ロール、書込はowner/member）、authenticatedにSELECT/INSERT/UPDATEのみ、`save_workspace_financial_forecast` SECURITY INVOKER RPC（期待版+期待値のCAS、同一内容の再送は冪等、競合insertは競合安全）。DELETE/TRUNCATE/anon/PUBLIC/他表の権限なし。
+- `financialForecast.ts`（検証・BigInt計算・決算月からの期間提案）、`workspaceFinancialForecast.ts`（取得/保存アダプタ、保留記録、厳密な版確認、記録の所有確認/解放）、`WorkspaceFinancialForecastView.tsx`、`/admin/workspaces/[id]/forecasts/page.tsx`、左メニュー「決算見込（試算）」、ホームの入口リンク、`playwright/verify-financial-forecast.mjs`。
+- 計算：見本どおり営業利益1,200,000／純利益840,000／期末現金3,000,000／売掛金1,840,000／資産5,040,000／負債1,200,000／純資産3,840,000／差額0。調整の穴埋めなし（差額はそのまま表示）。未入力は依存項目だけ「計算できません」。税額計算ではなく、償却・税務調整は含めないと画面に明記。
+
+## 試験（ログはtest-results/financial-forecast-*）
+- 純粋/アダプタ30件成功 exit0（lib-tests.log）。実SQL(PGlite・新migrationのみ適用)10件成功 exit0、`after`でclose（sql-final.log）。SQL初回の構文エラー(sql-run1.log)は保存、修正後run2/finalは成功。
+- E2E（隔離コピー /private/tmp、port3121、実Next build/start＋PGlite実SQL、Chromium）22項目成功 exit0（e2e-run5.log、e2e.json）。含む：404、空/提案期間、見本の保存・再読込、0と空欄、負数Enter/途中の「-」、二重クリック1送信、+1,000,000、応答喪失(確定/未確定)で自動再送なし・二重保存なし、同時更新の取消後に最新値(v4)が残り上書きなし、保存失敗、viewer拒否(保留はviewer内で取消し、ownerへ漏れず)、取得失敗でエディタ停止、会社切替中の保存、他アクター/会社のstorageイベント非干渉、保留2件の読取専用確認、削除失敗/別依頼置換で停止、375/1280でoverflowなし・操作44px以上・文字14px以上、既存税/月次行不変、想定外書込0、pageerror0。画像 financial-forecast-375.png / -1280.png（標準を見本に戻して撮影）。
+- 隔離 `next build --webpack` exit0（build.log）。ビルドには新規TS試験3本も含め、ES2017型検査に合わせてBigInt()に修正。初回ビルド失敗は financial-forecast-build-initial.log に保存。
+- lint：最終 exit0（lint-final.log）、エラー0・警告3（既存WorkspaceGrowthView1件＋新ハーネスの未使用`num`/`window.location`の2件）。初回lint失敗は lint-initial.log。
+- E2E初回〜4回目の失敗は e2e-run2/3/4-failure.txt に保存（404はストリーミングで200開始のため画面で確認、J/Iの保留、details開閉のハーネス不具合。製品仕様は弱めていない）。
+
+## 制限・未確認
+- PGlite は単一接続のため、真の同時トランザクション競合は逐次の結果でのみ検証（SQLの競合分岐は実装済み・実並列は未検証）。
+- 実認証/本番Supabase/PostgRESTでの動作、本番RLS環境（既存is_workspace_member/admin_users前提）は未確認。E2Eは合成応答でPostgRESTの挙動を模擬。
+- ホーム入口リンクは型検査・ビルドのみ（ホーム描画はE2E未実施）。左メニューは存在確認。
+- 全既存試験はCI任せ。会社23への入力・本番migration適用はCodex側で別承認後。
+
 ## 2026-11-17 Claude Code結果：cash-flow-empty-state（実装完了・未push）
 
 - 成長画面の資金繰り4項目（預金残高/入金予定/支出予定/その他納税）に、画面内限定の未入力/0円状態(cashInputState)を追加。空欄は未入力、明示入力の0は0円。4項目すべて入力済みの時だけ資金不足/月末残高/増減/持つ目安と下流の対策・追加売上/週次目標を表示。未入力時は「資金繰りは未入力です／入力が足りないため計算できません」と不足項目、0円は0入力の案内。ロードマップ納税予定は「納税予定Xあり」で維持し、架空の不足額は出さない。

@@ -1,5 +1,6 @@
 import { missingProfileInputs } from '@/lib/profileInputGuidance';
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { createServerSupabase } from '@/lib/supabase/server';
 import PageHeader from '@/components/PageHeader';
 import WorkspaceDashboard from '@/components/WorkspaceDashboard';
@@ -205,6 +206,10 @@ export default async function WorkspaceCompanyPage({
       />
       <WorkspaceFirstStep step={firstStep} />
       <WorkspaceCompletionFeedback companyId={companyId} />
+      <Link href={`/admin/workspaces/${companyId}/forecasts`} className="card flex min-h-11 items-center justify-between gap-3 text-sm font-semibold" data-testid="home-forecast-link">
+        <span>決算見込（試算）を入力する<span className="block text-xs font-normal text-sunboo-ink-muted">将来の見込みを実績とは別に記録します。</span></span>
+        <span aria-hidden="true">→</span>
+      </Link>
       {failed && (
         <section role="alert" className="card space-y-3">
           <p>

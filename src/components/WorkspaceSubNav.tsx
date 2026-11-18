@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Building2, Receipt, CalendarRange, FileStack, ShieldCheck, Share2, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Building2, Receipt, CalendarRange, FileStack, ShieldCheck, Share2, TrendingUp, LineChart } from 'lucide-react';
 
 // ── Company Workspace — サブナビゲーション（Sprint 30 Workspace Navigation & Migration・Sprint 35）─
 // 会社のサイドバー内で使用。Workspace内の各ページ（Dashboard/Profile/TaxReturns/Roadmap/Documents/Share）を、都度Dashboardへ
@@ -14,6 +14,7 @@ const TABS = [
   { label: '会社プロフィール', hrefSuffix: '/profile', icon: Building2 },
   { label: '過去の決算・申告情報', hrefSuffix: '/tax-returns', icon: Receipt },
   { label: '売上目標', hrefSuffix: '/growth', icon: TrendingUp },
+  { label: '決算見込（試算）', hrefSuffix: '/forecasts', icon: LineChart },
   { label: '年間ロードマップ', hrefSuffix: '/roadmap', icon: CalendarRange },
   { label: '書類', hrefSuffix: '/documents', icon: FileStack },
   { label: '税金の確認結果', hrefSuffix: '/tax-review', icon: ShieldCheck },
