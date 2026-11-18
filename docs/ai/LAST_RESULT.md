@@ -1,3 +1,19 @@
+# LAST_RESULT: kitakyushu-asset-location-ui (Claude Sonnet/medium, manual, 追加エージェントなし)
+
+基点 d9038be。ローカル実装・合成試験のみ。未commit/未push。push/PR/リリースはCodex担当。本番・API・DB・.env・セッション・顧客データ・インストール・課金の操作なし。
+
+## 変更
+- `assetSubmissionDestination.ts`：ASSET_WARDS（福岡7区）は据え置き、`KITAKYUSHU_WARDS`（401013門司/401030若松/401056戸畑/401064小倉北/401072小倉南/401081八幡東/401099八幡西）を追加。北九州の窓口（固定資産税課 償却資産係、803-8501、093-582-3210、確認日2026-11-18、7区同一）。任意の`formNotice`は北九州のみ：「令和9年度の様式は公開を確認できていません（2026/11/18確認）。」＋「最新の様式を公式サイトで確認」→division260list（R8様式ページ/PDFは使わない）。対応範囲表記は福岡市7区・北九州市7区のみ。福岡の窓口・確認日11-16・修正済みコード(401358西/401366城南/401374早良)は不変。
+- `AssetSubmissionDestination.tsx`：福岡市の隣に北九州市optgroup、リンク名/出典名は`destination.cityLabel`、様式案内は折り畳みの外・target=_blank rel=noopener noreferrer。company props/自動選択/保存/通信なし、disabled維持。Roadmap/Draft側は未変更。
+- テスト4件追加（計8件）、`playwright/verify-asset-destination.mjs`新規。
+
+## 試験（ログ /private/tmp/sunboo-kitakyushu-ui-tests.log、test-results/asset-destination-*）
+- 対象 node --test：8件成功。npm test全体：1128件成功/失敗0。eslint：エラー0（修正後、対象ファイル警告0）。`tsc --noEmit`：エラーなし。
+- ブラウザQA：実コンポーネントをnext同梱webpack+TS変換で/private/tmp/sunboo-asset-destination-fixtureに束ね、全外部通信遮断のChromium（1280/375）で13項目成功：7+7選択肢、初期は結果なし、小倉北→093-582-3210・新注意・公式リンク属性、福岡城南401366へ切替で窓口/注意消去/福岡市リンク、other/blank消去、複数ウィジェット独立、disabled、通信0。画像 asset-destination-{kitakyushu,fukuoka}-{pc,mobile}.png。
+
+## 制限
+- 隔離ビルド：`git archive HEAD`を/private/tmp/sunboo-kitakyushu-build-snapshotへ展開、変更3ソースのみ上書き、node_modulesはsymlinkのみ（.env/session未コピー、元の.next不使用）、環境変数を空にした子プロセスで`next build --webpack` exit0（ログ /private/tmp/sunboo-kitakyushu-ui-build.log）。ブラウザQAは実Nextページ/認証画面ではなく合成フィクスチャ。令和9年度様式は「公開未確認」であり未公開の確定ではない。
+
 # LAST_RESULT: financial-forecast-storage (Claude Sonnet/medium, manual, 追加エージェントなし)
 
 基点 0483f45（codex/financial-forecast-storage）。実装・合成試験のみ。未commit/未push。push/PR/リリース/本番入力はCodex担当。本番接続・.env・実セッション・顧客データ・インストール・他AI/課金の操作なし。

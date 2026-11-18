@@ -4,6 +4,7 @@ import { useId, useState } from 'react';
 import {
   ASSET_DESTINATION_COVERAGE,
   ASSET_WARDS,
+  KITAKYUSHU_WARDS,
   OTHER_REGION_VALUE,
   lookupAssetSubmissionDestination,
 } from '@/lib/assetSubmissionDestination';
@@ -39,6 +40,11 @@ export default function AssetSubmissionDestination({ disabled = false }: { disab
             <option key={w.code} value={w.code}>福岡市{w.label}</option>
           ))}
         </optgroup>
+        <optgroup label="北九州市">
+          {KITAKYUSHU_WARDS.map((w) => (
+            <option key={w.code} value={w.code}>北九州市{w.label}</option>
+          ))}
+        </optgroup>
         <option value={OTHER_REGION_VALUE}>その他の地域</option>
       </select>
       <div aria-live="polite">
@@ -54,11 +60,24 @@ export default function AssetSubmissionDestination({ disabled = false }: { disab
               rel="noopener noreferrer"
               className="btn-secondary inline-flex min-h-11 items-center text-sm"
             >
-              福岡市の公式案内を開く（別タブ）
+              {destination.cityLabel}の公式案内を開く（別タブ）
             </a>
+            {destination.formNotice && (
+              <div className="space-y-1" data-testid="asset-destination-form-notice">
+                <p className="font-medium">{destination.formNotice.text}</p>
+                <a
+                  href={destination.formNotice.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-secondary inline-flex min-h-11 items-center text-sm"
+                >
+                  {destination.formNotice.actionLabel}（別タブ）
+                </a>
+              </div>
+            )}
             <details className="text-sm">
               <summary className="min-h-11 cursor-pointer py-3 font-medium">出典と確認日</summary>
-              <p>出典：福岡市公式サイト（確認日 {destination.sourceCheckedOn}）。提出前に公式案内をご確認ください。</p>
+              <p>出典：{destination.cityLabel}公式サイト（確認日 {destination.sourceCheckedOn}）。提出前に公式案内をご確認ください。</p>
             </details>
           </div>
         )}
