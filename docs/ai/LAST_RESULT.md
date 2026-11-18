@@ -93,3 +93,11 @@
 ## 限界
 - 実アプリ画面（認証/Supabase）・実ブラウザのExcel表示は未確認（合成部品のみ、Chromiumのみ）。モデル/Excel不変のためunitは再実行せず、UI修正後のlint/build/UI QAは上記の最終ログで確認。
 - node_modules symlink・current-task.json既存変更・3130/14330/3138は未操作。QA一時ファイルはscratchpad内。
+
+## 2026-11-18 Claude Code結果：growth-current-week-link（実装完了・未commit/未push）
+
+基点 108f158。Sonnet/medium手動1セッション、追加エージェントなし。push/PR/本番はCodex担当。
+- 修正：`growthNotificationToDecisionAction(s)`に任意の`referenceDay`を追加（純粋関数、現在時刻は読まない）。対象月内の実在日ならその日、未指定/null/不正形式/別月/不可能日(2026-02-30等)は従来の月初。ホームは取得済みの`today`を渡す。優先度/文言/dueDate(null転送含む)/procedureIdは不変。UI・文言変更なし。
+- 変更：workspaceGrowthActions.ts/.test.ts、workspaces/[id]/page.tsx（+本記録）。
+- 試験：`node --test`（workspaceGrowthActions+workspaceFirstStep）22件成功/失敗0、exit0（実終了コード取得）。2026-11-18→date=2026-11-18、週11-16、閏日、2026-02-30/29、月末日、未指定/別月フォールバック、売上/資金繰り両方を確認。lint exit0（エラー0、既存警告3）。隔離build（/private/tmp、git archive HEAD+3ファイル、合成env、GA空、next build --webpack）exit0、一時領域は削除済み。ログ test-results/growth-current-week-link-{test,lint,build}.log。
+- 未確認：実UIでの修正後表示（Codexがリリース後確認）、フル試験はCI。

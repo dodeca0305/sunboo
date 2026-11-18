@@ -1,3 +1,9 @@
+## 2026-11-18 Current-week link implementation reviewed; preparing PR
+
+- One Claude session finished and exited. Source review approved only href date mapping plus home passing captured today; no business data writes, save semantics or notice computation changes.22 scoped tests/lint/isolated full build pass (all real exit0); current-task idle. Source3files and LAST_RESULT only. No duplicate checks by Codex. Own temp build removed.
+- Read-only live review completed home/growth/documents. With date11-01 growth opened week10-26 blank; date11-18 shows current week target5/actual5. Existing monthly sales600000/target1000000/cash forecast1090000 preserved. Document two asset forms remain準備中, appropriate official forms deferred; no status write. CUA completed, Chrome docs page. First URL native type lost an h and opened a public-URL Google search, corrected via native paste; no data/credentials exposure.
+- Next one PR/CI; final reviewable production release approval, then verify home click opens actual current week without writing company23. No further paper packets or unrelated features. Prior trial setup/fictional Kanpo preparation complete on local metadata branch codex/financial-forecast-release-record25e40da and later commits; exact production PR213 main441742e.
+
 ## 2026-11-18 Active: home growth link must open the current day/week
 
 - User continues company23 trial and asks next steps. Final read-only UI review found a concrete existing navigation bug: home "今月の売上目標" points at /growth?date=2026-11-01, which initializes week2026-10-26 and hides the saved current-week record. Opening date2026-11-18 shows target5/actual5. Data is not lost. Fix this navigation only; no new feature, schema or business write.

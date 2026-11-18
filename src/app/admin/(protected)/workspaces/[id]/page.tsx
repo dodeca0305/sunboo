@@ -138,7 +138,7 @@ export default async function WorkspaceCompanyPage({
       });
       const merged = mergeDecisionActions(
         procedureDecisions.actions,
-        growthNotificationsToDecisionActions(growth, companyId, month),
+        growthNotificationsToDecisionActions(growth, companyId, month, today),
       );
       const decisions = {
         ...procedureDecisions,
