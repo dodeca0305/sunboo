@@ -77,7 +77,7 @@ export default function TopPage() {
 
           <p className="mx-auto mt-5 flex max-w-md items-center justify-center gap-1.5 text-center text-xs text-sunboo-ink-muted">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-            現在は福岡県・東京都渋谷区対応のβ版です。実際の提出前には必ず公式情報をご確認ください。
+            現在は福岡県・東京都渋谷区対応のβ版です。それ以外の地域は地域・手続きごとに対応状況が異なり、全国対応ではありません。実際の提出前には必ず公式情報をご確認ください。
           </p>
         </div>
       </section>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useReducer, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { prefectures as staticPrefectures } from '@/data/prefectures';
@@ -9,15 +9,30 @@ import type { CorporateType } from '@/lib/types';
 import SegmentedControl from '@/components/SegmentedControl';
 import FormattedIntegerInput from '@/components/FormattedIntegerInput';
 import { getBusinessTermNumber } from '@/lib/businessTerm';
+import {
+  INITIAL_MUNICIPALITY_STATE,
+  createSupabaseGeographyQuery,
+  isMunicipalitySelectable,
+  loadMunicipalities,
+  loadPrefectures,
+  loadSampleMunicipalities,
+  municipalityBlockMessage,
+  municipalityReducer,
+  type GeoItem,
+} from '@/lib/startGeography';
 
+// Supabase未設定のローカル開発専用のサンプル。実際の対応地域ではない。
 const FALLBACK_MUNICIPALITIES: Record<string, { code: string; name: string }[]> = {
   '13': [{ code: '13113', name: '渋谷区' }],
 };
 
 const FISCAL_MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 
-type PrefItem = { code: string; name: string };
-type MuniItem = { code: string; name: string };
+type PrefState =
+  | { status: 'loading' }
+  | { status: 'loaded'; items: GeoItem[]; source: 'live' | 'sample' }
+  | { status: 'empty' }
+  | { status: 'error' };
 type SpecificPeriodThresholdStatus = 'both_over' | 'either_not_over' | 'not_applicable_or_unknown';
 type SpecifiedNewCorporationStatus = 'applies' | 'does_not_apply' | 'needs_review';
 type BasePeriodTaxableSalesStatus = 'over_threshold' | 'at_or_below_threshold' | 'not_applicable' | 'unknown';
@@ -26,8 +41,15 @@ type ReorganizationTaxabilityStatus = 'none' | 'taxable_confirmed' | 'needs_revi
 export default function StartPage() {
   const router = useRouter();
 
-  const [prefList, setPrefList] = useState<PrefItem[]>([]);
-  const [muniList, setMuniList] = useState<MuniItem[]>([]);
+  const [prefState, setPrefState] = useState<PrefState>(() =>
+    supabase
+      ? { status: 'loading' }
+      : { status: 'loaded', source: 'sample', items: staticPrefectures.map((p) => ({ code: p.code, name: p.name })) },
+  );
+  const [prefRetry, setPrefRetry] = useState(0);
+  const [muniState, dispatchMuni] = useReducer(municipalityReducer, INITIAL_MUNICIPALITY_STATE);
+  const [muniRetry, setMuniRetry] = useState(0);
+  const muniRequestId = useRef(0);
 
   const [prefCode, setPrefCode] = useState('');
   const [muniCode, setMuniCode] = useState('');
@@ -65,69 +87,48 @@ export default function StartPage() {
   const showBasePeriod = businessTermNumber === null || businessTermNumber >= 3;
   const taxDetailQuestionCount = 3 + Number(showSpecificPeriod) + Number(showSpecifiedNewCorporation) + Number(showBasePeriod);
 
-  const [loadingMunis, setLoadingMunis] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<'pref' | 'muni' | 'emp' | 'fm' | 'corp' | 'officerTerm' | 'establishedDate' | 'officerPay' | 'payrollCount' | 'hireDate' | 'employmentIns' | 'employmentInsDate' | 'socialIns' | 'socialInsDate' | 'capital' | 'invoice' | 'taxElection' | 'specificPeriod' | 'specifiedNewCorp' | 'basePeriodSales' | 'reorganization', string>>>({});
 
   useEffect(() => {
-    async function load() {
-      if (!supabase) {
-        setPrefList(staticPrefectures.map((p) => ({ code: p.code, name: p.name })));
-        return;
-      }
-      const { data } = await supabase.from('prefectures').select('code, name').order('code');
-      const list = (data as PrefItem[] | null) ?? [];
-      setPrefList(
-        list.length > 0
-          ? list
-          : staticPrefectures.map((p) => ({ code: p.code, name: p.name })),
-      );
-    }
-    load();
-  }, []);
+    let cancelled = false;
+    if (!supabase) return;
+    loadPrefectures(createSupabaseGeographyQuery(supabase)).then((outcome) => {
+      if (cancelled) return;
+      if (outcome.kind === 'loaded') setPrefState({ status: 'loaded', items: outcome.items, source: outcome.source });
+      else if (outcome.kind === 'error') setPrefState({ status: 'error' });
+      else setPrefState({ status: 'empty' });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [prefRetry]);
 
   useEffect(() => {
-    if (!prefCode) return;
-
-    async function load() {
-      setLoadingMunis(true);
-
-      if (!supabase) {
-        setMuniList(FALLBACK_MUNICIPALITIES[prefCode] ?? []);
-        setLoadingMunis(false);
-        return;
-      }
-
-      const { data: prefData } = await supabase
-        .from('prefectures')
-        .select('id')
-        .eq('code', prefCode)
-        .single();
-
-      const pref = prefData as { id: number } | null;
-      if (!pref) {
-        setMuniList([]);
-        setLoadingMunis(false);
-        return;
-      }
-
-      const { data } = await supabase
-        .from('municipalities')
-        .select('code, name')
-        .eq('prefecture_id', pref.id)
-        .order('code');
-
-      setMuniList((data as MuniItem[] | null) ?? []);
-      setLoadingMunis(false);
+    if (!prefCode) {
+      dispatchMuni({ type: 'reset' });
+      return;
     }
-
-    load();
-  }, [prefCode]);
+    let cancelled = false;
+    const requestId = ++muniRequestId.current;
+    dispatchMuni({ type: 'start', prefCode, requestId });
+    const outcomePromise = supabase
+      ? loadMunicipalities(createSupabaseGeographyQuery(supabase), prefCode)
+      : Promise.resolve(loadSampleMunicipalities(FALLBACK_MUNICIPALITIES, prefCode));
+    outcomePromise.then((outcome) => {
+      if (!cancelled) dispatchMuni({ type: 'finish', prefCode, requestId, outcome });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [prefCode, muniRetry]);
 
   function validate(): boolean {
     const errs: typeof errors = {};
-    if (!prefCode) errs.pref = '都道府県を選択してください';
-    if (prefCode && muniList.length === 0) errs.muni = '現在未対応のエリアです';
-    else if (!muniCode) errs.muni = '市区町村を選択してください';
+    if (!prefCode) {
+      errs.pref = prefState.status === 'loaded' ? '都道府県を選択してください' : '都道府県の一覧を読み込めていません';
+    } else if (!isMunicipalitySelectable(muniState, prefCode, muniCode)) {
+      errs.muni = municipalityBlockMessage(muniState);
+    }
     if (hasEmployees === null) errs.emp = '従業員の有無を選択してください';
     if (hasEmployees === true && !firstEmployeeHireDate) errs.hireDate = '最初の従業員を雇った日を入力してください';
     if (hasEmployees === true && hasEmploymentInsuranceEligibleEmployee === null) {
@@ -180,13 +181,17 @@ export default function StartPage() {
 
   function handlePrefectureChange(nextPrefCode: string) {
     setPrefCode(nextPrefCode);
-    setMuniList([]);
     setMuniCode('');
+    // 次のeffectを待たず、前の地域の一覧を即座に外す
+    dispatchMuni({ type: 'reset' });
+    setErrors((prev) => ({ ...prev, pref: undefined, muni: undefined }));
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
+    // 念のため送信直前にも、読み込み済みの現在の一覧に含まれることを確認する
+    if (!isMunicipalitySelectable(muniState, prefCode, muniCode)) return;
     const params = new URLSearchParams({
       pref: prefCode,
       muni: muniCode,
@@ -267,21 +272,45 @@ export default function StartPage() {
           </div>
 
           <div>
-            <label className="form-label">都道府県</label>
-            <div className="relative">
-              <select
-                className="form-select pr-9"
-                value={prefCode}
-                onChange={(e) => handlePrefectureChange(e.target.value)}
-              >
-                <option value="">選択してください</option>
-                {prefList.map((p) => (
-                  <option key={p.code} value={p.code}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <label className="form-label" htmlFor="start-pref">都道府県</label>
+            {prefState.status === 'error' || prefState.status === 'empty' ? (
+              <div role="alert" className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                <p className="text-sm font-medium text-gray-700">
+                  {prefState.status === 'error'
+                    ? '都道府県の一覧を取得できませんでした'
+                    : '都道府県の一覧が登録されていません'}
+                </p>
+                <p className="mt-0.5 text-xs text-gray-500">未対応という意味ではありません。通信状況を確認して、もう一度お試しください。</p>
+                <button type="button" className="btn-secondary mt-2" onClick={() => {
+                  setPrefState({ status: 'loading' });
+                  setErrors((prev) => ({ ...prev, pref: undefined }));
+                  setPrefRetry((n) => n + 1);
+                }}>
+                  再試行
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <select
+                  id="start-pref"
+                  className="form-select pr-9"
+                  value={prefCode}
+                  disabled={prefState.status === 'loading'}
+                  onChange={(e) => handlePrefectureChange(e.target.value)}
+                >
+                  <option value="">{prefState.status === 'loading' ? '読み込み中...' : '選択してください'}</option>
+                  {prefState.status === 'loaded' &&
+                    prefState.items.map((p) => (
+                      <option key={p.code} value={p.code}>
+                        {p.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
+            {prefState.status === 'loaded' && prefState.source === 'sample' && (
+              <p className="mt-1.5 text-xs text-gray-500">ローカル確認用のサンプル地域データです。実際の対応地域を示すものではありません。</p>
+            )}
             {errors.pref && (
               <p className="mt-1.5 flex items-center gap-1 text-xs text-red-500">
                 <AlertTriangle className="h-3.5 w-3.5" />
@@ -292,33 +321,50 @@ export default function StartPage() {
 
           {prefCode && (
             <div>
-              <label className="form-label">市区町村</label>
-              {loadingMunis ? (
-                <p className="py-2 text-sm text-sunboo-ink-muted">読み込み中...</p>
-              ) : muniList.length === 0 ? (
-                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+              <label className="form-label" htmlFor="start-muni">市区町村</label>
+              {muniState.status === 'idle' || muniState.status === 'loading' ? (
+                <p role="status" className="py-2 text-sm text-sunboo-ink-muted">読み込み中...</p>
+              ) : muniState.status === 'error' ? (
+                <div role="alert" className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                  <p className="text-sm font-medium text-gray-700">市区町村の一覧を取得できませんでした</p>
+                  <p className="mt-0.5 text-xs text-gray-500">未対応という意味ではありません。通信状況を確認して、もう一度お試しください。</p>
+                  <button type="button" className="btn-secondary mt-2" onClick={() => {
+                      setErrors((prev) => ({ ...prev, muni: undefined }));
+                      setMuniRetry((n) => n + 1);
+                    }}>
+                    再試行
+                  </button>
+                </div>
+              ) : muniState.status === 'empty' || muniState.status === 'unregistered' ? (
+                <div role="status" className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
                   <p className="text-sm font-medium text-gray-700">
-                    このエリアは現在未対応です（順次拡大予定）
+                    {muniState.status === 'empty' && muniState.source === 'sample'
+                      ? 'サンプル地域データに、この地域の市区町村一覧はありません'
+                      : '選択した地域の市区町村一覧は、現在登録されていないか利用できません'}
                   </p>
                   <p className="mt-0.5 text-xs text-gray-500">
-                    現在は東京都渋谷区のみ対応しています
+                    地域や手続きによって対応状況は異なります。地域を選べても、すべての窓口・様式に対応しているとは限りません。
                   </p>
                 </div>
               ) : (
                 <div className="relative">
                   <select
+                    id="start-muni"
                     className="form-select pr-9"
                     value={muniCode}
                     onChange={(e) => setMuniCode(e.target.value)}
                   >
                     <option value="">選択してください</option>
-                    {muniList.map((m) => (
+                    {muniState.items.map((m) => (
                       <option key={m.code} value={m.code}>
                         {m.name}
                       </option>
                     ))}
                   </select>
                 </div>
+              )}
+              {muniState.status === 'loaded' && muniState.source === 'sample' && (
+                <p className="mt-1.5 text-xs text-gray-500">ローカル確認用のサンプル地域データです。実際の対応地域を示すものではありません。</p>
               )}
               {errors.muni && (
                 <p className="mt-1.5 flex items-center gap-1 text-xs text-red-500">

@@ -134,7 +134,7 @@ export default function SiteLayout({
           </div>
           <div className="mt-8 border-t border-gray-100 pt-6 text-xs text-sunboo-ink-muted">
             <p>
-              現在は福岡県・東京都渋谷区対応のβ版です。本サービスの情報は一般的な参考情報です。
+              現在は福岡県・東京都渋谷区対応のβ版です。それ以外の地域は地域・手続きごとに対応状況が異なり、全国対応ではありません。本サービスの情報は一般的な参考情報です。
               実際の手続き・期限・提出先は必ず各公式機関の最新情報をご確認ください。
             </p>
             <p className="mt-1">© 2026 SUNBOO経営ナビ</p>
