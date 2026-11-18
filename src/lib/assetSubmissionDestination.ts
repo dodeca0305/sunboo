@@ -15,14 +15,17 @@ export interface AssetSubmissionDestination {
   note: string;
 }
 
+// コードと区名の根拠：福岡県の市区町村コード表（2026-11-18にCodexが確認）
+// https://www.pref.fukuoka.lg.jp/uploaded/attachment/59111.pdf
+// 401358=西区, 401366=城南区, 401374=早良区（supabase/migration_organizations.sqlとも一致）。
 export const ASSET_WARDS = [
   { code: '401315', label: '東区' },
   { code: '401323', label: '博多区' },
   { code: '401331', label: '中央区' },
   { code: '401340', label: '南区' },
-  { code: '401358', label: '城南区' },
-  { code: '401366', label: '早良区' },
-  { code: '401374', label: '西区' },
+  { code: '401358', label: '西区' },
+  { code: '401366', label: '城南区' },
+  { code: '401374', label: '早良区' },
 ] as const;
 
 export const OTHER_REGION_VALUE = 'other';
