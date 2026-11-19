@@ -1,3 +1,32 @@
+# LAST_RESULT: designated-cities-stage1-assets (Claude Sonnet/medium, manual, 追加エージェントなし)
+
+基点 3d565ad。ローカル実装・合成試験のみ。未commit/未push。push/PR/リリースはCodex担当。本番・API・DB・.env・セッション・顧客データ・インストール・課金の操作なし。SQLは本番未実行（準備のみ）。
+
+## 変更
+- `assetSubmissionDestination.ts`：仙台市5区・さいたま市10区・千葉市6区（Codex確認済みの窓口/電話/公式URL、確認日2026-11-19、R9様式案内11/19）を追加。`ASSET_CITY_GROUPS`（5市35コード）を新設し検索はこれを走査。旧export（ASSET_WARDS/KITAKYUSHU_WARDS等）、福岡（案内なし・11-16）・北九州（11/18案内）は不変。完全一致以外はnull。対応地域表示は5市のみ（17市対応とは書かない）。
+- `AssetSubmissionDestination.tsx`：optgroupを`ASSET_CITY_GROUPS`で生成。他は不変（保存/通信なし、disabled独立）。Roadmap/Draft側は未変更。
+- `scripts/sql/20261119-designated-cities-stage1.sql`：データ専用・手動レビュー用（migrationではない）。INSERTのみ 窓口3/情報源3/管轄21。BEGIN/COMMIT、SET LOCAL search_path、LOCK、21区と規則の事前検証、既存衝突は例外（ON CONFLICTなし）、完全適用済みのみno-op、部分/混在は拒否、追加後に+3/+3/+21・現行3・既存行の指紋不変を確認。FAX/e_filing/download_page/official_url_checked_at/verified_by/verification_due_atはNULL、official_url_status=ok・last_verified_at=2026-11-19・update_frequency=unknown。法人市民税の窓口データは含めない。
+- `scripts/validate-designated-cities-stage1.mjs`新規（PGlite、インメモリ）：成功/再適用no-op/区欠落/都道府県・名称不一致/既存窓口衝突/既存主管轄衝突/規則不一致6種/部分適用6種/書込途中CHECK拒否（2窓口+管轄追加後でも全ロールバック）/INSERT専用の静的確認。
+- テスト：helper 8→14件（35コード・窓口・日付/案内・不正値・回帰・公開マスタSQLとの照合・非保存）。`playwright/verify-asset-destination.mjs`：5グループ[7,7,5,10,6]・初期空欄・新3市全21区をSQLパッチ/公開マスタ側の値と照合・福岡/北九州の切替・other/空欄・2ウィジェット独立・disabled・375/1280px・通信遮断。
+
+## 検証（全て終了コード0）
+- helper 14件pass、`npm test` 1134件pass（/private/tmp/sunboo-designated-stage1-tests.log）。
+- SQL隔離検証12件pass（/private/tmp/sunboo-designated-stage1-sql.log）。
+- 実コンポーネントのPlaywright 17件pass（test-results/asset-destination-qa.log、スクリーンショット test-results/asset-destination-*-{pc,mobile}.png）。
+- 対象ファイルlint 0件。隔離ビルド（git archive HEAD＋変更ファイル、env -i、next build --webpack）成功（/private/tmp/sunboo-designated-stage1-build.log）。元の.nextは未変更。
+
+## Codexレビュー反映（SQL堅牢化、2026-11-19）
+- no-op判定に `data_version=1`、3窓口に紐づく**全**管轄（区分・範囲不問）=21件、`effective_from=DATE '2026-11-19'`を追加。初回INSERTも`effective_from`を明示。
+- PGliteに各ずれの拒否を追加（data_version変更、別区分/非主/別市への余分な紐づけ、都道府県範囲の余分な紐づけ、effective_from変更）。SQL隔離検証12テスト（部分適用ケースは6→11種）全pass、対象lint 0、helper14件pass。UI/ビルド/全体test/ブラウザQAは未変更のため再実行せず（上記結果が有効）。
+- Codex確認（公開マスターSELECT、読み取りのみ）：21区の名称・コード・都道府県が一致、想定の償却資産規則は不変、対象窓口・主管轄マッピングは未存在。本番書込は0のまま。
+
+## 限界・未確認
+- 実DB/本番PostgREST/実際の並行トランザクションは未検証（PGliteの最小スキーマ再現）。パッチは本番未実行で、画面は公開マスタを読まない（コード側の固定値）。
+- 令和9年度様式は「公開を確認できていません（11/19確認）」の表現のみ。未公開とは断定しない。公式サイトの内容自体は再取得していない（Codex確認値を使用）。
+- 残り14政令市の実装は未準備（17市対応は未リリース。今回は仙台・さいたま・千葉の3市のみ）。docs/ai/current-task.jsonは既存の未コミット変更を触っていない。
+
+---
+
 # LAST_RESULT: kitakyushu-asset-location-ui (Claude Sonnet/medium, manual, 追加エージェントなし)
 
 基点 d9038be。ローカル実装・合成試験のみ。未commit/未push。push/PR/リリースはCodex担当。本番・API・DB・.env・セッション・顧客データ・インストール・課金の操作なし。
