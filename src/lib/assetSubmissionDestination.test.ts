@@ -7,6 +7,9 @@ import {
   SENDAI_WARDS,
   SAITAMA_WARDS,
   CHIBA_WARDS,
+  YOKOHAMA_WARDS,
+  KAWASAKI_WARDS,
+  SAGAMIHARA_WARDS,
   ASSET_CITY_GROUPS,
   ASSET_DESTINATION_COVERAGE,
   ASSET_DESTINATION_OFFICIAL_URL,
@@ -190,17 +193,122 @@ test('第1弾3市21区：正確な6桁コードで窓口・出典・R9案内を�
   assert.equal(total, 21);
 });
 
-test('5グループ・35コード・重複なし・コードは公開マスタの市プレフィックスと一致', () => {
+test('8グループ・63コード・重複なし・旧5市35コードは先頭で不変', () => {
   assert.deepEqual(ASSET_CITY_GROUPS.map((g) => [g.cityLabel, g.wards.length]),
-    [['福岡市', 7], ['北九州市', 7], ['仙台市', 5], ['さいたま市', 10], ['千葉市', 6]]);
+    [['福岡市', 7], ['北九州市', 7], ['仙台市', 5], ['さいたま市', 10], ['千葉市', 6], ['横浜市', 18], ['川崎市', 7], ['相模原市', 3]]);
   const all = ASSET_CITY_GROUPS.flatMap((g) => g.wards.map((w) => w.code));
-  assert.equal(all.length, 35);
-  assert.equal(new Set(all).size, 35);
+  assert.equal(all.length, 63);
+  assert.equal(new Set(all).size, 63);
+  assert.equal(ASSET_CITY_GROUPS.slice(0, 5).flatMap((g) => g.wards).length, 35);
   for (const c of all) assert.match(c, /^\d{6}$/);
-  const prefix: Record<string, RegExp> = { 仙台市: /^0410/, さいたま市: /^111/, 千葉市: /^121/, 福岡市: /^4013/, 北九州市: /^401[01]/ };
+  const prefix: Record<string, RegExp> = {
+    仙台市: /^0410/, さいたま市: /^111/, 千葉市: /^121/, 福岡市: /^4013/, 北九州市: /^401[01]/,
+    横浜市: /^141[01]/, 川崎市: /^1413/, 相模原市: /^1415/,
+  };
   for (const g of ASSET_CITY_GROUPS) for (const w of g.wards) assert.match(w.code, prefix[g.cityLabel], w.code);
-  assert.match(ASSET_DESTINATION_COVERAGE, /仙台市（5区）.*さいたま市（10区）.*千葉市（6区）/);
+  assert.match(ASSET_DESTINATION_COVERAGE, /仙台市（5区）.*さいたま市（10区）.*千葉市（6区）.*横浜市（18区）.*川崎市（7区）.*相模原市（3区）/);
   assert.doesNotMatch(ASSET_DESTINATION_COVERAGE, /全国|17/);
+});
+
+// ---- 第2弾：横浜市・川崎市・相模原市（公式確認 2026-11-19） ----
+const R9_TEXT = '令和9年度の様式は公開を確認できていません（2026/11/19確認）。';
+const STAGE2 = [
+  {
+    city: '横浜市', wards: YOKOHAMA_WARDS, office: '横浜市償却資産センター（償却資産課）', postal: '231-8343',
+    address: '神奈川県横浜市中区山下町2番地（産業貿易センタービル5階）', phone: '045-671-4384',
+    url: 'https://www.city.yokohama.lg.jp/kurashi/koseki-zei-hoken/zeikin/jigyosya/madoguchi/shoukyaku-center.html',
+    note: '資産がある区ごとに書類を用意し、この提出先へ出します。',
+    form: 'https://www.city.yokohama.lg.jp/kurashi/koseki-zei-hoken/zeikin/jigyosya/tebiki/shokyakushisan-dl.html',
+    codes: [['141011', '鶴見区'], ['141020', '神奈川区'], ['141038', '西区'], ['141046', '中区'], ['141054', '南区'], ['141062', '保土ケ谷区'],
+      ['141071', '磯子区'], ['141089', '金沢区'], ['141097', '港北区'], ['141101', '戸塚区'], ['141119', '港南区'], ['141127', '旭区'],
+      ['141135', '緑区'], ['141143', '瀬谷区'], ['141151', '栄区'], ['141160', '泉区'], ['141178', '青葉区'], ['141186', '都筑区']],
+  },
+  {
+    city: '川崎市', wards: KAWASAKI_WARDS, office: 'かわさき市税事務所 資産税課 償却資産担当（川崎御幸ビル3階）', postal: '210-8576',
+    address: '神奈川県川崎市川崎区砂子1-8-9（川崎御幸ビル3階）', phone: '044-200-1321／044-200-1322',
+    url: 'https://www.city.kawasaki.jp/230/page/0000148698.html',
+    note: '資産がある区ごとに書類を用意します。電話は川崎区・幸区が1321、その他5区が1322です。',
+    form: 'https://www.city.kawasaki.jp/230/page/0000053635.html',
+    codes: [['141313', '川崎区'], ['141321', '幸区'], ['141330', '中原区'], ['141348', '高津区'], ['141356', '多摩区'], ['141364', '宮前区'], ['141372', '麻生区']],
+  },
+  {
+    city: '相模原市', wards: SAGAMIHARA_WARDS, office: '相模原市 資産税課 賦課・償却資産班（市役所第2別館2階）', postal: '252-5277',
+    address: '神奈川県相模原市中央区中央2-11-15（市役所第2別館2階）', phone: '042-769-8264',
+    url: 'https://www.city.sagamihara.kanagawa.jp/kurashi/1026448/zeikin/1026477/shisan_keikaku/1007752.html',
+    note: '資産がある区ごとに書類を用意し、この提出先へ郵送します。',
+    form: 'https://www.city.sagamihara.kanagawa.jp/shinseisho_menu/zei/1011360.html',
+    codes: [['141518', '緑区'], ['141526', '中央区'], ['141534', '南区']],
+  },
+] as const;
+
+test('第2弾3市28区：正確な6桁コードで窓口・電話・注記・R9案内を返す', () => {
+  let total = 0;
+  for (const c of STAGE2) {
+    assert.equal(c.wards.length, c.codes.length);
+    for (const [code, label] of c.codes) {
+      total++;
+      const d = lookupAssetSubmissionDestination(code);
+      assert.ok(d, code);
+      assert.equal(d.jisCode, code);
+      assert.equal(d.wardLabel, label);
+      assert.equal(d.cityLabel, c.city);
+      assert.equal(d.officeName, c.office);
+      assert.equal(d.postalCode, c.postal);
+      assert.equal(d.address, c.address);
+      assert.equal(d.phone, c.phone);
+      assert.equal(d.officialUrl, c.url);
+      assert.equal(d.sourceCheckedOn, '2026-11-19');
+      assert.equal(d.note, c.note);
+      assert.deepEqual(d.formNotice, { text: R9_TEXT, actionLabel: '最新の様式を公式サイトで確認', url: c.form });
+      assert.notEqual(d.formNotice?.url, d.officialUrl);
+      assert.doesNotMatch(JSON.stringify(d), /期限|締切|1月31日|税率|免税点|未公開|\.pdf/);
+    }
+  }
+  assert.equal(total, 28);
+  assert.deepEqual(STAGE2.map((c) => c.codes.length), [18, 7, 3]);
+});
+
+test('川崎市：電話は両方・注記は原文どおり（区ごとに書類を用意は公式FAQで確認済み）', () => {
+  const k = lookupAssetSubmissionDestination('141330');
+  assert.ok(k);
+  assert.match(k.phone, /044-200-1321.*044-200-1322/);
+  assert.equal(k.note, '資産がある区ごとに書類を用意します。電話は川崎区・幸区が1321、その他5区が1322です。');
+  assert.doesNotMatch(JSON.stringify(k), /未確認/);
+  for (const code of ['141011', '141313', '141518']) assert.match(lookupAssetSubmissionDestination(code)!.note, /区ごとに書類を用意し/);
+  // 未公開と断定せず、R8をR9として扱わない
+  for (const w of [...YOKOHAMA_WARDS, ...KAWASAKI_WARDS, ...SAGAMIHARA_WARDS])
+    assert.match(lookupAssetSubmissionDestination(w.code)!.formNotice!.text, /公開を確認できていません/);
+});
+
+test('第2弾：区コード・区名は公開マスタSQLと一致、窓口はSQLパッチと一致、横浜は1410/1411の両方', () => {
+  const geo = readFileSync(new URL('../../supabase/migration_designated_cities_geography.sql', import.meta.url), 'utf8');
+  const patch = readFileSync(new URL('../../scripts/sql/20261119-designated-cities-stage2.sql', import.meta.url), 'utf8');
+  for (const c of STAGE2) {
+    for (const [code, label] of c.codes) {
+      assert.ok(geo.includes(`('14','${code}','${c.city}${label}')`), `${code} ${c.city}${label}`);
+      assert.ok(patch.includes(`('${code}','${c.city}','${label}')`), `patch ${code}`);
+    }
+    assert.ok(patch.includes(c.office) && patch.includes(c.phone) && patch.includes(c.postal) && patch.includes(c.url) && patch.includes(c.address), c.city);
+    assert.ok(patch.includes(c.form), `form ${c.city}`);
+  }
+  const yk = STAGE2[0].codes.map(([c]) => c.slice(0, 4));
+  assert.equal(yk.filter((p) => p === '1410').length, 9);
+  assert.equal(yk.filter((p) => p === '1411').length, 9);
+});
+
+test('第2弾でも既存5市35コードの窓口・日付・案内は不変', () => {
+  assert.equal(lookupAssetSubmissionDestination('401331')!.sourceCheckedOn, '2026-11-16');
+  assert.equal(lookupAssetSubmissionDestination('401331')!.formNotice, undefined);
+  assert.equal(lookupAssetSubmissionDestination('401099')!.sourceCheckedOn, '2026-11-18');
+  assert.equal(lookupAssetSubmissionDestination('041017')!.officeName, '仙台市 財政局 資産課税課 償却資産係（北庁舎1階）');
+  assert.equal(lookupAssetSubmissionDestination('121061')!.phone, '043-233-8146');
+  assert.equal(lookupAssetSubmissionDestination('111104')!.cityLabel, 'さいたま市');
+});
+
+test('第2弾：不正・空・他県/他市・市名・近いコードはnull', () => {
+  const bad: unknown[] = ['141000', '141003', '141200', '141305', '141500', '141542', '14101', '1410111', ' 141011', '141011 ', '１４１０１１', '141011\n',
+    '141518x', 141011, '横浜市', '川崎市', '相模原市', '141', '140007', '131016', 'other', '', null, undefined];
+  for (const v of bad) assert.equal(lookupAssetSubmissionDestination(v), null, String(v));
 });
 
 test('公開マスタSQLの区コードと一致（ミラー文言だけに頼らない）', () => {

@@ -1,3 +1,29 @@
+# LAST_RESULT: designated-cities-stage2-assets (Claude Sonnet/medium, manual, 追加エージェントなし)
+
+基点 c45f932。ローカル実装・合成試験のみ。未commit/未push。push/PR/リリースはCodex担当。本番・API・DB・.env・セッション・顧客データ・インストール・課金の操作なし。**SQLは本番未実行（準備のみ）**。本番の公開マスター/償却資産提出先への反映はしていない。
+
+## 変更
+- `assetSubmissionDestination.ts`：横浜市18区・川崎市7区・相模原市3区（計28コード、神奈川県、確認日2026-11-19）と `YOKOHAMA_WARDS/KAWASAKI_WARDS/SAGAMIHARA_WARDS` を追加。`ASSET_CITY_GROUPS`は8グループ[7,7,5,10,6,18,7,3]=63コード。旧5市35コード・既存export・日付・案内は不変。区名は公開マスターSQL（migration_designated_cities_geography.sql）と完全一致。川崎市は電話2件併記、注記「資産がある区ごとに書類を用意します。電話は川崎区・幸区が1321、その他5区が1322です。」（区ごとの書類は公式FAQで確認済み、Codex確認）。令和9年度様式は3市とも「公開を確認できていません（2026/11/19確認）」の表現（未公開とは断定しない・R8をR9扱いしない）。様式案内の遷移先は川崎市＝様式一覧 0000053635、横浜市・相模原市＝各様式ページ（公式案内URLとは別）。コンポーネント/Draft/Roadmap/ゲートは未変更。
+- `scripts/sql/20261119-designated-cities-stage2.sql`（新規・手動用、INSERTのみ）：窓口3/情報源3/管轄28。stage1の保護（BEGIN/COMMIT、LOCK、全28区が都道府県14・市接頭辞（横浜は1410と1411の両方、川崎1413、相模原1415）・市名+区名で一致、規則の事前検証、version=1、effective_from=2026-11-19固定、窓口に紐づく全管轄=28、現行情報源の一意、完全適用済みのみno-op、部分/混在は拒否、追加後+3/+3/+28と既存行の指紋不変）を踏襲。情報源snapshotにマーカー designated-cities-stage2-20261119、連絡先verified、区ごとの提出verified（川崎=公式FAQ、横浜=償却資産ページを証跡URL）、R9 unconfirmed、追加URL（様式ページ、川崎R8手引PDF p22は電話の根拠にだけ使用）。stage1のSQL/スクリプトは無変更。
+- `scripts/validate-designated-cities-stage2.mjs`（新規、PGlite）：成功（28/+3/+3/+28、見張り行不変）、再適用no-op、区欠落（1410側/1411側/川崎/相模原）、都道府県・市名・区名・接頭辞不一致、既存窓口/主管轄衝突、規則6種、部分/混在/version/余分な紐づけ/開始日/snapshotずれ、書込途中CHECK失敗の全ロールバック、INSERT専用の静的確認。各ケース後にDBをclose。
+- テスト：helper 14→19件（63コード、28区の窓口・電話・注記・案内、公開マスタ/SQLとの照合、不正値null、旧35不変）。`playwright/verify-asset-destination.mjs`：8グループ、新3市28区をSQLパッチ/公開マスタの値と照合、旧市への切り戻し、other/空欄、独立、disabled、1280/375px（横スクロールなし）、通信遮断、各新市のスクリーンショット（test-results/asset-destination-{yokohama,kawasaki,sagamihara}-{pc,mobile}.png）。
+
+## 検証
+- helper 19件pass、`npm test` 1139件pass/失敗0（/private/tmp/sunboo-designated-stage2-tests.log）。
+- SQL隔離検証12件pass（/private/tmp/sunboo-designated-stage2-sql.log）。
+- 実コンポーネントのPlaywright 21件pass、通信試行0（/private/tmp/sunboo-designated-stage2-browser.log）。
+- 対象ファイルlint 0件（exit0）。
+- 隔離ビルド：初回は失敗（exit1）、指示された1回の再試行で成功（exit0、"Compiled successfully"、型検査を含むnext build完了）。各回とも新規mktempへ`git archive HEAD`＋最終の変更ファイル（helper・テスト・QA・新SQL/スクリプト）をコピー、既存node_modules symlink、env -i、`node node_modules/next/dist/bin/next build --webpack`。ソース/vendor/フォント/ロックの変更、モック、サンドボックス解除はなし。
+  - 初回失敗：`next/font`のGoogle loader内で`TypeError: Cannot read properties of null (reading '1')`（拡張子の解析部分）。原因（ネットワーク無し等）は確定していない。再実行で解消したため再現性は不明。初回ログは保存：/private/tmp/sunboo-designated-stage2-build-initial-failed.log。
+  - 成功ログ：/private/tmp/sunboo-designated-stage2-build.log。ビルドディレクトリはCodexのバイト比較用に保持：/private/tmp/sunboo-designated-stage2-build.JMUDKG（パスは/private/tmp/sunboo-designated-stage2-builddir.txt）。元の.nextは未変更。
+
+## 限界・未確認
+- 実DB/本番PostgREST/並行トランザクションは未検証（PGliteの最小スキーマ再現）。画面は公開マスターを読まない固定値。
+- 川崎市のR8手引PDFは電話の根拠のみ。令和9年度様式は3市とも未確認。公式サイトの再取得はしていない（Codex確認値を使用）。
+- 残り政令市は未実装。docs/ai/current-task.jsonの既存変更は触っていない。
+
+---
+
 # LAST_RESULT: designated-cities-stage1-assets (Claude Sonnet/medium, manual, 追加エージェントなし)
 
 基点 3d565ad。ローカル実装・合成試験のみ。未commit/未push。push/PR/リリースはCodex担当。本番・API・DB・.env・セッション・顧客データ・インストール・課金の操作なし。SQLは本番未実行（準備のみ）。
