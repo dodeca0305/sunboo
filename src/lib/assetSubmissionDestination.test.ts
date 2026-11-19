@@ -13,6 +13,9 @@ import {
   NIIGATA_WARDS,
   SHIZUOKA_WARDS,
   HAMAMATSU_WARDS,
+  NAGOYA_WARDS,
+  KYOTO_WARDS,
+  OSAKA_WARDS,
   ASSET_CITY_GROUPS,
   ASSET_DESTINATION_COVERAGE,
   ASSET_DESTINATION_OFFICIAL_URL,
@@ -196,22 +199,24 @@ test('第1弾3市21区：正確な6桁コードで窓口・出典・R9案内を�
   assert.equal(total, 21);
 });
 
-test('11グループ・77コード・重複なし・旧5市35コードは先頭で不変、第2弾8市63コードの順序も不変', () => {
+test('14グループ・128コード・重複なし・旧5市35コードは先頭で不変、第2弾8市63コード・第3弾11市77コードの順序も不変', () => {
   assert.deepEqual(ASSET_CITY_GROUPS.map((g) => [g.cityLabel, g.wards.length]),
     [['福岡市', 7], ['北九州市', 7], ['仙台市', 5], ['さいたま市', 10], ['千葉市', 6], ['横浜市', 18], ['川崎市', 7], ['相模原市', 3],
-      ['新潟市', 8], ['静岡市', 3], ['浜松市', 3]]);
+      ['新潟市', 8], ['静岡市', 3], ['浜松市', 3], ['名古屋市', 16], ['京都市', 11], ['大阪市', 24]]);
   const all = ASSET_CITY_GROUPS.flatMap((g) => g.wards.map((w) => w.code));
-  assert.equal(all.length, 77);
-  assert.equal(new Set(all).size, 77);
+  assert.equal(all.length, 128);
+  assert.equal(new Set(all).size, 128);
   assert.equal(ASSET_CITY_GROUPS.slice(0, 5).flatMap((g) => g.wards).length, 35);
   assert.equal(ASSET_CITY_GROUPS.slice(0, 8).flatMap((g) => g.wards).length, 63);
+  assert.equal(ASSET_CITY_GROUPS.slice(0, 11).flatMap((g) => g.wards).length, 77);
   for (const c of all) assert.match(c, /^\d{6}$/);
   const prefix: Record<string, RegExp> = {
     仙台市: /^0410/, さいたま市: /^111/, 千葉市: /^121/, 福岡市: /^4013/, 北九州市: /^401[01]/,
     横浜市: /^141[01]/, 川崎市: /^1413/, 相模原市: /^1415/, 新潟市: /^1510/, 静岡市: /^2210/, 浜松市: /^221[34]/,
+    名古屋市: /^231[01]/, 京都市: /^261[01]/, 大阪市: /^271[012]/,
   };
   for (const g of ASSET_CITY_GROUPS) for (const w of g.wards) assert.match(w.code, prefix[g.cityLabel], w.code);
-  assert.match(ASSET_DESTINATION_COVERAGE, /仙台市（5区）.*さいたま市（10区）.*千葉市（6区）.*横浜市（18区）.*川崎市（7区）.*相模原市（3区）.*新潟市（8区）.*静岡市（3区）.*浜松市（3区）/);
+  assert.match(ASSET_DESTINATION_COVERAGE, /仙台市（5区）.*さいたま市（10区）.*千葉市（6区）.*横浜市（18区）.*川崎市（7区）.*相模原市（3区）.*新潟市（8区）.*静岡市（3区）.*浜松市（3区）.*名古屋市（16区）.*京都市（11区）.*大阪市（24区）/);
   assert.doesNotMatch(ASSET_DESTINATION_COVERAGE, /全国|17/);
 });
 
@@ -445,5 +450,98 @@ test('第3弾でも既存8市63コードの窓口・日付・案内は不変', (
 test('第3弾：不正・空・他県/他市・市名・近いコードはnull', () => {
   const bad: unknown[] = ['151000', '151009', '151092', '221000', '221007', '221040', '221376', '221414', '22101', '2210151', ' 151017', '151017 ', '１５１０１７',
     '151017\n', '221015x', 151017, '新潟市', '静岡市', '浜松市', '151', '150002', '220001', 'other', '', null, undefined];
+  for (const v of bad) assert.equal(lookupAssetSubmissionDestination(v), null, String(v));
+});
+
+// ---- 第4弾：名古屋市・京都市・大阪市（Codex確認済みの公式データ 2026-11-19） ----
+const STAGE4 = [
+  {
+    city: '名古屋市', wards: NAGOYA_WARDS, office: '名古屋市 金山市税事務所 償却資産課税課（名鉄正木第一ビル）', postal: '460-8626',
+    address: '愛知県名古屋市中区正木三丁目5番33号（名鉄正木第一ビル）', phone: '052-324-9809',
+    url: 'https://www.city.nagoya.jp/kurashi/zeikin/1037356/1011931/1011953/1011959.html', form: 'https://www.city.nagoya.jp/kurashi/zeikin/1037356/1011931/1011953/1011956.html',
+    note: '資産がある区ごとに書類を用意し、金山市税事務所へ出します。2026年4月から全区の窓口が集約されています。',
+    codes: [['231011', '千種区'], ['231029', '東区'], ['231037', '北区'], ['231045', '西区'], ['231053', '中村区'], ['231061', '中区'], ['231070', '昭和区'], ['231088', '瑞穂区'], ['231096', '熱田区'], ['231100', '中川区'], ['231118', '港区'], ['231126', '南区'], ['231134', '守山区'], ['231142', '緑区'], ['231151', '名東区'], ['231169', '天白区']],
+  },
+  {
+    city: '京都市', wards: KYOTO_WARDS, office: '京都市 市税事務所 法人諸税室 償却資産担当（分庁舎地下1階）', postal: '604-8571',
+    address: '京都府京都市中京区寺町通御池上る上本能寺前町488番地（京都市役所分庁舎地下1階）', phone: '075-222-3170',
+    url: 'https://www.city.kyoto.lg.jp/gyozai/page/0000052941.html', form: 'https://www.city.kyoto.lg.jp/gyozai/page/0000052941.html',
+    note: '資産がある区ごとに書類を用意し、この提出先へ出します。区役所・支所・出張所では受け付けていません。',
+    codes: [['261017', '北区'], ['261025', '上京区'], ['261033', '左京区'], ['261041', '中京区'], ['261050', '東山区'], ['261068', '下京区'], ['261076', '南区'], ['261084', '右京区'], ['261092', '伏見区'], ['261106', '山科区'], ['261114', '西京区']],
+  },
+  {
+    city: '大阪市', wards: OSAKA_WARDS, office: '大阪市 船場法人市税事務所 固定資産税（償却資産）グループ（船場センタービル3号館2階北側）', postal: '541-8551',
+    address: '大阪府大阪市中央区船場中央1-4-3-203（船場センタービル3号館2階北側）', phone: '06-4705-2941',
+    url: 'https://www.city.osaka.lg.jp/zaisei/page/0000006293.html', form: 'https://www.city.osaka.lg.jp/zaisei/page/0000006293.html',
+    note: '資産がある区ごとに書類を用意し、郵送はこの提出先へ出します。区役所では受け付けていません。',
+    codes: [['271021', '都島区'], ['271039', '福島区'], ['271047', '此花区'], ['271063', '西区'], ['271071', '港区'], ['271080', '大正区'], ['271098', '天王寺区'], ['271110', '浪速区'], ['271136', '西淀川区'], ['271144', '東淀川区'], ['271152', '東成区'], ['271161', '生野区'], ['271179', '旭区'], ['271187', '城東区'], ['271195', '阿倍野区'], ['271209', '住吉区'], ['271217', '東住吉区'], ['271225', '西成区'], ['271233', '淀川区'], ['271241', '鶴見区'], ['271250', '住之江区'], ['271268', '平野区'], ['271276', '北区'], ['271284', '中央区']],
+  },
+] as const;
+
+test('第4弾3市51区：正確な6桁コードで窓口・電話・注記・R9案内を返す（名古屋のみ様式URLが別）', () => {
+  let total = 0;
+  for (const c of STAGE4) {
+    assert.equal(c.wards.length, c.codes.length);
+    for (const [code, label] of c.codes) {
+      total++;
+      const d = lookupAssetSubmissionDestination(code);
+      assert.ok(d, code);
+      assert.equal(d.jisCode, code);
+      assert.equal(d.wardLabel, label);
+      assert.equal(d.cityLabel, c.city);
+      assert.equal(d.officeName, c.office);
+      assert.equal(d.postalCode, c.postal);
+      assert.equal(d.address, c.address);
+      assert.equal(d.phone, c.phone);
+      assert.equal(d.officialUrl, c.url);
+      assert.equal(d.sourceCheckedOn, '2026-11-19');
+      assert.equal(d.note, c.note);
+      assert.deepEqual(d.formNotice, { text: R9_TEXT, actionLabel: '最新の様式を公式サイトで確認', url: c.form });
+      assert.equal(c.city === '名古屋市', d.formNotice?.url !== d.officialUrl);
+      assert.doesNotMatch(JSON.stringify(d), /期限|締切|1月31日|税率|免税点|未公開|\.pdf|2948|令和8|旧3事務所/);
+    }
+  }
+  assert.equal(total, 51);
+  assert.deepEqual(STAGE4.map((c) => c.codes.length), [16, 11, 24]);
+});
+
+test('第4弾：名古屋は金山に集約、京都は区役所等受付不可、大阪は直通2941（2948不使用）', () => {
+  const n = lookupAssetSubmissionDestination('231011')!;
+  assert.match(n.officeName, /金山市税事務所/); assert.match(n.note, /金山市税事務所へ出します/);
+  assert.match(n.note, /2026年4月から全区の窓口が集約/);
+  const k = lookupAssetSubmissionDestination('261106')!;
+  assert.match(k.officeName, /分庁舎地下1階/); assert.match(k.note, /区役所・支所・出張所では受け付けていません/);
+  const o = lookupAssetSubmissionDestination('271209')!;
+  assert.equal(o.phone, '06-4705-2941'); assert.doesNotMatch(o.phone, /2948/);
+  assert.match(o.officeName, /船場センタービル3号館2階北側/); assert.match(o.note, /郵送はこの提出先へ/);
+  // 接頭辞の端：名古屋2310/2311、京都2610/2611、大阪2710/2711/2712
+  for (const [code, city] of [['231096', '名古屋市'], ['231100', '名古屋市'], ['261092', '京都市'], ['261106', '京都市'], ['271098', '大阪市'], ['271110', '大阪市'], ['271195', '大阪市'], ['271209', '大阪市']])
+    assert.equal(lookupAssetSubmissionDestination(code)!.cityLabel, city, code);
+});
+
+test('第4弾：区コード・区名は公開マスタSQLと一致、窓口・URLはstage4 SQLパッチと一致', () => {
+  const geo = readFileSync(new URL('../../supabase/migration_designated_cities_geography.sql', import.meta.url), 'utf8');
+  const patch = readFileSync(new URL('../../scripts/sql/20261119-designated-cities-stage4.sql', import.meta.url), 'utf8');
+  for (const c of STAGE4) {
+    for (const [code, label] of c.codes) {
+      assert.ok(geo.includes(`'${code}','${c.city}${label}'`), `${code} ${c.city}${label}`);
+      assert.ok(patch.includes(`('${code}','${c.city}','${label}')`), `patch ${code}`);
+    }
+    assert.ok(patch.includes(c.office) && patch.includes(c.phone) && patch.includes(c.postal) && patch.includes(c.url) && patch.includes(c.address) && patch.includes(c.form), c.city);
+  }
+});
+
+test('第4弾でも既存11市77コードの窓口・日付・案内は不変', () => {
+  assert.equal(lookupAssetSubmissionDestination('401331')!.sourceCheckedOn, '2026-11-16');
+  assert.equal(lookupAssetSubmissionDestination('401331')!.formNotice, undefined);
+  assert.equal(lookupAssetSubmissionDestination('401099')!.sourceCheckedOn, '2026-11-18');
+  assert.equal(lookupAssetSubmissionDestination('151033')!.phone, '025-226-2277');
+  assert.equal(lookupAssetSubmissionDestination('221392')!.officeName, '浜松市 資産税課 償却資産グループ（元目分庁舎3階）');
+  assert.equal(lookupAssetSubmissionDestination('141330')!.phone, '044-200-1321／044-200-1322');
+});
+
+test('第4弾：不正・空・近いコード・欠番はnull', () => {
+  const bad: unknown[] = ['231000', '231002', '231177', '231207', '23101', '2310111', ' 231011', '231011 ', '２３１０１１', '231011\n', '261000', '261122', '261017x',
+    '271000', '271012', '271055', '271128', '271292', '271300', 271021, '名古屋市', '京都市', '大阪市', '', null, undefined];
   for (const v of bad) assert.equal(lookupAssetSubmissionDestination(v), null, String(v));
 });
