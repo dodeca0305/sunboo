@@ -1,5 +1,5 @@
 // 償却資産の提出先案内（資産の所在地を明示選択したときだけ）。純粋な参照のみ。
-// 会社所在地・チャットからの自動選択はしない。対応範囲：福岡市7区・北九州市7区・仙台市5区・さいたま市10区・千葉市6区・横浜市18区・川崎市7区・相模原市3区・新潟市8区・静岡市3区・浜松市3区のみ（全国対応ではない）。
+// 会社所在地・チャットからの自動選択はしない。対応範囲：福岡市7区・北九州市7区・仙台市5区・さいたま市10区・千葉市6区・横浜市18区・川崎市7区・相模原市3区・新潟市8区・静岡市3区・浜松市3区・名古屋市16区・京都市11区・大阪市24区のみ（全国対応ではない）。
 // 期限の引用・計算、課税判定、保存はしない。
 
 export interface AssetSubmissionDestination {
@@ -13,7 +13,7 @@ export interface AssetSubmissionDestination {
   officialUrl: string;
   sourceCheckedOn: string;
   note: string;
-  /** 様式の公開状況の案内（北九州市・仙台市・さいたま市・千葉市・横浜市・川崎市・相模原市・新潟市・静岡市・浜松市のみ）。 */
+  /** 様式の公開状況の案内（北九州市・仙台市・さいたま市・千葉市・横浜市・川崎市・相模原市・新潟市・静岡市・浜松市・名古屋市・京都市・大阪市のみ）。 */
   formNotice?: { text: string; actionLabel: string; url: string };
 }
 
@@ -42,7 +42,7 @@ export const KITAKYUSHU_WARDS = [
 ] as const;
 
 export const OTHER_REGION_VALUE = 'other';
-export const ASSET_DESTINATION_COVERAGE = '福岡市（7区）・北九州市（7区）・仙台市（5区）・さいたま市（10区）・千葉市（6区）・横浜市（18区）・川崎市（7区）・相模原市（3区）・新潟市（8区）・静岡市（3区）・浜松市（3区）';
+export const ASSET_DESTINATION_COVERAGE = '福岡市（7区）・北九州市（7区）・仙台市（5区）・さいたま市（10区）・千葉市（6区）・横浜市（18区）・川崎市（7区）・相模原市（3区）・新潟市（8区）・静岡市（3区）・浜松市（3区）・名古屋市（16区）・京都市（11区）・大阪市（24区）';
 export const ASSET_DESTINATION_SOURCE_CHECKED_ON = '2026-11-16';
 export const ASSET_DESTINATION_OFFICIAL_URL =
   'https://www.city.fukuoka.lg.jp/zaisei/zeisei/life/koteisisanzei/003.html';
@@ -302,6 +302,110 @@ const HAMAMATSU_DESTINATION = {
   formNotice: { text: R9_UNCONFIRMED, actionLabel: R9_ACTION, url: HAMAMATSU_URL },
 } as const;
 
+
+// 第4弾の3市（コードと区名は公開マスタ migration_designated_cities_geography.sql と一致、愛知県・京都府・大阪府）。
+// 公式ページ/PDFで区ごとに書類を作成することを確認（2026-11-19、Codex確認）。名古屋市は2026年4月以降、全区の窓口が金山市税事務所に集約。
+export const NAGOYA_WARDS = [
+  { code: '231011', label: '千種区' },
+  { code: '231029', label: '東区' },
+  { code: '231037', label: '北区' },
+  { code: '231045', label: '西区' },
+  { code: '231053', label: '中村区' },
+  { code: '231061', label: '中区' },
+  { code: '231070', label: '昭和区' },
+  { code: '231088', label: '瑞穂区' },
+  { code: '231096', label: '熱田区' },
+  { code: '231100', label: '中川区' },
+  { code: '231118', label: '港区' },
+  { code: '231126', label: '南区' },
+  { code: '231134', label: '守山区' },
+  { code: '231142', label: '緑区' },
+  { code: '231151', label: '名東区' },
+  { code: '231169', label: '天白区' },
+] as const;
+
+export const KYOTO_WARDS = [
+  { code: '261017', label: '北区' },
+  { code: '261025', label: '上京区' },
+  { code: '261033', label: '左京区' },
+  { code: '261041', label: '中京区' },
+  { code: '261050', label: '東山区' },
+  { code: '261068', label: '下京区' },
+  { code: '261076', label: '南区' },
+  { code: '261084', label: '右京区' },
+  { code: '261092', label: '伏見区' },
+  { code: '261106', label: '山科区' },
+  { code: '261114', label: '西京区' },
+] as const;
+
+export const OSAKA_WARDS = [
+  { code: '271021', label: '都島区' },
+  { code: '271039', label: '福島区' },
+  { code: '271047', label: '此花区' },
+  { code: '271063', label: '西区' },
+  { code: '271071', label: '港区' },
+  { code: '271080', label: '大正区' },
+  { code: '271098', label: '天王寺区' },
+  { code: '271110', label: '浪速区' },
+  { code: '271136', label: '西淀川区' },
+  { code: '271144', label: '東淀川区' },
+  { code: '271152', label: '東成区' },
+  { code: '271161', label: '生野区' },
+  { code: '271179', label: '旭区' },
+  { code: '271187', label: '城東区' },
+  { code: '271195', label: '阿倍野区' },
+  { code: '271209', label: '住吉区' },
+  { code: '271217', label: '東住吉区' },
+  { code: '271225', label: '西成区' },
+  { code: '271233', label: '淀川区' },
+  { code: '271241', label: '鶴見区' },
+  { code: '271250', label: '住之江区' },
+  { code: '271268', label: '平野区' },
+  { code: '271276', label: '北区' },
+  { code: '271284', label: '中央区' },
+] as const;
+
+const NAGOYA_URL = 'https://www.city.nagoya.jp/kurashi/zeikin/1037356/1011931/1011953/1011959.html';
+const NAGOYA_FORM_URL = 'https://www.city.nagoya.jp/kurashi/zeikin/1037356/1011931/1011953/1011956.html';
+const KYOTO_URL = 'https://www.city.kyoto.lg.jp/gyozai/page/0000052941.html';
+const OSAKA_URL = 'https://www.city.osaka.lg.jp/zaisei/page/0000006293.html';
+
+const NAGOYA_DESTINATION = {
+  cityLabel: '名古屋市',
+  officeName: '名古屋市 金山市税事務所 償却資産課税課（名鉄正木第一ビル）',
+  postalCode: '460-8626',
+  address: '愛知県名古屋市中区正木三丁目5番33号（名鉄正木第一ビル）',
+  phone: '052-324-9809',
+  officialUrl: NAGOYA_URL,
+  sourceCheckedOn: '2026-11-19',
+  note: '資産がある区ごとに書類を用意し、金山市税事務所へ出します。2026年4月から全区の窓口が集約されています。',
+  formNotice: { text: R9_UNCONFIRMED, actionLabel: R9_ACTION, url: NAGOYA_FORM_URL },
+} as const;
+
+const KYOTO_DESTINATION = {
+  cityLabel: '京都市',
+  officeName: '京都市 市税事務所 法人諸税室 償却資産担当（分庁舎地下1階）',
+  postalCode: '604-8571',
+  address: '京都府京都市中京区寺町通御池上る上本能寺前町488番地（京都市役所分庁舎地下1階）',
+  phone: '075-222-3170',
+  officialUrl: KYOTO_URL,
+  sourceCheckedOn: '2026-11-19',
+  note: '資産がある区ごとに書類を用意し、この提出先へ出します。区役所・支所・出張所では受け付けていません。',
+  formNotice: { text: R9_UNCONFIRMED, actionLabel: R9_ACTION, url: KYOTO_URL },
+} as const;
+
+const OSAKA_DESTINATION = {
+  cityLabel: '大阪市',
+  officeName: '大阪市 船場法人市税事務所 固定資産税（償却資産）グループ（船場センタービル3号館2階北側）',
+  postalCode: '541-8551',
+  address: '大阪府大阪市中央区船場中央1-4-3-203（船場センタービル3号館2階北側）',
+  phone: '06-4705-2941',
+  officialUrl: OSAKA_URL,
+  sourceCheckedOn: '2026-11-19',
+  note: '資産がある区ごとに書類を用意し、郵送はこの提出先へ出します。区役所では受け付けていません。',
+  formNotice: { text: R9_UNCONFIRMED, actionLabel: R9_ACTION, url: OSAKA_URL },
+} as const;
+
 type CityDestination = Omit<AssetSubmissionDestination, 'jisCode' | 'wardLabel'>;
 
 export interface AssetCityGroup {
@@ -310,7 +414,7 @@ export interface AssetCityGroup {
   destination: CityDestination;
 }
 
-/** 選択肢の表示順（福岡市・北九州市・仙台市・さいたま市・千葉市・横浜市・川崎市・相模原市・新潟市・静岡市・浜松市）。画面はこの配列を回す。 */
+/** 選択肢の表示順（福岡市・北九州市・仙台市・さいたま市・千葉市・横浜市・川崎市・相模原市・新潟市・静岡市・浜松市・名古屋市・京都市・大阪市）。画面はこの配列を回す。 */
 export const ASSET_CITY_GROUPS: ReadonlyArray<AssetCityGroup> = [
   { cityLabel: '福岡市', wards: ASSET_WARDS, destination: FUKUOKA_DESTINATION },
   { cityLabel: '北九州市', wards: KITAKYUSHU_WARDS, destination: KITAKYUSHU_DESTINATION },
@@ -323,9 +427,12 @@ export const ASSET_CITY_GROUPS: ReadonlyArray<AssetCityGroup> = [
   { cityLabel: '新潟市', wards: NIIGATA_WARDS, destination: NIIGATA_DESTINATION },
   { cityLabel: '静岡市', wards: SHIZUOKA_WARDS, destination: SHIZUOKA_DESTINATION },
   { cityLabel: '浜松市', wards: HAMAMATSU_WARDS, destination: HAMAMATSU_DESTINATION },
+  { cityLabel: '名古屋市', wards: NAGOYA_WARDS, destination: NAGOYA_DESTINATION },
+  { cityLabel: '京都市', wards: KYOTO_WARDS, destination: KYOTO_DESTINATION },
+  { cityLabel: '大阪市', wards: OSAKA_WARDS, destination: OSAKA_DESTINATION },
 ];
 
-/** 6桁の文字列（全国地方公共団体コード）と完全一致する対応11市の区のみ。それ以外はnull（未対応）。 */
+/** 6桁の文字列（全国地方公共団体コード）と完全一致する対応14市の区のみ。それ以外はnull（未対応）。 */
 export function lookupAssetSubmissionDestination(code: unknown): AssetSubmissionDestination | null {
   if (typeof code !== 'string') return null;
   for (const g of ASSET_CITY_GROUPS) {
