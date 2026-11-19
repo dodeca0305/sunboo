@@ -4,6 +4,11 @@ import { readFileSync } from 'node:fs';
 import {
   ASSET_WARDS,
   KITAKYUSHU_WARDS,
+  SENDAI_WARDS,
+  SAITAMA_WARDS,
+  CHIBA_WARDS,
+  ASSET_CITY_GROUPS,
+  ASSET_DESTINATION_COVERAGE,
   ASSET_DESTINATION_OFFICIAL_URL,
   lookupAssetSubmissionDestination,
 } from './assetSubmissionDestination.ts';
@@ -122,10 +127,115 @@ test('福岡の修正済みコードと北九州の不正コード・市集計',
 
 test('コンポーネント：北九州optgroup・市別リンク名・様式案内は安全な別タブ・保存/通信なし', () => {
   const comp = readFileSync(new URL('../components/AssetSubmissionDestination.tsx', import.meta.url), 'utf8');
-  assert.match(comp, /<optgroup label="北九州市">/);
+  assert.match(comp, /ASSET_CITY_GROUPS\.map/);
+  assert.match(comp, /<optgroup key=\{g\.cityLabel\} label=\{g\.cityLabel\}>/);
   assert.match(comp, /destination\.cityLabel\}の公式案内を開く/);
   assert.match(comp, /destination\.formNotice &&/);
   assert.equal((comp.match(/rel="noopener noreferrer"/g) ?? []).length, 2);
   assert.doesNotMatch(comp, /福岡市の公式案内|localStorage|sessionStorage|fetch\(|props\.company/);
   assert.match(comp, /disabled=\{disabled\}/);
+});
+
+// ---- 第1弾：仙台市・さいたま市・千葉市（公式確認 2026-11-19） ----
+const STAGE1 = [
+  {
+    city: '仙台市', wards: SENDAI_WARDS, count: 5,
+    office: '仙台市 財政局 資産課税課 償却資産係（北庁舎1階）', postal: '980-8671',
+    address: '宮城県仙台市青葉区二日町1番1号（仙台市役所北庁舎1階）', phone: '022-214-8619',
+    url: 'https://www.city.sendai.jp/sisanze-chose/kurashi/tetsuzuki/zekin/kekaku/tebiki/shisanze.html',
+    codes: [['041017', '青葉区'], ['041025', '宮城野区'], ['041033', '若林区'], ['041041', '太白区'], ['041050', '泉区']],
+  },
+  {
+    city: 'さいたま市', wards: SAITAMA_WARDS, count: 10,
+    office: 'さいたま市 南部市税事務所 資産課税課 償却資産係（ときわ会館1階）', postal: '330-0061',
+    address: '埼玉県さいたま市浦和区常盤6丁目4番21号（ときわ会館1階）', phone: '048-829-1186',
+    url: 'https://www.city.saitama.lg.jp/001/153/004/002/002/004/p009364.html',
+    codes: [['111015', '西区'], ['111023', '北区'], ['111031', '大宮区'], ['111040', '見沼区'], ['111058', '中央区'],
+      ['111066', '桜区'], ['111074', '浦和区'], ['111082', '南区'], ['111091', '緑区'], ['111104', '岩槻区']],
+  },
+  {
+    city: '千葉市', wards: CHIBA_WARDS, count: 6,
+    office: '千葉市 東部市税事務所 法人課 償却資産班（若葉区役所内）', postal: '264-8582',
+    address: '千葉県千葉市若葉区桜木北2丁目1番1号（若葉区役所内）', phone: '043-233-8146',
+    url: 'https://www.city.chiba.jp/zaiseikyoku/zeimu/tobushizei/hojin/syoukyakushisan.html',
+    codes: [['121011', '中央区'], ['121029', '花見川区'], ['121037', '稲毛区'], ['121045', '若葉区'], ['121053', '緑区'], ['121061', '美浜区']],
+  },
+] as const;
+
+test('第1弾3市21区：正確な6桁コードで窓口・出典・R9案内を返す', () => {
+  let total = 0;
+  for (const c of STAGE1) {
+    assert.equal(c.wards.length, c.count);
+    for (const [code, label] of c.codes) {
+      total++;
+      const d = lookupAssetSubmissionDestination(code);
+      assert.ok(d, code);
+      assert.equal(d.jisCode, code);
+      assert.equal(d.wardLabel, label);
+      assert.equal(d.cityLabel, c.city);
+      assert.equal(d.officeName, c.office);
+      assert.equal(d.postalCode, c.postal);
+      assert.equal(d.address, c.address);
+      assert.equal(d.phone, c.phone);
+      assert.equal(d.officialUrl, c.url);
+      assert.equal(d.sourceCheckedOn, '2026-11-19');
+      assert.equal(d.note, '資産がある区ごとに書類を用意し、この提出先へ出します。');
+      assert.ok(d.formNotice);
+      assert.equal(d.formNotice.text, '令和9年度の様式は公開を確認できていません（2026/11/19確認）。');
+      assert.equal(d.formNotice.actionLabel, '最新の様式を公式サイトで確認');
+      assert.equal(d.formNotice.url, c.url);
+      assert.doesNotMatch(JSON.stringify(d), /期限|締切|1月31日|税率|免税点|未公開/);
+    }
+  }
+  assert.equal(total, 21);
+});
+
+test('5グループ・35コード・重複なし・コードは公開マスタの市プレフィックスと一致', () => {
+  assert.deepEqual(ASSET_CITY_GROUPS.map((g) => [g.cityLabel, g.wards.length]),
+    [['福岡市', 7], ['北九州市', 7], ['仙台市', 5], ['さいたま市', 10], ['千葉市', 6]]);
+  const all = ASSET_CITY_GROUPS.flatMap((g) => g.wards.map((w) => w.code));
+  assert.equal(all.length, 35);
+  assert.equal(new Set(all).size, 35);
+  for (const c of all) assert.match(c, /^\d{6}$/);
+  const prefix: Record<string, RegExp> = { 仙台市: /^0410/, さいたま市: /^111/, 千葉市: /^121/, 福岡市: /^4013/, 北九州市: /^401[01]/ };
+  for (const g of ASSET_CITY_GROUPS) for (const w of g.wards) assert.match(w.code, prefix[g.cityLabel], w.code);
+  assert.match(ASSET_DESTINATION_COVERAGE, /仙台市（5区）.*さいたま市（10区）.*千葉市（6区）/);
+  assert.doesNotMatch(ASSET_DESTINATION_COVERAGE, /全国|17/);
+});
+
+test('公開マスタSQLの区コードと一致（ミラー文言だけに頼らない）', () => {
+  const sql = readFileSync(new URL('../../supabase/migration_designated_cities_geography.sql', import.meta.url), 'utf8');
+  for (const c of STAGE1) for (const [code, label] of c.codes)
+    assert.ok(sql.includes(`'${code}','${c.city}${label}'`), `${code} ${c.city}${label}`);
+  const patch = readFileSync(new URL('../../scripts/sql/20261119-designated-cities-stage1.sql', import.meta.url), 'utf8');
+  for (const c of STAGE1) {
+    assert.ok(patch.includes(c.office) && patch.includes(c.phone) && patch.includes(c.postal) && patch.includes(c.url), c.city);
+    for (const [code] of c.codes) assert.ok(patch.includes(`'${code}'`), code);
+  }
+});
+
+test('既存：福岡・北九州の窓口と日付・様式案内は第1弾で不変、福岡に案内なし', () => {
+  const f = lookupAssetSubmissionDestination('401331');
+  assert.ok(f);
+  assert.equal(f.sourceCheckedOn, '2026-11-16');
+  assert.equal(f.formNotice, undefined);
+  assert.equal(f.officeName, '福岡市 財政局 資産課税課（博多区役所 9階）');
+  const k = lookupAssetSubmissionDestination('401099');
+  assert.ok(k?.formNotice);
+  assert.equal(k.sourceCheckedOn, '2026-11-18');
+  assert.match(k.formNotice.text, /11\/18確認/);
+});
+
+test('不正・空・会社所在地・他市は第1弾でもnull（市単位の集約や部分一致なし）', () => {
+  const bad: unknown[] = ['041009', '041', '04101', '0410177', ' 041017', '041017 ', '０４１０１７', '111007', '121002', '121100',
+    '141003', '261000', '271004', '281000', '130010', 'sendai', '仙台市', 'さいたま市', '千葉市', '', null, undefined, 41017, '111015\n', '121061x'];
+  for (const v of bad) assert.equal(lookupAssetSubmissionDestination(v), null, String(v));
+});
+
+test('実装（ヘルパー・コンポーネント）は保存・通信・会社所在地に触れない', () => {
+  const lib = readFileSync(new URL('./assetSubmissionDestination.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(lib, /localStorage|sessionStorage|fetch\(|^import /m);
+  const comp = readFileSync(new URL('../components/AssetSubmissionDestination.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(comp, /localStorage|sessionStorage|fetch\(|XMLHttpRequest|sendBeacon|company|supabase/i);
+  assert.equal((comp.match(/useState\(/g) ?? []).length, 1);
 });

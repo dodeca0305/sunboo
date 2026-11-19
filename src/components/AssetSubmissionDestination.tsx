@@ -3,8 +3,7 @@
 import { useId, useState } from 'react';
 import {
   ASSET_DESTINATION_COVERAGE,
-  ASSET_WARDS,
-  KITAKYUSHU_WARDS,
+  ASSET_CITY_GROUPS,
   OTHER_REGION_VALUE,
   lookupAssetSubmissionDestination,
 } from '@/lib/assetSubmissionDestination';
@@ -35,16 +34,13 @@ export default function AssetSubmissionDestination({ disabled = false }: { disab
         onChange={(e) => setValue(e.target.value)}
       >
         <option value="">選択してください</option>
-        <optgroup label="福岡市">
-          {ASSET_WARDS.map((w) => (
-            <option key={w.code} value={w.code}>福岡市{w.label}</option>
-          ))}
-        </optgroup>
-        <optgroup label="北九州市">
-          {KITAKYUSHU_WARDS.map((w) => (
-            <option key={w.code} value={w.code}>北九州市{w.label}</option>
-          ))}
-        </optgroup>
+        {ASSET_CITY_GROUPS.map((g) => (
+          <optgroup key={g.cityLabel} label={g.cityLabel}>
+            {g.wards.map((w) => (
+              <option key={w.code} value={w.code}>{g.cityLabel}{w.label}</option>
+            ))}
+          </optgroup>
+        ))}
         <option value={OTHER_REGION_VALUE}>その他の地域</option>
       </select>
       <div aria-live="polite">
