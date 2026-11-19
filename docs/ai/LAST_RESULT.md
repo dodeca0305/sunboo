@@ -1,3 +1,25 @@
+# LAST_RESULT: designated-cities-stage3-assets (Claude Sonnet/medium, manual, 追加エージェントなし)
+
+基点 6c42eff。ローカル実装・合成試験のみ。未commit/未push。push/PR/リリースはCodex担当。本番・API・DB・.env・セッション・顧客データ・インストール・課金の操作なし。**SQLは本番未実行（準備のみ）**。追加課金OFF（2026-11-17/19 claude.ai firstParty確認）を再利用。
+
+## 変更
+- `assetSubmissionDestination.ts`：新潟市8区（151017–151084）・静岡市3区・浜松市3区（2024再編後のみ、221384/221392/221406）計14コードを確認済みJSONどおり追加（確認日2026-11-19）。`ASSET_CITY_GROUPS`末尾に追加し11グループ[7,7,5,10,6,18,7,3,8,3,3]=77コード。新潟は直通025-226-2277（2266不使用）・古町ルフル3階・区役所/出張所では受付不可。令和9年度様式は3市とも「公開を確認できていません（2026/11/19確認）」。様式案内URLは3市とも公式URLと同じ（正）。既存8市63コードの値/日付/案内は不変。component/保存/通信/Draft/Roadmapは未変更（対応地域の表示文字列に3市を追記）。
+- `scripts/sql/20261119-designated-cities-stage3.sql`（新規・手動DATA PATCH、migrationではない）：INSERTのみ 窓口3/情報源3/管轄14。stage2のguard踏襲（pref15/22・接頭辞1510/2210/2213/2214・市区名一致、有効規則1件、衝突/部分適用拒否、完全適用のみno-op、単一txn+lock）。Fax NULL、form_page_urlはsnapshot、download/eFiling NULL。organization_types参照なし。stage1/2ファイルは無変更。
+- `scripts/validate-designated-cities-stage3.mjs`（新規、PGlite）。テストとplaywrightを3市対応に更新。
+
+## 検証
+- `npm test` 1144件pass/失敗0（1139+5、/tmp/sunboo-designated-stage3-tests.log）。
+- stage3 SQL隔離13件pass（/tmp/sunboo-designated-stage3-sql.log）。stage1/2 SQLは指示により再実行せず。
+- 実コンポーネントPlaywright 25件pass、1280/375px、通信試行0（/tmp/sunboo-designated-stage3-browser.log）。画像：test-results/asset-destination-{niigata,shizuoka,hamamatsu}-{pc,mobile}.png。
+- 対象ファイルlint exit0。
+- 隔離next build（--webpack、型検査含む）exit0、1回目で成功（/tmp/sunboo-designated-stage3-build.log、dirは/tmp/sunboo-designated-stage3-builddir.txt記載）。git archive HEAD+変更対象のみ、env -i、node_modules symlink、元.next未変更。
+- Codex独立照合（既存63区不変・追加14区×10項目一致）はCodexが独立に実行・確認済み。
+
+## 限界・未確認
+- 実DB/本番PostgREST/並行トランザクション未検証（PGlite最小スキーマ）。公式サイトの再取得はしていない。R9様式は3市とも未確認。残りの政令市は未実装。current-task.jsonの既存変更は未接触。
+
+---
+
 # LAST_RESULT: designated-cities-stage2-assets (Claude Sonnet/medium, manual, 追加エージェントなし)
 
 基点 c45f932。ローカル実装・合成試験のみ。未commit/未push。push/PR/リリースはCodex担当。本番・API・DB・.env・セッション・顧客データ・インストール・課金の操作なし。**SQLは本番未実行（準備のみ）**。本番の公開マスター/償却資産提出先への反映はしていない。

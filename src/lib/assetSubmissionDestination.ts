@@ -1,5 +1,5 @@
 // 償却資産の提出先案内（資産の所在地を明示選択したときだけ）。純粋な参照のみ。
-// 会社所在地・チャットからの自動選択はしない。対応範囲：福岡市7区・北九州市7区・仙台市5区・さいたま市10区・千葉市6区・横浜市18区・川崎市7区・相模原市3区のみ（全国対応ではない）。
+// 会社所在地・チャットからの自動選択はしない。対応範囲：福岡市7区・北九州市7区・仙台市5区・さいたま市10区・千葉市6区・横浜市18区・川崎市7区・相模原市3区・新潟市8区・静岡市3区・浜松市3区のみ（全国対応ではない）。
 // 期限の引用・計算、課税判定、保存はしない。
 
 export interface AssetSubmissionDestination {
@@ -13,7 +13,7 @@ export interface AssetSubmissionDestination {
   officialUrl: string;
   sourceCheckedOn: string;
   note: string;
-  /** 様式の公開状況の案内（北九州市・仙台市・さいたま市・千葉市・横浜市・川崎市・相模原市のみ）。 */
+  /** 様式の公開状況の案内（北九州市・仙台市・さいたま市・千葉市・横浜市・川崎市・相模原市・新潟市・静岡市・浜松市のみ）。 */
   formNotice?: { text: string; actionLabel: string; url: string };
 }
 
@@ -42,7 +42,7 @@ export const KITAKYUSHU_WARDS = [
 ] as const;
 
 export const OTHER_REGION_VALUE = 'other';
-export const ASSET_DESTINATION_COVERAGE = '福岡市（7区）・北九州市（7区）・仙台市（5区）・さいたま市（10区）・千葉市（6区）・横浜市（18区）・川崎市（7区）・相模原市（3区）';
+export const ASSET_DESTINATION_COVERAGE = '福岡市（7区）・北九州市（7区）・仙台市（5区）・さいたま市（10区）・千葉市（6区）・横浜市（18区）・川崎市（7区）・相模原市（3区）・新潟市（8区）・静岡市（3区）・浜松市（3区）';
 export const ASSET_DESTINATION_SOURCE_CHECKED_ON = '2026-11-16';
 export const ASSET_DESTINATION_OFFICIAL_URL =
   'https://www.city.fukuoka.lg.jp/zaisei/zeisei/life/koteisisanzei/003.html';
@@ -237,6 +237,71 @@ const SAGAMIHARA_DESTINATION = {
   },
 } as const;
 
+// 第3弾の3市（コードと区名は公開マスタ migration_designated_cities_geography.sql と一致、新潟県・静岡県）。
+// 新潟市・静岡市・浜松市は公式ページ/PDFで区ごとに書類を作成することを確認（2026-11-19、Codex確認）。浜松市は2024年再編後の3区のみ。
+export const NIIGATA_WARDS = [
+  { code: '151017', label: '北区' },
+  { code: '151025', label: '東区' },
+  { code: '151033', label: '中央区' },
+  { code: '151041', label: '江南区' },
+  { code: '151050', label: '秋葉区' },
+  { code: '151068', label: '南区' },
+  { code: '151076', label: '西区' },
+  { code: '151084', label: '西蒲区' },
+] as const;
+
+export const SHIZUOKA_WARDS = [
+  { code: '221015', label: '葵区' },
+  { code: '221023', label: '駿河区' },
+  { code: '221031', label: '清水区' },
+] as const;
+
+export const HAMAMATSU_WARDS = [
+  { code: '221384', label: '中央区' },
+  { code: '221392', label: '浜名区' },
+  { code: '221406', label: '天竜区' },
+] as const;
+
+const NIIGATA_URL = 'https://lgpos.task-asp.net/cu/151009/ea/residents/procedures/apply/1d2d117d-bbdb-4325-80f1-68b6dbc01674/start';
+const SHIZUOKA_URL = 'https://www.city.shizuoka.lg.jp/shinsei/s5724/p2536.html';
+const HAMAMATSU_URL = 'https://www.city.hamamatsu.shizuoka.jp/shisanze/zei/shisanze/shoukyaku2.html';
+
+const NIIGATA_DESTINATION = {
+  cityLabel: '新潟市',
+  officeName: '新潟市 資産税課 償却資産係（古町ルフル3階）',
+  postalCode: '951-8554',
+  address: '新潟県新潟市中央区古町通7番町1010番地（古町ルフル3階）',
+  phone: '025-226-2277',
+  officialUrl: NIIGATA_URL,
+  sourceCheckedOn: '2026-11-19',
+  note: '資産がある区ごとに書類を用意し、この提出先へ出します。区役所・出張所では受け付けていません。',
+  formNotice: { text: R9_UNCONFIRMED, actionLabel: R9_ACTION, url: NIIGATA_URL },
+} as const;
+
+const SHIZUOKA_DESTINATION = {
+  cityLabel: '静岡市',
+  officeName: '静岡市 固定資産税課 償却資産係（静岡庁舎新館2階）',
+  postalCode: '420-8602',
+  address: '静岡県静岡市葵区追手町5番1号（静岡庁舎新館2階）',
+  phone: '054-221-1048',
+  officialUrl: SHIZUOKA_URL,
+  sourceCheckedOn: '2026-11-19',
+  note: STAGE1_NOTE,
+  formNotice: { text: R9_UNCONFIRMED, actionLabel: R9_ACTION, url: SHIZUOKA_URL },
+} as const;
+
+const HAMAMATSU_DESTINATION = {
+  cityLabel: '浜松市',
+  officeName: '浜松市 資産税課 償却資産グループ（元目分庁舎3階）',
+  postalCode: '430-0948',
+  address: '静岡県浜松市中央区元目町120番地の1（元目分庁舎3階）',
+  phone: '053-457-2156',
+  officialUrl: HAMAMATSU_URL,
+  sourceCheckedOn: '2026-11-19',
+  note: '資産がある区ごとに書類を用意し、郵送はこの提出先へ出します。',
+  formNotice: { text: R9_UNCONFIRMED, actionLabel: R9_ACTION, url: HAMAMATSU_URL },
+} as const;
+
 type CityDestination = Omit<AssetSubmissionDestination, 'jisCode' | 'wardLabel'>;
 
 export interface AssetCityGroup {
@@ -245,7 +310,7 @@ export interface AssetCityGroup {
   destination: CityDestination;
 }
 
-/** 選択肢の表示順（福岡市・北九州市・仙台市・さいたま市・千葉市・横浜市・川崎市・相模原市）。画面はこの配列を回す。 */
+/** 選択肢の表示順（福岡市・北九州市・仙台市・さいたま市・千葉市・横浜市・川崎市・相模原市・新潟市・静岡市・浜松市）。画面はこの配列を回す。 */
 export const ASSET_CITY_GROUPS: ReadonlyArray<AssetCityGroup> = [
   { cityLabel: '福岡市', wards: ASSET_WARDS, destination: FUKUOKA_DESTINATION },
   { cityLabel: '北九州市', wards: KITAKYUSHU_WARDS, destination: KITAKYUSHU_DESTINATION },
@@ -255,9 +320,12 @@ export const ASSET_CITY_GROUPS: ReadonlyArray<AssetCityGroup> = [
   { cityLabel: '横浜市', wards: YOKOHAMA_WARDS, destination: YOKOHAMA_DESTINATION },
   { cityLabel: '川崎市', wards: KAWASAKI_WARDS, destination: KAWASAKI_DESTINATION },
   { cityLabel: '相模原市', wards: SAGAMIHARA_WARDS, destination: SAGAMIHARA_DESTINATION },
+  { cityLabel: '新潟市', wards: NIIGATA_WARDS, destination: NIIGATA_DESTINATION },
+  { cityLabel: '静岡市', wards: SHIZUOKA_WARDS, destination: SHIZUOKA_DESTINATION },
+  { cityLabel: '浜松市', wards: HAMAMATSU_WARDS, destination: HAMAMATSU_DESTINATION },
 ];
 
-/** 6桁の文字列（全国地方公共団体コード）と完全一致する対応8市の区のみ。それ以外はnull（未対応）。 */
+/** 6桁の文字列（全国地方公共団体コード）と完全一致する対応11市の区のみ。それ以外はnull（未対応）。 */
 export function lookupAssetSubmissionDestination(code: unknown): AssetSubmissionDestination | null {
   if (typeof code !== 'string') return null;
   for (const g of ASSET_CITY_GROUPS) {

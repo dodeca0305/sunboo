@@ -10,6 +10,9 @@ import {
   YOKOHAMA_WARDS,
   KAWASAKI_WARDS,
   SAGAMIHARA_WARDS,
+  NIIGATA_WARDS,
+  SHIZUOKA_WARDS,
+  HAMAMATSU_WARDS,
   ASSET_CITY_GROUPS,
   ASSET_DESTINATION_COVERAGE,
   ASSET_DESTINATION_OFFICIAL_URL,
@@ -193,20 +196,22 @@ test('第1弾3市21区：正確な6桁コードで窓口・出典・R9案内を�
   assert.equal(total, 21);
 });
 
-test('8グループ・63コード・重複なし・旧5市35コードは先頭で不変', () => {
+test('11グループ・77コード・重複なし・旧5市35コードは先頭で不変、第2弾8市63コードの順序も不変', () => {
   assert.deepEqual(ASSET_CITY_GROUPS.map((g) => [g.cityLabel, g.wards.length]),
-    [['福岡市', 7], ['北九州市', 7], ['仙台市', 5], ['さいたま市', 10], ['千葉市', 6], ['横浜市', 18], ['川崎市', 7], ['相模原市', 3]]);
+    [['福岡市', 7], ['北九州市', 7], ['仙台市', 5], ['さいたま市', 10], ['千葉市', 6], ['横浜市', 18], ['川崎市', 7], ['相模原市', 3],
+      ['新潟市', 8], ['静岡市', 3], ['浜松市', 3]]);
   const all = ASSET_CITY_GROUPS.flatMap((g) => g.wards.map((w) => w.code));
-  assert.equal(all.length, 63);
-  assert.equal(new Set(all).size, 63);
+  assert.equal(all.length, 77);
+  assert.equal(new Set(all).size, 77);
   assert.equal(ASSET_CITY_GROUPS.slice(0, 5).flatMap((g) => g.wards).length, 35);
+  assert.equal(ASSET_CITY_GROUPS.slice(0, 8).flatMap((g) => g.wards).length, 63);
   for (const c of all) assert.match(c, /^\d{6}$/);
   const prefix: Record<string, RegExp> = {
     仙台市: /^0410/, さいたま市: /^111/, 千葉市: /^121/, 福岡市: /^4013/, 北九州市: /^401[01]/,
-    横浜市: /^141[01]/, 川崎市: /^1413/, 相模原市: /^1415/,
+    横浜市: /^141[01]/, 川崎市: /^1413/, 相模原市: /^1415/, 新潟市: /^1510/, 静岡市: /^2210/, 浜松市: /^221[34]/,
   };
   for (const g of ASSET_CITY_GROUPS) for (const w of g.wards) assert.match(w.code, prefix[g.cityLabel], w.code);
-  assert.match(ASSET_DESTINATION_COVERAGE, /仙台市（5区）.*さいたま市（10区）.*千葉市（6区）.*横浜市（18区）.*川崎市（7区）.*相模原市（3区）/);
+  assert.match(ASSET_DESTINATION_COVERAGE, /仙台市（5区）.*さいたま市（10区）.*千葉市（6区）.*横浜市（18区）.*川崎市（7区）.*相模原市（3区）.*新潟市（8区）.*静岡市（3区）.*浜松市（3区）/);
   assert.doesNotMatch(ASSET_DESTINATION_COVERAGE, /全国|17/);
 });
 
@@ -346,4 +351,99 @@ test('実装（ヘルパー・コンポーネント）は保存・通信・会�
   const comp = readFileSync(new URL('../components/AssetSubmissionDestination.tsx', import.meta.url), 'utf8');
   assert.doesNotMatch(comp, /localStorage|sessionStorage|fetch\(|XMLHttpRequest|sendBeacon|company|supabase/i);
   assert.equal((comp.match(/useState\(/g) ?? []).length, 1);
+});
+
+// ---- 第3弾：新潟市・静岡市・浜松市（Codex確認済みの公式データ 2026-11-19） ----
+const STAGE3 = [
+  {
+    city: '新潟市', wards: NIIGATA_WARDS, office: '新潟市 資産税課 償却資産係（古町ルフル3階）', postal: '951-8554',
+    address: '新潟県新潟市中央区古町通7番町1010番地（古町ルフル3階）', phone: '025-226-2277',
+    url: 'https://lgpos.task-asp.net/cu/151009/ea/residents/procedures/apply/1d2d117d-bbdb-4325-80f1-68b6dbc01674/start',
+    note: '資産がある区ごとに書類を用意し、この提出先へ出します。区役所・出張所では受け付けていません。',
+    codes: [['151017', '北区'], ['151025', '東区'], ['151033', '中央区'], ['151041', '江南区'], ['151050', '秋葉区'], ['151068', '南区'], ['151076', '西区'], ['151084', '西蒲区']],
+  },
+  {
+    city: '静岡市', wards: SHIZUOKA_WARDS, office: '静岡市 固定資産税課 償却資産係（静岡庁舎新館2階）', postal: '420-8602',
+    address: '静岡県静岡市葵区追手町5番1号（静岡庁舎新館2階）', phone: '054-221-1048',
+    url: 'https://www.city.shizuoka.lg.jp/shinsei/s5724/p2536.html',
+    note: '資産がある区ごとに書類を用意し、この提出先へ出します。',
+    codes: [['221015', '葵区'], ['221023', '駿河区'], ['221031', '清水区']],
+  },
+  {
+    city: '浜松市', wards: HAMAMATSU_WARDS, office: '浜松市 資産税課 償却資産グループ（元目分庁舎3階）', postal: '430-0948',
+    address: '静岡県浜松市中央区元目町120番地の1（元目分庁舎3階）', phone: '053-457-2156',
+    url: 'https://www.city.hamamatsu.shizuoka.jp/shisanze/zei/shisanze/shoukyaku2.html',
+    note: '資産がある区ごとに書類を用意し、郵送はこの提出先へ出します。',
+    codes: [['221384', '中央区'], ['221392', '浜名区'], ['221406', '天竜区']],
+  },
+] as const;
+
+test('第3弾3市14区：正確な6桁コードで窓口・電話・注記・R9案内を返す（様式URLは公式ページと同じで正しい）', () => {
+  let total = 0;
+  for (const c of STAGE3) {
+    assert.equal(c.wards.length, c.codes.length);
+    for (const [code, label] of c.codes) {
+      total++;
+      const d = lookupAssetSubmissionDestination(code);
+      assert.ok(d, code);
+      assert.equal(d.jisCode, code);
+      assert.equal(d.wardLabel, label);
+      assert.equal(d.cityLabel, c.city);
+      assert.equal(d.officeName, c.office);
+      assert.equal(d.postalCode, c.postal);
+      assert.equal(d.address, c.address);
+      assert.equal(d.phone, c.phone);
+      assert.equal(d.officialUrl, c.url);
+      assert.equal(d.sourceCheckedOn, '2026-11-19');
+      assert.equal(d.note, c.note);
+      assert.deepEqual(d.formNotice, { text: R9_TEXT, actionLabel: '最新の様式を公式サイトで確認', url: c.url });
+      assert.doesNotMatch(JSON.stringify(d), /期限|締切|1月31日|税率|免税点|未公開|\.pdf|2266|令和8/);
+    }
+  }
+  assert.equal(total, 14);
+  assert.deepEqual(STAGE3.map((c) => c.codes.length), [8, 3, 3]);
+});
+
+test('新潟市は直通2277（2266不使用）・区役所受付不可、浜松市は2024再編後の3区のみ', () => {
+  const n = lookupAssetSubmissionDestination('151033');
+  assert.ok(n);
+  assert.equal(n.phone, '025-226-2277');
+  assert.match(n.note, /区役所・出張所では受け付けていません/);
+  assert.match(n.officeName, /古町ルフル3階/);
+  assert.equal(lookupAssetSubmissionDestination('151041')!.cityLabel, '新潟市');
+  assert.equal(HAMAMATSU_WARDS.length, 3);
+  assert.deepEqual(HAMAMATSU_WARDS.map((w) => w.label), ['中央区', '浜名区', '天竜区']);
+  // 旧7区（浜松市の2024年前の区）・浜北/北/東/西/南は対象外
+  for (const old of ['221317', '221325', '221333', '221341', '221350', '221368', '221376', '221309', '221317']) assert.equal(lookupAssetSubmissionDestination(old), null, old);
+  assert.doesNotMatch(lookupAssetSubmissionDestination('221392')!.note, /区役所/);
+});
+
+test('第3弾：区コード・区名は公開マスタSQLと一致、窓口・URLはstage3 SQLパッチと一致', () => {
+  const geo = readFileSync(new URL('../../supabase/migration_designated_cities_geography.sql', import.meta.url), 'utf8');
+  const patch = readFileSync(new URL('../../scripts/sql/20261119-designated-cities-stage3.sql', import.meta.url), 'utf8');
+  for (const c of STAGE3) {
+    for (const [code, label] of c.codes) {
+      assert.ok(geo.includes(`'${code}','${c.city}${label}'`), `${code} ${c.city}${label}`);
+      assert.ok(patch.includes(`('${code}','${c.city}','${label}')`), `patch ${code}`);
+    }
+    assert.ok(patch.includes(c.office) && patch.includes(c.phone) && patch.includes(c.postal) && patch.includes(c.url) && patch.includes(c.address), c.city);
+  }
+  assert.ok(patch.includes('ARRAY[\'2213\',\'2214\']'));
+  assert.equal(STAGE3[2].codes.filter(([c]) => c.startsWith('2213')).length, 2);
+  assert.equal(STAGE3[2].codes.filter(([c]) => c.startsWith('2214')).length, 1);
+});
+
+test('第3弾でも既存8市63コードの窓口・日付・案内は不変', () => {
+  assert.equal(lookupAssetSubmissionDestination('401331')!.sourceCheckedOn, '2026-11-16');
+  assert.equal(lookupAssetSubmissionDestination('401331')!.formNotice, undefined);
+  assert.equal(lookupAssetSubmissionDestination('401099')!.sourceCheckedOn, '2026-11-18');
+  assert.equal(lookupAssetSubmissionDestination('041017')!.officeName, '仙台市 財政局 資産課税課 償却資産係（北庁舎1階）');
+  assert.equal(lookupAssetSubmissionDestination('141330')!.phone, '044-200-1321／044-200-1322');
+  assert.equal(lookupAssetSubmissionDestination('141534')!.formNotice!.url, 'https://www.city.sagamihara.kanagawa.jp/shinseisho_menu/zei/1011360.html');
+});
+
+test('第3弾：不正・空・他県/他市・市名・近いコードはnull', () => {
+  const bad: unknown[] = ['151000', '151009', '151092', '221000', '221007', '221040', '221376', '221414', '22101', '2210151', ' 151017', '151017 ', '１５１０１７',
+    '151017\n', '221015x', 151017, '新潟市', '静岡市', '浜松市', '151', '150002', '220001', 'other', '', null, undefined];
+  for (const v of bad) assert.equal(lookupAssetSubmissionDestination(v), null, String(v));
 });
