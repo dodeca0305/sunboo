@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import {
   ASSET_WARDS,
   KITAKYUSHU_WARDS,
@@ -16,6 +17,9 @@ import {
   NAGOYA_WARDS,
   KYOTO_WARDS,
   OSAKA_WARDS,
+  SAKAI_WARDS,
+  KOBE_WARDS,
+  OKAYAMA_WARDS,
   ASSET_CITY_GROUPS,
   ASSET_DESTINATION_COVERAGE,
   ASSET_DESTINATION_OFFICIAL_URL,
@@ -199,25 +203,26 @@ test('第1弾3市21区：正確な6桁コードで窓口・出典・R9案内を�
   assert.equal(total, 21);
 });
 
-test('14グループ・128コード・重複なし・旧5市35コードは先頭で不変、第2弾8市63コード・第3弾11市77コードの順序も不変', () => {
+test('17グループ・148コード・重複なし・旧5市35コードは先頭で不変、第2弾8市63コード・第3弾11市77コード・第4弾14市128コードの順序も不変', () => {
   assert.deepEqual(ASSET_CITY_GROUPS.map((g) => [g.cityLabel, g.wards.length]),
     [['福岡市', 7], ['北九州市', 7], ['仙台市', 5], ['さいたま市', 10], ['千葉市', 6], ['横浜市', 18], ['川崎市', 7], ['相模原市', 3],
-      ['新潟市', 8], ['静岡市', 3], ['浜松市', 3], ['名古屋市', 16], ['京都市', 11], ['大阪市', 24]]);
+      ['新潟市', 8], ['静岡市', 3], ['浜松市', 3], ['名古屋市', 16], ['京都市', 11], ['大阪市', 24], ['堺市', 7], ['神戸市', 9], ['岡山市', 4]]);
   const all = ASSET_CITY_GROUPS.flatMap((g) => g.wards.map((w) => w.code));
-  assert.equal(all.length, 128);
-  assert.equal(new Set(all).size, 128);
+  assert.equal(all.length, 148);
+  assert.equal(new Set(all).size, 148);
   assert.equal(ASSET_CITY_GROUPS.slice(0, 5).flatMap((g) => g.wards).length, 35);
   assert.equal(ASSET_CITY_GROUPS.slice(0, 8).flatMap((g) => g.wards).length, 63);
   assert.equal(ASSET_CITY_GROUPS.slice(0, 11).flatMap((g) => g.wards).length, 77);
+  assert.equal(ASSET_CITY_GROUPS.slice(0, 14).flatMap((g) => g.wards).length, 128);
   for (const c of all) assert.match(c, /^\d{6}$/);
   const prefix: Record<string, RegExp> = {
     仙台市: /^0410/, さいたま市: /^111/, 千葉市: /^121/, 福岡市: /^4013/, 北九州市: /^401[01]/,
     横浜市: /^141[01]/, 川崎市: /^1413/, 相模原市: /^1415/, 新潟市: /^1510/, 静岡市: /^2210/, 浜松市: /^221[34]/,
-    名古屋市: /^231[01]/, 京都市: /^261[01]/, 大阪市: /^271[012]/,
+    名古屋市: /^231[01]/, 京都市: /^261[01]/, 大阪市: /^271[012]/, 堺市: /^2714/, 神戸市: /^281[01]/, 岡山市: /^3310/,
   };
   for (const g of ASSET_CITY_GROUPS) for (const w of g.wards) assert.match(w.code, prefix[g.cityLabel], w.code);
-  assert.match(ASSET_DESTINATION_COVERAGE, /仙台市（5区）.*さいたま市（10区）.*千葉市（6区）.*横浜市（18区）.*川崎市（7区）.*相模原市（3区）.*新潟市（8区）.*静岡市（3区）.*浜松市（3区）.*名古屋市（16区）.*京都市（11区）.*大阪市（24区）/);
-  assert.doesNotMatch(ASSET_DESTINATION_COVERAGE, /全国|17/);
+  assert.match(ASSET_DESTINATION_COVERAGE, /仙台市（5区）.*さいたま市（10区）.*千葉市（6区）.*横浜市（18区）.*川崎市（7区）.*相模原市（3区）.*新潟市（8区）.*静岡市（3区）.*浜松市（3区）.*名古屋市（16区）.*京都市（11区）.*大阪市（24区）.*堺市（7区）.*神戸市（9区）.*岡山市（4区）/);
+  assert.doesNotMatch(ASSET_DESTINATION_COVERAGE, /全国/);
 });
 
 // ---- 第2弾：横浜市・川崎市・相模原市（公式確認 2026-11-19） ----
@@ -543,5 +548,102 @@ test('第4弾でも既存11市77コードの窓口・日付・案内は不変', 
 test('第4弾：不正・空・近いコード・欠番はnull', () => {
   const bad: unknown[] = ['231000', '231002', '231177', '231207', '23101', '2310111', ' 231011', '231011 ', '２３１０１１', '231011\n', '261000', '261122', '261017x',
     '271000', '271012', '271055', '271128', '271292', '271300', 271021, '名古屋市', '京都市', '大阪市', '', null, undefined];
+  for (const v of bad) assert.equal(lookupAssetSubmissionDestination(v), null, String(v));
+});
+
+// ---- 第5弾：堺市・神戸市・岡山市（Codex確認済みの公式データ 2026-11-20） ----
+const R9_TEXT_1120 = '令和9年度の様式は公開を確認できていません（2026/11/20確認）。';
+const STAGE5 = [
+  {
+    city: '堺市', wards: SAKAI_WARDS, office: '堺市 市税事務所 固定資産税課 償却資産係（三国ヶ丘庁舎3階）', postal: '591-8037',
+    address: '大阪府堺市北区百舌鳥赤畑町1丁3番地1（三国ヶ丘庁舎3階）', phone: '072-231-9765',
+    url: 'https://www.city.sakai.lg.jp/shisei/gaiyo/annai/gyoseikiko/zaisei/shizei/kotei.html',
+    form: 'https://www.city.sakai.lg.jp/benri/download/download_shimin/mokuteki/kurashi/zeikin/koteishisan/syoukyakushishanshinkoku.html',
+    note: '資産がある区ごとに書類を用意し、郵送はこの提出先へ出します。持参は各区の市税の窓口でも受け付けています。',
+    codes: [['271411', '堺区'], ['271420', '中区'], ['271438', '東区'], ['271446', '西区'], ['271454', '南区'], ['271462', '北区'], ['271471', '美原区']],
+  },
+  {
+    city: '神戸市', wards: KOBE_WARDS, office: '神戸市 固定資産税調整課 償却資産担当（新長田合同庁舎4階）', postal: '653-8773',
+    address: '兵庫県神戸市長田区二葉町5丁目1番32号（新長田合同庁舎4階）', phone: '078-647-9433',
+    url: 'https://www.city.kobe.lg.jp/a03858/kurashi/registration/shinsei/zei/koteishisan/syokyaku_sinkoku.html',
+    form: 'https://www.city.kobe.lg.jp/a03858/kurashi/registration/shinsei/zei/koteishisan/syokyaku_sinkoku.html',
+    note: '資産がある区ごとに書類を用意し、この提出先へ郵送または持参します。法人市民税の提出先とは異なります。',
+    codes: [['281018', '東灘区'], ['281026', '灘区'], ['281051', '兵庫区'], ['281069', '長田区'], ['281077', '須磨区'], ['281085', '垂水区'], ['281093', '北区'], ['281107', '中央区'], ['281115', '西区']],
+  },
+  {
+    city: '岡山市', wards: OKAYAMA_WARDS, office: '岡山市 課税管理課 償却資産係（分庁舎3階）', postal: '700-8544',
+    address: '岡山県岡山市北区大供一丁目2番3号（分庁舎3階）', phone: '086-803-1181',
+    url: 'https://www.city.okayama.jp/kurashi/0000005379.html', form: 'https://www.city.okayama.jp/kurashi/0000031132.html',
+    note: '資産がある区ごとに書類を用意し、この提出先へまとめて出します。区役所や市税事務所への提出ではありません。',
+    codes: [['331015', '北区'], ['331023', '中区'], ['331031', '東区'], ['331040', '南区']],
+  },
+] as const;
+
+test('第5弾3市20区：正確な6桁コードで窓口・電話・注記・R9案内を返す（神戸のみ様式URLが公式ページと同じ）', () => {
+  let total = 0;
+  for (const c of STAGE5) {
+    assert.equal(c.wards.length, c.codes.length);
+    for (const [code, label] of c.codes) {
+      total++;
+      const d = lookupAssetSubmissionDestination(code);
+      assert.ok(d, code);
+      assert.equal(d.jisCode, code);
+      assert.equal(d.wardLabel, label);
+      assert.equal(d.cityLabel, c.city);
+      assert.equal(d.officeName, c.office);
+      assert.equal(d.postalCode, c.postal);
+      assert.equal(d.address, c.address);
+      assert.equal(d.phone, c.phone);
+      assert.equal(d.officialUrl, c.url);
+      assert.equal(d.sourceCheckedOn, '2026-11-20');
+      assert.equal(d.note, c.note);
+      assert.deepEqual(d.formNotice, { text: R9_TEXT_1120, actionLabel: '最新の様式を公式サイトで確認', url: c.form });
+      assert.equal(c.city === '神戸市', d.formNotice?.url === d.officialUrl);
+      assert.doesNotMatch(JSON.stringify(d), /期限|締切|1月31日|税率|免税点|未公開|\.pdf|令和8/);
+    }
+  }
+  assert.equal(total, 20);
+  assert.deepEqual(STAGE5.map((c) => c.codes.length), [7, 9, 4]);
+});
+
+test('第5弾：堺は郵送先1つ・各区の市税窓口でも持参可、神戸は郵送/持参、岡山は区役所・市税事務所不可', () => {
+  const s = lookupAssetSubmissionDestination('271471')!;
+  assert.match(s.officeName, /三国ヶ丘庁舎3階/); assert.match(s.note, /郵送はこの提出先へ/); assert.match(s.note, /各区の市税の窓口でも受け付けています/);
+  assert.equal(s.cityLabel, '堺市');
+  const k = lookupAssetSubmissionDestination('281107')!;
+  assert.match(k.note, /郵送または持参/); assert.match(k.note, /法人市民税の提出先とは異なります/);
+  const o = lookupAssetSubmissionDestination('331040')!;
+  assert.match(o.note, /区役所や市税事務所への提出ではありません/); assert.match(o.note, /まとめて出します/);
+  // 大阪市(2710-2712)と堺市(2714)、神戸(2810/2811)・岡山(3310)の境界
+  for (const [code, city] of [['271284', '大阪市'], ['271411', '堺市'], ['271471', '堺市'], ['281018', '神戸市'], ['281093', '神戸市'], ['281107', '神戸市'], ['281115', '神戸市'], ['331015', '岡山市'], ['331040', '岡山市']])
+    assert.equal(lookupAssetSubmissionDestination(code)!.cityLabel, city, code);
+});
+
+test('第5弾：区コード・区名は公開マスタSQLと一致、窓口・URLはstage5 SQLパッチと一致', () => {
+  const geo = readFileSync(new URL('../../supabase/migration_designated_cities_geography.sql', import.meta.url), 'utf8');
+  const patch = readFileSync(new URL('../../scripts/sql/20261120-designated-cities-stage5.sql', import.meta.url), 'utf8');
+  for (const c of STAGE5) {
+    for (const [code, label] of c.codes) {
+      assert.ok(geo.includes(`'${code}','${c.city}${label}'`), `${code} ${c.city}${label}`);
+      assert.ok(patch.includes(`('${code}','${c.city}','${label}')`), `patch ${code}`);
+    }
+    assert.ok(patch.includes(c.office) && patch.includes(c.phone) && patch.includes(c.postal) && patch.includes(c.url) && patch.includes(c.address) && patch.includes(c.form), c.city);
+  }
+  assert.ok(patch.includes("ARRAY['2714']") && patch.includes("ARRAY['2810','2811']") && patch.includes("ARRAY['3310']"));
+});
+
+test('第5弾でも既存14市128コードのlookup全値は不変（第4弾時点のSHA-256と一致）', () => {
+  const codes = ASSET_CITY_GROUPS.slice(0, 14).flatMap((g) => g.wards.map((w) => w.code));
+  assert.equal(codes.length, 128);
+  const all = codes.map((c) => [c, lookupAssetSubmissionDestination(c)]);
+  assert.equal(createHash('sha256').update(JSON.stringify(all)).digest('hex'), 'c471ff825132e62794df88a381d22016dd036efa87dcf9024c95f3a2fd2f193b');
+  assert.equal(lookupAssetSubmissionDestination('401331')!.sourceCheckedOn, '2026-11-16');
+  assert.equal(lookupAssetSubmissionDestination('401331')!.formNotice, undefined);
+  assert.equal(lookupAssetSubmissionDestination('271209')!.phone, '06-4705-2941');
+});
+
+test('第5弾：不正・空・近いコード・欠番・市名はnull', () => {
+  const bad: unknown[] = ['271400', '271402', '271479', '271489', '27141', '2714111', ' 271411', '271411 ', '２７１４１１', '271411\n', '281000', '281000', '281123', '281131', '331000', '331058', '331007',
+    '331015x', 271411, '堺市', '神戸市', '岡山市', '', null, undefined];
   for (const v of bad) assert.equal(lookupAssetSubmissionDestination(v), null, String(v));
 });
