@@ -1,5 +1,5 @@
 // 償却資産の提出先案内（資産の所在地を明示選択したときだけ）。純粋な参照のみ。
-// 会社所在地・チャットからの自動選択はしない。対応範囲：福岡市7区・北九州市7区・仙台市5区・さいたま市10区・千葉市6区・横浜市18区・川崎市7区・相模原市3区・新潟市8区・静岡市3区・浜松市3区・名古屋市16区・京都市11区・大阪市24区のみ（全国対応ではない）。
+// 会社所在地・チャットからの自動選択はしない。対応範囲：福岡市7区・北九州市7区・仙台市5区・さいたま市10区・千葉市6区・横浜市18区・川崎市7区・相模原市3区・新潟市8区・静岡市3区・浜松市3区・名古屋市16区・京都市11区・大阪市24区・堺市7区・神戸市9区・岡山市4区のみ（全国対応ではない）。
 // 期限の引用・計算、課税判定、保存はしない。
 
 export interface AssetSubmissionDestination {
@@ -13,7 +13,7 @@ export interface AssetSubmissionDestination {
   officialUrl: string;
   sourceCheckedOn: string;
   note: string;
-  /** 様式の公開状況の案内（北九州市・仙台市・さいたま市・千葉市・横浜市・川崎市・相模原市・新潟市・静岡市・浜松市・名古屋市・京都市・大阪市のみ）。 */
+  /** 様式の公開状況の案内（北九州市・仙台市・さいたま市・千葉市・横浜市・川崎市・相模原市・新潟市・静岡市・浜松市・名古屋市・京都市・大阪市・堺市・神戸市・岡山市のみ）。 */
   formNotice?: { text: string; actionLabel: string; url: string };
 }
 
@@ -42,7 +42,7 @@ export const KITAKYUSHU_WARDS = [
 ] as const;
 
 export const OTHER_REGION_VALUE = 'other';
-export const ASSET_DESTINATION_COVERAGE = '福岡市（7区）・北九州市（7区）・仙台市（5区）・さいたま市（10区）・千葉市（6区）・横浜市（18区）・川崎市（7区）・相模原市（3区）・新潟市（8区）・静岡市（3区）・浜松市（3区）・名古屋市（16区）・京都市（11区）・大阪市（24区）';
+export const ASSET_DESTINATION_COVERAGE = '福岡市（7区）・北九州市（7区）・仙台市（5区）・さいたま市（10区）・千葉市（6区）・横浜市（18区）・川崎市（7区）・相模原市（3区）・新潟市（8区）・静岡市（3区）・浜松市（3区）・名古屋市（16区）・京都市（11区）・大阪市（24区）・堺市（7区）・神戸市（9区）・岡山市（4区）';
 export const ASSET_DESTINATION_SOURCE_CHECKED_ON = '2026-11-16';
 export const ASSET_DESTINATION_OFFICIAL_URL =
   'https://www.city.fukuoka.lg.jp/zaisei/zeisei/life/koteisisanzei/003.html';
@@ -406,6 +406,81 @@ const OSAKA_DESTINATION = {
   formNotice: { text: R9_UNCONFIRMED, actionLabel: R9_ACTION, url: OSAKA_URL },
 } as const;
 
+// 第5弾の3市（コードと区名は公開マスタ migration_designated_cities_geography.sql と一致、大阪府・兵庫県・岡山県）。
+// 公式ページ/PDFで区ごとに書類を作成することを確認（2026-11-20、Codex確認）。堺市は郵送先が一つで各区の市税窓口でも持参可、
+// 神戸市は郵送または持参、岡山市は区役所・市税事務所では受け付けない（R8手引PDF 1枚目で区ごとの作成を確認）。
+export const SAKAI_WARDS = [
+  { code: '271411', label: '堺区' },
+  { code: '271420', label: '中区' },
+  { code: '271438', label: '東区' },
+  { code: '271446', label: '西区' },
+  { code: '271454', label: '南区' },
+  { code: '271462', label: '北区' },
+  { code: '271471', label: '美原区' },
+] as const;
+
+export const KOBE_WARDS = [
+  { code: '281018', label: '東灘区' },
+  { code: '281026', label: '灘区' },
+  { code: '281051', label: '兵庫区' },
+  { code: '281069', label: '長田区' },
+  { code: '281077', label: '須磨区' },
+  { code: '281085', label: '垂水区' },
+  { code: '281093', label: '北区' },
+  { code: '281107', label: '中央区' },
+  { code: '281115', label: '西区' },
+] as const;
+
+export const OKAYAMA_WARDS = [
+  { code: '331015', label: '北区' },
+  { code: '331023', label: '中区' },
+  { code: '331031', label: '東区' },
+  { code: '331040', label: '南区' },
+] as const;
+
+const R9_UNCONFIRMED_1120 = '令和9年度の様式は公開を確認できていません（2026/11/20確認）。';
+const SAKAI_URL = 'https://www.city.sakai.lg.jp/shisei/gaiyo/annai/gyoseikiko/zaisei/shizei/kotei.html';
+const SAKAI_FORM_URL = 'https://www.city.sakai.lg.jp/benri/download/download_shimin/mokuteki/kurashi/zeikin/koteishisan/syoukyakushishanshinkoku.html';
+const KOBE_URL = 'https://www.city.kobe.lg.jp/a03858/kurashi/registration/shinsei/zei/koteishisan/syokyaku_sinkoku.html';
+const OKAYAMA_URL = 'https://www.city.okayama.jp/kurashi/0000005379.html';
+const OKAYAMA_FORM_URL = 'https://www.city.okayama.jp/kurashi/0000031132.html';
+
+const SAKAI_DESTINATION = {
+  cityLabel: '堺市',
+  officeName: '堺市 市税事務所 固定資産税課 償却資産係（三国ヶ丘庁舎3階）',
+  postalCode: '591-8037',
+  address: '大阪府堺市北区百舌鳥赤畑町1丁3番地1（三国ヶ丘庁舎3階）',
+  phone: '072-231-9765',
+  officialUrl: SAKAI_URL,
+  sourceCheckedOn: '2026-11-20',
+  note: '資産がある区ごとに書類を用意し、郵送はこの提出先へ出します。持参は各区の市税の窓口でも受け付けています。',
+  formNotice: { text: R9_UNCONFIRMED_1120, actionLabel: R9_ACTION, url: SAKAI_FORM_URL },
+} as const;
+
+const KOBE_DESTINATION = {
+  cityLabel: '神戸市',
+  officeName: '神戸市 固定資産税調整課 償却資産担当（新長田合同庁舎4階）',
+  postalCode: '653-8773',
+  address: '兵庫県神戸市長田区二葉町5丁目1番32号（新長田合同庁舎4階）',
+  phone: '078-647-9433',
+  officialUrl: KOBE_URL,
+  sourceCheckedOn: '2026-11-20',
+  note: '資産がある区ごとに書類を用意し、この提出先へ郵送または持参します。法人市民税の提出先とは異なります。',
+  formNotice: { text: R9_UNCONFIRMED_1120, actionLabel: R9_ACTION, url: KOBE_URL },
+} as const;
+
+const OKAYAMA_DESTINATION = {
+  cityLabel: '岡山市',
+  officeName: '岡山市 課税管理課 償却資産係（分庁舎3階）',
+  postalCode: '700-8544',
+  address: '岡山県岡山市北区大供一丁目2番3号（分庁舎3階）',
+  phone: '086-803-1181',
+  officialUrl: OKAYAMA_URL,
+  sourceCheckedOn: '2026-11-20',
+  note: '資産がある区ごとに書類を用意し、この提出先へまとめて出します。区役所や市税事務所への提出ではありません。',
+  formNotice: { text: R9_UNCONFIRMED_1120, actionLabel: R9_ACTION, url: OKAYAMA_FORM_URL },
+} as const;
+
 type CityDestination = Omit<AssetSubmissionDestination, 'jisCode' | 'wardLabel'>;
 
 export interface AssetCityGroup {
@@ -414,7 +489,7 @@ export interface AssetCityGroup {
   destination: CityDestination;
 }
 
-/** 選択肢の表示順（福岡市・北九州市・仙台市・さいたま市・千葉市・横浜市・川崎市・相模原市・新潟市・静岡市・浜松市・名古屋市・京都市・大阪市）。画面はこの配列を回す。 */
+/** 選択肢の表示順（福岡市・北九州市・仙台市・さいたま市・千葉市・横浜市・川崎市・相模原市・新潟市・静岡市・浜松市・名古屋市・京都市・大阪市・堺市・神戸市・岡山市）。画面はこの配列を回す。 */
 export const ASSET_CITY_GROUPS: ReadonlyArray<AssetCityGroup> = [
   { cityLabel: '福岡市', wards: ASSET_WARDS, destination: FUKUOKA_DESTINATION },
   { cityLabel: '北九州市', wards: KITAKYUSHU_WARDS, destination: KITAKYUSHU_DESTINATION },
@@ -430,9 +505,12 @@ export const ASSET_CITY_GROUPS: ReadonlyArray<AssetCityGroup> = [
   { cityLabel: '名古屋市', wards: NAGOYA_WARDS, destination: NAGOYA_DESTINATION },
   { cityLabel: '京都市', wards: KYOTO_WARDS, destination: KYOTO_DESTINATION },
   { cityLabel: '大阪市', wards: OSAKA_WARDS, destination: OSAKA_DESTINATION },
+  { cityLabel: '堺市', wards: SAKAI_WARDS, destination: SAKAI_DESTINATION },
+  { cityLabel: '神戸市', wards: KOBE_WARDS, destination: KOBE_DESTINATION },
+  { cityLabel: '岡山市', wards: OKAYAMA_WARDS, destination: OKAYAMA_DESTINATION },
 ];
 
-/** 6桁の文字列（全国地方公共団体コード）と完全一致する対応14市の区のみ。それ以外はnull（未対応）。 */
+/** 6桁の文字列（全国地方公共団体コード）と完全一致する対応17市の区のみ。それ以外はnull（未対応）。 */
 export function lookupAssetSubmissionDestination(code: unknown): AssetSubmissionDestination | null {
   if (typeof code !== 'string') return null;
   for (const g of ASSET_CITY_GROUPS) {
