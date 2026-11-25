@@ -203,13 +203,13 @@ test('第1弾3市21区：正確な6桁コードで窓口・出典・R9案内を�
   assert.equal(total, 21);
 });
 
-test('17グループ・148コード・重複なし・旧5市35コードは先頭で不変、第2弾8市63コード・第3弾11市77コード・第4弾14市128コードの順序も不変', () => {
+test('19グループ・161コード・重複なし・旧5市35コードは先頭で不変、第2弾8市63コード・第3弾11市77コード・第4弾14市128コードの順序も不変', () => {
   assert.deepEqual(ASSET_CITY_GROUPS.map((g) => [g.cityLabel, g.wards.length]),
     [['福岡市', 7], ['北九州市', 7], ['仙台市', 5], ['さいたま市', 10], ['千葉市', 6], ['横浜市', 18], ['川崎市', 7], ['相模原市', 3],
-      ['新潟市', 8], ['静岡市', 3], ['浜松市', 3], ['名古屋市', 16], ['京都市', 11], ['大阪市', 24], ['堺市', 7], ['神戸市', 9], ['岡山市', 4]]);
+      ['新潟市', 8], ['静岡市', 3], ['浜松市', 3], ['名古屋市', 16], ['京都市', 11], ['大阪市', 24], ['堺市', 7], ['神戸市', 9], ['岡山市', 4], ['広島市', 8], ['熊本市', 5]]);
   const all = ASSET_CITY_GROUPS.flatMap((g) => g.wards.map((w) => w.code));
-  assert.equal(all.length, 148);
-  assert.equal(new Set(all).size, 148);
+  assert.equal(all.length, 161);
+  assert.equal(new Set(all).size, 161);
   assert.equal(ASSET_CITY_GROUPS.slice(0, 5).flatMap((g) => g.wards).length, 35);
   assert.equal(ASSET_CITY_GROUPS.slice(0, 8).flatMap((g) => g.wards).length, 63);
   assert.equal(ASSET_CITY_GROUPS.slice(0, 11).flatMap((g) => g.wards).length, 77);
@@ -218,7 +218,7 @@ test('17グループ・148コード・重複なし・旧5市35コードは先頭
   const prefix: Record<string, RegExp> = {
     仙台市: /^0410/, さいたま市: /^111/, 千葉市: /^121/, 福岡市: /^4013/, 北九州市: /^401[01]/,
     横浜市: /^141[01]/, 川崎市: /^1413/, 相模原市: /^1415/, 新潟市: /^1510/, 静岡市: /^2210/, 浜松市: /^221[34]/,
-    名古屋市: /^231[01]/, 京都市: /^261[01]/, 大阪市: /^271[012]/, 堺市: /^2714/, 神戸市: /^281[01]/, 岡山市: /^3310/,
+    名古屋市: /^231[01]/, 京都市: /^261[01]/, 大阪市: /^271[012]/, 堺市: /^2714/, 神戸市: /^281[01]/, 岡山市: /^3310/, 広島市: /^3410/, 熊本市: /^4310/,
   };
   for (const g of ASSET_CITY_GROUPS) for (const w of g.wards) assert.match(w.code, prefix[g.cityLabel], w.code);
   assert.match(ASSET_DESTINATION_COVERAGE, /仙台市（5区）.*さいたま市（10区）.*千葉市（6区）.*横浜市（18区）.*川崎市（7区）.*相模原市（3区）.*新潟市（8区）.*静岡市（3区）.*浜松市（3区）.*名古屋市（16区）.*京都市（11区）.*大阪市（24区）.*堺市（7区）.*神戸市（9区）.*岡山市（4区）/);
@@ -646,4 +646,119 @@ test('第5弾：不正・空・近いコード・欠番・市名はnull', () => 
   const bad: unknown[] = ['271400', '271402', '271479', '271489', '27141', '2714111', ' 271411', '271411 ', '２７１４１１', '271411\n', '281000', '281000', '281123', '281131', '331000', '331058', '331007',
     '331015x', 271411, '堺市', '神戸市', '岡山市', '', null, undefined];
   for (const v of bad) assert.equal(lookupAssetSubmissionDestination(v), null, String(v));
+});
+
+// 第6弾の独立公式照合値（Codex確認資料より）。
+const STAGE6 = [
+  {
+    "city": "広島市",
+    "pref_code": "34",
+    "prefixes": [
+      "3410"
+    ],
+    "office_name": "広島市 財政局 税務部 固定資産税課 償却資産係（本庁舎8階）",
+    "postal_code": "730-8586",
+    "address": "広島県広島市中区国泰寺町一丁目6番34号（本庁舎8階）",
+    "phone": "082-504-2127",
+    "official_url": "https://www.city.hiroshima.lg.jp/living/zei/1006021/1025589/1019210.html",
+    "note": "資産がある区ごとに書類を用意し、この提出先へ出します。区役所内の市税事務所家屋係・税務室でも受け付けています。",
+    "form_page_url": "https://www.city.hiroshima.lg.jp/living/zei/1006021/1025589/1019210.html",
+    "wards": [
+      {
+        "code": "341011",
+        "label": "中区"
+      },
+      {
+        "code": "341029",
+        "label": "東区"
+      },
+      {
+        "code": "341037",
+        "label": "南区"
+      },
+      {
+        "code": "341045",
+        "label": "西区"
+      },
+      {
+        "code": "341053",
+        "label": "安佐南区"
+      },
+      {
+        "code": "341061",
+        "label": "安佐北区"
+      },
+      {
+        "code": "341070",
+        "label": "安芸区"
+      },
+      {
+        "code": "341088",
+        "label": "佐伯区"
+      }
+    ],
+    "source_checked_on": "2026-11-20",
+    "r9_form": "unconfirmed"
+  },
+  {
+    "city": "熊本市",
+    "pref_code": "43",
+    "prefixes": [
+      "4310"
+    ],
+    "office_name": "熊本市 固定資産税課 償却資産班（本庁舎2階）",
+    "postal_code": "860-8601",
+    "address": "熊本県熊本市中央区手取本町1番1号（本庁舎2階）",
+    "phone": "096-328-2195",
+    "official_url": "https://www.city.kumamoto.jp/kiji00364398/index.html",
+    "note": "資産がある区ごとに書類を用意し、郵送はこの提出先へまとめて出せます。窓口は本庁舎2階です。eLTAXは資産がある区ごとに送信します。",
+    "form_page_url": "https://www.city.kumamoto.jp/kiji00364398/index.html",
+    "wards": [
+      {
+        "code": "431010",
+        "label": "中央区"
+      },
+      {
+        "code": "431028",
+        "label": "東区"
+      },
+      {
+        "code": "431036",
+        "label": "西区"
+      },
+      {
+        "code": "431044",
+        "label": "南区"
+      },
+      {
+        "code": "431052",
+        "label": "北区"
+      }
+    ],
+    "source_checked_on": "2026-11-20",
+    "r9_form": "unconfirmed"
+  }
+];
+test('第6弾：広島・熊本13区の窓口と様式・受付方法が一致', () => {
+  for (const c of STAGE6) for (const w of c.wards) {
+    const r = lookupAssetSubmissionDestination(w.code)!;
+    assert.ok(r);
+    assert.deepEqual([r.jisCode, r.cityLabel, r.wardLabel, r.officeName, r.postalCode, r.address, r.phone, r.officialUrl, r.sourceCheckedOn, r.note],
+      [w.code, c.city, w.label, c.office_name, c.postal_code, c.address, c.phone, c.official_url, c.source_checked_on, c.note]);
+    assert.equal(r.formNotice!.url, c.form_page_url);
+    assert.match(r.formNotice!.text, /2026\/11\/20/);
+    const geo = readFileSync(new URL('../../supabase/migration_designated_cities_geography.sql', import.meta.url), 'utf8');
+    assert.ok(geo.includes(`'${w.code}','${c.city}${w.label}'`));
+  }
+  assert.match(lookupAssetSubmissionDestination('341088')!.note, /区役所内の市税事務所家屋係・税務室でも/);
+  assert.match(lookupAssetSubmissionDestination('431052')!.note, /eLTAXは資産がある区ごとに送信/);
+});
+test('第6弾：旧17市148コードlookup全値不変', () => {
+  const codes = ASSET_CITY_GROUPS.slice(0, 17).flatMap(g => g.wards.map(w => w.code));
+  assert.equal(codes.length, 148);
+  assert.equal(createHash('sha256').update(JSON.stringify(codes.map(c => [c, lookupAssetSubmissionDestination(c)]))).digest('hex'), '3f14b0df629bc9d3978d11c340499f24e2ad9533110e593d288a9efd204d805a');
+});
+test('第6弾：欠番・近似・空・札幌のコードは未対応', () => {
+  for (const c of ['341000', '341096', '431000', '431061', ' 341011', '431010 ', '３４１０１１', '011011', '34101', '4310100', 341011, null, undefined])
+    assert.equal(lookupAssetSubmissionDestination(c), null, String(c));
 });

@@ -135,6 +135,20 @@ assert.deepEqual(STAGE5.map((c) => c.wards.length), [7, 9, 4]);
 assert.notEqual(STAGE5[0].formUrl, STAGE5[0].url);
 assert.equal(STAGE5[1].formUrl, STAGE5[1].url);
 assert.notEqual(STAGE5[2].formUrl, STAGE5[2].url);
+const PATCH6 = readFileSync(path.join(REPO, 'scripts/sql/20261120-designated-cities-stage6.sql'), 'utf8');
+const STAGE6_NOTE = {"広島市": "資産がある区ごとに書類を用意し、この提出先へ出します。区役所内の市税事務所家屋係・税務室でも受け付けています。", "熊本市": "資産がある区ごとに書類を用意し、郵送はこの提出先へまとめて出せます。窓口は本庁舎2階です。eLTAXは資産がある区ごとに送信します。"};
+const STAGE6 = ['広島市', '熊本市'].map((city) => {
+  const m = PATCH6.match(new RegExp(`\\('${city}', ARRAY\\[[^\\]]+\\], '\\d+', '([^']+)', '([^']+)',\\s*'([^']+)', '([^']+)',\\s*'([^']+)'`));
+  assert.ok(m, city);
+  const [, office, postal, address, phone, url] = m;
+  const snap = PATCH6.match(/'(\{"patch":"designated-cities-stage6-20261120"[^']*\})'::jsonb/g).find((x) => x.includes(`"contact_filing_url":"${url}"`));
+  assert.ok(snap, city + ' snapshot');
+  const formUrl = snap.match(/"form_page_url":"([^"]+)"/)[1];
+  const wards = [...GEO.matchAll(new RegExp(`'(\\d{6})','${city}([^']+)'`, 'g'))].map((x) => [x[1], x[2]]);
+  return { city, office, postal, address, phone, url, formUrl, note: STAGE6_NOTE[city], wards };
+});
+assert.deepEqual(STAGE6.map((c) => c.wards.length), [8, 5]);
+for (const c of STAGE6) assert.equal(c.formUrl, c.url);
 const results = [];
 const blocked = [];
 const ok = (n) => { results.push(n); console.log('PASS', n); };
@@ -151,10 +165,10 @@ try {
     const sel = w1.locator('select');
     // 選択肢
     const groups = await sel.locator('optgroup').evaluateAll((g) => g.map((x) => [x.label, x.querySelectorAll('option').length]));
-    assert.deepEqual(groups, [['福岡市', 7], ['北九州市', 7], ['仙台市', 5], ['さいたま市', 10], ['千葉市', 6], ['横浜市', 18], ['川崎市', 7], ['相模原市', 3], ['新潟市', 8], ['静岡市', 3], ['浜松市', 3], ['名古屋市', 16], ['京都市', 11], ['大阪市', 24], ['堺市', 7], ['神戸市', 9], ['岡山市', 4]]);
+    assert.deepEqual(groups, [['福岡市', 7], ['北九州市', 7], ['仙台市', 5], ['さいたま市', 10], ['千葉市', 6], ['横浜市', 18], ['川崎市', 7], ['相模原市', 3], ['新潟市', 8], ['静岡市', 3], ['浜松市', 3], ['名古屋市', 16], ['京都市', 11], ['大阪市', 24], ['堺市', 7], ['神戸市', 9], ['岡山市', 4], ['広島市', 8], ['熊本市', 5]]);
     assert.equal(await sel.inputValue(), '');
     assert.equal(await w1.getByTestId('asset-destination-result').count(), 0);
-    ok(`${name}: 17 optgroups [7,7,5,10,6,18,7,3,8,3,3,16,11,24,7,9,4], initial blank`);
+    ok(`${name}: 19 optgroups [7,7,5,10,6,18,7,3,8,3,3,16,11,24,7,9,4,8,5], initial blank`);
     // 北九州小倉北
     await sel.selectOption('401064');
     const res = w1.getByTestId('asset-destination-result');
@@ -342,6 +356,45 @@ try {
     await sel.selectOption('331023');
     assert.match(await res.innerText(), /岡山市 課税管理課/); assert.doesNotMatch(await res.innerText(), /三国ヶ丘|新長田/);
     ok(`${name}: switch among Stage5 and Osaka cities resets`);
+    const SHOT6 = { 広島市: 'hiroshima', 熊本市: 'kumamoto' };
+    for (const c of STAGE6) {
+      for (const [code, ward] of c.wards) {
+        await sel.selectOption(code);
+        assert.equal(await sel.locator('option:checked').innerText(), c.city + ward);
+        const tt = await res.innerText();
+        assert.ok(tt.includes(c.office), `${code} office`);
+        assert.ok(tt.includes(`〒${c.postal}`) && tt.includes(c.address) && tt.includes(`電話：${c.phone}`), `${code} contact`);
+        assert.ok(tt.includes(c.note), `${code} note`);
+        assert.ok(tt.includes('令和9年度の様式は公開を確認できていません（2026/11/20確認）。'), `${code} R9`);
+        assert.doesNotMatch(tt, /福岡|北九州|仙台|さいたま|千葉|横浜|川崎|相模原|新潟|静岡|浜松|名古屋|京都|大阪市|11\/18|11\/19|未公開|未確認|令和8/);
+        const l1 = res.getByRole('link', { name: `${c.city}の公式案内を開く（別タブ）` });
+        assert.equal(await l1.getAttribute('href'), c.url);
+        const l2 = res.getByRole('link', { name: /最新の様式を公式サイトで確認/ });
+        assert.equal(await l2.getAttribute('href'), c.formUrl);
+        for (const l of [l1, l2]) { assert.equal(await l.getAttribute('target'), '_blank'); assert.match(await l.getAttribute('rel'), /noopener/); assert.match(await l.getAttribute('href'), /^https:\/\//); }
+        assert.ok(await w1.getByTestId('asset-destination-form-notice').isVisible());
+        assert.equal(await w1.locator('details').evaluate((d) => d.open), false);
+        await w1.locator('summary').click();
+        assert.ok((await w1.locator('details').innerText()).includes('確認日 2026-11-20'), `${code} date`);
+        await w1.locator('summary').click();
+      }
+      await sel.selectOption(c.wards[0][0]);
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), `${c.city} no horizontal scroll`);
+      await page.screenshot({ path: path.join(OUT, `asset-destination-${SHOT6[c.city]}-${name}.png`), fullPage: true });
+    }
+    const edges6 = { 広島市: ['341011', '341088'], 熊本市: ['431010', '431052'] };
+    for (const c of STAGE6) for (const code of edges6[c.city]) {
+      await sel.selectOption(code);
+      assert.match(await res.innerText(), new RegExp(c.office.slice(0, 8)));
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
+    }
+    ok(`${name}: Hiroshima/Kumamoto all 13 wards match SQL-patch/geography values, note, R9 notice 11/20, prefix edges, links safe`);
+    await sel.selectOption('341088');
+    assert.match(await res.innerText(), /広島市.*本庁舎8階/s);
+    await sel.selectOption('431052');
+    assert.match(await res.innerText(), /熊本市.*本庁舎2階/s);
+    assert.doesNotMatch(await res.innerText(), /広島|税務室/);
+    ok(`${name}: Hiroshima/Kumamoto switching resets`);
     await sel.selectOption('271209');
     await sel.selectOption('231100');
     assert.match(await res.innerText(), /金山市税事務所/); assert.doesNotMatch(await res.innerText(), /船場|京都/);
@@ -357,7 +410,7 @@ try {
     // 旧市へ切り戻し：新市の窓口・案内が残らない
     await sel.selectOption('401366');
     const back = await res.innerText();
-    assert.match(back, /福岡市 財政局 資産課税課/); assert.doesNotMatch(back, /横浜|川崎|相模原|新潟|静岡|浜松|名古屋|京都|大阪|金山|船場|堺|神戸|岡山|令和9年度/);
+    assert.match(back, /福岡市 財政局 資産課税課/); assert.doesNotMatch(back, /横浜|川崎|相模原|新潟|静岡|浜松|名古屋|京都|大阪|金山|船場|堺|神戸|岡山|広島|熊本|令和9年度/);
     assert.equal(await w1.getByTestId('asset-destination-form-notice').count(), 0);
     await sel.selectOption('141330');
     await sel.selectOption('121045');
@@ -377,7 +430,7 @@ try {
     await w2.locator('select').selectOption('');
     ok(`${name}: widgets independent`);
     // other / blank
-    await sel.selectOption('331040');
+    await sel.selectOption('431052');
     await sel.selectOption('other');
     assert.equal(await w1.getByTestId('asset-destination-result').count(), 0);
     assert.equal(await w1.getByTestId('asset-destination-unavailable').count(), 1);
