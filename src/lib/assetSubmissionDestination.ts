@@ -13,7 +13,7 @@ export interface AssetSubmissionDestination {
   officialUrl: string;
   sourceCheckedOn: string;
   note: string;
-  /** 様式の公開状況の案内（北九州市・仙台市・さいたま市・千葉市・横浜市・川崎市・相模原市・新潟市・静岡市・浜松市・名古屋市・京都市・大阪市・堺市・神戸市・岡山市のみ）。 */
+  /** 現行様式の内容と対象年度の確認状況（窓口情報の確認日とは別）。 */
   formNotice?: { text: string; actionLabel: string; url: string };
 }
 
@@ -47,6 +47,15 @@ export const ASSET_DESTINATION_SOURCE_CHECKED_ON = '2026-11-16';
 export const ASSET_DESTINATION_OFFICIAL_URL =
   'https://www.city.fukuoka.lg.jp/zaisei/zeisei/life/koteisisanzei/003.html';
 
+// 2026-11-25：20市の現行申告書・明細書と公式案内を確認。年度欄の空欄をR9利用可とみなさない。
+// 根拠・添付内の固定年度：docs/ai/ASSET_FORM_GUIDANCE.md。窓口・税務判定・期限は変更しない。
+const FORM_ACTION = '様式と記入方法を確認';
+const BLANK_YEAR_FORM_NOTICE = '年度欄は空欄です。令和9年度に使えるか確認中です（2026/11/25確認）。';
+const SENDAI_FORM_NOTICE = '申告書が届いていなければ、市の入手案内を確認してください。令和9年度の案内は確認中です（2026/11/25確認）。';
+const YOKOHAMA_FORM_NOTICE = '現行の申告書・明細書で準備できます。令和9年度の手引は確認中です（2026/11/25確認）。';
+const OSAKA_FORM_NOTICE = '様式に令和8年度の記載があります。令和9年度用を確認中です（2026/11/25確認）。';
+const OKAYAMA_FORM_NOTICE = 'Excelには年度「8」が入力済みです。令和9年度の利用方法を確認中です（2026/11/25確認）。';
+
 const FUKUOKA_DESTINATION = {
   cityLabel: '福岡市',
   officeName: '福岡市 財政局 資産課税課（博多区役所 9階）',
@@ -56,6 +65,7 @@ const FUKUOKA_DESTINATION = {
   officialUrl: ASSET_DESTINATION_OFFICIAL_URL,
   sourceCheckedOn: ASSET_DESTINATION_SOURCE_CHECKED_ON,
   note: '福岡市内の資産は、区ごとの申告書を用意し、同じ提出先へ出します。',
+  formNotice: { text: BLANK_YEAR_FORM_NOTICE, actionLabel: FORM_ACTION, url: 'https://www.city.fukuoka.lg.jp/zaisei/zeisei/netdetetsuduki/007.html' },
 } as const;
 
 const KITAKYUSHU_DESTINATION = {
@@ -67,11 +77,7 @@ const KITAKYUSHU_DESTINATION = {
   officialUrl: 'https://www.city.kitakyushu.lg.jp/contents/924_00364.html',
   sourceCheckedOn: '2026-11-18',
   note: '資産の所在地の区ごとの書類を用意し、同じ提出先へ出します。',
-  formNotice: {
-    text: '令和9年度の様式は公開を確認できていません（2026/11/18確認）。',
-    actionLabel: '最新の様式を公式サイトで確認',
-    url: 'https://www.city.kitakyushu.lg.jp/contents/division260list.html',
-  },
+  formNotice: { text: BLANK_YEAR_FORM_NOTICE, actionLabel: FORM_ACTION, url: 'https://www.city.kitakyushu.lg.jp/contents/division260list.html' },
 } as const;
 
 // 第1弾の3市（コードと区名は公開マスタ migration_designated_cities_geography.sql と一致）。
@@ -106,8 +112,6 @@ export const CHIBA_WARDS = [
   { code: '121061', label: '美浜区' },
 ] as const;
 
-const R9_UNCONFIRMED = '令和9年度の様式は公開を確認できていません（2026/11/19確認）。';
-const R9_ACTION = '最新の様式を公式サイトで確認';
 const STAGE1_NOTE = '資産がある区ごとに書類を用意し、この提出先へ出します。';
 
 const SENDAI_URL = 'https://www.city.sendai.jp/sisanze-chose/kurashi/tetsuzuki/zekin/kekaku/tebiki/shisanze.html';
@@ -123,7 +127,7 @@ const SENDAI_DESTINATION = {
   officialUrl: SENDAI_URL,
   sourceCheckedOn: '2026-11-19',
   note: STAGE1_NOTE,
-  formNotice: { text: R9_UNCONFIRMED, actionLabel: R9_ACTION, url: SENDAI_URL },
+  formNotice: { text: SENDAI_FORM_NOTICE, actionLabel: '申告書の入手案内を確認', url: SENDAI_URL },
 } as const;
 
 const SAITAMA_DESTINATION = {
@@ -135,7 +139,7 @@ const SAITAMA_DESTINATION = {
   officialUrl: SAITAMA_URL,
   sourceCheckedOn: '2026-11-19',
   note: STAGE1_NOTE,
-  formNotice: { text: R9_UNCONFIRMED, actionLabel: R9_ACTION, url: SAITAMA_URL },
+  formNotice: { text: BLANK_YEAR_FORM_NOTICE, actionLabel: FORM_ACTION, url: SAITAMA_URL },
 } as const;
 
 const CHIBA_DESTINATION = {
@@ -147,7 +151,7 @@ const CHIBA_DESTINATION = {
   officialUrl: CHIBA_URL,
   sourceCheckedOn: '2026-11-19',
   note: STAGE1_NOTE,
-  formNotice: { text: R9_UNCONFIRMED, actionLabel: R9_ACTION, url: CHIBA_URL },
+  formNotice: { text: BLANK_YEAR_FORM_NOTICE, actionLabel: FORM_ACTION, url: CHIBA_URL },
 } as const;
 
 // 第2弾の3市（コードと区名は公開マスタ migration_designated_cities_geography.sql と一致、神奈川県）。
@@ -198,11 +202,7 @@ const YOKOHAMA_DESTINATION = {
   officialUrl: 'https://www.city.yokohama.lg.jp/kurashi/koseki-zei-hoken/zeikin/jigyosya/madoguchi/shoukyaku-center.html',
   sourceCheckedOn: '2026-11-19',
   note: '資産がある区ごとに書類を用意し、この提出先へ出します。',
-  formNotice: {
-    text: R9_UNCONFIRMED,
-    actionLabel: R9_ACTION,
-    url: 'https://www.city.yokohama.lg.jp/kurashi/koseki-zei-hoken/zeikin/jigyosya/tebiki/shokyakushisan-dl.html',
-  },
+  formNotice: { text: YOKOHAMA_FORM_NOTICE, actionLabel: FORM_ACTION, url: 'https://www.city.yokohama.lg.jp/kurashi/koseki-zei-hoken/zeikin/jigyosya/tebiki/shokyakushisan-dl.html' },
 } as const;
 
 const KAWASAKI_DESTINATION = {
@@ -214,11 +214,7 @@ const KAWASAKI_DESTINATION = {
   officialUrl: 'https://www.city.kawasaki.jp/230/page/0000148698.html',
   sourceCheckedOn: '2026-11-19',
   note: '資産がある区ごとに書類を用意します。電話は川崎区・幸区が1321、その他5区が1322です。',
-  formNotice: {
-    text: R9_UNCONFIRMED,
-    actionLabel: R9_ACTION,
-    url: 'https://www.city.kawasaki.jp/230/page/0000053635.html',
-  },
+  formNotice: { text: BLANK_YEAR_FORM_NOTICE, actionLabel: FORM_ACTION, url: 'https://www.city.kawasaki.jp/230/page/0000053635.html' },
 } as const;
 
 const SAGAMIHARA_DESTINATION = {
@@ -230,11 +226,7 @@ const SAGAMIHARA_DESTINATION = {
   officialUrl: 'https://www.city.sagamihara.kanagawa.jp/kurashi/1026448/zeikin/1026477/shisan_keikaku/1007752.html',
   sourceCheckedOn: '2026-11-19',
   note: '資産がある区ごとに書類を用意し、この提出先へ郵送します。',
-  formNotice: {
-    text: R9_UNCONFIRMED,
-    actionLabel: R9_ACTION,
-    url: 'https://www.city.sagamihara.kanagawa.jp/shinseisho_menu/zei/1011360.html',
-  },
+  formNotice: { text: BLANK_YEAR_FORM_NOTICE, actionLabel: FORM_ACTION, url: 'https://www.city.sagamihara.kanagawa.jp/shinseisho_menu/zei/1011360.html' },
 } as const;
 
 // 第3弾の3市（コードと区名は公開マスタ migration_designated_cities_geography.sql と一致、新潟県・静岡県）。
@@ -275,7 +267,7 @@ const NIIGATA_DESTINATION = {
   officialUrl: NIIGATA_URL,
   sourceCheckedOn: '2026-11-19',
   note: '資産がある区ごとに書類を用意し、この提出先へ出します。区役所・出張所では受け付けていません。',
-  formNotice: { text: R9_UNCONFIRMED, actionLabel: R9_ACTION, url: NIIGATA_URL },
+  formNotice: { text: BLANK_YEAR_FORM_NOTICE, actionLabel: FORM_ACTION, url: NIIGATA_URL },
 } as const;
 
 const SHIZUOKA_DESTINATION = {
@@ -287,7 +279,7 @@ const SHIZUOKA_DESTINATION = {
   officialUrl: SHIZUOKA_URL,
   sourceCheckedOn: '2026-11-19',
   note: STAGE1_NOTE,
-  formNotice: { text: R9_UNCONFIRMED, actionLabel: R9_ACTION, url: SHIZUOKA_URL },
+  formNotice: { text: BLANK_YEAR_FORM_NOTICE, actionLabel: FORM_ACTION, url: SHIZUOKA_URL },
 } as const;
 
 const HAMAMATSU_DESTINATION = {
@@ -299,7 +291,7 @@ const HAMAMATSU_DESTINATION = {
   officialUrl: HAMAMATSU_URL,
   sourceCheckedOn: '2026-11-19',
   note: '資産がある区ごとに書類を用意し、郵送はこの提出先へ出します。',
-  formNotice: { text: R9_UNCONFIRMED, actionLabel: R9_ACTION, url: HAMAMATSU_URL },
+  formNotice: { text: BLANK_YEAR_FORM_NOTICE, actionLabel: FORM_ACTION, url: HAMAMATSU_URL },
 } as const;
 
 
@@ -379,7 +371,7 @@ const NAGOYA_DESTINATION = {
   officialUrl: NAGOYA_URL,
   sourceCheckedOn: '2026-11-19',
   note: '資産がある区ごとに書類を用意し、金山市税事務所へ出します。2026年4月から全区の窓口が集約されています。',
-  formNotice: { text: R9_UNCONFIRMED, actionLabel: R9_ACTION, url: NAGOYA_FORM_URL },
+  formNotice: { text: BLANK_YEAR_FORM_NOTICE, actionLabel: FORM_ACTION, url: NAGOYA_FORM_URL },
 } as const;
 
 const KYOTO_DESTINATION = {
@@ -391,7 +383,7 @@ const KYOTO_DESTINATION = {
   officialUrl: KYOTO_URL,
   sourceCheckedOn: '2026-11-19',
   note: '資産がある区ごとに書類を用意し、この提出先へ出します。区役所・支所・出張所では受け付けていません。',
-  formNotice: { text: R9_UNCONFIRMED, actionLabel: R9_ACTION, url: KYOTO_URL },
+  formNotice: { text: BLANK_YEAR_FORM_NOTICE, actionLabel: FORM_ACTION, url: KYOTO_URL },
 } as const;
 
 const OSAKA_DESTINATION = {
@@ -403,7 +395,7 @@ const OSAKA_DESTINATION = {
   officialUrl: OSAKA_URL,
   sourceCheckedOn: '2026-11-19',
   note: '資産がある区ごとに書類を用意し、郵送はこの提出先へ出します。区役所では受け付けていません。',
-  formNotice: { text: R9_UNCONFIRMED, actionLabel: R9_ACTION, url: OSAKA_URL },
+  formNotice: { text: OSAKA_FORM_NOTICE, actionLabel: FORM_ACTION, url: OSAKA_URL },
 } as const;
 
 // 第5弾の3市（コードと区名は公開マスタ migration_designated_cities_geography.sql と一致、大阪府・兵庫県・岡山県）。
@@ -438,7 +430,6 @@ export const OKAYAMA_WARDS = [
   { code: '331040', label: '南区' },
 ] as const;
 
-const R9_UNCONFIRMED_1120 = '令和9年度の様式は公開を確認できていません（2026/11/20確認）。';
 const SAKAI_URL = 'https://www.city.sakai.lg.jp/shisei/gaiyo/annai/gyoseikiko/zaisei/shizei/kotei.html';
 const SAKAI_FORM_URL = 'https://www.city.sakai.lg.jp/benri/download/download_shimin/mokuteki/kurashi/zeikin/koteishisan/syoukyakushishanshinkoku.html';
 const KOBE_URL = 'https://www.city.kobe.lg.jp/a03858/kurashi/registration/shinsei/zei/koteishisan/syokyaku_sinkoku.html';
@@ -454,7 +445,7 @@ const SAKAI_DESTINATION = {
   officialUrl: SAKAI_URL,
   sourceCheckedOn: '2026-11-20',
   note: '資産がある区ごとに書類を用意し、郵送はこの提出先へ出します。持参は各区の市税の窓口でも受け付けています。',
-  formNotice: { text: R9_UNCONFIRMED_1120, actionLabel: R9_ACTION, url: SAKAI_FORM_URL },
+  formNotice: { text: BLANK_YEAR_FORM_NOTICE, actionLabel: FORM_ACTION, url: SAKAI_FORM_URL },
 } as const;
 
 const KOBE_DESTINATION = {
@@ -466,7 +457,7 @@ const KOBE_DESTINATION = {
   officialUrl: KOBE_URL,
   sourceCheckedOn: '2026-11-20',
   note: '資産がある区ごとに書類を用意し、この提出先へ郵送または持参します。法人市民税の提出先とは異なります。',
-  formNotice: { text: R9_UNCONFIRMED_1120, actionLabel: R9_ACTION, url: KOBE_URL },
+  formNotice: { text: BLANK_YEAR_FORM_NOTICE, actionLabel: FORM_ACTION, url: KOBE_URL },
 } as const;
 
 const OKAYAMA_DESTINATION = {
@@ -478,7 +469,7 @@ const OKAYAMA_DESTINATION = {
   officialUrl: OKAYAMA_URL,
   sourceCheckedOn: '2026-11-20',
   note: '資産がある区ごとに書類を用意し、この提出先へまとめて出します。区役所や市税事務所への提出ではありません。',
-  formNotice: { text: R9_UNCONFIRMED_1120, actionLabel: R9_ACTION, url: OKAYAMA_FORM_URL },
+  formNotice: { text: OKAYAMA_FORM_NOTICE, actionLabel: FORM_ACTION, url: OKAYAMA_FORM_URL },
 } as const;
 
 // 第6弾：広島・熊本。2026-11-20公式照合、2026-11-25再確認。
@@ -502,7 +493,7 @@ const HIROSHIMA_DESTINATION = {
   officialUrl: 'https://www.city.hiroshima.lg.jp/living/zei/1006021/1025589/1019210.html',
   sourceCheckedOn: '2026-11-20',
   note: '資産がある区ごとに書類を用意し、この提出先へ出します。区役所内の市税事務所家屋係・税務室でも受け付けています。',
-  formNotice: { text: R9_UNCONFIRMED_1120, actionLabel: R9_ACTION, url: 'https://www.city.hiroshima.lg.jp/living/zei/1006021/1025589/1019210.html' },
+  formNotice: { text: BLANK_YEAR_FORM_NOTICE, actionLabel: FORM_ACTION, url: 'https://www.city.hiroshima.lg.jp/living/zei/1006021/1025589/1019210.html' },
 } as const;
 
 export const KUMAMOTO_WARDS = [
@@ -522,7 +513,7 @@ const KUMAMOTO_DESTINATION = {
   officialUrl: 'https://www.city.kumamoto.jp/kiji00364398/index.html',
   sourceCheckedOn: '2026-11-20',
   note: '資産がある区ごとに書類を用意し、郵送はこの提出先へまとめて出せます。窓口は本庁舎2階です。eLTAXは資産がある区ごとに送信します。',
-  formNotice: { text: R9_UNCONFIRMED_1120, actionLabel: R9_ACTION, url: 'https://www.city.kumamoto.jp/kiji00364398/index.html' },
+  formNotice: { text: BLANK_YEAR_FORM_NOTICE, actionLabel: FORM_ACTION, url: 'https://www.city.kumamoto.jp/kiji00364398/index.html' },
 } as const;
 
 // 札幌市10区。既存公開マスター窓口88・主管轄登録済み、2026-11-25公式確認。
@@ -548,7 +539,7 @@ const SAPPORO_DESTINATION = {
   officialUrl: 'https://www.city.sapporo.jp/s024/114194.html',
   sourceCheckedOn: '2026-11-25',
   note: '資産がある区ごとに書類を用意し、中央市税事務所へ出します。他の市税事務所の固定資産税課でも受け付けています。',
-  formNotice: { text: '令和9年度の様式は公開を確認できていません（2026/11/25確認）。', actionLabel: R9_ACTION, url: 'https://www.city.sapporo.jp/s024/114194.html' },
+  formNotice: { text: BLANK_YEAR_FORM_NOTICE, actionLabel: FORM_ACTION, url: 'https://www.city.sapporo.jp/s024/114194.html' },
 } as const;
 
 type CityDestination = Omit<AssetSubmissionDestination, 'jisCode' | 'wardLabel'>;

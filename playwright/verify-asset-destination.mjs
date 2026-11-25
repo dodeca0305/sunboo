@@ -36,6 +36,33 @@ await new Promise((resolve, reject) => webpack({
   module: { rules: [{ test: /\.tsx?$/, use: path.join(FIX, 'loader.cjs') }] },
 }, (err, stats) => err ? reject(err) : stats.hasErrors() ? reject(new Error(stats.toString('errors-only'))) : resolve()));
 
+// 見た目の文言全体を複製せず、所在地に応じた確認結果と未完了の範囲を検証。
+function assertFormGuidance(text, city) {
+  assert.match(text, /2026\/11\/25確認/);
+  assert.doesNotMatch(text, /公開を確認できていません|提出準備完了|令和9年度の様式を使えます/);
+  if (city === '横浜市') {
+    assert.match(text, /現行の申告書・明細書で準備できます/);
+    assert.match(text, /令和9年度の手引は確認中/);
+    assert.doesNotMatch(text, /年度欄は空欄|入力済み|届いていなければ|令和8年度/);
+  } else if (city === '大阪市') {
+    assert.match(text, /様式に令和8年度の記載/);
+    assert.match(text, /令和9年度用を確認中/);
+    assert.doesNotMatch(text, /年度欄は空欄|準備できます|入力済み|届いていなければ/);
+  } else if (city === '岡山市') {
+    assert.match(text, /Excelには年度「8」が入力済み/);
+    assert.match(text, /令和9年度の利用方法を確認中/);
+    assert.doesNotMatch(text, /年度欄は空欄|準備できます|届いていなければ/);
+  } else if (city === '仙台市') {
+    assert.match(text, /申告書が届いていなければ.*入手案内/);
+    assert.match(text, /令和9年度の案内は確認中/);
+    assert.doesNotMatch(text, /年度欄は空欄|準備できます|入力済み/);
+  } else {
+    assert.match(text, /年度欄は空欄/);
+    assert.match(text, /令和9年度に使えるか確認中/);
+    assert.doesNotMatch(text, /準備できます|入力済み|届いていなければ|令和8年度/);
+  }
+}
+
 const browser = await chromium.launch({ headless: true });
 // 期待値は画面コードの鏡ではなく、別ファイル（SQLパッチ・公開マスタSQL）から読む。
 const PATCH = readFileSync(path.join(REPO, 'scripts/sql/20261119-designated-cities-stage1.sql'), 'utf8');
@@ -189,10 +216,10 @@ try {
     const t = await res.innerText();
     assert.match(t, /北九州市 財政・変革局 税務部 固定資産税課 償却資産係（市役所6階）/);
     assert.match(t, /093-582-3210/); assert.match(t, /803-8501/);
-    assert.match(t, /令和9年度の様式は公開を確認できていません（2026\/11\/18確認）。/);
+    assertFormGuidance(t, '北九州市');
     const link = res.getByRole('link', { name: '北九州市の公式案内を開く（別タブ）' });
     assert.equal(await link.getAttribute('href'), 'https://www.city.kitakyushu.lg.jp/contents/924_00364.html');
-    const nl = res.getByRole('link', { name: /最新の様式を公式サイトで確認/ });
+    const nl = res.getByRole('link', { name: /様式と記入方法を確認|申告書の入手案内を確認/ });
     assert.equal(await nl.getAttribute('href'), 'https://www.city.kitakyushu.lg.jp/contents/division260list.html');
     for (const l of [link, nl]) { assert.equal(await l.getAttribute('target'), '_blank'); assert.match(await l.getAttribute('rel'), /noopener/); }
     // 注意書きは折り畳みの外で可視
@@ -205,8 +232,8 @@ try {
     await sel.selectOption('401366');
     const t2 = await res.innerText();
     assert.match(t2, /福岡市 財政局 資産課税課/); assert.match(t2, /092-292-2479/);
-    assert.doesNotMatch(t2, /北九州|令和9年度/);
-    assert.equal(await w1.getByTestId('asset-destination-form-notice').count(), 0);
+    assert.doesNotMatch(t2, /北九州/); assertFormGuidance(t2, '福岡市');
+    assert.ok(await w1.getByTestId('asset-destination-form-notice').isVisible());
     assert.equal(await res.getByRole('link', { name: '福岡市の公式案内を開く（別タブ）' }).getAttribute('href'), 'https://www.city.fukuoka.lg.jp/zaisei/zeisei/life/koteisisanzei/003.html');
     ok(`${name}: switch to Fukuoka 401366 resets office/link/notice`);
     await page.screenshot({ path: path.join(OUT, `asset-destination-fukuoka-${name}.png`), fullPage: true });
@@ -219,11 +246,11 @@ try {
         assert.ok(tt.includes(c.office), `${code} office`);
         assert.ok(tt.includes(`〒${c.postal}`) && tt.includes(c.address) && tt.includes(`電話：${c.phone}`), `${code} contact`);
         assert.match(tt, /資産がある区ごとに書類を用意し、この提出先へ出します。/);
-        assert.ok(tt.includes('令和9年度の様式は公開を確認できていません（2026/11/19確認）。'), `${code} R9`);
+        assertFormGuidance(tt, c.city);
                 assert.doesNotMatch(tt, /福岡|北九州|11\/18/);
         const l1 = res.getByRole('link', { name: `${c.city}の公式案内を開く（別タブ）` });
         assert.equal(await l1.getAttribute('href'), c.url);
-        const l2 = res.getByRole('link', { name: /最新の様式を公式サイトで確認/ });
+        const l2 = res.getByRole('link', { name: /様式と記入方法を確認|申告書の入手案内を確認/ });
         assert.equal(await l2.getAttribute('href'), c.url);
         for (const l of [l1, l2]) { assert.equal(await l.getAttribute('target'), '_blank'); assert.match(await l.getAttribute('rel'), /noopener/); }
         assert.equal(await w1.locator('details').evaluate((d) => d.open), false);
@@ -234,7 +261,7 @@ try {
       await sel.selectOption(c.wards[0][0]);
       await page.screenshot({ path: path.join(OUT, `asset-destination-${c.city === '仙台市' ? 'sendai' : c.city === 'さいたま市' ? 'saitama' : 'chiba'}-${name}.png`), fullPage: true });
     }
-    ok(`${name}: Sendai/Saitama/Chiba all 21 wards match SQL-patch values, R9 notice 11/19, links safe`);
+    ok(`${name}: Sendai/Saitama/Chiba all 21 wards match SQL-patch values, form guidance 11/25, links safe`);
     // 第2弾3市：全28区で窓口・電話・注記・R9案内・リンクを、SQLパッチ/公開マスタ側の値と照合
     const SHOT = { 横浜市: 'yokohama', 川崎市: 'kawasaki', 相模原市: 'sagamihara' };
     for (const c of STAGE2) {
@@ -245,12 +272,12 @@ try {
         assert.ok(tt.includes(c.office), `${code} office`);
         assert.ok(tt.includes(`〒${c.postal}`) && tt.includes(c.address) && tt.includes(`電話：${c.phone}`), `${code} contact`);
         assert.ok(tt.includes(c.note), `${code} note`);
-        assert.ok(tt.includes('令和9年度の様式は公開を確認できていません（2026/11/19確認）。'), `${code} R9`);
+        assertFormGuidance(tt, c.city);
         assert.doesNotMatch(tt, /福岡|北九州|仙台|さいたま|千葉|11\/18|未公開|未確認/);
         if (c.city === '川崎市') assert.ok(tt.includes('044-200-1321') && tt.includes('044-200-1322'));
         const l1 = res.getByRole('link', { name: `${c.city}の公式案内を開く（別タブ）` });
         assert.equal(await l1.getAttribute('href'), c.url);
-        const l2 = res.getByRole('link', { name: /最新の様式を公式サイトで確認/ });
+        const l2 = res.getByRole('link', { name: /様式と記入方法を確認|申告書の入手案内を確認/ });
         assert.equal(await l2.getAttribute('href'), c.formUrl);
         for (const l of [l1, l2]) { assert.equal(await l.getAttribute('target'), '_blank'); assert.match(await l.getAttribute('rel'), /noopener/); assert.match(await l.getAttribute('href'), /^https:\/\//); }
         assert.ok(await w1.getByTestId('asset-destination-form-notice').isVisible());
@@ -263,7 +290,7 @@ try {
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), `${c.city} no horizontal scroll`);
       await page.screenshot({ path: path.join(OUT, `asset-destination-${SHOT[c.city]}-${name}.png`), fullPage: true });
     }
-    ok(`${name}: Yokohama/Kawasaki/Sagamihara all 28 wards match SQL-patch/geography values, note, R9 notice 11/19, forms-index links safe`);
+    ok(`${name}: Yokohama/Kawasaki/Sagamihara all 28 wards match SQL-patch/geography values, note, form guidance 11/25, forms-index links safe`);
     // 第3弾3市：全14区で窓口・電話・注記・R9案内・リンクを、SQLパッチ/公開マスタ側の値と照合
     const SHOT3 = { 新潟市: 'niigata', 静岡市: 'shizuoka', 浜松市: 'hamamatsu' };
     for (const c of STAGE3) {
@@ -274,12 +301,12 @@ try {
         assert.ok(tt.includes(c.office), `${code} office`);
         assert.ok(tt.includes(`〒${c.postal}`) && tt.includes(c.address) && tt.includes(`電話：${c.phone}`), `${code} contact`);
         assert.ok(tt.includes(c.note), `${code} note`);
-        assert.ok(tt.includes('令和9年度の様式は公開を確認できていません（2026/11/19確認）。'), `${code} R9`);
+        assertFormGuidance(tt, c.city);
         assert.doesNotMatch(tt, /福岡|北九州|仙台|さいたま|千葉|横浜|川崎|相模原|11\/18|未公開|未確認|2266|令和8/);
         if (c.city === '新潟市') assert.ok(tt.includes('古町ルフル3階') && tt.includes('025-226-2277') && tt.includes('区役所・出張所では受け付けていません'));
         const l1 = res.getByRole('link', { name: `${c.city}の公式案内を開く（別タブ）` });
         assert.equal(await l1.getAttribute('href'), c.url);
-        const l2 = res.getByRole('link', { name: /最新の様式を公式サイトで確認/ });
+        const l2 = res.getByRole('link', { name: /様式と記入方法を確認|申告書の入手案内を確認/ });
         assert.equal(await l2.getAttribute('href'), c.formUrl);
         for (const l of [l1, l2]) { assert.equal(await l.getAttribute('target'), '_blank'); assert.match(await l.getAttribute('rel'), /noopener/); assert.match(await l.getAttribute('href'), /^https:\/\//); }
         assert.ok(await w1.getByTestId('asset-destination-form-notice').isVisible());
@@ -292,7 +319,7 @@ try {
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), `${c.city} no horizontal scroll`);
       await page.screenshot({ path: path.join(OUT, `asset-destination-${SHOT3[c.city]}-${name}.png`), fullPage: true });
     }
-    ok(`${name}: Niigata/Shizuoka/Hamamatsu all 14 wards match SQL-patch/geography values, note, R9 notice 11/19, links safe`);
+    ok(`${name}: Niigata/Shizuoka/Hamamatsu all 14 wards match SQL-patch/geography values, note, form guidance 11/25, links safe`);
     // 第4弾3市：全51区で窓口・電話・注記・R9案内・リンクを、SQLパッチ/公開マスタ側の値と照合
     const SHOT4 = { 名古屋市: 'nagoya', 京都市: 'kyoto', 大阪市: 'osaka' };
     for (const c of STAGE4) {
@@ -303,11 +330,11 @@ try {
         assert.ok(tt.includes(c.office), `${code} office`);
         assert.ok(tt.includes(`〒${c.postal}`) && tt.includes(c.address) && tt.includes(`電話：${c.phone}`), `${code} contact`);
         assert.ok(tt.includes(c.note), `${code} note`);
-        assert.ok(tt.includes('令和9年度の様式は公開を確認できていません（2026/11/19確認）。'), `${code} R9`);
-        assert.doesNotMatch(tt, /福岡|北九州|仙台|さいたま|千葉|横浜|川崎|相模原|新潟|静岡|浜松|11\/18|未公開|未確認|2948|令和8/);
+        assertFormGuidance(tt, c.city);
+        assert.doesNotMatch(tt, /福岡|北九州|仙台|さいたま|千葉|横浜|川崎|相模原|新潟|静岡|浜松|11\/18|未公開|未確認|2948/);
         const l1 = res.getByRole('link', { name: `${c.city}の公式案内を開く（別タブ）` });
         assert.equal(await l1.getAttribute('href'), c.url);
-        const l2 = res.getByRole('link', { name: /最新の様式を公式サイトで確認/ });
+        const l2 = res.getByRole('link', { name: /様式と記入方法を確認|申告書の入手案内を確認/ });
         assert.equal(await l2.getAttribute('href'), c.formUrl);
         for (const l of [l1, l2]) { assert.equal(await l.getAttribute('target'), '_blank'); assert.match(await l.getAttribute('rel'), /noopener/); assert.match(await l.getAttribute('href'), /^https:\/\//); }
         assert.ok(await w1.getByTestId('asset-destination-form-notice').isVisible());
@@ -327,7 +354,7 @@ try {
       assert.match(await res.innerText(), new RegExp(c.office.slice(0, 12)));
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
     }
-    ok(`${name}: Nagoya/Kyoto/Osaka all 51 wards match SQL-patch/geography values, note, R9 notice 11/19, prefix edges, links safe`);
+    ok(`${name}: Nagoya/Kyoto/Osaka all 51 wards match SQL-patch/geography values, note, form guidance 11/25, prefix edges, links safe`);
     // 第5弾3市：全20区で窓口・電話・注記・R9案内（11/20）・リンクを、SQLパッチ/公開マスタ側の値と照合
     const SHOT5 = { 堺市: 'sakai', 神戸市: 'kobe', 岡山市: 'okayama' };
     for (const c of STAGE5) {
@@ -338,11 +365,11 @@ try {
         assert.ok(tt.includes(c.office), `${code} office`);
         assert.ok(tt.includes(`〒${c.postal}`) && tt.includes(c.address) && tt.includes(`電話：${c.phone}`), `${code} contact`);
         assert.ok(tt.includes(c.note), `${code} note`);
-        assert.ok(tt.includes('令和9年度の様式は公開を確認できていません（2026/11/20確認）。'), `${code} R9`);
+        assertFormGuidance(tt, c.city);
         assert.doesNotMatch(tt, /福岡|北九州|仙台|さいたま|千葉|横浜|川崎|相模原|新潟|静岡|浜松|名古屋|京都|大阪市|11\/18|11\/19|未公開|未確認|令和8/);
         const l1 = res.getByRole('link', { name: `${c.city}の公式案内を開く（別タブ）` });
         assert.equal(await l1.getAttribute('href'), c.url);
-        const l2 = res.getByRole('link', { name: /最新の様式を公式サイトで確認/ });
+        const l2 = res.getByRole('link', { name: /様式と記入方法を確認|申告書の入手案内を確認/ });
         assert.equal(await l2.getAttribute('href'), c.formUrl);
         for (const l of [l1, l2]) { assert.equal(await l.getAttribute('target'), '_blank'); assert.match(await l.getAttribute('rel'), /noopener/); assert.match(await l.getAttribute('href'), /^https:\/\//); }
         assert.ok(await w1.getByTestId('asset-destination-form-notice').isVisible());
@@ -361,7 +388,7 @@ try {
       assert.match(await res.innerText(), new RegExp(c.office.slice(0, 8)));
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
     }
-    ok(`${name}: Sakai/Kobe/Okayama all 20 wards match SQL-patch/geography values, note, R9 notice 11/20, prefix edges, links safe`);
+    ok(`${name}: Sakai/Kobe/Okayama all 20 wards match SQL-patch/geography values, note, form guidance 11/25, prefix edges, links safe`);
     await sel.selectOption('271284');
     await sel.selectOption('271420');
     assert.match(await res.innerText(), /堺市 市税事務所/); assert.doesNotMatch(await res.innerText(), /船場|神戸|岡山/);
@@ -379,11 +406,11 @@ try {
         assert.ok(tt.includes(c.office), `${code} office`);
         assert.ok(tt.includes(`〒${c.postal}`) && tt.includes(c.address) && tt.includes(`電話：${c.phone}`), `${code} contact`);
         assert.ok(tt.includes(c.note), `${code} note`);
-        assert.ok(tt.includes('令和9年度の様式は公開を確認できていません（2026/11/20確認）。'), `${code} R9`);
+        assertFormGuidance(tt, c.city);
         assert.doesNotMatch(tt, /福岡|北九州|仙台|さいたま|千葉|横浜|川崎|相模原|新潟|静岡|浜松|名古屋|京都|大阪市|11\/18|11\/19|未公開|未確認|令和8/);
         const l1 = res.getByRole('link', { name: `${c.city}の公式案内を開く（別タブ）` });
         assert.equal(await l1.getAttribute('href'), c.url);
-        const l2 = res.getByRole('link', { name: /最新の様式を公式サイトで確認/ });
+        const l2 = res.getByRole('link', { name: /様式と記入方法を確認|申告書の入手案内を確認/ });
         assert.equal(await l2.getAttribute('href'), c.formUrl);
         for (const l of [l1, l2]) { assert.equal(await l.getAttribute('target'), '_blank'); assert.match(await l.getAttribute('rel'), /noopener/); assert.match(await l.getAttribute('href'), /^https:\/\//); }
         assert.ok(await w1.getByTestId('asset-destination-form-notice').isVisible());
@@ -402,7 +429,7 @@ try {
       assert.match(await res.innerText(), new RegExp(c.office.slice(0, 8)));
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
     }
-    ok(`${name}: Hiroshima/Kumamoto all 13 wards match SQL-patch/geography values, note, R9 notice 11/20, prefix edges, links safe`);
+    ok(`${name}: Hiroshima/Kumamoto all 13 wards match SQL-patch/geography values, note, form guidance 11/25, prefix edges, links safe`);
     await sel.selectOption('341088');
     assert.match(await res.innerText(), /広島市.*本庁舎8階/s);
     await sel.selectOption('431052');
@@ -415,10 +442,10 @@ try {
       assert.equal(await sel.locator('option:checked').innerText(),'札幌市'+ward);
       const tt=await res.innerText();
       for(const value of [SAPPORO.office_name,SAPPORO.postal_code,SAPPORO.address,SAPPORO.phone,SAPPORO.note])assert.ok(tt.includes(value),code+' '+value);
-      assert.ok(tt.includes('令和9年度の様式は公開を確認できていません（2026/11/25確認）。'));
+      assertFormGuidance(tt, '札幌市');
       assert.doesNotMatch(tt,/060-8649|011-596-6796|広島|熊本|未公開|令和8/);
       const l1=res.getByRole('link',{name:'札幌市の公式案内を開く（別タブ）'});
-      const l2=res.getByRole('link',{name:/最新の様式を公式サイトで確認/});
+      const l2=res.getByRole('link',{name:/様式と記入方法を確認|申告書の入手案内を確認/});
       assert.equal(await l1.getAttribute('href'),SAPPORO.official_url);assert.equal(await l2.getAttribute('href'),SAPPORO.form_page_url);
       for(const l of [l1,l2]){assert.equal(await l.getAttribute('target'),'_blank');assert.match(await l.getAttribute('rel'),/noopener/);}
       assert.equal(await w1.locator('details').evaluate(d=>d.open),false);
@@ -445,18 +472,25 @@ try {
     // 旧市へ切り戻し：新市の窓口・案内が残らない
     await sel.selectOption('401366');
     const back = await res.innerText();
-    assert.match(back, /福岡市 財政局 資産課税課/); assert.doesNotMatch(back, /横浜|川崎|相模原|新潟|静岡|浜松|名古屋|京都|大阪|金山|船場|堺|神戸|岡山|広島|熊本|札幌|令和9年度/);
-    assert.equal(await w1.getByTestId('asset-destination-form-notice').count(), 0);
+    assert.match(back, /福岡市 財政局 資産課税課/); assert.doesNotMatch(back, /横浜|川崎|相模原|新潟|静岡|浜松|名古屋|京都|大阪|金山|船場|堺|神戸|岡山|広島|熊本|札幌/);
+    assert.ok(await w1.getByTestId('asset-destination-form-notice').isVisible());
     await sel.selectOption('141330');
     await sel.selectOption('121045');
     assert.match(await res.innerText(), /千葉市 東部市税事務所/); assert.doesNotMatch(await res.innerText(), /川崎|1321/);
     ok(`${name}: switch back from new cities to old cities resets`);
-    // 北九州・福岡の確認日は不変（Kitakyushu 11/18、Fukuoka 案内なし）
+    // 北九州・福岡の窓口確認日と様式確認日を区別
     await sel.selectOption('401099');
-    assert.ok((await res.innerText()).includes('2026/11/18確認'));
+    assertFormGuidance(await res.innerText(), '北九州市');
     await sel.selectOption('401315');
-    assert.equal(await w1.getByTestId('asset-destination-form-notice').count(), 0);
-    ok(`${name}: Kitakyushu 11/18 notice and Fukuoka no-notice unchanged`);
+    assert.ok(await w1.getByTestId('asset-destination-form-notice').isVisible());
+    ok(`${name}: Kitakyushu/Fukuoka form guidance updated; office dates preserved`);
+    for (const [code, city] of [['141011', '横浜市'], ['271209', '大阪市'], ['331015', '岡山市'], ['041017', '仙台市'], ['401331', '福岡市'], ['141186', '横浜市']]) {
+      await sel.selectOption(code);
+      assertFormGuidance(await res.innerText(), city);
+      assert.ok(await w1.getByTestId('asset-destination-form-notice').isVisible());
+    }
+    ok(`${name}: five form guidance states replace each other without stale warnings`);
+    await sel.selectOption('401315');
     // 独立性
     assert.equal(await w2.getByTestId('asset-destination-result').count(), 0);
     await w2.locator('select').selectOption('221392');

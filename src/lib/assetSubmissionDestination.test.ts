@@ -26,6 +26,23 @@ import {
   lookupAssetSubmissionDestination,
 } from './assetSubmissionDestination.ts';
 
+// 年度を入力する現行様式と、対象年度への適用確認を区別する。
+function expectedFormText(city: string): string {
+  const notices: Record<string, string> = {
+    仙台市: '申告書が届いていなければ、市の入手案内を確認してください。令和9年度の案内は確認中です（2026/11/25確認）。',
+    横浜市: '現行の申告書・明細書で準備できます。令和9年度の手引は確認中です（2026/11/25確認）。',
+    大阪市: '様式に令和8年度の記載があります。令和9年度用を確認中です（2026/11/25確認）。',
+    岡山市: 'Excelには年度「8」が入力済みです。令和9年度の利用方法を確認中です（2026/11/25確認）。',
+  };
+  return notices[city] ?? '年度欄は空欄です。令和9年度に使えるか確認中です（2026/11/25確認）。';
+}
+// 窓口の回帰確認から、今回更新対象の様式案内だけを除く。
+function officeSnapshot(code: string) {
+  const d = { ...lookupAssetSubmissionDestination(code)! };
+  delete d.formNotice;
+  return d;
+}
+
 const EXPECTED: Array<[string, string]> = [
   ['401315', '東区'],
   ['401323', '博多区'],
@@ -110,17 +127,17 @@ test('北九州市7区は正確なコードで同じ窓口・出典・様式案�
     assert.equal(d.sourceCheckedOn, '2026-11-18');
     assert.match(d.note, /区ごとの書類/);
     assert.ok(d.formNotice);
-    assert.equal(d.formNotice.text, '令和9年度の様式は公開を確認できていません（2026/11/18確認）。');
+    assert.equal(d.formNotice.text, expectedFormText('北九州市'));
     assert.equal(d.formNotice.url, 'https://www.city.kitakyushu.lg.jp/contents/division260list.html');
     assert.doesNotMatch(JSON.stringify(d), /福岡市|期限|締切|1月31日/);
   }
 });
 
-test('様式案内は北九州市のみ・福岡市は従来の窓口と日付のまま・R8ページをR9として使わない', () => {
+test('福岡市にも様式確認の案内を返し、窓口と日付は維持・R8ページをR9専用と扱わない', () => {
   for (const w of ASSET_WARDS) {
     const d = lookupAssetSubmissionDestination(w.code);
     assert.ok(d);
-    assert.equal(d.formNotice, undefined);
+    assert.equal(d.formNotice?.text, expectedFormText('福岡市'));
     assert.equal(d.cityLabel, '福岡市');
     assert.equal(d.sourceCheckedOn, '2026-11-16');
     assert.equal(d.officialUrl, ASSET_DESTINATION_OFFICIAL_URL);
@@ -194,8 +211,8 @@ test('第1弾3市21区：正確な6桁コードで窓口・出典・R9案内を�
       assert.equal(d.sourceCheckedOn, '2026-11-19');
       assert.equal(d.note, '資産がある区ごとに書類を用意し、この提出先へ出します。');
       assert.ok(d.formNotice);
-      assert.equal(d.formNotice.text, '令和9年度の様式は公開を確認できていません（2026/11/19確認）。');
-      assert.equal(d.formNotice.actionLabel, '最新の様式を公式サイトで確認');
+      assert.equal(d.formNotice.text, expectedFormText(c.city));
+      assert.equal(d.formNotice.actionLabel, c.city === '仙台市' ? '申告書の入手案内を確認' : '様式と記入方法を確認');
       assert.equal(d.formNotice.url, c.url);
       assert.doesNotMatch(JSON.stringify(d), /期限|締切|1月31日|税率|免税点|未公開/);
     }
@@ -226,7 +243,6 @@ test('20グループ・171コード・重複なし・旧5市35コードは先頭
 });
 
 // ---- 第2弾：横浜市・川崎市・相模原市（公式確認 2026-11-19） ----
-const R9_TEXT = '令和9年度の様式は公開を確認できていません（2026/11/19確認）。';
 const STAGE2 = [
   {
     city: '横浜市', wards: YOKOHAMA_WARDS, office: '横浜市償却資産センター（償却資産課）', postal: '231-8343',
@@ -274,7 +290,7 @@ test('第2弾3市28区：正確な6桁コードで窓口・電話・注記・R9�
       assert.equal(d.officialUrl, c.url);
       assert.equal(d.sourceCheckedOn, '2026-11-19');
       assert.equal(d.note, c.note);
-      assert.deepEqual(d.formNotice, { text: R9_TEXT, actionLabel: '最新の様式を公式サイトで確認', url: c.form });
+      assert.deepEqual(d.formNotice, { text: expectedFormText(c.city), actionLabel: '様式と記入方法を確認', url: c.form });
       assert.notEqual(d.formNotice?.url, d.officialUrl);
       assert.doesNotMatch(JSON.stringify(d), /期限|締切|1月31日|税率|免税点|未公開|\.pdf/);
     }
@@ -292,7 +308,7 @@ test('川崎市：電話は両方・注記は原文どおり（区ごとに書�
   for (const code of ['141011', '141313', '141518']) assert.match(lookupAssetSubmissionDestination(code)!.note, /区ごとに書類を用意し/);
   // 未公開と断定せず、R8をR9として扱わない
   for (const w of [...YOKOHAMA_WARDS, ...KAWASAKI_WARDS, ...SAGAMIHARA_WARDS])
-    assert.match(lookupAssetSubmissionDestination(w.code)!.formNotice!.text, /公開を確認できていません/);
+    assert.match(lookupAssetSubmissionDestination(w.code)!.formNotice!.text, /令和9年度.*確認中/);
 });
 
 test('第2弾：区コード・区名は公開マスタSQLと一致、窓口はSQLパッチと一致、横浜は1410/1411の両方', () => {
@@ -313,7 +329,7 @@ test('第2弾：区コード・区名は公開マスタSQLと一致、窓口はS
 
 test('第2弾でも既存5市35コードの窓口・日付・案内は不変', () => {
   assert.equal(lookupAssetSubmissionDestination('401331')!.sourceCheckedOn, '2026-11-16');
-  assert.equal(lookupAssetSubmissionDestination('401331')!.formNotice, undefined);
+  assert.equal(lookupAssetSubmissionDestination('401331')!.formNotice?.text, expectedFormText('福岡市'));
   assert.equal(lookupAssetSubmissionDestination('401099')!.sourceCheckedOn, '2026-11-18');
   assert.equal(lookupAssetSubmissionDestination('041017')!.officeName, '仙台市 財政局 資産課税課 償却資産係（北庁舎1階）');
   assert.equal(lookupAssetSubmissionDestination('121061')!.phone, '043-233-8146');
@@ -337,16 +353,16 @@ test('公開マスタSQLの区コードと一致（ミラー文言だけに頼�
   }
 });
 
-test('既存：福岡・北九州の窓口と日付・様式案内は第1弾で不変、福岡に案内なし', () => {
+test('既存：福岡・北九州の窓口確認日は維持し、様式確認日は11/25', () => {
   const f = lookupAssetSubmissionDestination('401331');
   assert.ok(f);
   assert.equal(f.sourceCheckedOn, '2026-11-16');
-  assert.equal(f.formNotice, undefined);
+  assert.equal(f.formNotice?.text, expectedFormText('福岡市'));
   assert.equal(f.officeName, '福岡市 財政局 資産課税課（博多区役所 9階）');
   const k = lookupAssetSubmissionDestination('401099');
   assert.ok(k?.formNotice);
   assert.equal(k.sourceCheckedOn, '2026-11-18');
-  assert.match(k.formNotice.text, /11\/18確認/);
+  assert.match(k.formNotice.text, /11\/25確認/);
 });
 
 test('不正・空・会社所在地・他市は第1弾でもnull（市単位の集約や部分一致なし）', () => {
@@ -406,7 +422,7 @@ test('第3弾3市14区：正確な6桁コードで窓口・電話・注記・R9�
       assert.equal(d.officialUrl, c.url);
       assert.equal(d.sourceCheckedOn, '2026-11-19');
       assert.equal(d.note, c.note);
-      assert.deepEqual(d.formNotice, { text: R9_TEXT, actionLabel: '最新の様式を公式サイトで確認', url: c.url });
+      assert.deepEqual(d.formNotice, { text: expectedFormText(c.city), actionLabel: '様式と記入方法を確認', url: c.url });
       assert.doesNotMatch(JSON.stringify(d), /期限|締切|1月31日|税率|免税点|未公開|\.pdf|2266|令和8/);
     }
   }
@@ -445,7 +461,7 @@ test('第3弾：区コード・区名は公開マスタSQLと一致、窓口・U
 
 test('第3弾でも既存8市63コードの窓口・日付・案内は不変', () => {
   assert.equal(lookupAssetSubmissionDestination('401331')!.sourceCheckedOn, '2026-11-16');
-  assert.equal(lookupAssetSubmissionDestination('401331')!.formNotice, undefined);
+  assert.equal(lookupAssetSubmissionDestination('401331')!.formNotice?.text, expectedFormText('福岡市'));
   assert.equal(lookupAssetSubmissionDestination('401099')!.sourceCheckedOn, '2026-11-18');
   assert.equal(lookupAssetSubmissionDestination('041017')!.officeName, '仙台市 財政局 資産課税課 償却資産係（北庁舎1階）');
   assert.equal(lookupAssetSubmissionDestination('141330')!.phone, '044-200-1321／044-200-1322');
@@ -501,9 +517,9 @@ test('第4弾3市51区：正確な6桁コードで窓口・電話・注記・R9�
       assert.equal(d.officialUrl, c.url);
       assert.equal(d.sourceCheckedOn, '2026-11-19');
       assert.equal(d.note, c.note);
-      assert.deepEqual(d.formNotice, { text: R9_TEXT, actionLabel: '最新の様式を公式サイトで確認', url: c.form });
+      assert.deepEqual(d.formNotice, { text: expectedFormText(c.city), actionLabel: '様式と記入方法を確認', url: c.form });
       assert.equal(c.city === '名古屋市', d.formNotice?.url !== d.officialUrl);
-      assert.doesNotMatch(JSON.stringify(d), /期限|締切|1月31日|税率|免税点|未公開|\.pdf|2948|令和8|旧3事務所/);
+      assert.doesNotMatch(JSON.stringify(d), /期限|締切|1月31日|税率|免税点|未公開|\.pdf|2948|旧3事務所/);
     }
   }
   assert.equal(total, 51);
@@ -538,7 +554,7 @@ test('第4弾：区コード・区名は公開マスタSQLと一致、窓口・U
 
 test('第4弾でも既存11市77コードの窓口・日付・案内は不変', () => {
   assert.equal(lookupAssetSubmissionDestination('401331')!.sourceCheckedOn, '2026-11-16');
-  assert.equal(lookupAssetSubmissionDestination('401331')!.formNotice, undefined);
+  assert.equal(lookupAssetSubmissionDestination('401331')!.formNotice?.text, expectedFormText('福岡市'));
   assert.equal(lookupAssetSubmissionDestination('401099')!.sourceCheckedOn, '2026-11-18');
   assert.equal(lookupAssetSubmissionDestination('151033')!.phone, '025-226-2277');
   assert.equal(lookupAssetSubmissionDestination('221392')!.officeName, '浜松市 資産税課 償却資産グループ（元目分庁舎3階）');
@@ -552,7 +568,6 @@ test('第4弾：不正・空・近いコード・欠番はnull', () => {
 });
 
 // ---- 第5弾：堺市・神戸市・岡山市（Codex確認済みの公式データ 2026-11-20） ----
-const R9_TEXT_1120 = '令和9年度の様式は公開を確認できていません（2026/11/20確認）。';
 const STAGE5 = [
   {
     city: '堺市', wards: SAKAI_WARDS, office: '堺市 市税事務所 固定資産税課 償却資産係（三国ヶ丘庁舎3階）', postal: '591-8037',
@@ -597,7 +612,7 @@ test('第5弾3市20区：正確な6桁コードで窓口・電話・注記・R9�
       assert.equal(d.officialUrl, c.url);
       assert.equal(d.sourceCheckedOn, '2026-11-20');
       assert.equal(d.note, c.note);
-      assert.deepEqual(d.formNotice, { text: R9_TEXT_1120, actionLabel: '最新の様式を公式サイトで確認', url: c.form });
+      assert.deepEqual(d.formNotice, { text: expectedFormText(c.city), actionLabel: '様式と記入方法を確認', url: c.form });
       assert.equal(c.city === '神戸市', d.formNotice?.url === d.officialUrl);
       assert.doesNotMatch(JSON.stringify(d), /期限|締切|1月31日|税率|免税点|未公開|\.pdf|令和8/);
     }
@@ -632,13 +647,13 @@ test('第5弾：区コード・区名は公開マスタSQLと一致、窓口・U
   assert.ok(patch.includes("ARRAY['2714']") && patch.includes("ARRAY['2810','2811']") && patch.includes("ARRAY['3310']"));
 });
 
-test('第5弾でも既存14市128コードのlookup全値は不変（第4弾時点のSHA-256と一致）', () => {
+test('第5弾でも既存14市128コードの様式案内を除くlookup値は不変（様式案内を除いた既存窓口のSHA-256と一致）', () => {
   const codes = ASSET_CITY_GROUPS.slice(0, 14).flatMap((g) => g.wards.map((w) => w.code));
   assert.equal(codes.length, 128);
-  const all = codes.map((c) => [c, lookupAssetSubmissionDestination(c)]);
-  assert.equal(createHash('sha256').update(JSON.stringify(all)).digest('hex'), 'c471ff825132e62794df88a381d22016dd036efa87dcf9024c95f3a2fd2f193b');
+  const all = codes.map((c) => [c, officeSnapshot(c)]);
+  assert.equal(createHash('sha256').update(JSON.stringify(all)).digest('hex'), '7b5518d02108a14ad283e4e0a308bfe346384af1da32e3465ca7b4143a1a9720');
   assert.equal(lookupAssetSubmissionDestination('401331')!.sourceCheckedOn, '2026-11-16');
-  assert.equal(lookupAssetSubmissionDestination('401331')!.formNotice, undefined);
+  assert.equal(lookupAssetSubmissionDestination('401331')!.formNotice?.text, expectedFormText('福岡市'));
   assert.equal(lookupAssetSubmissionDestination('271209')!.phone, '06-4705-2941');
 });
 
@@ -746,17 +761,17 @@ test('第6弾：広島・熊本13区の窓口と様式・受付方法が一致',
     assert.deepEqual([r.jisCode, r.cityLabel, r.wardLabel, r.officeName, r.postalCode, r.address, r.phone, r.officialUrl, r.sourceCheckedOn, r.note],
       [w.code, c.city, w.label, c.office_name, c.postal_code, c.address, c.phone, c.official_url, c.source_checked_on, c.note]);
     assert.equal(r.formNotice!.url, c.form_page_url);
-    assert.match(r.formNotice!.text, /2026\/11\/20/);
+    assert.match(r.formNotice!.text, /2026\/11\/25/);
     const geo = readFileSync(new URL('../../supabase/migration_designated_cities_geography.sql', import.meta.url), 'utf8');
     assert.ok(geo.includes(`'${w.code}','${c.city}${w.label}'`));
   }
   assert.match(lookupAssetSubmissionDestination('341088')!.note, /区役所内の市税事務所家屋係・税務室でも/);
   assert.match(lookupAssetSubmissionDestination('431052')!.note, /eLTAXは資産がある区ごとに送信/);
 });
-test('第6弾：旧17市148コードlookup全値不変', () => {
+test('第6弾：旧17市148コードの様式案内を除く窓口値は不変', () => {
   const codes = ASSET_CITY_GROUPS.slice(0, 17).flatMap(g => g.wards.map(w => w.code));
   assert.equal(codes.length, 148);
-  assert.equal(createHash('sha256').update(JSON.stringify(codes.map(c => [c, lookupAssetSubmissionDestination(c)]))).digest('hex'), '3f14b0df629bc9d3978d11c340499f24e2ad9533110e593d288a9efd204d805a');
+  assert.equal(createHash('sha256').update(JSON.stringify(codes.map(c => [c, officeSnapshot(c)]))).digest('hex'), 'd7c2ba1a5fdd704501ef81b7068e4742955eb9b704312b570736249deaaf7690');
 });
 test('第6弾：欠番・近似・空のコードは未対応', () => {
   for (const c of ['341000', '341096', '431000', '431061', ' 341011', '431010 ', '３４１０１１', '34101', '4310100', 341011, null, undefined])
@@ -834,9 +849,9 @@ test('札幌：全10区が正しい窓口・公式案内・R9未確認を返す'
   assert.match(lookupAssetSubmissionDestination('011100')!.note,/他の市税事務所の固定資産税課でも/);
   assert.notEqual(lookupAssetSubmissionDestination('011011')!.postalCode,'060-8649');
 });
-test('札幌追加後も既存19市161区のlookup全値が不変', () => {
+test('札幌追加後も既存19市161区の様式案内を除く窓口値が不変', () => {
   const codes=ASSET_CITY_GROUPS.slice(0,19).flatMap(g=>g.wards.map(w=>w.code));assert.equal(codes.length,161);
-  assert.equal(createHash('sha256').update(JSON.stringify(codes.map(c=>[c,lookupAssetSubmissionDestination(c)]))).digest('hex'),'5c46546aea6cf61319107f3ef7d4c177421eceb6413262be626ab43991818708');
+  assert.equal(createHash('sha256').update(JSON.stringify(codes.map(c=>[c,officeSnapshot(c)]))).digest('hex'),'d8c5fa1013a0e88b6a52ed1f067cc3a4847e22248555ac7851e37607aaa39831');
 });
 test('札幌：近似コード・欠番・空白・数値は未対応', () => {
   for(const v of ['011000','011002','011118','0110111','01101','011011 ',' 011100','０１１０１１',11011,'札幌市','',null,undefined])assert.equal(lookupAssetSubmissionDestination(v),null,String(v));
