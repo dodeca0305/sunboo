@@ -1,5 +1,5 @@
 // 償却資産の提出先案内（資産の所在地を明示選択したときだけ）。純粋な参照のみ。
-// 会社所在地・チャットからの自動選択はしない。対応範囲：福岡市7区・北九州市7区・仙台市5区・さいたま市10区・千葉市6区・横浜市18区・川崎市7区・相模原市3区・新潟市8区・静岡市3区・浜松市3区・名古屋市16区・京都市11区・大阪市24区・堺市7区・神戸市9区・岡山市4区・広島市8区・熊本市5区のみ（全国対応ではない）。
+// 会社所在地・チャットからの自動選択はしない。対応範囲：福岡市7区・北九州市7区・仙台市5区・さいたま市10区・千葉市6区・横浜市18区・川崎市7区・相模原市3区・新潟市8区・静岡市3区・浜松市3区・名古屋市16区・京都市11区・大阪市24区・堺市7区・神戸市9区・岡山市4区・広島市8区・熊本市5区・札幌市10区のみ（全国対応ではない）。
 // 期限の引用・計算、課税判定、保存はしない。
 
 export interface AssetSubmissionDestination {
@@ -42,7 +42,7 @@ export const KITAKYUSHU_WARDS = [
 ] as const;
 
 export const OTHER_REGION_VALUE = 'other';
-export const ASSET_DESTINATION_COVERAGE = '福岡市（7区）・北九州市（7区）・仙台市（5区）・さいたま市（10区）・千葉市（6区）・横浜市（18区）・川崎市（7区）・相模原市（3区）・新潟市（8区）・静岡市（3区）・浜松市（3区）・名古屋市（16区）・京都市（11区）・大阪市（24区）・堺市（7区）・神戸市（9区）・岡山市（4区）・広島市（8区）・熊本市（5区）';
+export const ASSET_DESTINATION_COVERAGE = '福岡市（7区）・北九州市（7区）・仙台市（5区）・さいたま市（10区）・千葉市（6区）・横浜市（18区）・川崎市（7区）・相模原市（3区）・新潟市（8区）・静岡市（3区）・浜松市（3区）・名古屋市（16区）・京都市（11区）・大阪市（24区）・堺市（7区）・神戸市（9区）・岡山市（4区）・広島市（8区）・熊本市（5区）・札幌市（10区）';
 export const ASSET_DESTINATION_SOURCE_CHECKED_ON = '2026-11-16';
 export const ASSET_DESTINATION_OFFICIAL_URL =
   'https://www.city.fukuoka.lg.jp/zaisei/zeisei/life/koteisisanzei/003.html';
@@ -525,6 +525,32 @@ const KUMAMOTO_DESTINATION = {
   formNotice: { text: R9_UNCONFIRMED_1120, actionLabel: R9_ACTION, url: 'https://www.city.kumamoto.jp/kiji00364398/index.html' },
 } as const;
 
+// 札幌市10区。既存公開マスター窓口88・主管轄登録済み、2026-11-25公式確認。
+export const SAPPORO_WARDS = [
+  { code: '011011', label: '中央区' },
+  { code: '011029', label: '北区' },
+  { code: '011037', label: '東区' },
+  { code: '011045', label: '白石区' },
+  { code: '011053', label: '豊平区' },
+  { code: '011061', label: '南区' },
+  { code: '011070', label: '西区' },
+  { code: '011088', label: '厚別区' },
+  { code: '011096', label: '手稲区' },
+  { code: '011100', label: '清田区' },
+] as const;
+
+const SAPPORO_DESTINATION = {
+  cityLabel: '札幌市',
+  officeName: '札幌市 中央市税事務所 固定資産税課 償却資産担当（庁舎6階）',
+  postalCode: '060-8572',
+  address: '北海道札幌市中央区南3条西11丁目（札幌市中央市税事務所庁舎6階）',
+  phone: '011-596-7303',
+  officialUrl: 'https://www.city.sapporo.jp/s024/114194.html',
+  sourceCheckedOn: '2026-11-25',
+  note: '資産がある区ごとに書類を用意し、中央市税事務所へ出します。他の市税事務所の固定資産税課でも受け付けています。',
+  formNotice: { text: '令和9年度の様式は公開を確認できていません（2026/11/25確認）。', actionLabel: R9_ACTION, url: 'https://www.city.sapporo.jp/s024/114194.html' },
+} as const;
+
 type CityDestination = Omit<AssetSubmissionDestination, 'jisCode' | 'wardLabel'>;
 
 export interface AssetCityGroup {
@@ -533,7 +559,7 @@ export interface AssetCityGroup {
   destination: CityDestination;
 }
 
-/** 選択肢の表示順（福岡市・北九州市・仙台市・さいたま市・千葉市・横浜市・川崎市・相模原市・新潟市・静岡市・浜松市・名古屋市・京都市・大阪市・堺市・神戸市・岡山市・広島市・熊本市）。画面はこの配列を回す。 */
+/** 選択肢の表示順（福岡市・北九州市・仙台市・さいたま市・千葉市・横浜市・川崎市・相模原市・新潟市・静岡市・浜松市・名古屋市・京都市・大阪市・堺市・神戸市・岡山市・広島市・熊本市・札幌市）。画面はこの配列を回す。 */
 export const ASSET_CITY_GROUPS: ReadonlyArray<AssetCityGroup> = [
   { cityLabel: '福岡市', wards: ASSET_WARDS, destination: FUKUOKA_DESTINATION },
   { cityLabel: '北九州市', wards: KITAKYUSHU_WARDS, destination: KITAKYUSHU_DESTINATION },
@@ -554,9 +580,10 @@ export const ASSET_CITY_GROUPS: ReadonlyArray<AssetCityGroup> = [
   { cityLabel: '岡山市', wards: OKAYAMA_WARDS, destination: OKAYAMA_DESTINATION },
   { cityLabel: '広島市', wards: HIROSHIMA_WARDS, destination: HIROSHIMA_DESTINATION },
   { cityLabel: '熊本市', wards: KUMAMOTO_WARDS, destination: KUMAMOTO_DESTINATION },
+  { cityLabel: '札幌市', wards: SAPPORO_WARDS, destination: SAPPORO_DESTINATION },
 ];
 
-/** 6桁の文字列（全国地方公共団体コード）と完全一致する対応19市の区のみ。それ以外はnull（未対応）。 */
+/** 6桁の文字列（全国地方公共団体コード）と完全一致する対応20市の区のみ。それ以外はnull（未対応）。 */
 export function lookupAssetSubmissionDestination(code: unknown): AssetSubmissionDestination | null {
   if (typeof code !== 'string') return null;
   for (const g of ASSET_CITY_GROUPS) {

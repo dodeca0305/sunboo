@@ -203,13 +203,13 @@ test('第1弾3市21区：正確な6桁コードで窓口・出典・R9案内を�
   assert.equal(total, 21);
 });
 
-test('19グループ・161コード・重複なし・旧5市35コードは先頭で不変、第2弾8市63コード・第3弾11市77コード・第4弾14市128コードの順序も不変', () => {
+test('20グループ・171コード・重複なし・旧5市35コードは先頭で不変、第2弾8市63コード・第3弾11市77コード・第4弾14市128コードの順序も不変', () => {
   assert.deepEqual(ASSET_CITY_GROUPS.map((g) => [g.cityLabel, g.wards.length]),
     [['福岡市', 7], ['北九州市', 7], ['仙台市', 5], ['さいたま市', 10], ['千葉市', 6], ['横浜市', 18], ['川崎市', 7], ['相模原市', 3],
-      ['新潟市', 8], ['静岡市', 3], ['浜松市', 3], ['名古屋市', 16], ['京都市', 11], ['大阪市', 24], ['堺市', 7], ['神戸市', 9], ['岡山市', 4], ['広島市', 8], ['熊本市', 5]]);
+      ['新潟市', 8], ['静岡市', 3], ['浜松市', 3], ['名古屋市', 16], ['京都市', 11], ['大阪市', 24], ['堺市', 7], ['神戸市', 9], ['岡山市', 4], ['広島市', 8], ['熊本市', 5], ['札幌市', 10]]);
   const all = ASSET_CITY_GROUPS.flatMap((g) => g.wards.map((w) => w.code));
-  assert.equal(all.length, 161);
-  assert.equal(new Set(all).size, 161);
+  assert.equal(all.length, 171);
+  assert.equal(new Set(all).size, 171);
   assert.equal(ASSET_CITY_GROUPS.slice(0, 5).flatMap((g) => g.wards).length, 35);
   assert.equal(ASSET_CITY_GROUPS.slice(0, 8).flatMap((g) => g.wards).length, 63);
   assert.equal(ASSET_CITY_GROUPS.slice(0, 11).flatMap((g) => g.wards).length, 77);
@@ -218,7 +218,7 @@ test('19グループ・161コード・重複なし・旧5市35コードは先頭
   const prefix: Record<string, RegExp> = {
     仙台市: /^0410/, さいたま市: /^111/, 千葉市: /^121/, 福岡市: /^4013/, 北九州市: /^401[01]/,
     横浜市: /^141[01]/, 川崎市: /^1413/, 相模原市: /^1415/, 新潟市: /^1510/, 静岡市: /^2210/, 浜松市: /^221[34]/,
-    名古屋市: /^231[01]/, 京都市: /^261[01]/, 大阪市: /^271[012]/, 堺市: /^2714/, 神戸市: /^281[01]/, 岡山市: /^3310/, 広島市: /^3410/, 熊本市: /^4310/,
+    名古屋市: /^231[01]/, 京都市: /^261[01]/, 大阪市: /^271[012]/, 堺市: /^2714/, 神戸市: /^281[01]/, 岡山市: /^3310/, 広島市: /^3410/, 熊本市: /^4310/, 札幌市: /^011[01]/,
   };
   for (const g of ASSET_CITY_GROUPS) for (const w of g.wards) assert.match(w.code, prefix[g.cityLabel], w.code);
   assert.match(ASSET_DESTINATION_COVERAGE, /仙台市（5区）.*さいたま市（10区）.*千葉市（6区）.*横浜市（18区）.*川崎市（7区）.*相模原市（3区）.*新潟市（8区）.*静岡市（3区）.*浜松市（3区）.*名古屋市（16区）.*京都市（11区）.*大阪市（24区）.*堺市（7区）.*神戸市（9区）.*岡山市（4区）/);
@@ -758,7 +758,86 @@ test('第6弾：旧17市148コードlookup全値不変', () => {
   assert.equal(codes.length, 148);
   assert.equal(createHash('sha256').update(JSON.stringify(codes.map(c => [c, lookupAssetSubmissionDestination(c)]))).digest('hex'), '3f14b0df629bc9d3978d11c340499f24e2ad9533110e593d288a9efd204d805a');
 });
-test('第6弾：欠番・近似・空・札幌のコードは未対応', () => {
-  for (const c of ['341000', '341096', '431000', '431061', ' 341011', '431010 ', '３４１０１１', '011011', '34101', '4310100', 341011, null, undefined])
+test('第6弾：欠番・近似・空のコードは未対応', () => {
+  for (const c of ['341000', '341096', '431000', '431061', ' 341011', '431010 ', '３４１０１１', '34101', '4310100', 341011, null, undefined])
     assert.equal(lookupAssetSubmissionDestination(c), null, String(c));
+});
+
+// 札幌の独立公式照合値。DB更新は不要、既存登録と照合済み。
+const SAPPORO_EXPECT = {
+  "city": "札幌市",
+  "office_name": "札幌市 中央市税事務所 固定資産税課 償却資産担当（庁舎6階）",
+  "postal_code": "060-8572",
+  "address": "北海道札幌市中央区南3条西11丁目（札幌市中央市税事務所庁舎6階）",
+  "phone": "011-596-7303",
+  "official_url": "https://www.city.sapporo.jp/s024/114194.html",
+  "contact_url": "https://www.city.sapporo.jp/s024/27167.html",
+  "form_page_url": "https://www.city.sapporo.jp/s024/114194.html",
+  "source_checked_on": "2026-11-25",
+  "note": "資産がある区ごとに書類を用意し、中央市税事務所へ出します。他の市税事務所の固定資産税課でも受け付けています。",
+  "wards": [
+    {
+      "code": "011011",
+      "label": "中央区"
+    },
+    {
+      "code": "011029",
+      "label": "北区"
+    },
+    {
+      "code": "011037",
+      "label": "東区"
+    },
+    {
+      "code": "011045",
+      "label": "白石区"
+    },
+    {
+      "code": "011053",
+      "label": "豊平区"
+    },
+    {
+      "code": "011061",
+      "label": "南区"
+    },
+    {
+      "code": "011070",
+      "label": "西区"
+    },
+    {
+      "code": "011088",
+      "label": "厚別区"
+    },
+    {
+      "code": "011096",
+      "label": "手稲区"
+    },
+    {
+      "code": "011100",
+      "label": "清田区"
+    }
+  ],
+  "existing_office_id": 88,
+  "db_write_required": false,
+  "r9_form": "unconfirmed"
+};
+test('札幌：全10区が正しい窓口・公式案内・R9未確認を返す', () => {
+  const c=SAPPORO_EXPECT;
+  const geo=readFileSync(new URL('../../supabase/migration_designated_cities_geography.sql',import.meta.url),'utf8');
+  for(const w of c.wards){
+    const r=lookupAssetSubmissionDestination(w.code)!;assert.ok(r);
+    assert.deepEqual([r.jisCode,r.cityLabel,r.wardLabel,r.officeName,r.postalCode,r.address,r.phone,r.officialUrl,r.sourceCheckedOn,r.note],
+      [w.code,c.city,w.label,c.office_name,c.postal_code,c.address,c.phone,c.official_url,c.source_checked_on,c.note]);
+    assert.equal(r.formNotice!.url,c.form_page_url);assert.match(r.formNotice!.text,/2026\/11\/25/);
+    assert.ok(geo.includes(`'${w.code}','札幌市${w.label}'`));
+  }
+  assert.match(lookupAssetSubmissionDestination('011100')!.note,/他の市税事務所の固定資産税課でも/);
+  assert.notEqual(lookupAssetSubmissionDestination('011011')!.postalCode,'060-8649');
+});
+test('札幌追加後も既存19市161区のlookup全値が不変', () => {
+  const codes=ASSET_CITY_GROUPS.slice(0,19).flatMap(g=>g.wards.map(w=>w.code));assert.equal(codes.length,161);
+  assert.equal(createHash('sha256').update(JSON.stringify(codes.map(c=>[c,lookupAssetSubmissionDestination(c)]))).digest('hex'),'5c46546aea6cf61319107f3ef7d4c177421eceb6413262be626ab43991818708');
+});
+test('札幌：近似コード・欠番・空白・数値は未対応', () => {
+  for(const v of ['011000','011002','011118','0110111','01101','011011 ',' 011100','０１１０１１',11011,'札幌市','',null,undefined])assert.equal(lookupAssetSubmissionDestination(v),null,String(v));
 });
