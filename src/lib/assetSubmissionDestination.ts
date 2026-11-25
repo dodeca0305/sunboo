@@ -1,5 +1,5 @@
 // 償却資産の提出先案内（資産の所在地を明示選択したときだけ）。純粋な参照のみ。
-// 会社所在地・チャットからの自動選択はしない。対応範囲：福岡市7区・北九州市7区・仙台市5区・さいたま市10区・千葉市6区・横浜市18区・川崎市7区・相模原市3区・新潟市8区・静岡市3区・浜松市3区・名古屋市16区・京都市11区・大阪市24区・堺市7区・神戸市9区・岡山市4区のみ（全国対応ではない）。
+// 会社所在地・チャットからの自動選択はしない。対応範囲：福岡市7区・北九州市7区・仙台市5区・さいたま市10区・千葉市6区・横浜市18区・川崎市7区・相模原市3区・新潟市8区・静岡市3区・浜松市3区・名古屋市16区・京都市11区・大阪市24区・堺市7区・神戸市9区・岡山市4区・広島市8区・熊本市5区のみ（全国対応ではない）。
 // 期限の引用・計算、課税判定、保存はしない。
 
 export interface AssetSubmissionDestination {
@@ -42,7 +42,7 @@ export const KITAKYUSHU_WARDS = [
 ] as const;
 
 export const OTHER_REGION_VALUE = 'other';
-export const ASSET_DESTINATION_COVERAGE = '福岡市（7区）・北九州市（7区）・仙台市（5区）・さいたま市（10区）・千葉市（6区）・横浜市（18区）・川崎市（7区）・相模原市（3区）・新潟市（8区）・静岡市（3区）・浜松市（3区）・名古屋市（16区）・京都市（11区）・大阪市（24区）・堺市（7区）・神戸市（9区）・岡山市（4区）';
+export const ASSET_DESTINATION_COVERAGE = '福岡市（7区）・北九州市（7区）・仙台市（5区）・さいたま市（10区）・千葉市（6区）・横浜市（18区）・川崎市（7区）・相模原市（3区）・新潟市（8区）・静岡市（3区）・浜松市（3区）・名古屋市（16区）・京都市（11区）・大阪市（24区）・堺市（7区）・神戸市（9区）・岡山市（4区）・広島市（8区）・熊本市（5区）';
 export const ASSET_DESTINATION_SOURCE_CHECKED_ON = '2026-11-16';
 export const ASSET_DESTINATION_OFFICIAL_URL =
   'https://www.city.fukuoka.lg.jp/zaisei/zeisei/life/koteisisanzei/003.html';
@@ -481,6 +481,50 @@ const OKAYAMA_DESTINATION = {
   formNotice: { text: R9_UNCONFIRMED_1120, actionLabel: R9_ACTION, url: OKAYAMA_FORM_URL },
 } as const;
 
+// 第6弾：広島・熊本。2026-11-20公式照合、2026-11-25再確認。
+export const HIROSHIMA_WARDS = [
+  { code: '341011', label: '中区' },
+  { code: '341029', label: '東区' },
+  { code: '341037', label: '南区' },
+  { code: '341045', label: '西区' },
+  { code: '341053', label: '安佐南区' },
+  { code: '341061', label: '安佐北区' },
+  { code: '341070', label: '安芸区' },
+  { code: '341088', label: '佐伯区' },
+] as const;
+
+const HIROSHIMA_DESTINATION = {
+  cityLabel: '広島市',
+  officeName: '広島市 財政局 税務部 固定資産税課 償却資産係（本庁舎8階）',
+  postalCode: '730-8586',
+  address: '広島県広島市中区国泰寺町一丁目6番34号（本庁舎8階）',
+  phone: '082-504-2127',
+  officialUrl: 'https://www.city.hiroshima.lg.jp/living/zei/1006021/1025589/1019210.html',
+  sourceCheckedOn: '2026-11-20',
+  note: '資産がある区ごとに書類を用意し、この提出先へ出します。区役所内の市税事務所家屋係・税務室でも受け付けています。',
+  formNotice: { text: R9_UNCONFIRMED_1120, actionLabel: R9_ACTION, url: 'https://www.city.hiroshima.lg.jp/living/zei/1006021/1025589/1019210.html' },
+} as const;
+
+export const KUMAMOTO_WARDS = [
+  { code: '431010', label: '中央区' },
+  { code: '431028', label: '東区' },
+  { code: '431036', label: '西区' },
+  { code: '431044', label: '南区' },
+  { code: '431052', label: '北区' },
+] as const;
+
+const KUMAMOTO_DESTINATION = {
+  cityLabel: '熊本市',
+  officeName: '熊本市 固定資産税課 償却資産班（本庁舎2階）',
+  postalCode: '860-8601',
+  address: '熊本県熊本市中央区手取本町1番1号（本庁舎2階）',
+  phone: '096-328-2195',
+  officialUrl: 'https://www.city.kumamoto.jp/kiji00364398/index.html',
+  sourceCheckedOn: '2026-11-20',
+  note: '資産がある区ごとに書類を用意し、郵送はこの提出先へまとめて出せます。窓口は本庁舎2階です。eLTAXは資産がある区ごとに送信します。',
+  formNotice: { text: R9_UNCONFIRMED_1120, actionLabel: R9_ACTION, url: 'https://www.city.kumamoto.jp/kiji00364398/index.html' },
+} as const;
+
 type CityDestination = Omit<AssetSubmissionDestination, 'jisCode' | 'wardLabel'>;
 
 export interface AssetCityGroup {
@@ -489,7 +533,7 @@ export interface AssetCityGroup {
   destination: CityDestination;
 }
 
-/** 選択肢の表示順（福岡市・北九州市・仙台市・さいたま市・千葉市・横浜市・川崎市・相模原市・新潟市・静岡市・浜松市・名古屋市・京都市・大阪市・堺市・神戸市・岡山市）。画面はこの配列を回す。 */
+/** 選択肢の表示順（福岡市・北九州市・仙台市・さいたま市・千葉市・横浜市・川崎市・相模原市・新潟市・静岡市・浜松市・名古屋市・京都市・大阪市・堺市・神戸市・岡山市・広島市・熊本市）。画面はこの配列を回す。 */
 export const ASSET_CITY_GROUPS: ReadonlyArray<AssetCityGroup> = [
   { cityLabel: '福岡市', wards: ASSET_WARDS, destination: FUKUOKA_DESTINATION },
   { cityLabel: '北九州市', wards: KITAKYUSHU_WARDS, destination: KITAKYUSHU_DESTINATION },
@@ -508,9 +552,11 @@ export const ASSET_CITY_GROUPS: ReadonlyArray<AssetCityGroup> = [
   { cityLabel: '堺市', wards: SAKAI_WARDS, destination: SAKAI_DESTINATION },
   { cityLabel: '神戸市', wards: KOBE_WARDS, destination: KOBE_DESTINATION },
   { cityLabel: '岡山市', wards: OKAYAMA_WARDS, destination: OKAYAMA_DESTINATION },
+  { cityLabel: '広島市', wards: HIROSHIMA_WARDS, destination: HIROSHIMA_DESTINATION },
+  { cityLabel: '熊本市', wards: KUMAMOTO_WARDS, destination: KUMAMOTO_DESTINATION },
 ];
 
-/** 6桁の文字列（全国地方公共団体コード）と完全一致する対応17市の区のみ。それ以外はnull（未対応）。 */
+/** 6桁の文字列（全国地方公共団体コード）と完全一致する対応19市の区のみ。それ以外はnull（未対応）。 */
 export function lookupAssetSubmissionDestination(code: unknown): AssetSubmissionDestination | null {
   if (typeof code !== 'string') return null;
   for (const g of ASSET_CITY_GROUPS) {
