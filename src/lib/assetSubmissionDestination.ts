@@ -2,6 +2,8 @@
 // 会社所在地・チャットからの自動選択はしない。対応範囲：福岡市7区・北九州市7区・仙台市5区・さいたま市10区・千葉市6区・横浜市18区・川崎市7区・相模原市3区・新潟市8区・静岡市3区・浜松市3区・名古屋市16区・京都市11区・大阪市24区・堺市7区・神戸市9区・岡山市4区・広島市8区・熊本市5区・札幌市10区のみ（全国対応ではない）。
 // 期限の引用・計算、課税判定、保存はしない。
 
+import { ASSET_FORM_PREPARATION, type AssetFormPreparation } from './assetFormPreparation.ts';
+
 export interface AssetSubmissionDestination {
   jisCode: string;
   wardLabel: string;
@@ -15,6 +17,7 @@ export interface AssetSubmissionDestination {
   note: string;
   /** 現行様式の内容と対象年度の確認状況（窓口情報の確認日とは別）。 */
   formNotice?: { text: string; actionLabel: string; url: string };
+  formPreparation?: AssetFormPreparation;
 }
 
 // コードと区名の根拠：福岡県の市区町村コード表（2026-11-18にCodexが確認）
@@ -579,7 +582,7 @@ export function lookupAssetSubmissionDestination(code: unknown): AssetSubmission
   if (typeof code !== 'string') return null;
   for (const g of ASSET_CITY_GROUPS) {
     const w = g.wards.find((x) => x.code === code);
-    if (w) return { jisCode: w.code, wardLabel: w.label, ...g.destination };
+    if (w) return { jisCode: w.code, wardLabel: w.label, ...g.destination, formPreparation: ASSET_FORM_PREPARATION[g.cityLabel] };
   }
   return null;
 }
