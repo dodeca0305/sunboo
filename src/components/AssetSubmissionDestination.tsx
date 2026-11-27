@@ -76,7 +76,7 @@ export default function AssetSubmissionDestination({ disabled = false }: { disab
                 <summary className="min-h-11 cursor-pointer py-3 font-medium">用紙の条件と必要な添付を見る</summary>
                 <div className="space-y-2 pb-2">
                   <p className="font-medium">{destination.formPreparation.scope}</p>
-                  <p>令和8年度の現行案内です。令和9年度への利用可否は確認中です。</p>
+                  <p>{destination.formPreparation.yearNotice ?? '令和8年度の現行案内です。令和9年度への利用可否は確認中です。'}</p>
                   <ul className="list-disc space-y-1 pl-5">
                     {destination.formPreparation.items.map((item) => <li key={item}>{item}</li>)}
                   </ul>

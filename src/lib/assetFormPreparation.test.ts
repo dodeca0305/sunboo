@@ -12,7 +12,8 @@ test('確認済み16市の全区だけに利用条件を出し、残る市へ代
     covered++;
     assert.match(d.formPreparation.sourceUrl, /^https:\/\/www\.city\.[^/]+\/.+\.pdf$/);
     assert.match(d.formPreparation.sourcePages, /ページ/);
-    assert.match(d.formNotice!.text, /令和9年度に使えるか確認中/);
+    if (group.cityLabel === '札幌市') assert.match(d.formNotice!.text, /令和9年度の手引.*申告用紙を確認できます/);
+    else assert.match(d.formNotice!.text, /令和9年度に使えるか確認中/);
     assert.doesNotMatch(JSON.stringify(d.formPreparation), /令和9年度.*使えます|提出準備完了/);
   }
   assert.equal(covered, 120);
@@ -64,4 +65,25 @@ test('広島の分割手引は複数の根拠へ案内し、同じPDFを重複�
   for (const suffix of ['256152.pdf', '256153.pdf', '256154.pdf', '256155.pdf'])
     assert.ok(d.sourceLinks!.some(s => s.url.endsWith(suffix)), suffix);
   assert.match(d.items.join(''), /短縮・増加償却.*写し/);
+});
+
+
+test('札幌のR9手引だけ年度案内を更新し、残る15市へ確認済みを広げない', () => {
+  let confirmed = 0;
+  for (const group of ASSET_CITY_GROUPS) for (const ward of group.wards) {
+    const d = lookupAssetSubmissionDestination(ward.code)!;
+    if (group.cityLabel === '札幌市') {
+      confirmed++;
+      assert.match(d.formNotice!.text, /令和9年度の手引.*2026\/11\/27確認/);
+      assert.equal(d.formPreparation!.sourceUrl, 'https://www.city.sapporo.jp/documents/114194/09_shokyaku_tebiki.pdf');
+      assert.match(d.formPreparation!.yearNotice!, /令和9年度の手引に基づく/);
+      assert.equal(d.formPreparation!.checkedOn, '2026/11/27');
+      assert.match(d.formPreparation!.items.join(''), /全項目.*毎年.*全資産.*市の申告書.*種類別明細書/);
+      assert.match(d.formPreparation!.items.join(''), /協力/);
+      assert.doesNotMatch(JSON.stringify(d), /旧用紙.*使えます|提出準備完了/);
+    } else if (d.formPreparation) {
+      assert.equal(d.formPreparation.yearNotice, undefined, group.cityLabel);
+    }
+  }
+  assert.equal(confirmed, 10);
 });

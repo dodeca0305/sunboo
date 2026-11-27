@@ -1,10 +1,11 @@
-/** 現行R8の公式手引で確認した条件。R9の継続利用確認とは別。 */
+/** 市ごとの公式手引で確認した条件。年度を確認できた市のみ年度案内を指定する。 */
 export interface AssetFormPreparation {
   scope: string;
   items: readonly string[];
   sourceUrl: string;
   sourcePages: string;
   checkedOn?: string;
+  yearNotice?: string;
   sourceLinks?: readonly { label: string; url: string }[];
 }
 
@@ -103,8 +104,10 @@ export const ASSET_FORM_PREPARATION: Readonly<Record<string, AssetFormPreparatio
       '所有者コードを記入し、市の申告書と、お持ちの種類別明細書も一緒に提出します。',
       '減少資産の確認用資料の提出にも協力するよう案内されています。',
     ],
-    sourceUrl: 'https://www.city.sapporo.jp/documents/114194/08_shokyaku_tebiki.pdf',
+    sourceUrl: 'https://www.city.sapporo.jp/documents/114194/09_shokyaku_tebiki.pdf',
     sourcePages: '8ページ',
+    checkedOn: '2026/11/27',
+    yearNotice: '令和9年度の手引に基づく案内です。申告方法に合う用紙と添付を確認してください。',
   },
 
   // 2026-11-27追加確認。R9の様式利用可否とは区別する。

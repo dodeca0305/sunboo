@@ -38,9 +38,12 @@ await new Promise((resolve, reject) => webpack({
 
 // 見た目の文言全体を複製せず、所在地に応じた確認結果と未完了の範囲を検証。
 function assertFormGuidance(text, city) {
-  assert.match(text, /2026\/11\/25確認/);
+  assert.match(text, city === '札幌市' ? /2026\/11\/27確認/ : /2026\/11\/25確認/);
   assert.doesNotMatch(text, /公開を確認できていません|提出準備完了|令和9年度の様式を使えます/);
-  if (city === '横浜市') {
+  if (city === '札幌市') {
+    assert.match(text, /令和9年度の手引.*申告用紙を確認できます/);
+    assert.doesNotMatch(text, /使えるか確認中|令和8年度/);
+  } else if (city === '横浜市') {
     assert.match(text, /現行の申告書・明細書で準備できます/);
     assert.match(text, /令和9年度の手引は確認中/);
     assert.doesNotMatch(text, /年度欄は空欄|入力済み|届いていなければ|令和8年度/);
@@ -453,7 +456,7 @@ try {
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth));
     }
     await page.screenshot({path:path.join(OUT,`asset-destination-sapporo-${name}.png`),fullPage:true});
-    ok(`${name}: Sapporo all 10 wards match official/geography values, date 11/25, links safe`);
+    ok(`${name}: Sapporo all 10 wards match official/geography values, R9 form date 11/27 and office date 11/25, links safe`);
     await sel.selectOption('401331');assert.doesNotMatch(await res.innerText(),/札幌|060-8572/);
     await sel.selectOption('011100');assert.match(await res.innerText(),/札幌市 中央市税事務所/);assert.doesNotMatch(await res.innerText(),/福岡|広島|熊本/);
     ok(`${name}: Sapporo to old city and back resets`);
@@ -512,7 +515,15 @@ try {
       assert.equal(await details.evaluate(d=>d.open), true);
       const text = await details.innerText();
       assert.match(text, scope); assert.match(text, condition);
-      assert.match(text, /令和8年度の現行案内.*令和9年度への利用可否は確認中/);
+      if (code === '011011') {
+        assert.match(text, /令和9年度の手引に基づく案内/);
+        assert.doesNotMatch(text, /令和8年度|利用可否は確認中|旧用紙.*使えます/);
+        assert.equal(await details.locator('a').getAttribute('href'), 'https://www.city.sapporo.jp/documents/114194/09_shokyaku_tebiki.pdf');
+        assert.match(text, /2026\/11\/27確認/);
+        await page.screenshot({path:path.join(OUT,`asset-sapporo-r9-open-${name}.png`),fullPage:true});
+      } else {
+        assert.match(text, /令和8年度の現行案内.*令和9年度への利用可否は確認中/);
+      }
       for (const source of await details.locator('a').all()) {
         assert.match(await source.getAttribute('href'), /^https:\/\/www\.city\./);
         assert.equal(await source.getAttribute('target'), '_blank');

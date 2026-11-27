@@ -542,7 +542,7 @@ const SAPPORO_DESTINATION = {
   officialUrl: 'https://www.city.sapporo.jp/s024/114194.html',
   sourceCheckedOn: '2026-11-25',
   note: '資産がある区ごとに書類を用意し、中央市税事務所へ出します。他の市税事務所の固定資産税課でも受け付けています。',
-  formNotice: { text: BLANK_YEAR_FORM_NOTICE, actionLabel: FORM_ACTION, url: 'https://www.city.sapporo.jp/s024/114194.html' },
+  formNotice: { text: '令和9年度の手引と、市が掲載している申告用紙を確認できます（2026/11/27確認）。', actionLabel: FORM_ACTION, url: 'https://www.city.sapporo.jp/s024/114194.html' },
 } as const;
 
 type CityDestination = Omit<AssetSubmissionDestination, 'jisCode' | 'wardLabel'>;
