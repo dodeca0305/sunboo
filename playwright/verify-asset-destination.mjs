@@ -546,6 +546,34 @@ try {
     assert.equal(await w1.getByTestId('asset-form-preparation').evaluate(d=>d.open), false);
     await sel.selectOption('401315');
     ok(`${name}: sixteen city preparation scopes, attachments, safe sources, keyboard access, no overflow or stale detail`);
+    // 発送変更は用紙の年度確認と分離し、千葉以外へ残さない。
+    await sel.selectOption('121011');
+    const mailing = w1.getByTestId('asset-mailing-notice');
+    assert.equal(await mailing.evaluate(d=>d.open), false);
+    await mailing.locator('summary').focus(); await page.keyboard.press('Enter');
+    assert.equal(await mailing.evaluate(d=>d.open), true);
+    const mailingText = await mailing.innerText();
+    assert.match(mailingText, /令和8年度にeLTAX/);
+    assert.match(mailingText, /増加資産／減少資産申告.*一般方式.*氏名・住所.*申告書.*または.*ハガキ/s);
+    assert.match(mailingText, /全資産申告（電算処理分）.*電算処理方式.*償却資産申告のお知らせ/s);
+    assert.match(mailingText, /令和9年度に使う用紙と添付は確認中/);
+    assert.doesNotMatch(mailingText, /申告不要|旧用紙.*使えます/);
+    const mailingLink = mailing.getByRole('link');
+    assert.equal(await mailingLink.getAttribute('href'), 'https://www.city.chiba.jp/zaiseikyoku/zeimu/kazeikanri/documents/leaflet.pdf');
+    assert.equal(await mailingLink.getAttribute('target'), '_blank'); assert.match(await mailingLink.getAttribute('rel'), /noopener/);
+    assert.match(mailingText, /3ページ.*2026\/11\/27確認/);
+    assert.match(await w1.getByTestId('asset-destination-form-notice').innerText(), /令和9年度に使えるか確認中/);
+    assert.equal(await w1.getByTestId('asset-form-preparation').evaluate(d=>d.open), false);
+    await w2.locator('select').selectOption('121029');
+    assert.equal(await w2.getByTestId('asset-mailing-notice').evaluate(d=>d.open), false);
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth));
+    await mailing.screenshot({path:path.join(OUT,`asset-chiba-mailing-open-${name}.png`)});
+    for (const code of ['011011','401315','other','']) {
+      await sel.selectOption(code); assert.equal(await w1.getByTestId('asset-mailing-notice').count(), 0);
+    }
+    await sel.selectOption('121011'); assert.equal(await mailing.evaluate(d=>d.open), false);
+    await sel.selectOption('401315'); await w2.locator('select').selectOption('');
+    ok(`${name}: Chiba mailing categories, R9 uncertainty, official source, keyboard, independent details and clear on region change`);
     // 独立性
     assert.equal(await w2.getByTestId('asset-destination-result').count(), 0);
     await w2.locator('select').selectOption('221392');

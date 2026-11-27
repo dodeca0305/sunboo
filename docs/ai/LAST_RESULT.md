@@ -1,3 +1,9 @@
+## 2026-11-27 千葉市6区にR9発送書類の変更案内を実装
+
+- maina6ca819d4c93011962df9123c0af6f6726c000d1から独立worktree /private/tmp/sunboo-chiba-r9-mailing-guidance、branch codex/chiba-r9-mailing-guidance。千葉だけ初期閉の「令和9年度から届く書類の変更を見る」を追加。R8 eLTAXの（修正）増加/減少・（修正）全資産電算の選択による一般/電算方式と発送書類を分離。公式leaflet PDF3頁・11月27日確認日を表示し、R9用紙/添付は確認中と明示。既存のR8条件詳細とは別に開閉。
+- 全1168tests（対象48）、合成実component画面47項目（PC1280/mobile375、全171区、発送区分・根拠・開閉/切替/独立/disabled/無通信）、生成CSS重点QAと画像2枚目視、隔離webpack build/型検査成功。lintエラー0/変更外の既存警告3。新規リンクで既存リンク件数固定の試験が失敗したため、各リンクに安全属性があることの確認へ改め成功。
+- 独立比較で発送案内を除く全171区の既存データと、他19市165区の全案内が完全一致。公式調査台帳と2申告区分・PDF/ページ一致、最終実装2filesとビルドbyte一致。会社/DB/税額/期限/保存/Excel変更なし。outputs/2026-11-27-chiba-mailing-guidance/へ証跡保存。本番未反映、今回の限定例外は未受領。PR214/215保留。
+
 ## 2026-11-27 札幌市10区のR9用紙・条件案内を実装
 
 - main109a7a85aa53c9fcc5bcf5f2bdeb21b142b7226dから独立worktree /private/tmp/sunboo-sapporo-r9-form-guidance、branch codex/sapporo-r9-form-guidance。札幌だけ用紙の案内をR9手引/市掲載用紙へ更新、条件詳細もR9と明示。任意yearNotice追加、既存15市は従来R8現行/R9確認中へフォールバック。札幌の3条件はR9手引8頁で確認済みのため維持し根拠PDFのみ09版へ切替、確認日11/27。旧様式全般の利用可とはしない。

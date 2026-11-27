@@ -71,6 +71,22 @@ export default function AssetSubmissionDestination({ disabled = false }: { disab
                 </a>
               </div>
             )}
+            {destination.mailingNotice && (
+              <details key={`${destination.cityLabel}-mailing`} className="text-sm" data-testid="asset-mailing-notice">
+                <summary className="min-h-11 cursor-pointer py-3 font-medium">{destination.mailingNotice.title}</summary>
+                <div className="space-y-2 pb-2">
+                  <p className="font-medium">{destination.mailingNotice.scope}</p>
+                  <ul className="list-disc space-y-1 pl-5">
+                    {destination.mailingNotice.items.map((item) => <li key={item}>{item}</li>)}
+                  </ul>
+                  <p>{destination.mailingNotice.caveat}</p>
+                  <a href={destination.mailingNotice.sourceUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary inline-flex min-h-11 items-center text-sm">
+                    発送変更の根拠を確認（PDF・別タブ）
+                  </a>
+                  <p className="text-sunboo-ink-muted">市の案内：{destination.mailingNotice.sourcePages}（{destination.mailingNotice.checkedOn}確認）。</p>
+                </div>
+              </details>
+            )}
             {destination.formPreparation && (
               <details key={destination.cityLabel} className="text-sm" data-testid="asset-form-preparation">
                 <summary className="min-h-11 cursor-pointer py-3 font-medium">用紙の条件と必要な添付を見る</summary>

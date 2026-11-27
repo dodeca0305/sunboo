@@ -18,6 +18,16 @@ export interface AssetSubmissionDestination {
   /** 現行様式の内容と対象年度の確認状況（窓口情報の確認日とは別）。 */
   formNotice?: { text: string; actionLabel: string; url: string };
   formPreparation?: AssetFormPreparation;
+  /** 発送書類の変更。用紙の利用年度・窓口情報とは別に確認する。 */
+  mailingNotice?: {
+    title: string;
+    scope: string;
+    items: readonly string[];
+    caveat: string;
+    sourceUrl: string;
+    sourcePages: string;
+    checkedOn: string;
+  };
 }
 
 // コードと区名の根拠：福岡県の市区町村コード表（2026-11-18にCodexが確認）
@@ -155,6 +165,18 @@ const CHIBA_DESTINATION = {
   sourceCheckedOn: '2026-11-19',
   note: STAGE1_NOTE,
   formNotice: { text: BLANK_YEAR_FORM_NOTICE, actionLabel: FORM_ACTION, url: CHIBA_URL },
+  mailingNotice: {
+    title: '令和9年度から届く書類の変更を見る',
+    scope: '令和8年度にeLTAXで申告した方へ',
+    items: [
+      '「（修正）増加資産／減少資産申告」を選んだ方：一般方式となり、氏名・住所入りの申告書、または案内ハガキが届きます。',
+      '「（修正）全資産申告（電算処理分）」を選んだ方：電算処理方式となり、「償却資産申告のお知らせ」のハガキが届きます。',
+    ],
+    caveat: '発送書類の変更案内です。令和9年度に使う用紙と添付は確認中です。市の最新案内で確認してください。',
+    sourceUrl: 'https://www.city.chiba.jp/zaiseikyoku/zeimu/kazeikanri/documents/leaflet.pdf',
+    sourcePages: '3ページ',
+    checkedOn: '2026/11/27',
+  },
 } as const;
 
 // 第2弾の3市（コードと区名は公開マスタ migration_designated_cities_geography.sql と一致、神奈川県）。
