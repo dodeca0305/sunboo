@@ -839,14 +839,14 @@ const SAPPORO_EXPECT = {
   "db_write_required": false,
   "r9_form": "unconfirmed"
 };
-test('札幌：全10区が正しい窓口・公式案内・R9未確認を返す', () => {
+test('札幌：全10区の窓口値は維持し、確認済みのR9用紙案内を返す', () => {
   const c=SAPPORO_EXPECT;
   const geo=readFileSync(new URL('../../supabase/migration_designated_cities_geography.sql',import.meta.url),'utf8');
   for(const w of c.wards){
     const r=lookupAssetSubmissionDestination(w.code)!;assert.ok(r);
     assert.deepEqual([r.jisCode,r.cityLabel,r.wardLabel,r.officeName,r.postalCode,r.address,r.phone,r.officialUrl,r.sourceCheckedOn,r.note],
       [w.code,c.city,w.label,c.office_name,c.postal_code,c.address,c.phone,c.official_url,c.source_checked_on,c.note]);
-    assert.equal(r.formNotice!.url,c.form_page_url);assert.match(r.formNotice!.text,/2026\/11\/25/);
+    assert.equal(r.formNotice!.url,c.form_page_url);assert.match(r.formNotice!.text,/令和9年度の手引.*2026\/11\/27/);
     assert.ok(geo.includes(`'${w.code}','札幌市${w.label}'`));
   }
   assert.match(lookupAssetSubmissionDestination('011100')!.note,/他の市税事務所の固定資産税課でも/);
