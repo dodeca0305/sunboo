@@ -41,6 +41,7 @@ function officeSnapshot(code: string) {
   const d = { ...lookupAssetSubmissionDestination(code)! };
   delete d.formNotice;
   delete d.formPreparation;
+  delete d.mailingNotice;
   return d;
 }
 
@@ -162,7 +163,7 @@ test('コンポーネント：北九州optgroup・市別リンク名・様式案
   assert.match(comp, /<optgroup key=\{g\.cityLabel\} label=\{g\.cityLabel\}>/);
   assert.match(comp, /destination\.cityLabel\}の公式案内を開く/);
   assert.match(comp, /destination\.formNotice &&/);
-  assert.equal((comp.match(/rel="noopener noreferrer"/g) ?? []).length, 3);
+  for (const anchor of comp.matchAll(/<a\b[^>]*>/g)) assert.match(anchor[0], /rel="noopener noreferrer"/);
   assert.doesNotMatch(comp, /福岡市の公式案内|localStorage|sessionStorage|fetch\(|props\.company/);
   assert.match(comp, /disabled=\{disabled\}/);
 });
@@ -858,4 +859,30 @@ test('札幌追加後も既存19市161区の様式案内を除く窓口値が不
 });
 test('札幌：近似コード・欠番・空白・数値は未対応', () => {
   for(const v of ['011000','011002','011118','0110111','01101','011011 ',' 011100','０１１０１１',11011,'札幌市','',null,undefined])assert.equal(lookupAssetSubmissionDestination(v),null,String(v));
+});
+
+
+test('千葉6区だけR8 eLTAX区分別のR9発送変更を案内し、用紙利用可とはしない', () => {
+  let count = 0;
+  for (const group of ASSET_CITY_GROUPS) for (const ward of group.wards) {
+    const d = lookupAssetSubmissionDestination(ward.code)!;
+    if (group.cityLabel !== '千葉市') {
+      assert.equal(d.mailingNotice, undefined, group.cityLabel);
+      continue;
+    }
+    count++;
+    const notice = d.mailingNotice!;
+    assert.match(notice.scope, /令和8年度.*eLTAX/);
+    assert.match(notice.items[0], /増加資産／減少資産申告.*一般方式.*氏名・住所.*申告書.*または.*ハガキ/);
+    assert.match(notice.items[1], /全資産申告（電算処理分）.*電算処理方式.*償却資産申告のお知らせ/);
+    assert.match(notice.caveat, /発送書類の変更.*令和9年度に使う用紙と添付は確認中/);
+    assert.doesNotMatch(JSON.stringify(notice), /申告不要|旧用紙.*使えます|利用できます|令和9年度の手引に基づく/);
+    assert.equal(notice.sourceUrl, 'https://www.city.chiba.jp/zaiseikyoku/zeimu/kazeikanri/documents/leaflet.pdf');
+    assert.equal(notice.sourcePages, '3ページ');
+    assert.equal(notice.checkedOn, '2026/11/27');
+    assert.equal(d.formNotice!.text, expectedFormText('千葉市'));
+    assert.equal(d.formPreparation!.yearNotice, undefined);
+    assert.equal(d.sourceCheckedOn, '2026-11-19');
+  }
+  assert.equal(count, 6);
 });
