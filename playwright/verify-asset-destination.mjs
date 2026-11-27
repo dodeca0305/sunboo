@@ -224,7 +224,7 @@ try {
     for (const l of [link, nl]) { assert.equal(await l.getAttribute('target'), '_blank'); assert.match(await l.getAttribute('rel'), /noopener/); }
     // 注意書きは折り畳みの外で可視
     assert.ok(await w1.getByTestId('asset-destination-form-notice').isVisible());
-    assert.equal(await w1.locator('details').evaluate((d) => d.open), false);
+    assert.equal(await w1.getByTestId('asset-office-source').evaluate((d) => d.open), false);
     assert.doesNotMatch(t, /福岡市/);
     ok(`${name}: Kitakyushu office/link/notice/attrs`);
     await page.screenshot({ path: path.join(OUT, `asset-destination-kitakyushu-${name}.png`), fullPage: true });
@@ -253,10 +253,10 @@ try {
         const l2 = res.getByRole('link', { name: /様式と記入方法を確認|申告書の入手案内を確認/ });
         assert.equal(await l2.getAttribute('href'), c.url);
         for (const l of [l1, l2]) { assert.equal(await l.getAttribute('target'), '_blank'); assert.match(await l.getAttribute('rel'), /noopener/); }
-        assert.equal(await w1.locator('details').evaluate((d) => d.open), false);
-        await w1.locator('summary').click();
-        assert.ok((await w1.locator('details').innerText()).includes('確認日 2026-11-19'), `${code} date`);
-        await w1.locator('summary').click();
+        assert.equal(await w1.getByTestId('asset-office-source').evaluate((d) => d.open), false);
+        await w1.getByTestId('asset-office-source').locator('summary').click();
+        assert.ok((await w1.getByTestId('asset-office-source').innerText()).includes('確認日 2026-11-19'), `${code} date`);
+        await w1.getByTestId('asset-office-source').locator('summary').click();
       }
       await sel.selectOption(c.wards[0][0]);
       await page.screenshot({ path: path.join(OUT, `asset-destination-${c.city === '仙台市' ? 'sendai' : c.city === 'さいたま市' ? 'saitama' : 'chiba'}-${name}.png`), fullPage: true });
@@ -281,10 +281,10 @@ try {
         assert.equal(await l2.getAttribute('href'), c.formUrl);
         for (const l of [l1, l2]) { assert.equal(await l.getAttribute('target'), '_blank'); assert.match(await l.getAttribute('rel'), /noopener/); assert.match(await l.getAttribute('href'), /^https:\/\//); }
         assert.ok(await w1.getByTestId('asset-destination-form-notice').isVisible());
-        assert.equal(await w1.locator('details').evaluate((d) => d.open), false);
-        await w1.locator('summary').click();
-        assert.ok((await w1.locator('details').innerText()).includes('確認日 2026-11-19'), `${code} date`);
-        await w1.locator('summary').click();
+        assert.equal(await w1.getByTestId('asset-office-source').evaluate((d) => d.open), false);
+        await w1.getByTestId('asset-office-source').locator('summary').click();
+        assert.ok((await w1.getByTestId('asset-office-source').innerText()).includes('確認日 2026-11-19'), `${code} date`);
+        await w1.getByTestId('asset-office-source').locator('summary').click();
       }
       await sel.selectOption(c.wards[0][0]);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), `${c.city} no horizontal scroll`);
@@ -310,10 +310,10 @@ try {
         assert.equal(await l2.getAttribute('href'), c.formUrl);
         for (const l of [l1, l2]) { assert.equal(await l.getAttribute('target'), '_blank'); assert.match(await l.getAttribute('rel'), /noopener/); assert.match(await l.getAttribute('href'), /^https:\/\//); }
         assert.ok(await w1.getByTestId('asset-destination-form-notice').isVisible());
-        assert.equal(await w1.locator('details').evaluate((d) => d.open), false);
-        await w1.locator('summary').click();
-        assert.ok((await w1.locator('details').innerText()).includes('確認日 2026-11-19'), `${code} date`);
-        await w1.locator('summary').click();
+        assert.equal(await w1.getByTestId('asset-office-source').evaluate((d) => d.open), false);
+        await w1.getByTestId('asset-office-source').locator('summary').click();
+        assert.ok((await w1.getByTestId('asset-office-source').innerText()).includes('確認日 2026-11-19'), `${code} date`);
+        await w1.getByTestId('asset-office-source').locator('summary').click();
       }
       await sel.selectOption(c.wards[0][0]);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), `${c.city} no horizontal scroll`);
@@ -338,10 +338,10 @@ try {
         assert.equal(await l2.getAttribute('href'), c.formUrl);
         for (const l of [l1, l2]) { assert.equal(await l.getAttribute('target'), '_blank'); assert.match(await l.getAttribute('rel'), /noopener/); assert.match(await l.getAttribute('href'), /^https:\/\//); }
         assert.ok(await w1.getByTestId('asset-destination-form-notice').isVisible());
-        assert.equal(await w1.locator('details').evaluate((d) => d.open), false);
-        await w1.locator('summary').click();
-        assert.ok((await w1.locator('details').innerText()).includes('確認日 2026-11-19'), `${code} date`);
-        await w1.locator('summary').click();
+        assert.equal(await w1.getByTestId('asset-office-source').evaluate((d) => d.open), false);
+        await w1.getByTestId('asset-office-source').locator('summary').click();
+        assert.ok((await w1.getByTestId('asset-office-source').innerText()).includes('確認日 2026-11-19'), `${code} date`);
+        await w1.getByTestId('asset-office-source').locator('summary').click();
       }
       // 画像：各市の先頭の区と、大阪は2710/2711/2712・名古屋は2310/2311・京都は2610/2611の端
       await sel.selectOption(c.wards[0][0]);
@@ -373,10 +373,10 @@ try {
         assert.equal(await l2.getAttribute('href'), c.formUrl);
         for (const l of [l1, l2]) { assert.equal(await l.getAttribute('target'), '_blank'); assert.match(await l.getAttribute('rel'), /noopener/); assert.match(await l.getAttribute('href'), /^https:\/\//); }
         assert.ok(await w1.getByTestId('asset-destination-form-notice').isVisible());
-        assert.equal(await w1.locator('details').evaluate((d) => d.open), false);
-        await w1.locator('summary').click();
-        assert.ok((await w1.locator('details').innerText()).includes('確認日 2026-11-20'), `${code} date`);
-        await w1.locator('summary').click();
+        assert.equal(await w1.getByTestId('asset-office-source').evaluate((d) => d.open), false);
+        await w1.getByTestId('asset-office-source').locator('summary').click();
+        assert.ok((await w1.getByTestId('asset-office-source').innerText()).includes('確認日 2026-11-20'), `${code} date`);
+        await w1.getByTestId('asset-office-source').locator('summary').click();
       }
       await sel.selectOption(c.wards[0][0]);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), `${c.city} no horizontal scroll`);
@@ -414,10 +414,10 @@ try {
         assert.equal(await l2.getAttribute('href'), c.formUrl);
         for (const l of [l1, l2]) { assert.equal(await l.getAttribute('target'), '_blank'); assert.match(await l.getAttribute('rel'), /noopener/); assert.match(await l.getAttribute('href'), /^https:\/\//); }
         assert.ok(await w1.getByTestId('asset-destination-form-notice').isVisible());
-        assert.equal(await w1.locator('details').evaluate((d) => d.open), false);
-        await w1.locator('summary').click();
-        assert.ok((await w1.locator('details').innerText()).includes('確認日 2026-11-20'), `${code} date`);
-        await w1.locator('summary').click();
+        assert.equal(await w1.getByTestId('asset-office-source').evaluate((d) => d.open), false);
+        await w1.getByTestId('asset-office-source').locator('summary').click();
+        assert.ok((await w1.getByTestId('asset-office-source').innerText()).includes('確認日 2026-11-20'), `${code} date`);
+        await w1.getByTestId('asset-office-source').locator('summary').click();
       }
       await sel.selectOption(c.wards[0][0]);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), `${c.city} no horizontal scroll`);
@@ -448,8 +448,8 @@ try {
       const l2=res.getByRole('link',{name:/様式と記入方法を確認|申告書の入手案内を確認/});
       assert.equal(await l1.getAttribute('href'),SAPPORO.official_url);assert.equal(await l2.getAttribute('href'),SAPPORO.form_page_url);
       for(const l of [l1,l2]){assert.equal(await l.getAttribute('target'),'_blank');assert.match(await l.getAttribute('rel'),/noopener/);}
-      assert.equal(await w1.locator('details').evaluate(d=>d.open),false);
-      await w1.locator('summary').click();assert.ok((await w1.locator('details').innerText()).includes('確認日 2026-11-25'));await w1.locator('summary').click();
+      assert.equal(await w1.getByTestId('asset-office-source').evaluate(d=>d.open),false);
+      await w1.getByTestId('asset-office-source').locator('summary').click();assert.ok((await w1.getByTestId('asset-office-source').innerText()).includes('確認日 2026-11-25'));await w1.getByTestId('asset-office-source').locator('summary').click();
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth));
     }
     await page.screenshot({path:path.join(OUT,`asset-destination-sapporo-${name}.png`),fullPage:true});
@@ -491,6 +491,40 @@ try {
     }
     ok(`${name}: five form guidance states replace each other without stale warnings`);
     await sel.selectOption('401315');
+    // 方法別の条件は閉じた状態で表示し、地域変更時に開閉・内容をリセット。
+    const preparationCases = [
+      ['401315', /ソフト.*紙/, /白紙/], ['401013', /自社用紙.*電算/, /市の申告書を一緒に/],
+      ['111015', /全国統一様式/, /未記入/], ['121011', /電算処理/, /11桁/],
+      ['221015', /独自用紙/, /整理番号/], ['221384', /会計ソフト/, /市から届いた申告書も添付/],
+      ['231011', /独自様式/, /二次元コード.*電子申告では同封不要/],
+      ['261017', /独自に作った/, /納税者コード/], ['281018', /電算処理/, /13桁/],
+      ['011011', /電算処理/, /お持ちの種類別明細書/],
+    ];
+    for (const [code, scope, condition] of preparationCases) {
+      await sel.selectOption(code);
+      const details = w1.getByTestId('asset-form-preparation');
+      assert.equal(await details.evaluate(d=>d.open), false);
+      const summary = details.locator('summary');
+      await summary.focus(); await page.keyboard.press('Enter');
+      assert.equal(await details.evaluate(d=>d.open), true);
+      const text = await details.innerText();
+      assert.match(text, scope); assert.match(text, condition);
+      assert.match(text, /令和8年度の現行案内.*令和9年度への利用可否は確認中/);
+      const source = details.locator('a');
+      assert.match(await source.getAttribute('href'), /^https:\/\/www\.city\./);
+      assert.equal(await source.getAttribute('target'), '_blank');
+      assert.match(await source.getAttribute('rel'), /noopener/);
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth));
+    }
+    await page.screenshot({path:path.join(OUT,`asset-form-preparation-open-${name}.png`),fullPage:true});
+    for (const code of ['141011','431010','other','']) {
+      await sel.selectOption(code);
+      assert.equal(await w1.getByTestId('asset-form-preparation').count(), 0);
+    }
+    await sel.selectOption('011011');
+    assert.equal(await w1.getByTestId('asset-form-preparation').evaluate(d=>d.open), false);
+    await sel.selectOption('401315');
+    ok(`${name}: ten city preparation scopes, attachments, safe sources, keyboard access, no overflow or stale detail`);
     // 独立性
     assert.equal(await w2.getByTestId('asset-destination-result').count(), 0);
     await w2.locator('select').selectOption('221392');

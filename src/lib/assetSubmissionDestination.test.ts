@@ -40,6 +40,7 @@ function expectedFormText(city: string): string {
 function officeSnapshot(code: string) {
   const d = { ...lookupAssetSubmissionDestination(code)! };
   delete d.formNotice;
+  delete d.formPreparation;
   return d;
 }
 
@@ -161,7 +162,7 @@ test('コンポーネント：北九州optgroup・市別リンク名・様式案
   assert.match(comp, /<optgroup key=\{g\.cityLabel\} label=\{g\.cityLabel\}>/);
   assert.match(comp, /destination\.cityLabel\}の公式案内を開く/);
   assert.match(comp, /destination\.formNotice &&/);
-  assert.equal((comp.match(/rel="noopener noreferrer"/g) ?? []).length, 2);
+  assert.equal((comp.match(/rel="noopener noreferrer"/g) ?? []).length, 3);
   assert.doesNotMatch(comp, /福岡市の公式案内|localStorage|sessionStorage|fetch\(|props\.company/);
   assert.match(comp, /disabled=\{disabled\}/);
 });
@@ -292,7 +293,7 @@ test('第2弾3市28区：正確な6桁コードで窓口・電話・注記・R9�
       assert.equal(d.note, c.note);
       assert.deepEqual(d.formNotice, { text: expectedFormText(c.city), actionLabel: '様式と記入方法を確認', url: c.form });
       assert.notEqual(d.formNotice?.url, d.officialUrl);
-      assert.doesNotMatch(JSON.stringify(d), /期限|締切|1月31日|税率|免税点|未公開|\.pdf/);
+      assert.doesNotMatch(JSON.stringify({ ...d, formPreparation: undefined }), /期限|締切|1月31日|税率|免税点|未公開|\.pdf/);
     }
   }
   assert.equal(total, 28);
@@ -373,7 +374,9 @@ test('不正・空・会社所在地・他市は第1弾でもnull（市単位の
 
 test('実装（ヘルパー・コンポーネント）は保存・通信・会社所在地に触れない', () => {
   const lib = readFileSync(new URL('./assetSubmissionDestination.ts', import.meta.url), 'utf8');
-  assert.doesNotMatch(lib, /localStorage|sessionStorage|fetch\(|^import /m);
+  assert.doesNotMatch(lib, /localStorage|sessionStorage|fetch\(/);
+  assert.deepEqual([...lib.matchAll(/^import .* from '([^']+)';/gm)].map(m => m[1]), ['./assetFormPreparation.ts']);
+  assert.doesNotMatch(readFileSync(new URL('./assetFormPreparation.ts', import.meta.url), 'utf8'), /fetch\(|supabase|process\.env|localStorage|sessionStorage/);
   const comp = readFileSync(new URL('../components/AssetSubmissionDestination.tsx', import.meta.url), 'utf8');
   assert.doesNotMatch(comp, /localStorage|sessionStorage|fetch\(|XMLHttpRequest|sendBeacon|company|supabase/i);
   assert.equal((comp.match(/useState\(/g) ?? []).length, 1);
@@ -423,7 +426,7 @@ test('第3弾3市14区：正確な6桁コードで窓口・電話・注記・R9�
       assert.equal(d.sourceCheckedOn, '2026-11-19');
       assert.equal(d.note, c.note);
       assert.deepEqual(d.formNotice, { text: expectedFormText(c.city), actionLabel: '様式と記入方法を確認', url: c.url });
-      assert.doesNotMatch(JSON.stringify(d), /期限|締切|1月31日|税率|免税点|未公開|\.pdf|2266|令和8/);
+      assert.doesNotMatch(JSON.stringify({ ...d, formPreparation: undefined }), /期限|締切|1月31日|税率|免税点|未公開|\.pdf|2266|令和8/);
     }
   }
   assert.equal(total, 14);
@@ -519,7 +522,7 @@ test('第4弾3市51区：正確な6桁コードで窓口・電話・注記・R9�
       assert.equal(d.note, c.note);
       assert.deepEqual(d.formNotice, { text: expectedFormText(c.city), actionLabel: '様式と記入方法を確認', url: c.form });
       assert.equal(c.city === '名古屋市', d.formNotice?.url !== d.officialUrl);
-      assert.doesNotMatch(JSON.stringify(d), /期限|締切|1月31日|税率|免税点|未公開|\.pdf|2948|旧3事務所/);
+      assert.doesNotMatch(JSON.stringify({ ...d, formPreparation: undefined }), /期限|締切|1月31日|税率|免税点|未公開|\.pdf|2948|旧3事務所/);
     }
   }
   assert.equal(total, 51);
@@ -614,7 +617,7 @@ test('第5弾3市20区：正確な6桁コードで窓口・電話・注記・R9�
       assert.equal(d.note, c.note);
       assert.deepEqual(d.formNotice, { text: expectedFormText(c.city), actionLabel: '様式と記入方法を確認', url: c.form });
       assert.equal(c.city === '神戸市', d.formNotice?.url === d.officialUrl);
-      assert.doesNotMatch(JSON.stringify(d), /期限|締切|1月31日|税率|免税点|未公開|\.pdf|令和8/);
+      assert.doesNotMatch(JSON.stringify({ ...d, formPreparation: undefined }), /期限|締切|1月31日|税率|免税点|未公開|\.pdf|令和8/);
     }
   }
   assert.equal(total, 20);

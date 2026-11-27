@@ -71,7 +71,23 @@ export default function AssetSubmissionDestination({ disabled = false }: { disab
                 </a>
               </div>
             )}
-            <details className="text-sm">
+            {destination.formPreparation && (
+              <details key={destination.cityLabel} className="text-sm" data-testid="asset-form-preparation">
+                <summary className="min-h-11 cursor-pointer py-3 font-medium">用紙の条件と必要な添付を見る</summary>
+                <div className="space-y-2 pb-2">
+                  <p className="font-medium">{destination.formPreparation.scope}</p>
+                  <p>令和8年度の現行案内です。令和9年度への利用可否は確認中です。</p>
+                  <ul className="list-disc space-y-1 pl-5">
+                    {destination.formPreparation.items.map((item) => <li key={item}>{item}</li>)}
+                  </ul>
+                  <a href={destination.formPreparation.sourceUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary inline-flex min-h-11 items-center text-sm">
+                    条件の根拠を確認（PDF・別タブ）
+                  </a>
+                  <p className="text-sunboo-ink-muted">手引：{destination.formPreparation.sourcePages}（2026/11/25確認）。該当する方法の条件を確認し、提出前に最新の市の案内と照合してください。</p>
+                </div>
+              </details>
+            )}
+            <details className="text-sm" data-testid="asset-office-source">
               <summary className="min-h-11 cursor-pointer py-3 font-medium">出典と確認日</summary>
               <p>出典：{destination.cityLabel}公式サイト（確認日 {destination.sourceCheckedOn}）。提出前に公式案内をご確認ください。</p>
             </details>
