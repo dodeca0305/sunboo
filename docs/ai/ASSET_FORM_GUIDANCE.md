@@ -40,6 +40,28 @@
 
 ## 公式根拠
 
+### 残り6市の条件追加（2026-11-27）
+
+既存10市の条件を維持し、川崎7区・相模原3区・新潟8区・堺7区・広島8区・熊本5区の38区へ追加する。
+合計16市120区。残る仙台・横浜・大阪・岡山51区へ条件を代用しない。
+追加部分の確認日は11月27日。現行手引は令和8年度で、令和9年度の用紙利用可否の確認中表示は維持する。
+
+| 市 | 対象・添付の条件 | 根拠の印刷ページ |
+| --- | --- | --- |
+| 川崎 | 独自様式のコード転記。電算は全資産、一般方式は増減・訂正。特例・非課税には該当明細と、初回適用等の申請/確認書類。 | [市の独自様式案内](https://www.city.kawasaki.jp/230/page/0000020553.html)、[手引6～8](https://www.city.kawasaki.jp/230/cmsfiles/contents/0000053/53635/r8syoukyakutebiki.pdf) |
+| 相模原 | 私製用紙の所在区・所有者コード。電算は評価額入り全資産明細。特例は専用明細/必要資料、短縮・増加償却は承認書等の写し。 | [手引1・11・14](https://www.city.sagamihara.kanagawa.jp/_res/projects/default_project/_page_/001/011/360/r08/tebiki.pdf) |
+| 新潟 | 一般/電算の提出表を区別。電算の追加増減明細は提出可能な場合のお願い。特例初回の申告書/添付。控えコピー可は修正申告限定。 | [手引10・11・18・22](https://www.city.niigata.lg.jp/kurashi/zei/siraberu/koteishisan/sinkoku.files/2026TEBIKIZENTAI.pdf) |
+| 堺 | 一般の初回/増減。電算は毎年全資産・コード・区分集計。電算の特例/非課税は条項別集計、新規該当資産は届出/関係資料。増減明細は可能な限り。 | [手引10～11](https://www.city.sakai.lg.jp/benri/download/download_shimin/mokuteki/kurashi/zeikin/koteishisan/syoukyakushishanshinkoku.files/R8shinkokunotebiki.pdf) |
+| 広島 | 区ごとの全資産/増減明細。電算の評価欄。短縮/増加償却の承認通知書/届出書の写し。非課税・特例は市へ確認。独自様式の一律利用可とはしない。 | [1](https://www.city.hiroshima.lg.jp/_res/projects/default_project/_page_/001/019/210/256152.pdf)、[7～8](https://www.city.hiroshima.lg.jp/_res/projects/default_project/_page_/001/019/210/256153.pdf)、[9～10](https://www.city.hiroshima.lg.jp/_res/projects/default_project/_page_/001/019/210/256154.pdf)、[11～12](https://www.city.hiroshima.lg.jp/_res/projects/default_project/_page_/001/019/210/256155.pdf)、[市の様式案内](https://www.city.hiroshima.lg.jp/living/zei/1006021/1025589/1019210.html) |
+| 熊本 | 私製様式の紙申告にはコード/所在区と市送付申告書添付。電算はA4横・全資産評価、変更/送付先の別紙。 | [手引表紙・6](https://www.city.kumamoto.jp/kiji00364398/3_64398_480131_up_rp0lb5vo.pdf) |
+
+熊本は[市の案内](https://www.city.kumamoto.jp/kiji00364398/index.html)で令和9年度1月収受分から控えの押印・返送を廃止すると確認。
+令和8年度の返信封筒案内を令和9年の必須添付へ流用せず、この既知の変更と用紙利用可否の未確認を分離する。
+
+`AssetFormPreparation`に確認日・複数根拠リンクを任意で追加。既存10市は従来の単一PDF/11月25日表示のまま。
+同じPDFへの参照は印刷ページをまとめて1リンクとし、広島の分割PDFと熊本の返送変更のHTMLは別リンクで示す。
+窓口・保存・会社情報・DB・税額/期限・下書きExcelへの変更はない。
+
 - [横浜市の様式変更FAQ](https://www.city.yokohama.lg.jp/kurashi/koseki-zei-hoken/zeikin/jigyosya/tebiki/shinkokushoQA.html)：1-1、2-15〜17。年度共通の現行案内を根拠にする。令和9年度の専用手引確認や提出一式完成の意味にはしない。
 - [横浜市の様式入手先](https://www.city.yokohama.lg.jp/kurashi/koseki-zei-hoken/zeikin/jigyosya/tebiki/shokyakushisan-dl.html)：画面のボタンはこちらを維持する。種類別明細書は全資産用・プレ申告用の名称。
 - [大阪市の様式](https://www.city.osaka.lg.jp/zaisei/page/0000006293.html)：01_R8shinnkokusho.xlsx、02_R8zoukashisann.xlsx、03-2_R8gennshoushisann.xlsxとPDF版の中身を確認。

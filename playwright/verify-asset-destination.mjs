@@ -499,6 +499,9 @@ try {
       ['231011', /独自様式/, /二次元コード.*電子申告では同封不要/],
       ['261017', /独自に作った/, /納税者コード/], ['281018', /電算処理/, /13桁/],
       ['011011', /電算処理/, /お持ちの種類別明細書/],
+      ['141313', /独自様式/, /11桁/], ['141518', /私製用紙/, /所在区.*所有者コード/],
+      ['151017', /一般方式/, /修正申告用/], ['271411', /一般申告/, /可能な限り/],
+      ['341011', /市の様式/, /耐用年数短縮・増加償却/], ['431010', /私製様式/, /令和9年1月受付分.*押印・返送.*廃止/],
     ];
     for (const [code, scope, condition] of preparationCases) {
       await sel.selectOption(code);
@@ -510,21 +513,28 @@ try {
       const text = await details.innerText();
       assert.match(text, scope); assert.match(text, condition);
       assert.match(text, /令和8年度の現行案内.*令和9年度への利用可否は確認中/);
-      const source = details.locator('a');
-      assert.match(await source.getAttribute('href'), /^https:\/\/www\.city\./);
-      assert.equal(await source.getAttribute('target'), '_blank');
-      assert.match(await source.getAttribute('rel'), /noopener/);
+      for (const source of await details.locator('a').all()) {
+        assert.match(await source.getAttribute('href'), /^https:\/\/www\.city\./);
+        assert.equal(await source.getAttribute('target'), '_blank');
+        assert.match(await source.getAttribute('rel'), /noopener/);
+      }
+      if (code === '341011') assert.equal(await details.locator('a').count(), 5);
+      if (code === '431010') {
+        assert.match(await details.innerText(), /2026\/11\/27確認/);
+        assert.ok(await details.getByRole('link', {name: /控えの押印・返送の変更/}).isVisible());
+        assert.doesNotMatch(text, /返信用封筒.*必ず|独自.*使えます/);
+      }
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth));
     }
     await page.screenshot({path:path.join(OUT,`asset-form-preparation-open-${name}.png`),fullPage:true});
-    for (const code of ['141011','431010','other','']) {
+    for (const code of ['141011','271209','other','']) {
       await sel.selectOption(code);
       assert.equal(await w1.getByTestId('asset-form-preparation').count(), 0);
     }
     await sel.selectOption('011011');
     assert.equal(await w1.getByTestId('asset-form-preparation').evaluate(d=>d.open), false);
     await sel.selectOption('401315');
-    ok(`${name}: ten city preparation scopes, attachments, safe sources, keyboard access, no overflow or stale detail`);
+    ok(`${name}: sixteen city preparation scopes, attachments, safe sources, keyboard access, no overflow or stale detail`);
     // 独立性
     assert.equal(await w2.getByTestId('asset-destination-result').count(), 0);
     await w2.locator('select').selectOption('221392');
