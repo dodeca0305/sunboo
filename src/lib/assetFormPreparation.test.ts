@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ASSET_CITY_GROUPS, lookupAssetSubmissionDestination } from './assetSubmissionDestination.ts';
 
-test('確認済み10市の全区だけに利用条件を出し、残る市へ代用しない', () => {
-  const cities = ['福岡市', '北九州市', 'さいたま市', '千葉市', '静岡市', '浜松市', '名古屋市', '京都市', '神戸市', '札幌市'];
+test('確認済み16市の全区だけに利用条件を出し、残る市へ代用しない', () => {
+  const cities = ['福岡市', '北九州市', 'さいたま市', '千葉市', '静岡市', '浜松市', '名古屋市', '京都市', '神戸市', '札幌市', '川崎市', '相模原市', '新潟市', '堺市', '広島市', '熊本市'];
   let covered = 0;
   for (const group of ASSET_CITY_GROUPS) for (const ward of group.wards) {
     const d = lookupAssetSubmissionDestination(ward.code)!;
@@ -15,7 +15,7 @@ test('確認済み10市の全区だけに利用条件を出し、残る市へ代
     assert.match(d.formNotice!.text, /令和9年度に使えるか確認中/);
     assert.doesNotMatch(JSON.stringify(d.formPreparation), /令和9年度.*使えます|提出準備完了/);
   }
-  assert.equal(covered, 82);
+  assert.equal(covered, 120);
   assert.equal(lookupAssetSubmissionDestination('other'), null);
 });
 
@@ -35,4 +35,33 @@ test('コードの違いと独自用紙の方法の制約を残す', () => {
   assert.match(lookupAssetSubmissionDestination('121011')!.formPreparation!.items.join(''), /11桁/);
   assert.match(lookupAssetSubmissionDestination('221015')!.formPreparation!.items.join(''), /整理番号/);
   assert.match(lookupAssetSubmissionDestination('261017')!.formPreparation!.items.join(''), /納税者コード/);
+});
+
+test('残り6市は必須とお願いを分け、独自用紙の許可を一般化しない', () => {
+  const get = (code: string) => lookupAssetSubmissionDestination(code)!.formPreparation!;
+  assert.match(get('141313').items.join(''), /所有者コード.*11桁/);
+  assert.match(get('141518').items.join(''), /所在区.*所有者コード/);
+  assert.match(get('151017').items.join(''), /提出できれば.*修正申告用/);
+  assert.match(get('271411').items.join(''), /電算申告で特例・非課税.*可能な限り/);
+  for (const code of ['151017', '271411', '341011']) {
+    assert.doesNotMatch(get(code).items.join(''), /独自用紙.*使えます|私製.*使用可/);
+    assert.equal(get(code).checkedOn, '2026/11/27');
+  }
+});
+
+test('熊本の既知のR9控え返送廃止を、用紙の利用可否と区別する', () => {
+  const d = lookupAssetSubmissionDestination('431010')!;
+  assert.match(d.formPreparation!.items.join(''), /紙申告.*市から届いた申告書も必ず添付/);
+  assert.match(d.formPreparation!.items.join(''), /令和9年1月受付分.*押印・返送.*廃止/);
+  assert.match(d.formPreparation!.items.join(''), /令和9年度に使えるかは別途確認中/);
+  assert.ok(d.formPreparation!.sourceLinks!.some(s => s.url === 'https://www.city.kumamoto.jp/kiji00364398/index.html'));
+});
+
+test('広島の分割手引は複数の根拠へ案内し、同じPDFを重複表示しない', () => {
+  const d = lookupAssetSubmissionDestination('341011')!.formPreparation!;
+  assert.equal(d.sourceLinks!.length, 5);
+  assert.equal(new Set(d.sourceLinks!.map(s => s.url)).size, 5);
+  for (const suffix of ['256152.pdf', '256153.pdf', '256154.pdf', '256155.pdf'])
+    assert.ok(d.sourceLinks!.some(s => s.url.endsWith(suffix)), suffix);
+  assert.match(d.items.join(''), /短縮・増加償却.*写し/);
 });

@@ -4,6 +4,8 @@ export interface AssetFormPreparation {
   items: readonly string[];
   sourceUrl: string;
   sourcePages: string;
+  checkedOn?: string;
+  sourceLinks?: readonly { label: string; url: string }[];
 }
 
 export const ASSET_FORM_PREPARATION: Readonly<Record<string, AssetFormPreparation>> = {
@@ -104,4 +106,133 @@ export const ASSET_FORM_PREPARATION: Readonly<Record<string, AssetFormPreparatio
     sourceUrl: 'https://www.city.sapporo.jp/documents/114194/08_shokyaku_tebiki.pdf',
     sourcePages: '8ページ',
   },
+
+  // 2026-11-27追加確認。R9の様式利用可否とは区別する。
+  川崎市: {
+    "scope": "独自様式・電算処理で申告する場合",
+    "items": [
+        "独自様式には、市から届いた申告書の所有者コードを転記します。電算申告は11桁です。",
+        "電算申告は毎年、全資産を申告します。一般方式では、市から届いた明細に増減・訂正を記載します。",
+        "特例・非課税の資産があれば専用明細などを用意します。初めて適用する場合等は、申請書や確認書類も必要です。"
+    ],
+    "sourceUrl": "https://www.city.kawasaki.jp/230/cmsfiles/contents/0000053/53635/r8syoukyakutebiki.pdf",
+    "sourcePages": "6・7・8ページ",
+    "checkedOn": "2026/11/27",
+    "sourceLinks": [
+        {
+            "label": "市の公式案内（別タブ）",
+            "url": "https://www.city.kawasaki.jp/230/page/0000020553.html"
+        },
+        {
+            "label": "手引 6・7・8ページ（PDF・別タブ）",
+            "url": "https://www.city.kawasaki.jp/230/cmsfiles/contents/0000053/53635/r8syoukyakutebiki.pdf"
+        }
+    ]
+},
+  相模原市: {
+    "scope": "私製用紙・電算処理で申告する場合",
+    "items": [
+        "私製用紙には、上部に資産の所在区を明記し、所有者コードを転記します。",
+        "初めて資産を申告する場合は申告書と増加・全資産用明細を用意します。電算申告は評価額入りの全資産明細が必要です。",
+        "特例には専用明細と必要資料、耐用年数短縮・増加償却には承認書や届出書の写しを添付します。"
+    ],
+    "sourceUrl": "https://www.city.sagamihara.kanagawa.jp/_res/projects/default_project/_page_/001/011/360/r08/tebiki.pdf",
+    "sourcePages": "1・11・14ページ",
+    "checkedOn": "2026/11/27",
+    "sourceLinks": [
+        {
+            "label": "手引 1・11・14ページ（PDF・別タブ）",
+            "url": "https://www.city.sagamihara.kanagawa.jp/_res/projects/default_project/_page_/001/011/360/r08/tebiki.pdf"
+        }
+    ]
+},
+  新潟市: {
+    "scope": "一般方式・電算処理方式で用意する書類",
+    "items": [
+        "一般方式の初回は申告書と全資産の明細を用意し、翌年以降は増減・訂正に応じた明細を用意します。",
+        "電算申告は評価額等を計算し、毎年、申告書と全資産明細を用意します。増減明細も提出できれば添付します。",
+        "特例の初回申告は、特例適用申告書と必要な添付書類を用意します。",
+        "控えのコピーが使える案内は修正申告用です。翌年度の申告に使えるという意味ではありません。"
+    ],
+    "sourceUrl": "https://www.city.niigata.lg.jp/kurashi/zei/siraberu/koteishisan/sinkoku.files/2026TEBIKIZENTAI.pdf",
+    "sourcePages": "10・11・18・22ページ",
+    "checkedOn": "2026/11/27",
+    "sourceLinks": [
+        {
+            "label": "手引 10・11・18・22ページ（PDF・別タブ）",
+            "url": "https://www.city.niigata.lg.jp/kurashi/zei/siraberu/koteishisan/sinkoku.files/2026TEBIKIZENTAI.pdf"
+        }
+    ]
+},
+  堺市: {
+    "scope": "一般申告・電算処理で用意する書類",
+    "items": [
+        "初回は申告書と全資産の明細、継続申告は増減に応じた明細を用意します。",
+        "電算申告は所有者コードを記入し、毎年の全資産を区分して資産の種類ごとに集計します。",
+        "電算申告で特例・非課税資産があれば条項別の集計表、新たに取得した該当資産は専用届出書と関係資料も用意します。増減明細も可能な限り添付します。"
+    ],
+    "sourceUrl": "https://www.city.sakai.lg.jp/benri/download/download_shimin/mokuteki/kurashi/zeikin/koteishisan/syoukyakushishanshinkoku.files/R8shinkokunotebiki.pdf",
+    "sourcePages": "10・11ページ",
+    "checkedOn": "2026/11/27",
+    "sourceLinks": [
+        {
+            "label": "手引 10・11ページ（PDF・別タブ）",
+            "url": "https://www.city.sakai.lg.jp/benri/download/download_shimin/mokuteki/kurashi/zeikin/koteishisan/syoukyakushishanshinkoku.files/R8shinkokunotebiki.pdf"
+        }
+    ]
+},
+  広島市: {
+    "scope": "市の様式で用意する書類・電算処理の条件",
+    "items": [
+        "初回や電算処理の全資産申告は、区ごとに申告書と全資産明細を用意します。",
+        "継続する増減申告は、増加・減少に応じた明細を用意します。電算申告では評価額等も記入します。",
+        "耐用年数短縮・増加償却があれば承認通知書や届出書の写しを添付します。非課税・特例の書類は市の案内で確認してください。"
+    ],
+    "sourceUrl": "https://www.city.hiroshima.lg.jp/_res/projects/default_project/_page_/001/019/210/256152.pdf",
+    "sourcePages": "1・9・10・11・12・7・8ページ",
+    "checkedOn": "2026/11/27",
+    "sourceLinks": [
+        {
+            "label": "手引 1ページ（PDF・別タブ）",
+            "url": "https://www.city.hiroshima.lg.jp/_res/projects/default_project/_page_/001/019/210/256152.pdf"
+        },
+        {
+            "label": "市の公式案内（別タブ）",
+            "url": "https://www.city.hiroshima.lg.jp/living/zei/1006021/1025589/1019210.html"
+        },
+        {
+            "label": "手引 9・10ページ（PDF・別タブ）",
+            "url": "https://www.city.hiroshima.lg.jp/_res/projects/default_project/_page_/001/019/210/256154.pdf"
+        },
+        {
+            "label": "手引 11・12ページ（PDF・別タブ）",
+            "url": "https://www.city.hiroshima.lg.jp/_res/projects/default_project/_page_/001/019/210/256155.pdf"
+        },
+        {
+            "label": "手引 7・8ページ（PDF・別タブ）",
+            "url": "https://www.city.hiroshima.lg.jp/_res/projects/default_project/_page_/001/019/210/256153.pdf"
+        }
+    ]
+},
+  熊本市: {
+    "scope": "私製様式・電算処理で申告する場合",
+    "items": [
+        "私製様式の紙申告は、所有者コードと所在区を記入し、市から届いた申告書も必ず添付します。",
+        "電算申告はA4横で全資産を記載し、取得価額・評価額・課税標準額を記入します。住所・法人名等の変更や送付先の違いは別紙を添付します。",
+        "令和9年1月受付分から、控えの押印・返送は廃止されます。現行様式を令和9年度に使えるかは別途確認中です。"
+    ],
+    "sourceUrl": "https://www.city.kumamoto.jp/kiji00364398/3_64398_480131_up_rp0lb5vo.pdf",
+    "sourcePages": "表紙・6ページ、控え返送の変更は市の案内",
+    "checkedOn": "2026/11/27",
+    "sourceLinks": [
+        {
+            "label": "手引 表紙・6ページ（PDF・別タブ）",
+            "url": "https://www.city.kumamoto.jp/kiji00364398/3_64398_480131_up_rp0lb5vo.pdf"
+        },
+        {
+            "label": "控えの押印・返送の変更（市の案内・別タブ）",
+            "url": "https://www.city.kumamoto.jp/kiji00364398/index.html"
+        }
+    ]
+},
 };

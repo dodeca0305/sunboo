@@ -80,10 +80,14 @@ export default function AssetSubmissionDestination({ disabled = false }: { disab
                   <ul className="list-disc space-y-1 pl-5">
                     {destination.formPreparation.items.map((item) => <li key={item}>{item}</li>)}
                   </ul>
-                  <a href={destination.formPreparation.sourceUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary inline-flex min-h-11 items-center text-sm">
-                    条件の根拠を確認（PDF・別タブ）
-                  </a>
-                  <p className="text-sunboo-ink-muted">手引：{destination.formPreparation.sourcePages}（2026/11/25確認）。該当する方法の条件を確認し、提出前に最新の市の案内と照合してください。</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(destination.formPreparation.sourceLinks ?? [{ label: '条件の根拠を確認（PDF・別タブ）', url: destination.formPreparation.sourceUrl }]).map((source) => (
+                      <a key={source.url} href={source.url} target="_blank" rel="noopener noreferrer" className="btn-secondary inline-flex min-h-11 items-center text-sm">
+                        {source.label}
+                      </a>
+                    ))}
+                  </div>
+                  <p className="text-sunboo-ink-muted">手引：{destination.formPreparation.sourcePages}（{destination.formPreparation.checkedOn ?? '2026/11/25'}確認）。該当する方法の条件を確認し、提出前に最新の市の案内と照合してください。</p>
                 </div>
               </details>
             )}
